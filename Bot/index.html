@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HTMLTools Mail</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+        :root {
+            --bg: #07080d;
+            --surface: #0d0f17;
+            --panel: #111420;
+            --border: #1c2035;
+            --border2: #252840;
+            --text: #e2e8f8;
+            --muted: #4a5270;
+            --accent: #4d7fff;
+            --accent2: #7c4dff;
+            --green: #2de37a;
+            --red: #ff4d6a;
+            --yellow: #ffd24d;
+            --font: 'Syne', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); overflow: hidden; }
+
+        /* ── BACKGROUND ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 50% at 20% 20%, rgba(77,127,255,.07) 0%, transparent 60%),
+                radial-gradient(ellipse 40% 40% at 80% 80%, rgba(124,77,255,.05) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── LOGIN GATE ── */
+        #gate {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg);
+        }
+        #gate.hidden { display: none; }
+        .gate-box {
+            width: 100%; max-width: 380px;
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 18px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            animation: fadeUp .4s ease;
+        }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        .gate-icon { font-size: 2rem; margin-bottom: 1rem; }
+        .gate-title { font-family: var(--font); font-size: 1.6rem; font-weight: 800; margin-bottom: .3rem; }
+        .gate-title span { color: var(--accent); }
+        .gate-sub { font-size: .72rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.6; }
+        .gate-input {
+            width: 100%; padding: .8rem 1rem;
+            background: var(--bg); border: 1px solid var(--border2);
+            border-radius: 10px; color: var(--text);
+            font-family: var(--mono); font-size: .85rem;
+            outline: none; margin-bottom: .75rem;
+            transition: border-color .2s;
+        }
+        .gate-input:focus { border-color: var(--accent); }
+        .gate-btn {
+            width: 100%; padding: .85rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border: none; border-radius: 10px;
+            color: #fff; font-family: var(--font);
+            font-size: .85rem; font-weight: 700;
+            cursor: pointer; transition: opacity .15s;
+        }
+        .gate-btn:hover { opacity: .88; }
+        .gate-err {
+            display: none; margin-top: .75rem;
+            font-size: .7rem; color: var(--red);
+            background: rgba(255,77,106,.08);
+            border-radius: 6px; padding: .4rem;
+        }
+
+        /* ── MAIN APP ── */
+        #app { display: none; flex-direction: column; height: 100%; position: relative; z-index: 1; }
+        #app.show { display: flex; }
+
+        /* ── HEADER ── */
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            height: 52px;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .header-logo { font-family: var(--font); font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: .5rem; }
+        .header-logo span { color: var(--accent); }
+        .header-badge {
+            font-size: .65rem; background: rgba(77,127,255,.15);
+            border: 1px solid rgba(77,127,255,.3);
+            color: var(--accent); padding: .2rem .6rem;
+            border-radius: 20px; font-weight: 600;
+        }
+        .header-user { font-size: .7rem; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+        .user-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+        .logout-btn {
+            background: transparent; border: 1px solid rgba(255,77,106,.3);
+            color: var(--red); font-family: var(--mono); font-size: .65rem;
+            padding: .3rem .6rem; border-radius: 6px; cursor: pointer;
+            transition: all .15s;
+        }
+        .logout-btn:hover { background: rgba(255,77,106,.1); }
+
+        /* ── COMPOSER ── */
+        .composer {
+            flex: 1; display: flex; flex-direction: column;
+            padding: 1.5rem; gap: 1rem; overflow-y: auto;
+            max-width: 860px; width: 100%; margin: 0 auto;
+        }
+        .composer-title { font-family: var(--font); font-size: 1.4rem; font-weight: 800; }
+        .composer-title span { color: var(--accent); }
+
+        .field-group { display: flex; flex-direction: column; gap: .4rem; }
+        .field-label { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+        .field-input {
+            padding: .75rem 1rem;
+            background: var(--panel); border: 1px solid var(--border2);
+            border-radius: 10px; color: var(--text);
+            font-family: var(--mono); font-size: .85rem;
+            outline: none; transition: border-color .2s;
+            width: 100%;
+        }
+        .field-input:focus { border-color: var(--accent); }
+
+        /* ── TYPE TOGGLE ── */
+        .type-toggle { display: flex; gap: .5rem; }
+        .type-btn {
+            flex: 1; padding: .65rem;
+            background: var(--panel); border: 1px solid var(--border2);
+            border-radius: 8px; color: var(--muted);
+            font-family: var(--mono); font-size: .75rem; font-weight: 600;
+            cursor: pointer; transition: all .15s;
+            display: flex; align-items: center; justify-content: center; gap: .4rem;
+        }
+        .type-btn.active {
+            background: rgba(77,127,255,.12);
+            border-color: var(--accent); color: var(--accent);
+        }
+
+        /* ── BODY AREA ── */
+        .body-area { flex: 1; display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+        .body-textarea {
+            flex: 1; min-height: 220px;
+            padding: 1rem;
+            background: var(--panel); border: 1px solid var(--border2);
+            border-radius: 10px; color: var(--text);
+            font-family: var(--mono); font-size: .82rem;
+            outline: none; resize: none;
+            transition: border-color .2s; line-height: 1.6;
+        }
+        .body-textarea:focus { border-color: var(--accent); }
+        .body-hint { font-size: .65rem; color: var(--muted); }
+
+        /* ── NORMAL EMAIL TOOLBAR ── */
+        .normal-toolbar {
+            display: none; gap: .4rem;
+            flex-wrap: wrap; align-items: center;
+        }
+        .normal-toolbar.show { display: flex; }
+        .tb-btn {
+            padding: .4rem .7rem;
+            background: var(--panel); border: 1px solid var(--border2);
+            border-radius: 6px; color: var(--muted);
+            font-size: .7rem; cursor: pointer;
+            transition: all .15s; display: flex; align-items: center; gap: .3rem;
+            font-family: var(--mono);
+        }
+        .tb-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ── IMAGE ATTACHMENTS ── */
+        .attachments { display: flex; flex-wrap: wrap; gap: .5rem; }
+        .attachment-chip {
+            background: var(--panel); border: 1px solid var(--border2);
+            border-radius: 8px; padding: .35rem .7rem;
+            font-size: .7rem; color: var(--text);
+            display: flex; align-items: center; gap: .4rem;
+        }
+        .attachment-chip img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
+        .attachment-remove { cursor: pointer; color: var(--red); font-size: .8rem; }
+        .attachment-remove:hover { opacity: .7; }
+
+        /* ── PREVIEW ── */
+        #preview-area {
+            display: none; flex-direction: column; gap: .5rem;
+        }
+        #preview-area.show { display: flex; }
+        .preview-label { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+        #preview-frame {
+            width: 100%; min-height: 180px; border: 1px solid var(--border2);
+            border-radius: 10px; background: #fff;
+        }
+
+        /* ── SEND BAR ── */
+        .send-bar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+        .send-btn {
+            padding: .8rem 2rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border: none; border-radius: 10px;
+            color: #fff; font-family: var(--font);
+            font-size: .9rem; font-weight: 700;
+            cursor: pointer; transition: all .15s;
+            display: flex; align-items: center; gap: .5rem;
+        }
+        .send-btn:hover { opacity: .88; transform: translateY(-1px); }
+        .send-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .preview-btn {
+            padding: .8rem 1.5rem;
+            background: var(--panel); border: 1px solid var(--border2);
+            border-radius: 10px; color: var(--muted);
+            font-family: var(--mono); font-size: .8rem; font-weight: 600;
+            cursor: pointer; transition: all .15s;
+        }
+        .preview-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .status-msg {
+            font-size: .75rem; padding: .5rem .9rem;
+            border-radius: 8px; display: none;
+        }
+        .status-msg.success { display: block; background: rgba(45,227,122,.1); color: var(--green); }
+        .status-msg.error { display: block; background: rgba(255,77,106,.08); color: var(--red); }
+
+        /* scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+        @media (max-width: 600px) {
+            .composer { padding: 1rem; }
+            .send-btn { width: 100%; justify-content: center; }
+            .preview-btn { width: 100%; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── LOGIN GATE ── -->
+<div id="gate">
+    <div class="gate-box">
+        <div class="gate-icon">✉️</div>
+        <div class="gate-title">HTML<span>Tools</span> Mail</div>
+        <div class="gate-sub">This tool is restricted to authorised administrators only. Sign in with your Google account to continue.</div>
+        <input type="email" id="gate-email" class="gate-input" placeholder="your@email.com" />
+        <input type="password" id="gate-pass" class="gate-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')gateLogin()" />
+        <button class="gate-btn" onclick="gateLogin()">Sign In</button>
+        <div class="gate-err" id="gate-err">⛔ Access denied. This tool is for administrators only.</div>
+    </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+    <header>
+        <div class="header-logo">✉️ HTML<span>Tools</span> Mail <span class="header-badge">ADMIN</span></div>
+        <div class="header-user">
+            <span class="user-dot"></span>
+            <span id="user-label"></span>
+            <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+        </div>
+    </header>
+
+    <div class="composer">
+        <div class="composer-title">New <span>Message</span></div>
+
+        <!-- TO -->
+        <div class="field-group">
+            <label class="field-label">To</label>
+            <input type="email" id="to-email" class="field-input" placeholder="recipient@example.com" />
+        </div>
+
+        <!-- SUBJECT -->
+        <div class="field-group">
+            <label class="field-label">Subject</label>
+            <input type="text" id="subject" class="field-input" placeholder="Email subject..." />
+        </div>
+
+        <!-- TYPE TOGGLE -->
+        <div class="field-group">
+            <label class="field-label">Email Type</label>
+            <div class="type-toggle">
+                <button class="type-btn active" id="btn-normal" onclick="setType('normal')">
+                    <i class="fas fa-align-left"></i> Normal Email
+                </button>
+                <button class="type-btn" id="btn-html" onclick="setType('html')">
+                    <i class="fas fa-code"></i> HTML Email
+                </button>
+            </div>
+        </div>
+
+        <!-- NORMAL TOOLBAR -->
+        <div class="normal-toolbar show" id="normal-toolbar">
+            <button class="tb-btn" onclick="insertLink()"><i class="fas fa-link"></i> Link</button>
+            <button class="tb-btn" onclick="document.getElementById('img-upload').click()"><i class="fas fa-image"></i> Image</button>
+            <input type="file" id="img-upload" accept="image/*" multiple style="display:none" onchange="handleImages(event)" />
+        </div>
+
+        <!-- ATTACHMENTS -->
+        <div class="attachments" id="attachments"></div>
+
+        <!-- BODY -->
+        <div class="body-area">
+            <label class="field-label" id="body-label">Message</label>
+            <textarea class="body-textarea" id="body" placeholder="Write your message here...&#10;&#10;URLs will automatically become clickable links."></textarea>
+            <div class="body-hint" id="body-hint">URLs will be automatically converted to clickable links.</div>
+        </div>
+
+        <!-- HTML PREVIEW -->
+        <div id="preview-area">
+            <div class="preview-label">HTML Preview</div>
+            <iframe id="preview-frame" sandbox="allow-same-origin"></iframe>
+        </div>
+
+        <!-- SEND BAR -->
+        <div class="send-bar">
+            <button class="send-btn" id="send-btn" onclick="sendEmail()">
+                <i class="fas fa-paper-plane"></i> Send Email
+            </button>
+            <button class="preview-btn" id="preview-btn" onclick="togglePreview()" style="display:none">
+                <i class="fas fa-eye"></i> Preview HTML
+            </button>
+            <div class="status-msg" id="status-msg"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const ALLOWED_EMAIL = 'matthewbozhe@gmail.com';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+        authDomain: "htmltools-library.firebaseapp.com",
+        databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
+        projectId: "htmltools-library",
+        storageBucket: "htmltools-library.firebasestorage.app",
+        messagingSenderId: "973699554480",
+        appId: "1:973699554480:web:33ed9d341fc48ed8092f75"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, user => {
+        if (user && user.email.toLowerCase() === ALLOWED_EMAIL.toLowerCase()) {
+            document.getElementById('gate').classList.add('hidden');
+            document.getElementById('app').classList.add('show');
+            document.getElementById('user-label').textContent = user.email;
+        } else if (user) {
+            signOut(auth);
+            showGateErr();
+        }
+    });
+
+    window.gateLogin = async function() {
+        const email = document.getElementById('gate-email').value.trim();
+        const pass = document.getElementById('gate-pass').value;
+        const err = document.getElementById('gate-err');
+        err.style.display = 'none';
+        if (!email || !pass) { err.textContent = 'Please fill in both fields.'; err.style.display = 'block'; return; }
+        if (email.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) { err.textContent = '⛔ Access denied. This tool is for administrators only.'; err.style.display = 'block'; return; }
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+        } catch(e) {
+            err.textContent = '⛔ ' + e.message.replace('Firebase: ', '').replace(/\(.*\)/, '').trim();
+            err.style.display = 'block';
+        }
+    };
+
+    window.doLogout = async function() {
+        await signOut(auth);
+        document.getElementById('gate').classList.remove('hidden');
+        document.getElementById('app').classList.remove('show');
+    };
+
+    function showGateErr() {
+        const err = document.getElementById('gate-err');
+        err.textContent = '⛔ Access denied. This tool is for administrators only.';
+        err.style.display = 'block';
+    }
+</script>
+
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+    emailjs.init('U6w_EdzgghaLMRwai');
+
+    let emailType = 'normal';
+    let attachedImages = [];
+    let previewVisible = false;
+
+    function setType(type) {
+        emailType = type;
+        document.getElementById('btn-normal').classList.toggle('active', type === 'normal');
+        document.getElementById('btn-html').classList.toggle('active', type === 'html');
+        document.getElementById('normal-toolbar').classList.toggle('show', type === 'normal');
+        document.getElementById('preview-btn').style.display = type === 'html' ? 'block' : 'none';
+        document.getElementById('body-hint').textContent = type === 'html'
+            ? 'Type your full HTML here. It will be sent as-is.'
+            : 'URLs will be automatically converted to clickable links.';
+        document.getElementById('body').placeholder = type === 'html'
+            ? '<h1>Hello!</h1>\n<p>Your message here...</p>'
+            : 'Write your message here...\n\nURLs will automatically become clickable links.';
+        if (type === 'normal') {
+            document.getElementById('preview-area').classList.remove('show');
+            previewVisible = false;
+        }
+    }
+
+    function insertLink() {
+        const url = prompt('Enter URL:');
+        if (!url) return;
+        const text = prompt('Link text (leave blank to use URL):') || url;
+        const ta = document.getElementById('body');
+        const pos = ta.selectionStart;
+        const val = ta.value;
+        ta.value = val.slice(0, pos) + `[${text}](${url})` + val.slice(pos);
+    }
+
+    function handleImages(e) {
+        const files = Array.from(e.target.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                attachedImages.push({ name: file.name, data: ev.target.result });
+                renderAttachments();
+            };
+            reader.readAsDataURL(file);
+        });
+        e.target.value = '';
+    }
+
+    function renderAttachments() {
+        const container = document.getElementById('attachments');
+        container.innerHTML = '';
+        attachedImages.forEach((img, i) => {
+            const chip = document.createElement('div');
+            chip.className = 'attachment-chip';
+            chip.innerHTML = `<img src="${img.data}" alt="${img.name}"><span>${img.name}</span><span class="attachment-remove" onclick="removeAttachment(${i})">✕</span>`;
+            container.appendChild(chip);
+        });
+    }
+
+    window.removeAttachment = function(i) {
+        attachedImages.splice(i, 1);
+        renderAttachments();
+    };
+
+    function autoLinkify(text) {
+        // Convert markdown links [text](url)
+        text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" style="color:#4d7fff;">$1</a>');
+        // Convert bare URLs
+        text = text.replace(/(^|[^"'=])(https?:\/\/[^\s<>"]+)/g, '$1<a href="$2" style="color:#4d7fff;">$2</a>');
+        // Convert newlines
+        text = text.replace(/\n/g, '<br>');
+        return text;
+    }
+
+    function buildHtmlBody() {
+        if (emailType === 'html') {
+            return document.getElementById('body').value;
+        }
+        let html = `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222;max-width:600px;">`;
+        html += autoLinkify(document.getElementById('body').value);
+        if (attachedImages.length > 0) {
+            html += '<br><br>';
+            attachedImages.forEach(img => {
+                html += `<img src="${img.data}" style="max-width:100%;border-radius:8px;margin-bottom:12px;display:block;" alt="${img.name}"><br>`;
+            });
+        }
+        html += '</div>';
+        return html;
+    }
+
+    function togglePreview() {
+        previewVisible = !previewVisible;
+        const area = document.getElementById('preview-area');
+        const frame = document.getElementById('preview-frame');
+        if (previewVisible) {
+            area.classList.add('show');
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            doc.open(); doc.write(buildHtmlBody()); doc.close();
+            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye-slash"></i> Hide Preview';
+        } else {
+            area.classList.remove('show');
+            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview HTML';
+        }
+    }
+
+    window.sendEmail = async function() {
+        const to = document.getElementById('to-email').value.trim();
+        const subject = document.getElementById('subject').value.trim();
+        const body = document.getElementById('body').value.trim();
+        const btn = document.getElementById('send-btn');
+        const status = document.getElementById('status-msg');
+
+        status.className = 'status-msg';
+        status.style.display = 'none';
+
+        if (!to) { showStatus('Please enter a recipient email.', 'error'); return; }
+        if (!subject) { showStatus('Please enter a subject.', 'error'); return; }
+        if (!body) { showStatus('Please write a message.', 'error'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+        try {
+            await emailjs.send('service_mid7t0l', 'template_wdch3lh', {
+                email: to,
+                subject: subject,
+                message: buildHtmlBody(),
+                to_name: to.split('@')[0],
+            });
+            showStatus('✅ Email sent successfully!', 'success');
+            document.getElementById('to-email').value = '';
+            document.getElementById('subject').value = '';
+            document.getElementById('body').value = '';
+            attachedImages = [];
+            renderAttachments();
+        } catch(e) {
+            console.error(e);
+            showStatus('❌ Failed to send: ' + (e.text || e.message || 'Unknown error'), 'error');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
+    };
+
+    function showStatus(msg, type) {
+        const el = document.getElementById('status-msg');
+        el.textContent = msg;
+        el.className = 'status-msg ' + type;
+    }
+</script>
+</body>
+</html>
