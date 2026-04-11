@@ -24,12 +24,7 @@
     <div class="err" id="err"></div>
     <div class="back" onclick="window.location.href='https://htmltools.me'">← Back to HTMLTools</div>
 </div>
-
-<!-- EmailJS -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
-    emailjs.init('U6w_EdzgghaLMRwai');
-
     async function sendReset() {
         const email = document.getElementById('email').value.trim();
         const msg = document.getElementById('msg');
@@ -48,12 +43,23 @@
         btn.textContent = 'Sending...';
 
         try {
-            await emailjs.send('service_mid7t0l', 'template_wdch3lh', {
-                to_email: email,
-                to_name: email.split('@')[0],
-                reset_link: 'https://htmltools.me/ResetPassword/?email=' + encodeURIComponent(email)
+            const res = await fetch('https://htmltools-reset.bozhetarnikmatthew.workers.dev/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to_email: email,
+                    to_name: email.split('@')[0],
+                    reset_link: 'https://htmltools.me/ResetPassword/?email=' + encodeURIComponent(email)
+                })
             });
-            msg.style.display = 'block';
+
+            if (res.ok) {
+                msg.style.display = 'block';
+            } else {
+                const data = await res.json();
+                err.textContent = data?.message || 'Failed to send. Please try again.';
+                err.style.display = 'block';
+            }
         } catch(e) {
             err.textContent = 'Failed to send. Please try again.';
             err.style.display = 'block';
