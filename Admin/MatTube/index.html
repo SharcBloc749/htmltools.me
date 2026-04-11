@@ -1,0 +1,2307 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+		<title>MatTube Admin - HTML Tools</title>
+		<link rel="icon" type="image/png" href="Adminlogo.png" />
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+		/>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link
+			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+
+		<!-- Firebase SDK -->
+		<script type="module">
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+			import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail }
+			  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+			import { getDatabase, ref, set, onValue, remove, serverTimestamp, push, get, update }
+			  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+			const firebaseConfig = {
+			  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+			  authDomain: "htmltools-library.firebaseapp.com",
+			  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
+			  projectId: "htmltools-library",
+			  storageBucket: "htmltools-library.firebasestorage.app",
+			  messagingSenderId: "973699554480",
+			  appId: "1:973699554480:web:33ed9d341fc48ed8092f75"
+			};
+
+			const app  = initializeApp(firebaseConfig);
+			const auth = getAuth(app);
+			const db   = getDatabase(app);
+
+			window._fb = { auth, db, ref, set, onValue, remove, serverTimestamp, push, get, update,
+			               signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail };
+			window.dispatchEvent(new Event('fbready'));
+		</script>
+
+		<style>
+			:root {
+			  --bg: #080810;
+			  --surface: #0e0e1a;
+			  --surface2: #131320;
+			  --surface3: #1a1a2e;
+			  --border: #1e1e35;
+			  --border2: #2a2a45;
+			  --text: #e8e8f5;
+			  --muted: #7070a0;
+			  --muted2: #40405a;
+			  --red: #ff2244;
+			  --red2: #ff4466;
+			  --gold: #f59e0b;
+			  --gold2: #fbbf24;
+			  --blue: #3ea6ff;
+			  --green: #22c55e;
+			  --purple: #a855f7;
+			  --cyan: #06b6d4;
+			  --font-mono: 'JetBrains Mono', monospace;
+			  --font-display: 'Syne', sans-serif;
+			  --r: 10px;
+			  --r2: 16px;
+			  --glow-gold: 0 0 30px rgba(245,158,11,.15), 0 0 60px rgba(245,158,11,.07);
+			  --glow-red: 0 0 30px rgba(255,34,68,.15);
+			}
+
+			* { box-sizing: border-box; margin: 0; padding: 0; }
+			html, body { height: 100%; overflow: hidden; }
+			body { background: var(--bg); color: var(--text); font-family: var(--font-mono); }
+
+			/* Scrollbar */
+			::-webkit-scrollbar { width: 4px; height: 4px; }
+			::-webkit-scrollbar-track { background: transparent; }
+			::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+			/* ======================================================
+			   LOGIN SCREEN
+			====================================================== */
+			#login-screen {
+			  position: fixed; inset: 0; background: var(--bg);
+			  display: flex; align-items: center; justify-content: center;
+			  z-index: 9999;
+			}
+			#login-screen.hidden { display: none; }
+
+			.login-card {
+			  width: 420px; max-width: 95vw;
+			  background: var(--surface); border: 1px solid var(--border2);
+			  border-radius: 20px; padding: 40px;
+			  box-shadow: 0 0 80px rgba(245,158,11,.08), 0 24px 80px rgba(0,0,0,.6);
+			  position: relative; overflow: hidden;
+			}
+			.login-card::before {
+			  content: ''; position: absolute; top: -1px; left: 20%; right: 20%; height: 2px;
+			  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+			}
+			.login-logo {
+			  display: flex; align-items: center; gap: 12px; margin-bottom: 32px; justify-content: center;
+			}
+			.login-logo-icon {
+			  width: 44px; height: 32px; background: var(--red); border-radius: 8px;
+			  display: flex; align-items: center; justify-content: center;
+			  box-shadow: 0 0 20px rgba(255,34,68,.4);
+			}
+			.login-logo-icon i { color: #fff; font-size: 16px; }
+			.login-logo-txt { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: #fff; }
+			.login-logo-badge {
+			  background: linear-gradient(135deg, var(--gold), var(--gold2));
+			  color: #000; font-size: 9px; font-weight: 700; padding: 2px 7px;
+			  border-radius: 20px; letter-spacing: .5px; margin-left: 4px;
+			}
+			.login-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; text-align: center; }
+			.login-sub { font-size: 11px; color: var(--muted); text-align: center; margin-bottom: 28px; line-height: 1.6; }
+
+			.field { margin-bottom: 16px; }
+			.field label { display: block; font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 1px; margin-bottom: 7px; text-transform: uppercase; }
+			.field input {
+			  width: 100%; background: var(--bg); border: 1px solid var(--border2);
+			  color: var(--text); padding: 11px 14px; border-radius: 8px; font-size: 13px;
+			  font-family: var(--font-mono); outline: none; transition: border-color .2s, box-shadow .2s;
+			}
+			.field input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(245,158,11,.1); }
+			.field input::placeholder { color: var(--muted2); }
+
+			.login-err {
+			  background: rgba(255,34,68,.08); border: 1px solid rgba(255,34,68,.25);
+			  color: #ff8899; font-size: 12px; padding: 10px 14px; border-radius: 8px;
+			  margin-bottom: 14px; display: none; line-height: 1.5;
+			}
+			.login-err.show { display: block; }
+
+			.btn-login {
+			  width: 100%; padding: 12px; background: linear-gradient(135deg, var(--gold), var(--gold2));
+			  border: none; border-radius: 8px; color: #000; font-family: var(--font-display);
+			  font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; letter-spacing: .3px;
+			}
+			.btn-login:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(245,158,11,.3); }
+			.btn-login:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+			.login-access-note {
+			  margin-top: 20px; padding: 12px; background: rgba(245,158,11,.05);
+			  border: 1px solid rgba(245,158,11,.15); border-radius: 8px;
+			  font-size: 11px; color: var(--muted); text-align: center; line-height: 1.6;
+			}
+			.login-access-note strong { color: var(--gold); }
+
+			/* ======================================================
+			   MAIN LAYOUT
+			====================================================== */
+			#app { display: flex; flex-direction: column; height: 100%; }
+			#app.hidden { display: none; }
+
+			/* TOPBAR */
+			#topbar {
+			  height: 56px; flex-shrink: 0; background: var(--surface);
+			  border-bottom: 1px solid var(--border);
+			  display: flex; align-items: center; padding: 0 20px; gap: 14px;
+			  position: relative; z-index: 100;
+			}
+			#topbar::after {
+			  content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+			  background: linear-gradient(90deg, transparent, rgba(245,158,11,.3), transparent);
+			}
+			.tb-logo { display: flex; align-items: center; gap: 10px; }
+			.tb-logo-icon { width: 32px; height: 22px; background: var(--red); border-radius: 5px; display: flex; align-items: center; justify-content: center; }
+			.tb-logo-icon i { color: #fff; font-size: 12px; }
+			.tb-logo-txt { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: #fff; }
+			.tb-sep { width: 1px; height: 24px; background: var(--border2); margin: 0 4px; }
+			.tb-badge {
+			  display: flex; align-items: center; gap: 6px;
+			  background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3);
+			  padding: 4px 12px; border-radius: 20px; font-size: 11px; color: var(--gold); font-weight: 600;
+			}
+			.tb-badge i { font-size: 10px; }
+			.tb-spacer { flex: 1; }
+			.tb-stat {
+			  display: flex; align-items: center; gap: 7px; background: var(--surface2);
+			  border: 1px solid var(--border); padding: 5px 12px; border-radius: 20px;
+			  font-size: 11px; color: var(--muted);
+			}
+			.tb-stat strong { color: var(--text); }
+			.online-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.6); flex-shrink: 0; }
+			.tb-user {
+			  display: flex; align-items: center; gap: 8px; background: var(--surface2);
+			  border: 1px solid var(--border2); padding: 6px 14px; border-radius: 20px; font-size: 12px; color: var(--muted);
+			}
+			.tb-user strong { color: var(--gold); }
+			.tb-signout {
+			  width: 32px; height: 32px; border-radius: 50%; background: rgba(255,34,68,.1);
+			  border: 1px solid rgba(255,34,68,.25); color: #ff8899; cursor: pointer;
+			  display: flex; align-items: center; justify-content: center; font-size: 13px;
+			  transition: all .15s;
+			}
+			.tb-signout:hover { background: rgba(255,34,68,.2); color: #fff; }
+
+			/* LAYOUT */
+			#main-layout { display: flex; flex: 1; overflow: hidden; }
+
+			/* SIDEBAR */
+			#sidebar {
+			  width: 220px; flex-shrink: 0; background: var(--surface);
+			  border-right: 1px solid var(--border);
+			  display: flex; flex-direction: column; padding: 14px 10px; gap: 2px; overflow-y: auto;
+			}
+			.nav-section { font-size: 9px; font-weight: 700; color: var(--muted2); letter-spacing: 1.2px; padding: 10px 12px 6px; text-transform: uppercase; }
+			.nav-item {
+			  display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px;
+			  cursor: pointer; font-size: 12px; font-weight: 600; color: var(--muted); transition: all .15s;
+			  position: relative;
+			}
+			.nav-item i { width: 16px; text-align: center; font-size: 13px; }
+			.nav-item:hover { background: var(--surface2); color: var(--text); }
+			.nav-item.active { background: rgba(245,158,11,.1); color: var(--gold); border: 1px solid rgba(245,158,11,.2); }
+			.nav-item.active i { color: var(--gold); }
+			.nav-badge {
+			  margin-left: auto; background: var(--red); color: #fff;
+			  font-size: 9px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px;
+			  display: flex; align-items: center; justify-content: center; padding: 0 5px;
+			}
+			.nav-item.danger { color: #ff8899; }
+			.nav-item.danger:hover { background: rgba(255,34,68,.1); color: #ff4466; }
+			.nav-item.danger.active { background: rgba(255,34,68,.12); color: var(--red2); border-color: rgba(255,34,68,.25); }
+
+			/* CONTENT */
+			#content { flex: 1; overflow-y: auto; padding: 24px; }
+
+			/* SECTION HEADER */
+			.section-hd {
+			  display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+			}
+			.section-hd h2 { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+			.section-hd h2 i { color: var(--gold); font-size: 16px; }
+			.section-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+			/* PANEL VISIBILITY */
+			.panel { display: none; }
+			.panel.active { display: block; }
+
+			/* ======================================================
+			   STAT CARDS
+			====================================================== */
+			.stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+			.stat-card {
+			  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+			  position: relative; overflow: hidden; transition: border-color .2s;
+			}
+			.stat-card:hover { border-color: var(--border2); }
+			.stat-card::before {
+			  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+			  background: var(--accent, var(--gold));
+			  opacity: .5;
+			}
+			.stat-card.green::before { --accent: var(--green); }
+			.stat-card.red::before { --accent: var(--red); }
+			.stat-card.blue::before { --accent: var(--blue); }
+			.stat-card.purple::before { --accent: var(--purple); }
+			.stat-card.cyan::before { --accent: var(--cyan); }
+			.stat-val { font-family: var(--font-display); font-size: 30px; font-weight: 800; color: #fff; line-height: 1; }
+			.stat-lbl { font-size: 10px; color: var(--muted); margin-top: 5px; letter-spacing: .5px; text-transform: uppercase; }
+			.stat-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 28px; opacity: .07; }
+
+			/* ======================================================
+			   VIEWER GRID
+			====================================================== */
+			.viewer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+			.viewer-card {
+			  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+			  transition: border-color .2s, box-shadow .2s; position: relative;
+			}
+			.viewer-card:hover { border-color: var(--border2); box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+			.vc-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+			.vc-av {
+			  width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+			  display: flex; align-items: center; justify-content: center;
+			  font-family: var(--font-display); font-size: 16px; font-weight: 700; color: #fff;
+			}
+			.vc-info { flex: 1; min-width: 0; }
+			.vc-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.vc-email { font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.vc-online { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--green); font-weight: 600; flex-shrink: 0; }
+			.vc-watching {
+			  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+			  padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+			}
+			.vc-thumb { width: 60px; height: 34px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: var(--surface3); }
+			.vc-watch-info { flex: 1; min-width: 0; }
+			.vc-watch-lbl { font-size: 9px; color: var(--muted2); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
+			.vc-watch-title { font-size: 11px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+			.vc-watch-ch { font-size: 10px; color: var(--muted); margin-top: 2px; }
+			.vc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+			/* ======================================================
+			   BUTTONS
+			====================================================== */
+			.btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font-mono); transition: all .15s; border: 1px solid transparent; }
+			.btn-default { background: var(--surface2); border-color: var(--border2); color: var(--muted); }
+			.btn-default:hover { border-color: var(--border2); color: var(--text); background: var(--surface3); }
+			.btn-gold { background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); color: var(--gold); }
+			.btn-gold:hover { background: rgba(245,158,11,.18); }
+			.btn-red { background: rgba(255,34,68,.1); border-color: rgba(255,34,68,.3); color: var(--red2); }
+			.btn-red:hover { background: rgba(255,34,68,.18); }
+			.btn-blue { background: rgba(62,166,255,.1); border-color: rgba(62,166,255,.3); color: var(--blue); }
+			.btn-blue:hover { background: rgba(62,166,255,.18); }
+			.btn-green { background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.3); color: var(--green); }
+			.btn-green:hover { background: rgba(34,197,94,.18); }
+			.btn-purple { background: rgba(168,85,247,.1); border-color: rgba(168,85,247,.3); color: var(--purple); }
+			.btn-purple:hover { background: rgba(168,85,247,.18); }
+			.btn-lg { padding: 10px 20px; font-size: 13px; }
+			.btn-full { width: 100%; justify-content: center; }
+			.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+			/* ======================================================
+			   FORMS / INPUTS
+			====================================================== */
+			.inp {
+			  background: var(--bg); border: 1px solid var(--border2); color: var(--text);
+			  padding: 10px 14px; border-radius: 8px; font-size: 12px; font-family: var(--font-mono);
+			  outline: none; transition: border-color .2s; width: 100%;
+			}
+			.inp:focus { border-color: var(--gold); }
+			.inp::placeholder { color: var(--muted2); }
+			textarea.inp { resize: vertical; min-height: 80px; line-height: 1.6; }
+			select.inp {
+			  appearance: none; cursor: pointer;
+			  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+			  background-repeat: no-repeat; background-position: right 12px center;
+			  padding-right: 32px;
+			}
+			.form-row { margin-bottom: 14px; }
+			.form-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 7px; display: block; }
+			.form-row-inline { display: flex; gap: 10px; align-items: flex-end; }
+			.form-row-inline .form-row { flex: 1; margin-bottom: 0; }
+
+			/* ======================================================
+			   CARDS / SECTIONS
+			====================================================== */
+			.card {
+			  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+			  padding: 20px; margin-bottom: 16px;
+			}
+			.card-hd { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+			.card-hd i { font-size: 13px; color: var(--gold); }
+			.card-hd.red i { color: var(--red2); }
+			.card-hd.blue i { color: var(--blue); }
+			.card-hd.green i { color: var(--green); }
+			.card-hd.purple i { color: var(--purple); }
+
+			/* ======================================================
+			   PRANK PRESETS
+			====================================================== */
+			.presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+			.preset-btn {
+			  background: var(--surface2); border: 1px solid var(--border2); color: var(--muted);
+			  padding: 5px 12px; border-radius: 20px; font-size: 11px; cursor: pointer;
+			  font-family: var(--font-mono); transition: all .15s;
+			}
+			.preset-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(245,158,11,.07); }
+			.preset-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(245,158,11,.1); }
+
+			/* ======================================================
+			   ANNOUNCEMENT HISTORY
+			====================================================== */
+			.announce-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+			.announce-item {
+			  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+			  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+			}
+			.announce-icon { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-top: 1px; }
+			.announce-icon.broadcast { background: rgba(62,166,255,.12); color: var(--blue); }
+			.announce-icon.prank { background: rgba(245,158,11,.12); color: var(--gold); }
+			.announce-icon.lock { background: rgba(255,34,68,.12); color: var(--red2); }
+			.announce-txt { flex: 1; font-size: 11px; color: var(--muted); line-height: 1.6; }
+			.announce-txt strong { color: var(--text); }
+			.announce-time { font-size: 10px; color: var(--muted2); flex-shrink: 0; }
+
+			/* ======================================================
+			   ADMIN LIST
+			====================================================== */
+			.admin-list { display: flex; flex-direction: column; gap: 8px; }
+			.admin-item {
+			  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+			  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+			}
+			.admin-item-av {
+			  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+			  justify-content: center; font-family: var(--font-display); font-size: 14px;
+			  font-weight: 700; color: #fff; flex-shrink: 0;
+			}
+			.admin-item-info { flex: 1; min-width: 0; }
+			.admin-item-email { font-size: 12px; color: var(--text); font-weight: 600; }
+			.admin-item-role {
+			  font-size: 10px; color: var(--gold); display: inline-flex; align-items: center;
+			  gap: 4px; margin-top: 2px;
+			}
+			.admin-item-owner { color: var(--red2); }
+
+			/* ======================================================
+			   TOAST
+			====================================================== */
+			#toast {
+			  position: fixed; bottom: 24px; left: 50%;
+			  transform: translateX(-50%) translateY(20px);
+			  background: var(--surface); border: 1px solid var(--border2); color: var(--text);
+			  padding: 10px 20px; border-radius: 30px; font-size: 12px; font-weight: 600;
+			  z-index: 99999; opacity: 0; transition: all .3s; pointer-events: none;
+			  display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+			}
+			#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+			#toast i { font-size: 14px; }
+
+			/* ======================================================
+			   MODAL
+			====================================================== */
+			.modal-overlay {
+			  position: fixed; inset: 0; background: rgba(0,0,0,.85); backdrop-filter: blur(8px);
+			  display: none; align-items: center; justify-content: center; z-index: 1000;
+			}
+			.modal-overlay.open { display: flex; }
+			.modal-box {
+			  background: var(--surface); border: 1px solid var(--border2); border-radius: 16px;
+			  width: 90%; max-width: 480px; box-shadow: 0 24px 80px rgba(0,0,0,.7);
+			  position: relative; overflow: hidden;
+			}
+			.modal-box::before {
+			  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+			  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+			}
+			.modal-hd {
+			  display: flex; align-items: center; justify-content: space-between;
+			  padding: 16px 20px; border-bottom: 1px solid var(--border);
+			}
+			.modal-hd h3 { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+			.modal-hd h3 i { font-size: 14px; color: var(--gold); }
+			.modal-close { background: none; border: none; color: var(--muted2); font-size: 20px; cursor: pointer; transition: color .15s; }
+			.modal-close:hover { color: #fff; }
+			.modal-body { padding: 20px; }
+			.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--border); }
+
+			/* ======================================================
+			   CHECKBOX / TOGGLE
+			====================================================== */
+			.toggle-row { display: flex; align-items: center; gap: 10px; }
+			.toggle-row label { font-size: 12px; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 7px; }
+			.toggle-row label input[type=checkbox] { accent-color: var(--gold); width: 14px; height: 14px; }
+
+			/* ======================================================
+			   TOP VIDEOS TABLE
+			====================================================== */
+			.top-vids { display: flex; flex-direction: column; gap: 8px; }
+			.tv-row {
+			  display: flex; align-items: center; gap: 12px; padding: 8px 0;
+			  border-bottom: 1px solid var(--border);
+			}
+			.tv-row:last-child { border-bottom: none; }
+			.tv-rank { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--muted2); width: 24px; flex-shrink: 0; text-align: center; }
+			.tv-thumb { width: 56px; height: 32px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: var(--surface3); }
+			.tv-info { flex: 1; min-width: 0; }
+			.tv-title { font-size: 12px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+			.tv-ch { font-size: 10px; color: var(--muted); margin-top: 2px; }
+			.tv-count { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--gold); flex-shrink: 0; }
+
+			/* Activity log */
+			.activity-log { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+			.log-entry { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; background: var(--bg); border-radius: 6px; border-left: 2px solid var(--border2); font-size: 11px; color: var(--muted); }
+			.log-entry.info { border-left-color: var(--blue); }
+			.log-entry.warn { border-left-color: var(--gold); }
+			.log-entry.danger { border-left-color: var(--red2); }
+			.log-entry.success { border-left-color: var(--green); }
+			.log-time { color: var(--muted2); font-size: 10px; flex-shrink: 0; margin-top: 1px; }
+			.log-msg { flex: 1; line-height: 1.5; }
+			.log-msg strong { color: var(--text); }
+
+			/* Spin */
+			@keyframes spin { to { transform: rotate(360deg); } }
+			.fa-spin-me { animation: spin 1s linear infinite; }
+
+			/* Empty */
+			.empty-state { text-align: center; padding: 60px 20px; color: var(--muted2); }
+			.empty-state i { font-size: 36px; display: block; margin-bottom: 14px; opacity: .3; }
+			.empty-state p { font-size: 13px; }
+
+			/* Separator */
+			.sep { height: 1px; background: var(--border); margin: 16px 0; }
+
+			/* Progress bar */
+			.progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+			.progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold2)); border-radius: 2px; transition: width .5s; }
+
+			/* User row in viewer - admin indicator */
+			.admin-crown { color: var(--gold); font-size: 10px; margin-left: 4px; }
+			.owner-crown { color: var(--red2); font-size: 10px; margin-left: 4px; }
+		</style>
+	</head>
+	<body>
+		<!-- LOGIN SCREEN -->
+		<div id="login-screen">
+			<div class="login-card">
+				<div class="login-logo">
+					<div class="login-logo-icon">
+						<i class="fab fa-youtube"></i>
+					</div>
+					<span class="login-logo-txt">MatTube</span>
+					<span class="login-logo-badge">ADMIN</span>
+				</div>
+				<div class="login-title">Admin Control Panel</div>
+				<div class="login-sub">
+					Restricted access. Sign in with your admin account.
+				</div>
+				<div class="login-err" id="login-err"></div>
+				<div class="field">
+					<label>Email Address</label>
+					<input
+						type="email"
+						id="li-email"
+						placeholder="admin@example.com"
+						autocomplete="email"
+					/>
+				</div>
+				<div class="field">
+					<label>Password</label>
+					<input
+						type="password"
+						id="li-pass"
+						placeholder="••••••••"
+						autocomplete="current-password"
+					/>
+				</div>
+				<button class="btn-login" id="li-btn">
+					Sign In to Admin Panel
+				</button>
+				<div class="login-access-note">
+					Access is restricted to
+					<strong>authorized staff members only</strong>
+
+					<br />
+					Unauthorized access attempts are logged.
+				</div>
+			</div>
+		</div>
+
+		<!-- MAIN APP -->
+		<div id="app" class="hidden">
+			<!-- TOPBAR -->
+			<div id="topbar">
+				<div class="tb-logo">
+					<div class="tb-logo-icon">
+						<i class="fab fa-youtube"></i>
+					</div>
+					<span class="tb-logo-txt">MatTube</span>
+				</div>
+				<div class="tb-sep"></div>
+				<div class="tb-badge">
+					<i class="fas fa-crown"></i>
+					Admin Panel
+				</div>
+				<div class="tb-spacer"></div>
+				<div class="tb-stat">
+					<div class="online-dot"></div>
+					<strong id="tb-online">0</strong>
+					&nbsp;online
+				</div>
+				<div class="tb-user">
+					<i
+						class="fas fa-user-shield"
+						style="color:var(--gold);"
+					></i>
+					<strong id="tb-username">Loading…</strong>
+				</div>
+				<button class="tb-signout" id="tb-signout" title="Sign Out">
+					<i class="fas fa-sign-out-alt"></i>
+				</button>
+			</div>
+
+			<!-- LAYOUT -->
+			<div id="main-layout">
+				<!-- SIDEBAR -->
+				<div id="sidebar">
+					<div class="nav-section">Dashboard</div>
+					<div class="nav-item active" data-panel="overview">
+						<i class="fas fa-chart-line"></i>
+						Overview
+					</div>
+					<div class="nav-item" data-panel="viewers">
+						<i class="fas fa-users"></i>
+						Live Viewers
+						<span class="nav-badge" id="nav-viewer-cnt">0</span>
+					</div>
+
+					<div class="nav-section">Controls</div>
+					<div class="nav-item" data-panel="broadcast">
+						<i class="fas fa-bullhorn"></i>
+						Broadcast
+					</div>
+					<div class="nav-item" data-panel="prank">
+						<i class="fas fa-mask"></i>
+						Prank Studio
+					</div>
+					<div class="nav-item" data-panel="redirect">
+						<i class="fas fa-video"></i>
+						Force Redirect
+					</div>
+					<div class="nav-item" data-panel="locks">
+						<i class="fas fa-lock"></i>
+						Screen Locks
+					</div>
+
+					<div class="nav-section">Management</div>
+					<div class="nav-item" data-panel="admins">
+						<i class="fas fa-user-shield"></i>
+						Admin Users
+					</div>
+					<div class="nav-item" data-panel="stats">
+						<i class="fas fa-chart-bar"></i>
+						Statistics
+					</div>
+					<div class="nav-item" data-panel="activity">
+						<i class="fas fa-history"></i>
+						Activity Log
+					</div>
+
+					<div class="nav-section">Danger Zone</div>
+					<div class="nav-item danger" data-panel="danger">
+						<i class="fas fa-radiation-alt"></i>
+						Mass Actions
+					</div>
+				</div>
+
+				<!-- CONTENT -->
+				<div id="content">
+					<!-- ============ OVERVIEW ============ -->
+					<div class="panel active" id="panel-overview">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-chart-line"></i>
+									Overview
+								</h2>
+								<div class="section-sub">
+									Real-time dashboard for MatTube
+								</div>
+							</div>
+							<button class="btn btn-gold" id="refresh-btn">
+								<i class="fas fa-sync-alt"></i>
+								Refresh
+							</button>
+						</div>
+
+						<div class="stats-row">
+							<div class="stat-card green">
+								<div class="stat-val" id="ov-online">0</div>
+								<div class="stat-lbl">Online Now</div>
+								<i class="fas fa-users stat-icon"></i>
+							</div>
+							<div class="stat-card">
+								<div class="stat-val" id="ov-pranks">0</div>
+								<div class="stat-lbl">Total Pranks</div>
+								<i class="fas fa-mask stat-icon"></i>
+							</div>
+							<div class="stat-card blue">
+								<div class="stat-val" id="ov-broadcasts">0</div>
+								<div class="stat-lbl">Broadcasts</div>
+								<i class="fas fa-bullhorn stat-icon"></i>
+							</div>
+							<div class="stat-card red">
+								<div class="stat-val" id="ov-locked">0</div>
+								<div class="stat-lbl">Locked Now</div>
+								<i class="fas fa-lock stat-icon"></i>
+							</div>
+							<div class="stat-card purple">
+								<div class="stat-val" id="ov-admins">0</div>
+								<div class="stat-lbl">Admins</div>
+								<i class="fas fa-crown stat-icon"></i>
+							</div>
+						</div>
+
+						<div
+							style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"
+						>
+							<div class="card">
+								<div class="card-hd">
+									<i class="fas fa-users"></i>
+									Currently Watching
+								</div>
+								<div id="ov-watching-list">
+									<div
+										class="empty-state"
+										style="padding:30px 0;"
+									>
+										<i class="fas fa-eye"></i>
+										<p>No one is watching yet</p>
+									</div>
+								</div>
+							</div>
+							<div class="card">
+								<div class="card-hd">
+									<i class="fas fa-fire"></i>
+									Top Videos
+								</div>
+								<div class="top-vids" id="ov-top-vids">
+									<div
+										class="empty-state"
+										style="padding:30px 0;"
+									>
+										<i class="fas fa-chart-bar"></i>
+										<p>No data yet</p>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="card">
+							<div class="card-hd">
+								<i class="fas fa-history"></i>
+								Recent Activity
+							</div>
+							<div class="activity-log" id="ov-activity"></div>
+						</div>
+					</div>
+
+					<!-- ============ VIEWERS ============ -->
+					<div class="panel" id="panel-viewers">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-users"></i>
+									Live Viewers
+								</h2>
+								<div class="section-sub">
+									Users currently browsing MatTube
+								</div>
+							</div>
+							<button
+								class="btn btn-gold"
+								onclick="renderViewers()"
+							>
+								<i class="fas fa-sync-alt"></i>
+								Refresh
+							</button>
+						</div>
+						<div class="viewer-grid" id="viewer-grid">
+							<div class="empty-state" style="grid-column:1/-1;">
+								<i
+									class="fas fa-users fa-spin-me"
+									style="animation:none;opacity:.2;"
+								></i>
+								<p>Loading viewers…</p>
+							</div>
+						</div>
+					</div>
+
+					<!-- ============ BROADCAST ============ -->
+					<div class="panel" id="panel-broadcast">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-bullhorn"></i>
+									Broadcast Message
+								</h2>
+								<div class="section-sub">
+									Send a notification to users on MatTube
+								</div>
+							</div>
+						</div>
+
+						<div class="card">
+							<div class="card-hd blue">
+								<i class="fas fa-paper-plane"></i>
+								Send Broadcast
+							</div>
+							<div class="form-row">
+								<label class="form-label">
+									Target Audience
+								</label>
+								<select class="inp" id="bc-target">
+									<option value="all">
+										📢 Everyone Online
+									</option>
+									<option value="single">
+										👤 Specific User
+									</option>
+								</select>
+							</div>
+							<div
+								class="form-row"
+								id="bc-user-row"
+								style="display:none;"
+							>
+								<label class="form-label">Select User</label>
+								<select
+									class="inp"
+									id="bc-user-select"
+								></select>
+							</div>
+							<div class="form-row">
+								<label class="form-label">Message Style</label>
+								<div class="presets" id="bc-templates">
+									<button
+										class="preset-btn"
+										data-msg="🎉 Welcome to MatTube! Enjoy your viewing!"
+									>
+										Welcome
+									</button>
+									<button
+										class="preset-btn"
+										data-msg="🔧 We're performing maintenance. Some features may be unavailable."
+									>
+										Maintenance
+									</button>
+									<button
+										class="preset-btn"
+										data-msg="🆕 New features just dropped! Check out the updated library section."
+									>
+										New Feature
+									</button>
+									<button
+										class="preset-btn"
+										data-msg="📢 Important announcement from the MatTube team."
+									>
+										Announcement
+									</button>
+									<button
+										class="preset-btn"
+										data-msg="⚠️ Server will restart in 5 minutes. Please save your session."
+									>
+										Server Restart
+									</button>
+								</div>
+							</div>
+							<div class="form-row">
+								<label class="form-label">Message</label>
+								<textarea
+									class="inp"
+									id="bc-message"
+									placeholder="Type your broadcast message here…"
+								></textarea>
+							</div>
+							<button
+								class="btn btn-blue btn-lg"
+								id="bc-send-btn"
+							>
+								<i class="fas fa-paper-plane"></i>
+								Send Broadcast
+							</button>
+						</div>
+
+						<div class="card">
+							<div class="card-hd">
+								<i class="fas fa-history"></i>
+								Broadcast History
+							</div>
+							<div id="bc-history" class="announce-list">
+								<div
+									style="color:var(--muted2);font-size:12px;text-align:center;padding:20px;"
+								>
+									No broadcasts sent yet
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ============ PRANK ============ -->
+					<div class="panel" id="panel-prank">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-mask"></i>
+									Prank Studio
+								</h2>
+								<div class="section-sub">
+									Force-play videos on user screens
+								</div>
+							</div>
+						</div>
+
+						<div class="card">
+							<div class="card-hd">
+								<i class="fas fa-mask"></i>
+								Prank Settings
+							</div>
+							<div class="form-row">
+								<label class="form-label">Target</label>
+								<select class="inp" id="pk-target">
+									<option value="all">
+										🎭 Everyone Online
+									</option>
+								</select>
+							</div>
+							<div class="form-row">
+								<label class="form-label">
+									Video — Quick Presets
+								</label>
+								<div class="presets" id="pk-presets">
+									<button
+										class="preset-btn active"
+										data-id="dQw4w9WgXcQ"
+									>
+										🎵 Rickroll
+									</button>
+									<button
+										class="preset-btn"
+										data-id="jNQXAC9IVRw"
+									>
+										🐴 First YouTube Video
+									</button>
+									<button
+										class="preset-btn"
+										data-id="xvFZjo5PgG0"
+									>
+										🎪 Never Gonna Stop
+									</button>
+									<button
+										class="preset-btn"
+										data-id="y6120QOlsfU"
+									>
+										😱 Dramatic Chipmunk
+									</button>
+									<button
+										class="preset-btn"
+										data-id="L_jWHffIx5E"
+									>
+										🦁 Smash Mouth
+									</button>
+									<button
+										class="preset-btn"
+										data-id="09R8_2nJtjg"
+									>
+										🎹 Never Gonna Give You Up (Piano)
+									</button>
+									<button
+										class="preset-btn"
+										data-id="kfVsfOSbJY0"
+									>
+										🎤 Friday - Rebecca Black
+									</button>
+									<button
+										class="preset-btn"
+										data-id="e9vrfEoc8_g"
+									>
+										🐀 Shooting Stars
+									</button>
+								</div>
+							</div>
+							<div class="form-row">
+								<label class="form-label">
+									Custom Video URL or ID
+								</label>
+								<input
+									class="inp"
+									type="text"
+									id="pk-url"
+									placeholder="https://youtube.com/watch?v=... or video ID"
+								/>
+							</div>
+							<div
+								style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;"
+							>
+								<div class="toggle-row">
+									<label>
+										<input
+											type="checkbox"
+											id="pk-lock"
+											checked
+										/>
+										Lock screen (can't close)
+									</label>
+								</div>
+								<div class="toggle-row">
+									<label>
+										<input
+											type="checkbox"
+											id="pk-autoplay"
+											checked
+										/>
+										Autoplay
+									</label>
+								</div>
+							</div>
+							<div class="form-row">
+								<label class="form-label">
+									Auto-unlock after
+								</label>
+								<select class="inp" id="pk-duration">
+									<option value="0">Never (manual)</option>
+									<option value="15">15 seconds</option>
+									<option value="30">30 seconds</option>
+									<option value="60">1 minute</option>
+									<option value="120">2 minutes</option>
+									<option value="300">5 minutes</option>
+								</select>
+							</div>
+							<div class="form-row" id="pk-msg-row">
+								<label class="form-label">
+									Optional Message to User (shown above video)
+								</label>
+								<input
+									class="inp"
+									type="text"
+									id="pk-msg-txt"
+									placeholder="You've been pranked! 😈 — leave blank for default"
+								/>
+							</div>
+							<button
+								class="btn btn-gold btn-lg"
+								id="pk-send-btn"
+							>
+								<i class="fas fa-bolt"></i>
+								Launch Prank
+							</button>
+						</div>
+
+						<div class="card">
+							<div class="card-hd red">
+								<i class="fas fa-bomb"></i>
+								Quick Fire Pranks
+							</div>
+							<div style="display:flex;gap:10px;flex-wrap:wrap;">
+								<button class="btn btn-red" id="qf-rickroll">
+									<i class="fas fa-music"></i>
+									Rickroll All
+								</button>
+								<button class="btn btn-gold" id="qf-chipmunk">
+									<i class="fas fa-film"></i>
+									Dramatic Chipmunk All
+								</button>
+								<button
+									class="btn btn-purple"
+									id="qf-custom-all"
+								>
+									<i class="fas fa-broadcast-tower"></i>
+									Custom Video to All
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- ============ REDIRECT ============ -->
+					<div class="panel" id="panel-redirect">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-video"></i>
+									Force Redirect
+								</h2>
+								<div class="section-sub">
+									Silently play a video on a user's player (no
+									overlay)
+								</div>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-hd blue">
+								<i class="fas fa-video"></i>
+								Redirect Settings
+							</div>
+							<div class="form-row">
+								<label class="form-label">Target User</label>
+								<select class="inp" id="rd-target">
+									<option value="all">Everyone Online</option>
+								</select>
+							</div>
+							<div class="form-row">
+								<label class="form-label">
+									YouTube Video URL or ID
+								</label>
+								<input
+									class="inp"
+									type="text"
+									id="rd-url"
+									placeholder="Video URL or ID"
+								/>
+							</div>
+							<div class="form-row">
+								<label class="form-label">
+									Video Title (optional)
+								</label>
+								<input
+									class="inp"
+									type="text"
+									id="rd-title"
+									placeholder="What to show as the video title"
+								/>
+							</div>
+							<button
+								class="btn btn-blue btn-lg"
+								id="rd-send-btn"
+							>
+								<i class="fas fa-video"></i>
+								Force Redirect
+							</button>
+						</div>
+					</div>
+
+					<!-- ============ LOCKS ============ -->
+					<div class="panel" id="panel-locks">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-lock"></i>
+									Screen Locks
+								</h2>
+								<div class="section-sub">
+									Lock and unlock user screens
+								</div>
+							</div>
+						</div>
+						<div
+							style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"
+						>
+							<div class="card">
+								<div class="card-hd red">
+									<i class="fas fa-lock"></i>
+									Lock Screens
+								</div>
+								<div class="form-row">
+									<label class="form-label">Target</label>
+									<select class="inp" id="lk-target">
+										<option value="all">
+											Everyone Online
+										</option>
+									</select>
+								</div>
+								<div class="form-row">
+									<label class="form-label">
+										Lock Message (optional)
+									</label>
+									<input
+										class="inp"
+										type="text"
+										id="lk-msg"
+										placeholder="Screen locked by admin. Please wait."
+									/>
+								</div>
+								<button
+									class="btn btn-red btn-lg"
+									id="lk-lock-btn"
+								>
+									<i class="fas fa-lock"></i>
+									Lock Screen(s)
+								</button>
+							</div>
+							<div class="card">
+								<div class="card-hd green">
+									<i class="fas fa-unlock"></i>
+									Unlock Screens
+								</div>
+								<p
+									style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.7;"
+								>
+									Release all locked/pranked screens
+									immediately. This is the emergency unlock
+									that removes all active commands.
+								</p>
+								<div
+									style="display:flex;gap:8px;flex-wrap:wrap;"
+								>
+									<button
+										class="btn btn-green btn-lg"
+										id="lk-unlock-all-btn"
+									>
+										<i class="fas fa-unlock"></i>
+										Unlock Everyone
+									</button>
+									<button
+										class="btn btn-default"
+										id="lk-unlock-one-btn"
+									>
+										<i class="fas fa-user-unlock"></i>
+										Unlock Single User
+									</button>
+								</div>
+								<div
+									class="form-row"
+									id="lk-unlock-one-row"
+									style="display:none;margin-top:12px;"
+								>
+									<label class="form-label">
+										Select User
+									</label>
+									<select
+										class="inp"
+										id="lk-unlock-target"
+									></select>
+									<button
+										class="btn btn-green"
+										style="margin-top:8px;"
+										id="lk-do-unlock-one"
+									>
+										<i class="fas fa-unlock"></i>
+										Unlock
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ============ ADMINS ============ -->
+					<div class="panel" id="panel-admins">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-user-shield"></i>
+									Admin Users
+								</h2>
+								<div class="section-sub">
+									Manage who has admin access
+								</div>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-hd">
+								<i class="fas fa-user-plus"></i>
+								Add Admin
+							</div>
+							<div class="form-row-inline">
+								<div class="form-row">
+									<label class="form-label">
+										Email Address
+									</label>
+									<input
+										class="inp"
+										type="email"
+										id="add-admin-email"
+										placeholder="user@example.com"
+									/>
+								</div>
+								<button
+									class="btn btn-gold btn-lg"
+									id="add-admin-btn"
+									style="flex-shrink:0;"
+								>
+									<i class="fas fa-plus"></i>
+									Add Admin
+								</button>
+							</div>
+							<div
+								id="add-admin-note"
+								style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;"
+							></div>
+						</div>
+						<div class="card">
+							<div class="card-hd">
+								<i class="fas fa-crown"></i>
+								Current Admins
+							</div>
+							<div id="admin-list-container">
+								<div
+									style="color:var(--muted2);font-size:12px;padding:10px;"
+								>
+									Loading…
+								</div>
+							</div>
+						</div>
+						<div
+							class="card"
+							style="background:rgba(255,34,68,.04);border-color:rgba(255,34,68,.15);"
+						>
+							<div class="card-hd red">
+								<i class="fas fa-info-circle"></i>
+								How it Works
+							</div>
+							<p
+								style="font-size:12px;color:var(--muted);line-height:1.8;"
+							>
+								•
+								<strong style="color:var(--text);">
+									matthewbozhe@gmail.com
+								</strong>
+								is the permanent owner — cannot be removed.
+								<br />
+								• Added admins can access
+								<em>this admin panel</em>
+								with their own accounts.
+								<br />
+								• Admins can use all features including pranks,
+								broadcasts, and locks.
+								<br />
+								• Only the owner can add or remove other admins.
+							</p>
+						</div>
+					</div>
+
+					<!-- ============ STATS ============ -->
+					<div class="panel" id="panel-stats">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-chart-bar"></i>
+									Statistics
+								</h2>
+								<div class="section-sub">
+									MatTube usage and engagement data
+								</div>
+							</div>
+						</div>
+						<div class="stats-row" id="stats-row-main">
+							<div class="stat-card green">
+								<div class="stat-val" id="st-online">0</div>
+								<div class="stat-lbl">Online Now</div>
+								<i class="fas fa-users stat-icon"></i>
+							</div>
+							<div class="stat-card">
+								<div class="stat-val" id="st-pranks">0</div>
+								<div class="stat-lbl">Total Pranks</div>
+								<i class="fas fa-mask stat-icon"></i>
+							</div>
+							<div class="stat-card blue">
+								<div class="stat-val" id="st-broadcasts">0</div>
+								<div class="stat-lbl">Broadcasts Sent</div>
+								<i class="fas fa-bullhorn stat-icon"></i>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-hd">
+								<i class="fas fa-trophy"></i>
+								Most Watched Videos
+							</div>
+							<div class="top-vids" id="stats-top-vids">
+								<div
+									class="empty-state"
+									style="padding:20px 0;"
+								>
+									<p>No data yet</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ============ ACTIVITY ============ -->
+					<div class="panel" id="panel-activity">
+						<div class="section-hd">
+							<div>
+								<h2>
+									<i class="fas fa-history"></i>
+									Activity Log
+								</h2>
+								<div class="section-sub">
+									All recent admin actions
+								</div>
+							</div>
+							<button class="btn btn-red" id="clear-log-btn">
+								<i class="fas fa-trash"></i>
+								Clear Log
+							</button>
+						</div>
+						<div class="card">
+							<div
+								class="activity-log"
+								id="activity-log-full"
+								style="max-height:600px;"
+							></div>
+						</div>
+					</div>
+
+					<!-- ============ DANGER ZONE ============ -->
+					<div class="panel" id="panel-danger">
+						<div class="section-hd">
+							<div>
+								<h2 style="color:var(--red2);">
+									<i
+										class="fas fa-radiation-alt"
+										style="color:var(--red2);"
+									></i>
+									Mass Actions
+								</h2>
+								<div class="section-sub">
+									These affect ALL users simultaneously. Use
+									with caution.
+								</div>
+							</div>
+						</div>
+
+						<div
+							class="card"
+							style="border-color:rgba(255,34,68,.2);background:rgba(255,34,68,.03);"
+						>
+							<div class="card-hd red">
+								<i class="fas fa-bomb"></i>
+								Mass Pranks
+							</div>
+							<div
+								style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;"
+							>
+								<button
+									class="btn btn-red btn-lg"
+									id="mass-rickroll-btn"
+								>
+									<i class="fas fa-music"></i>
+									Rickroll EVERYONE
+								</button>
+								<button
+									class="btn btn-gold btn-lg"
+									id="mass-chipmunk-btn"
+								>
+									<i class="fas fa-film"></i>
+									Dramatic Chipmunk EVERYONE
+								</button>
+							</div>
+							<div class="form-row">
+								<label class="form-label">
+									Or send custom video to everyone
+								</label>
+								<div class="form-row-inline">
+									<div class="form-row">
+										<input
+											class="inp"
+											type="text"
+											id="mass-custom-url"
+											placeholder="YouTube URL or video ID"
+										/>
+									</div>
+									<button
+										class="btn btn-purple btn-lg"
+										id="mass-custom-btn"
+										style="flex-shrink:0;"
+									>
+										<i class="fas fa-bolt"></i>
+										Send to All
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div
+							class="card"
+							style="border-color:rgba(255,34,68,.15);"
+						>
+							<div class="card-hd red">
+								<i class="fas fa-lock"></i>
+								Mass Lock / Unlock
+							</div>
+							<div style="display:flex;gap:10px;flex-wrap:wrap;">
+								<button
+									class="btn btn-red btn-lg"
+									id="mass-lock-btn"
+								>
+									<i class="fas fa-lock"></i>
+									Lock ALL Screens
+								</button>
+								<button
+									class="btn btn-green btn-lg"
+									id="mass-unlock-btn"
+								>
+									<i class="fas fa-unlock"></i>
+									Unlock ALL Screens
+								</button>
+							</div>
+						</div>
+
+						<div
+							class="card"
+							style="border-color:rgba(62,166,255,.15);"
+						>
+							<div class="card-hd blue">
+								<i class="fas fa-bullhorn"></i>
+								Mass Broadcast
+							</div>
+							<div class="form-row">
+								<textarea
+									class="inp"
+									id="mass-bc-msg"
+									placeholder="Message to send to ALL users…"
+								></textarea>
+							</div>
+							<button
+								class="btn btn-blue btn-lg"
+								id="mass-bc-btn"
+							>
+								<i class="fas fa-paper-plane"></i>
+								Broadcast to Everyone
+							</button>
+						</div>
+					</div>
+				</div>
+				<!-- /content -->
+			</div>
+			<!-- /main-layout -->
+		</div>
+		<!-- /app -->
+
+		<!-- TOAST -->
+		<div id="toast">
+			<i class="fas fa-check-circle"></i>
+			<span id="toast-msg">Done!</span>
+		</div>
+
+		<!-- CONFIRM MODAL -->
+		<div class="modal-overlay" id="confirm-modal">
+			<div class="modal-box">
+				<div class="modal-hd">
+					<h3>
+						<i
+							class="fas fa-exclamation-triangle"
+							style="color:var(--red2);"
+						></i>
+						<span id="confirm-title">Confirm Action</span>
+					</h3>
+					<button class="modal-close" onclick="closeConfirm()">
+						&times;
+					</button>
+				</div>
+				<div class="modal-body">
+					<p
+						style="font-size:13px;color:var(--muted);line-height:1.7;"
+						id="confirm-msg"
+					>
+						Are you sure?
+					</p>
+				</div>
+				<div class="modal-foot">
+					<button class="btn btn-default" onclick="closeConfirm()">
+						Cancel
+					</button>
+					<button class="btn btn-red" id="confirm-ok-btn">
+						Confirm
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			/* ========================================================================
+			   CONSTANTS
+			======================================================================== */
+			const OWNER_EMAIL = 'matthewbozhe@gmail.com';
+			const AV_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5','#039be5','#00897b','#43a047','#fb8c00','#6d4c41'];
+
+			/* ========================================================================
+			   STATE
+			======================================================================== */
+			let fbUser = null;
+			let fbIsOwner = false;
+			let fbIsAdmin = false;
+			let allViewers = {};
+			let allAdmins = {};
+			let activityLog = [];
+			let broadcastHistory = [];
+			let statsData = {};
+			let selectedPrankId = 'dQw4w9WgXcQ';
+			let confirmCallback = null;
+
+			/* ========================================================================
+			   UTILS
+			======================================================================== */
+			function esc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+			function avCol(s){ let h=0; for(let i=0;i<(s||'').length;i++) h=s.charCodeAt(i)+((h<<5)-h); return AV_COLORS[Math.abs(h)%AV_COLORS.length]; }
+			function fmtN(n){ n=parseInt(n)||0; if(n>=1e9)return(n/1e9).toFixed(1)+'B'; if(n>=1e6)return(n/1e6).toFixed(1)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return String(n); }
+			function thumb(id){ return 'https://i.ytimg.com/vi/'+id+'/default.jpg'; }
+			function g(id){ return document.getElementById(id); }
+			function ts(){ return new Date().toLocaleTimeString(); }
+
+			function toast(msg, icon='check-circle', color='var(--green)'){
+			  const el = g('toast');
+			  el.querySelector('i').className = 'fas fa-'+icon;
+			  el.querySelector('i').style.color = color;
+			  g('toast-msg').textContent = msg;
+			  el.classList.add('show');
+			  setTimeout(()=> el.classList.remove('show'), 3200);
+			}
+
+			function extractVideoId(input){
+			  input = (input||'').trim();
+			  let m;
+			  if((m=input.match(/[?&]v=([a-zA-Z0-9_-]{11})/))) return m[1];
+			  if((m=input.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/))) return m[1];
+			  if((m=input.match(/shorts\/([a-zA-Z0-9_-]{11})/))) return m[1];
+			  if(/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+			  return null;
+			}
+
+			/* ========================================================================
+			   ACTIVITY LOG
+			======================================================================== */
+			function addLog(msg, type='info'){
+			  activityLog.unshift({ msg, type, time: ts() });
+			  if(activityLog.length > 100) activityLog = activityLog.slice(0, 100);
+			  renderActivityLog();
+			  renderOverview();
+			}
+
+			function renderActivityLog(){
+			  const el = g('activity-log-full');
+			  const ov = g('ov-activity');
+			  if(!activityLog.length){
+			    const empty = '<div style="color:var(--muted2);font-size:12px;text-align:center;padding:20px;">No activity yet</div>';
+			    el.innerHTML = empty; ov.innerHTML = empty; return;
+			  }
+			  const html = activityLog.map(e=>
+			    `<div class="log-entry ${esc(e.type)}">
+			      <span class="log-time">${esc(e.time)}</span>
+			      <span class="log-msg">${e.msg}</span>
+			    </div>`
+			  ).join('');
+			  el.innerHTML = html;
+			  ov.innerHTML = activityLog.slice(0,5).map(e=>
+			    `<div class="log-entry ${esc(e.type)}">
+			      <span class="log-time">${esc(e.time)}</span>
+			      <span class="log-msg">${e.msg}</span>
+			    </div>`
+			  ).join('');
+			}
+
+			/* ========================================================================
+			   FIREBASE INIT
+			======================================================================== */
+			function initFirebase(){
+			  if(!window._fb){ window.addEventListener('fbready', initFirebase, {once:true}); return; }
+			  const fb = window._fb;
+
+			  fb.onAuthStateChanged(fb.auth, user => {
+			    fbUser = user || null;
+			    if(!user){ showLogin(); return; }
+
+			    // Check if user is owner or has admin access
+			    checkAdminAccess(user);
+			  });
+			}
+
+			async function checkAdminAccess(user){
+			  const fb = window._fb;
+			  const email = (user.email||'').toLowerCase();
+
+			  fbIsOwner = (email === OWNER_EMAIL.toLowerCase());
+
+			  if(fbIsOwner){
+			    fbIsAdmin = true;
+			    showApp(user);
+			    startListeners();
+			    return;
+			  }
+
+			  // Check admins list in Firebase
+			  try {
+			    const snap = await fb.get(fb.ref(fb.db, 'adminList'));
+			    const admins = snap.val() || {};
+			    const adminEmails = Object.values(admins).map(a => (a.email||'').toLowerCase());
+			    if(adminEmails.includes(email)){
+			      fbIsAdmin = true;
+			      showApp(user);
+			      startListeners();
+			    } else {
+			      showLoginErr('Access denied. You are not an authorized admin.');
+			      fb.signOut(fb.auth);
+			    }
+			  } catch(e){
+			    showLoginErr('Error checking admin access: ' + e.message);
+			    fb.signOut(fb.auth);
+			  }
+			}
+
+			function showLogin(){
+			  g('login-screen').classList.remove('hidden');
+			  g('app').classList.add('hidden');
+			}
+
+			function showApp(user){
+			  g('login-screen').classList.add('hidden');
+			  g('app').classList.remove('hidden');
+			  const name = user.displayName || (user.email||'').split('@')[0];
+			  g('tb-username').textContent = (fbIsOwner?'👑 ':'🛡️ ') + name;
+			}
+
+			/* ========================================================================
+			   FIREBASE LISTENERS
+			======================================================================== */
+			function startListeners(){
+			  const fb = window._fb;
+
+			  // Presence
+			  fb.onValue(fb.ref(fb.db, 'presence'), snap => {
+			    allViewers = {};
+			    const data = snap.val() || {};
+			    Object.keys(data).forEach(uid => { allViewers[uid] = data[uid]; });
+			    const cnt = Object.keys(allViewers).length;
+			    g('tb-online').textContent = cnt;
+			    g('nav-viewer-cnt').textContent = cnt;
+			    g('ov-online').textContent = cnt;
+			    g('st-online').textContent = cnt;
+
+			    // Count locked screens
+			    let locked = 0;
+			    Object.values(allViewers).forEach(v => { if(v.locked) locked++; });
+			    g('ov-locked').textContent = locked;
+
+			    renderViewers();
+			    renderOverview();
+			    populateUserSelects();
+			  });
+
+			  // Stats
+			  fb.onValue(fb.ref(fb.db, 'stats'), snap => {
+			    statsData = snap.val() || {};
+			    g('ov-pranks').textContent = statsData.pranks || 0;
+			    g('st-pranks').textContent = statsData.pranks || 0;
+			    g('ov-broadcasts').textContent = statsData.broadcasts || 0;
+			    g('st-broadcasts').textContent = statsData.broadcasts || 0;
+			    renderTopVids();
+			  });
+
+			  // Admin list
+			  fb.onValue(fb.ref(fb.db, 'adminList'), snap => {
+			    allAdmins = snap.val() || {};
+			    g('ov-admins').textContent = Object.keys(allAdmins).length + 1; // +1 for owner
+			    renderAdminList();
+			  });
+			}
+
+			/* ========================================================================
+			   SEND COMMAND
+			======================================================================== */
+			function sendCommand(uid, cmd){
+			  if(!window._fb || !fbIsAdmin) return;
+			  const fb = window._fb;
+			  fb.set(fb.ref(fb.db, 'commands/'+uid), { ...cmd, sentAt: fb.serverTimestamp() });
+			}
+
+			function sendToAll(cmd){
+			  Object.keys(allViewers).forEach(uid => {
+			    if(fbUser && uid === fbUser.uid) return; // skip self
+			    sendCommand(uid, cmd);
+			  });
+			}
+
+			function sendToUser(uid, cmd){
+			  sendCommand(uid, cmd);
+			}
+
+			/* ========================================================================
+			   INCREMENT STAT
+			======================================================================== */
+			async function incStat(key){
+			  if(!window._fb) return;
+			  const fb = window._fb;
+			  try {
+			    const snap = await fb.get(fb.ref(fb.db, 'stats/'+key));
+			    fb.set(fb.ref(fb.db, 'stats/'+key), (snap.val()||0)+1);
+			  } catch(e){}
+			}
+
+			/* ========================================================================
+			   VIEWERS
+			======================================================================== */
+			function renderViewers(){
+			  const grid = g('viewer-grid');
+			  const uids = Object.keys(allViewers);
+			  if(!uids.length){
+			    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fas fa-users" style="opacity:.2;"></i><p>No viewers online right now</p></div>';
+			    return;
+			  }
+			  grid.innerHTML = '';
+			  uids.forEach(uid => {
+			    const v = allViewers[uid]; if(!v) return;
+			    const isMe = (fbUser && uid === fbUser.uid);
+			    const dispName = v.displayName || (v.email ? v.email.split('@')[0] : 'Anonymous');
+			    const isAdminUser = v.email && (v.email.toLowerCase() === OWNER_EMAIL.toLowerCase() || Object.values(allAdmins).some(a=>(a.email||'').toLowerCase()===v.email.toLowerCase()));
+			    const w = v.watching || {};
+			    const card = document.createElement('div');
+			    card.className = 'viewer-card';
+			    card.innerHTML = `
+			      <div class="vc-top">
+			        <div class="vc-av" style="background:${avCol(uid)};">${dispName.charAt(0).toUpperCase()}</div>
+			        <div class="vc-info">
+			          <div class="vc-name">${esc(dispName)}${isAdminUser?'<i class="fas fa-crown admin-crown" title="Admin"></i>':''}</div>
+			          <div class="vc-email">${esc(v.email||'Anonymous')}</div>
+			        </div>
+			        <div class="vc-online"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;box-shadow:0 0 6px rgba(34,197,94,.6);"></span> Online</div>
+			      </div>
+			      <div class="vc-watching">
+			        ${w.id ? `<img class="vc-thumb" src="${thumb(w.id)}" onerror="this.style.display='none'">` : '<div class="vc-thumb" style="display:flex;align-items:center;justify-content:center;"><i class="fas fa-eye-slash" style="color:#333;font-size:12px;"></i></div>'}
+			        <div class="vc-watch-info">
+			          <div class="vc-watch-lbl">Watching</div>
+			          <div class="vc-watch-title">${w.id ? esc(w.title||w.id) : 'Browsing / Idle'}</div>
+			          ${w.channel ? `<div class="vc-watch-ch">${esc(w.channel)}</div>` : ''}
+			        </div>
+			      </div>
+			      ${isMe ? '' : `
+			        <div class="vc-actions">
+			          <button class="btn btn-gold prank-one" data-uid="${esc(uid)}" data-name="${esc(dispName)}"><i class="fas fa-mask"></i> Prank</button>
+			          <button class="btn btn-blue msg-one" data-uid="${esc(uid)}" data-name="${esc(dispName)}"><i class="fas fa-comment"></i> Message</button>
+			          <button class="btn btn-red lock-one" data-uid="${esc(uid)}"><i class="fas fa-lock"></i> Lock</button>
+			          <button class="btn btn-green unlock-one" data-uid="${esc(uid)}"><i class="fas fa-unlock"></i> Unlock</button>
+			          <button class="btn btn-default redirect-one" data-uid="${esc(uid)}" data-name="${esc(dispName)}"><i class="fas fa-video"></i> Redirect</button>
+			        </div>
+			      `}
+			    `;
+
+			    if(!isMe){
+			      card.querySelector('.prank-one').addEventListener('click', function(){
+			        quickPrankUser(uid, dispName);
+			      });
+			      card.querySelector('.msg-one').addEventListener('click', function(){
+			        const msg = prompt('Message to send to ' + dispName + ':');
+			        if(msg && msg.trim()){
+			          sendCommand(uid, {type:'broadcast', message: msg.trim()});
+			          incStat('broadcasts');
+			          addLog(`<strong>Message</strong> sent to <strong>${esc(dispName)}</strong>: "${esc(msg.trim())}"`, 'info');
+			          toast('Message sent to ' + dispName);
+			        }
+			      });
+			      card.querySelector('.lock-one').addEventListener('click', function(){
+			        sendCommand(uid, {type:'lock'});
+			        addLog(`<strong>Locked</strong> screen of <strong>${esc(dispName)}</strong>`, 'danger');
+			        toast('🔒 Locked ' + dispName, 'lock', 'var(--red2)');
+			      });
+			      card.querySelector('.unlock-one').addEventListener('click', function(){
+			        sendCommand(uid, {type:'unlock'});
+			        addLog(`<strong>Unlocked</strong> screen of <strong>${esc(dispName)}</strong>`, 'success');
+			        toast('🔓 Unlocked ' + dispName, 'unlock', 'var(--green)');
+			      });
+			      card.querySelector('.redirect-one').addEventListener('click', function(){
+			        const url = prompt('YouTube URL or video ID to redirect ' + dispName + ':');
+			        if(url){
+			          const vid = extractVideoId(url.trim()) || url.trim();
+			          if(vid){ sendCommand(uid, {type:'redirect', videoId:vid, title:'Admin Redirect', channel:''}); addLog(`<strong>Redirected</strong> <strong>${esc(dispName)}</strong> to video <code>${esc(vid)}</code>`, 'info'); toast('📺 Redirected '+dispName); }
+			        }
+			      });
+			    }
+			    grid.appendChild(card);
+			  });
+			}
+
+			function quickPrankUser(uid, name){
+			  const vid = prompt(`Prank video ID for ${name} (blank = Rickroll):`) || 'dQw4w9WgXcQ';
+			  const vidId = extractVideoId(vid.trim()) || vid.trim();
+			  sendCommand(uid, { type:'prank', videoId: vidId, locked: true, duration: 0 });
+			  incStat('pranks');
+			  addLog(`<strong>Pranked</strong> user <strong>${esc(name)}</strong> with video <code>${esc(vidId)}</code>`, 'warn');
+			  toast('🎭 Prank sent to ' + name, 'mask', 'var(--gold)');
+			}
+
+			/* ========================================================================
+			   OVERVIEW
+			======================================================================== */
+			function renderOverview(){
+			  // Watching list
+			  const wl = g('ov-watching-list');
+			  const watching = Object.values(allViewers).filter(v => v.watching && v.watching.id);
+			  if(!watching.length){
+			    wl.innerHTML = '<div class="empty-state" style="padding:20px 0;"><i class="fas fa-eye"></i><p>No one watching</p></div>';
+			  } else {
+			    wl.innerHTML = watching.map(v => {
+			      const w = v.watching;
+			      const name = v.displayName || (v.email||'Anon').split('@')[0];
+			      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+			        <div style="width:30px;height:30px;border-radius:50%;background:${avCol(v.uid||name)};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;">${name.charAt(0).toUpperCase()}</div>
+			        <div style="flex:1;min-width:0;">
+			          <div style="font-size:11px;color:var(--text);font-weight:600;">${esc(name)}</div>
+			          <div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(w.title||w.id)}</div>
+			        </div>
+			      </div>`;
+			    }).join('');
+			  }
+			}
+
+			/* ========================================================================
+			   TOP VIDEOS
+			======================================================================== */
+			function renderTopVids(){
+			  const topVids = statsData.topVids || {};
+			  const meta = statsData.vidMeta || {};
+			  const arr = Object.keys(topVids).map(id => ({id, count: topVids[id], meta: meta[id]||{}}));
+			  arr.sort((a,b) => b.count - a.count);
+			  const top = arr.slice(0,5);
+
+			  ['ov-top-vids','stats-top-vids'].forEach(elId => {
+			    const el = g(elId); if(!el) return;
+			    if(!top.length){ el.innerHTML = '<div class="empty-state" style="padding:20px 0;"><p>No data yet</p></div>'; return; }
+			    el.innerHTML = top.map((item, i) => `
+			      <div class="tv-row">
+			        <div class="tv-rank">${i+1}</div>
+			        <img class="tv-thumb" src="${thumb(item.id)}" onerror="this.style.opacity='.3'">
+			        <div class="tv-info">
+			          <div class="tv-title">${esc(item.meta.title||item.id)}</div>
+			          <div class="tv-ch">${esc(item.meta.channel||'')}</div>
+			        </div>
+			        <div class="tv-count">${fmtN(item.count)}</div>
+			      </div>`
+			    ).join('');
+			  });
+			}
+
+			/* ========================================================================
+			   POPULATE USER SELECTS
+			======================================================================== */
+			function populateUserSelects(){
+			  const uids = Object.keys(allViewers).filter(uid => !(fbUser && uid === fbUser.uid));
+			  const opts = ['<option value="all">Everyone Online</option>'] +
+			    uids.map(uid => {
+			      const v = allViewers[uid];
+			      const name = v.displayName || (v.email||(v.uid||uid)).split('@')[0];
+			      return `<option value="${esc(uid)}">${esc(name)} (${esc(v.email||uid)})</option>`;
+			    }).join('');
+
+			  ['pk-target','rd-target','lk-target','lk-unlock-target'].forEach(id => {
+			    const el = g(id); if(!el) return;
+			    const cur = el.value;
+			    el.innerHTML = opts;
+			    if(cur) el.value = cur;
+			  });
+
+			  // bc-user-select (no "all" option since that has a separate selector)
+			  const bcSel = g('bc-user-select');
+			  if(bcSel){
+			    bcSel.innerHTML = uids.map(uid => {
+			      const v = allViewers[uid];
+			      const name = v.displayName || (v.email||uid).split('@')[0];
+			      return `<option value="${esc(uid)}">${esc(name)} (${esc(v.email||uid)})</option>`;
+			    }).join('');
+			  }
+			}
+
+			/* ========================================================================
+			   ADMIN LIST
+			======================================================================== */
+			function renderAdminList(){
+			  const container = g('admin-list-container');
+			  const entries = [];
+
+			  // Owner first
+			  entries.push({
+			    email: OWNER_EMAIL,
+			    isOwner: true,
+			    id: '__owner__'
+			  });
+
+			  // Added admins
+			  Object.keys(allAdmins).forEach(k => {
+			    entries.push({ ...allAdmins[k], id: k, isOwner: false });
+			  });
+
+			  container.innerHTML = '';
+			  const list = document.createElement('div');
+			  list.className = 'admin-list';
+
+			  entries.forEach(a => {
+			    const item = document.createElement('div');
+			    item.className = 'admin-item';
+			    const initials = (a.email||'A').charAt(0).toUpperCase();
+			    item.innerHTML = `
+			      <div class="admin-item-av" style="background:${avCol(a.email||'')};">${initials}</div>
+			      <div class="admin-item-info">
+			        <div class="admin-item-email">${esc(a.email)}</div>
+			        <div class="admin-item-role ${a.isOwner ? 'admin-item-owner' : ''}">
+			          <i class="fas fa-${a.isOwner ? 'crown' : 'shield-alt'}"></i>
+			          ${a.isOwner ? 'Owner (Permanent)' : 'Admin'}
+			        </div>
+			      </div>
+			      ${(!a.isOwner && fbIsOwner) ? `<button class="btn btn-red" data-id="${esc(a.id)}" data-email="${esc(a.email)}" onclick="removeAdmin(this)"><i class="fas fa-trash"></i> Remove</button>` : ''}
+			    `;
+			    list.appendChild(item);
+			  });
+
+			  container.appendChild(list);
+			}
+
+			function removeAdmin(btn){
+			  const id = btn.dataset.id;
+			  const email = btn.dataset.email;
+			  showConfirm('Remove Admin', `Remove admin access for <strong>${esc(email)}</strong>? They will no longer be able to access the admin panel.`, () => {
+			    const fb = window._fb;
+			    fb.remove(fb.ref(fb.db, 'adminList/'+id)).then(() => {
+			      addLog(`<strong>Removed admin</strong> <strong>${esc(email)}</strong>`, 'danger');
+			      toast('Admin removed: ' + email, 'user-minus', 'var(--red2)');
+			    });
+			  });
+			}
+
+			/* ========================================================================
+			   BROADCAST
+			======================================================================== */
+			function sendBroadcast(targetUid, message){
+			  if(!message.trim()) return;
+			  if(targetUid === 'all'){
+			    sendToAll({ type:'broadcast', message });
+			  } else {
+			    sendCommand(targetUid, { type:'broadcast', message });
+			  }
+			  incStat('broadcasts');
+			  const name = targetUid === 'all' ? 'everyone' : (allViewers[targetUid] ? (allViewers[targetUid].displayName || allViewers[targetUid].email||'user') : 'user');
+			  addLog(`<strong>Broadcast</strong> sent to <strong>${esc(name)}</strong>: "${esc(message)}"`, 'info');
+			  toast('📢 Broadcast sent!', 'bullhorn', 'var(--blue)');
+
+			  // Save to broadcast history
+			  broadcastHistory.unshift({ target: name, message, time: ts() });
+			  if(broadcastHistory.length > 50) broadcastHistory = broadcastHistory.slice(0,50);
+			  renderBcHistory();
+			}
+
+			function renderBcHistory(){
+			  const el = g('bc-history'); if(!el) return;
+			  if(!broadcastHistory.length){ el.innerHTML = '<div style="color:var(--muted2);font-size:12px;text-align:center;padding:20px;">No broadcasts sent yet</div>'; return; }
+			  el.innerHTML = broadcastHistory.map(b => `
+			    <div class="announce-item">
+			      <div class="announce-icon broadcast"><i class="fas fa-bullhorn"></i></div>
+			      <div class="announce-txt">To <strong>${esc(b.target)}</strong>: ${esc(b.message)}</div>
+			      <div class="announce-time">${esc(b.time)}</div>
+			    </div>`
+			  ).join('');
+			}
+
+			/* ========================================================================
+			   CONFIRM MODAL
+			======================================================================== */
+			function showConfirm(title, msg, cb){
+			  g('confirm-title').textContent = title;
+			  g('confirm-msg').innerHTML = msg;
+			  confirmCallback = cb;
+			  g('confirm-modal').classList.add('open');
+			}
+			function closeConfirm(){
+			  g('confirm-modal').classList.remove('open');
+			  confirmCallback = null;
+			}
+			g('confirm-ok-btn') && document.getElementById('confirm-ok-btn').addEventListener('click', ()=>{
+			  if(confirmCallback){ confirmCallback(); }
+			  closeConfirm();
+			});
+
+			/* ========================================================================
+			   PANEL NAVIGATION
+			======================================================================== */
+			document.querySelectorAll('.nav-item[data-panel]').forEach(item => {
+			  item.addEventListener('click', () => {
+			    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+			    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+			    item.classList.add('active');
+			    const panel = document.getElementById('panel-' + item.dataset.panel);
+			    if(panel) panel.classList.add('active');
+			  });
+			});
+
+			/* ========================================================================
+			   LOGIN
+			======================================================================== */
+			function showLoginErr(msg){
+			  const el = g('login-err');
+			  el.textContent = msg; el.classList.add('show');
+			}
+
+			const AUTH_ERR_MAP = {
+			  'auth/invalid-email': 'Invalid email address.',
+			  'auth/user-not-found': 'No account found.',
+			  'auth/wrong-password': 'Incorrect password.',
+			  'auth/invalid-credential': 'Incorrect email or password.',
+			  'auth/too-many-requests': 'Too many attempts. Please wait.',
+			  'auth/network-request-failed': 'Network error.'
+			};
+
+			function doLogin(){
+			  const fb = window._fb; if(!fb) return;
+			  const email = g('li-email').value.trim();
+			  const pass = g('li-pass').value;
+			  if(!email||!pass){ showLoginErr('Please fill in all fields.'); return; }
+			  const btn = g('li-btn');
+			  btn.disabled = true; btn.textContent = 'Signing in…';
+			  fb.signInWithEmailAndPassword(fb.auth, email, pass)
+			    .then(() => { btn.disabled=false; btn.textContent='Sign In to Admin Panel'; g('login-err').classList.remove('show'); })
+			    .catch(e => { showLoginErr(AUTH_ERR_MAP[e.code]||'Authentication failed.'); btn.disabled=false; btn.textContent='Sign In to Admin Panel'; });
+			}
+
+			g('li-btn').addEventListener('click', doLogin);
+			['li-email','li-pass'].forEach(id => {
+			  g(id) && g(id).addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+			});
+
+			g('tb-signout').addEventListener('click', () => {
+			  if(!window._fb) return;
+			  window._fb.signOut(window._fb.auth).then(() => showLogin());
+			});
+
+			/* ========================================================================
+			   BROADCAST PANEL
+			======================================================================== */
+			g('bc-target').addEventListener('change', function(){
+			  g('bc-user-row').style.display = this.value === 'single' ? 'block' : 'none';
+			});
+
+			document.querySelectorAll('#bc-templates .preset-btn').forEach(btn => {
+			  btn.addEventListener('click', function(){ g('bc-message').value = this.dataset.msg; });
+			});
+
+			g('bc-send-btn').addEventListener('click', () => {
+			  const target = g('bc-target').value;
+			  const msg = g('bc-message').value.trim();
+			  if(!msg){ toast('Please enter a message.', 'exclamation-triangle', 'var(--gold)'); return; }
+			  const targetUid = target === 'single' ? g('bc-user-select').value : 'all';
+			  if(target === 'single' && !targetUid){ toast('Please select a user.', 'exclamation-triangle', 'var(--gold)'); return; }
+			  sendBroadcast(targetUid, msg);
+			  g('bc-message').value = '';
+			});
+
+			/* ========================================================================
+			   PRANK PANEL
+			======================================================================== */
+			document.querySelectorAll('#pk-presets .preset-btn').forEach(btn => {
+			  btn.addEventListener('click', function(){
+			    document.querySelectorAll('#pk-presets .preset-btn').forEach(b => b.classList.remove('active'));
+			    this.classList.add('active');
+			    selectedPrankId = this.dataset.id;
+			    g('pk-url').value = '';
+			  });
+			});
+
+			g('pk-url').addEventListener('input', function(){
+			  if(this.value.trim()){
+			    document.querySelectorAll('#pk-presets .preset-btn').forEach(b => b.classList.remove('active'));
+			    selectedPrankId = null;
+			  }
+			});
+
+			g('pk-send-btn').addEventListener('click', () => {
+			  const raw = g('pk-url').value.trim();
+			  const vid = raw ? (extractVideoId(raw)||raw) : selectedPrankId;
+			  if(!vid){ toast('Please select or enter a video.', 'exclamation-triangle', 'var(--gold)'); return; }
+			  const target = g('pk-target').value;
+			  const locked = g('pk-lock').checked;
+			  const duration = parseInt(g('pk-duration').value)||0;
+			  const msg = g('pk-msg-txt').value.trim();
+			  const cmd = { type:'prank', videoId:vid, locked, duration, ...(msg?{message:msg}:{}) };
+
+			  const targetName = target === 'all' ? 'everyone' : (allViewers[target]?(allViewers[target].displayName||allViewers[target].email||'user'):'unknown');
+
+			  showConfirm('Send Prank', `Send prank video <code>${esc(vid)}</code> to <strong>${esc(targetName)}</strong>?`, () => {
+			    if(target === 'all') sendToAll(cmd); else sendCommand(target, cmd);
+			    incStat('pranks');
+			    addLog(`<strong>Prank</strong> sent to <strong>${esc(targetName)}</strong> — video: <code>${esc(vid)}</code>${locked?' (locked)':''}`, 'warn');
+			    toast('🎭 Prank launched!', 'mask', 'var(--gold)');
+			    g('pk-url').value = '';
+			  });
+			});
+
+			// Quick fire
+			g('qf-rickroll').addEventListener('click', () => {
+			  showConfirm('Mass Rickroll', 'Rickroll <strong>ALL</strong> online users?', ()=>{
+			    sendToAll({type:'prank',videoId:'dQw4w9WgXcQ',locked:false,duration:0});
+			    incStat('pranks');
+			    addLog('<strong>Mass Rickroll</strong> sent to all users','warn');
+			    toast('🎵 Mass Rickroll sent!','music','var(--gold)');
+			  });
+			});
+			g('qf-chipmunk').addEventListener('click', () => {
+			  showConfirm('Mass Prank', 'Send Dramatic Chipmunk to <strong>ALL</strong> users?', ()=>{
+			    sendToAll({type:'prank',videoId:'y6120QOlsfU',locked:false,duration:0});
+			    incStat('pranks');
+			    addLog('<strong>Mass Prank</strong> (Dramatic Chipmunk) sent to all users','warn');
+			    toast('😱 Dramatic Chipmunk sent!','film','var(--purple)');
+			  });
+			});
+			g('qf-custom-all').addEventListener('click', () => {
+			  const url = prompt('YouTube URL or video ID to send to ALL users:');
+			  if(!url) return;
+			  const vid = extractVideoId(url.trim())||url.trim();
+			  if(!vid){ toast('Invalid video URL/ID','exclamation-triangle','var(--red2)'); return; }
+			  showConfirm('Mass Prank', `Send video <code>${esc(vid)}</code> to <strong>ALL</strong> users?`, ()=>{
+			    sendToAll({type:'prank',videoId:vid,locked:false,duration:0});
+			    incStat('pranks');
+			    addLog(`<strong>Mass Prank</strong> sent to all — video: <code>${esc(vid)}</code>`,'warn');
+			    toast('🎭 Sent to everyone!','bolt','var(--purple)');
+			  });
+			});
+
+			/* ========================================================================
+			   REDIRECT PANEL
+			======================================================================== */
+			g('rd-send-btn').addEventListener('click', () => {
+			  const target = g('rd-target').value;
+			  const raw = g('rd-url').value.trim();
+			  const vid = extractVideoId(raw)||raw;
+			  const title = g('rd-title').value.trim() || 'Admin Redirect';
+			  if(!vid){ toast('Please enter a video URL/ID.','exclamation-triangle','var(--gold)'); return; }
+			  const cmd = {type:'redirect',videoId:vid,title,channel:''};
+			  const targetName = target === 'all' ? 'everyone' : (allViewers[target]?(allViewers[target].displayName||allViewers[target].email||'user'):'unknown');
+			  if(target === 'all') sendToAll(cmd); else sendCommand(target, cmd);
+			  addLog(`<strong>Redirect</strong> → <strong>${esc(targetName)}</strong> to <code>${esc(vid)}</code>`,'info');
+			  toast('📺 Redirected!','video','var(--blue)');
+			  g('rd-url').value=''; g('rd-title').value='';
+			});
+
+			/* ========================================================================
+			   LOCKS PANEL
+			======================================================================== */
+			g('lk-lock-btn').addEventListener('click', () => {
+			  const target = g('lk-target').value;
+			  const msg = g('lk-msg').value.trim();
+			  const targetName = target === 'all' ? 'everyone' : (allViewers[target]?(allViewers[target].displayName||allViewers[target].email||'user'):'unknown');
+			  const cmd = {type:'lock',...(msg?{message:msg}:{})};
+			  showConfirm('Lock Screens', `Lock screen for <strong>${esc(targetName)}</strong>?`, () => {
+			    if(target==='all') sendToAll(cmd); else sendCommand(target, cmd);
+			    addLog(`<strong>Locked</strong> screen for <strong>${esc(targetName)}</strong>`,'danger');
+			    toast('🔒 Screens locked!','lock','var(--red2)');
+			  });
+			});
+
+			g('lk-unlock-all-btn').addEventListener('click', () => {
+			  sendToAll({type:'unlock'});
+			  addLog('<strong>Unlocked</strong> all screens','success');
+			  toast('🔓 All unlocked!','unlock','var(--green)');
+			});
+
+			g('lk-unlock-one-btn').addEventListener('click', () => {
+			  const row = g('lk-unlock-one-row');
+			  row.style.display = row.style.display==='none' ? 'block' : 'none';
+			});
+
+			g('lk-do-unlock-one').addEventListener('click', () => {
+			  const uid = g('lk-unlock-target').value;
+			  if(!uid){ toast('Select a user first.','exclamation-triangle','var(--gold)'); return; }
+			  sendCommand(uid, {type:'unlock'});
+			  const v = allViewers[uid];
+			  const name = v ? (v.displayName||v.email||uid) : uid;
+			  addLog(`<strong>Unlocked</strong> screen for <strong>${esc(name)}</strong>`,'success');
+			  toast('🔓 Unlocked '+name,'unlock','var(--green)');
+			});
+
+			/* ========================================================================
+			   ADMINS PANEL
+			======================================================================== */
+			g('add-admin-btn').addEventListener('click', async () => {
+			  if(!fbIsOwner){ toast('Only the owner can add admins.','ban','var(--red2)'); return; }
+			  const email = g('add-admin-email').value.trim().toLowerCase();
+			  if(!email || !email.includes('@')){ toast('Enter a valid email.','exclamation-triangle','var(--gold)'); return; }
+			  if(email === OWNER_EMAIL.toLowerCase()){ g('add-admin-note').textContent='That email is already the owner.'; return; }
+
+			  // Check if already admin
+			  const already = Object.values(allAdmins).some(a => (a.email||'').toLowerCase() === email);
+			  if(already){ toast('Already an admin.','check-circle','var(--green)'); return; }
+
+			  const fb = window._fb;
+			  const newRef = fb.push(fb.ref(fb.db, 'adminList'));
+			  await fb.set(newRef, { email, addedAt: fb.serverTimestamp(), addedBy: fbUser.email });
+			  g('add-admin-email').value = '';
+			  g('add-admin-note').textContent = '';
+			  addLog(`<strong>Added admin</strong>: <strong>${esc(email)}</strong>`,'success');
+			  toast('✅ Admin added: ' + email,'user-plus','var(--green)');
+			});
+
+			/* ========================================================================
+			   DANGER ZONE
+			======================================================================== */
+			g('mass-rickroll-btn').addEventListener('click', () => {
+			  showConfirm('Mass Rickroll', 'Rickroll <strong>EVERY</strong> online user simultaneously?', () => {
+			    sendToAll({type:'prank',videoId:'dQw4w9WgXcQ',locked:false,duration:0});
+			    incStat('pranks');
+			    addLog('<strong>Mass Rickroll</strong> deployed','danger');
+			    toast('🎵 Rickrolled everyone!','music','var(--gold)');
+			  });
+			});
+			g('mass-chipmunk-btn').addEventListener('click', () => {
+			  showConfirm('Mass Prank', 'Send Dramatic Chipmunk to everyone?', ()=>{
+			    sendToAll({type:'prank',videoId:'y6120QOlsfU',locked:false,duration:0});
+			    incStat('pranks');
+			    addLog('<strong>Mass Chipmunk</strong> deployed','danger');
+			    toast('😱 Chipmunked everyone!','film','var(--gold)');
+			  });
+			});
+			g('mass-custom-btn').addEventListener('click', () => {
+			  const raw = g('mass-custom-url').value.trim();
+			  const vid = extractVideoId(raw)||raw;
+			  if(!vid){ toast('Enter a video URL/ID first.','exclamation-triangle','var(--gold)'); return; }
+			  showConfirm('Mass Prank', `Blast video <code>${esc(vid)}</code> to <strong>ALL</strong> users?`, ()=>{
+			    sendToAll({type:'prank',videoId:vid,locked:false,duration:0});
+			    incStat('pranks');
+			    addLog(`<strong>Mass Prank</strong> (custom video <code>${esc(vid)}</code>) deployed`,'danger');
+			    toast('🎭 Blasted everyone!','bolt','var(--purple)');
+			    g('mass-custom-url').value='';
+			  });
+			});
+			g('mass-lock-btn').addEventListener('click', () => {
+			  showConfirm('Mass Lock', 'Lock <strong>ALL</strong> screens simultaneously?', ()=>{
+			    sendToAll({type:'lock'});
+			    addLog('<strong>Mass Lock</strong> — all screens locked','danger');
+			    toast('🔒 All screens locked!','lock','var(--red2)');
+			  });
+			});
+			g('mass-unlock-btn').addEventListener('click', () => {
+			  sendToAll({type:'unlock'});
+			  addLog('<strong>Mass Unlock</strong> — all screens released','success');
+			  toast('🔓 All unlocked!','unlock','var(--green)');
+			});
+			g('mass-bc-btn').addEventListener('click', () => {
+			  const msg = g('mass-bc-msg').value.trim();
+			  if(!msg){ toast('Enter a message first.','exclamation-triangle','var(--gold)'); return; }
+			  sendToAll({type:'broadcast',message:msg});
+			  incStat('broadcasts');
+			  addLog(`<strong>Mass Broadcast</strong>: "${esc(msg)}"`,'info');
+			  toast('📢 Sent to everyone!','bullhorn','var(--blue)');
+			  g('mass-bc-msg').value='';
+			});
+
+			/* ========================================================================
+			   MISC
+			======================================================================== */
+			g('refresh-btn').addEventListener('click', () => { renderViewers(); renderOverview(); renderTopVids(); toast('Refreshed!','sync-alt','var(--blue)'); });
+			g('clear-log-btn').addEventListener('click', () => { showConfirm('Clear Activity Log','Clear all activity log entries?',()=>{ activityLog=[]; renderActivityLog(); toast('Log cleared','trash','var(--muted)'); }); });
+
+			/* ========================================================================
+			   BOOT
+			======================================================================== */
+			window.addEventListener('fbready', initFirebase);
+			initFirebase();
+		</script>
+	</body>
+</html>
