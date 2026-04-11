@@ -1092,7 +1092,10 @@
 			  {label:'<i class="fas fa-gamepad tab-icon"></i> Game Studio'},
 			  {label:'<i class="fas fa-plus tab-icon"></i> Tab Creator'},
 			];
-			// Default redirect tabs (used as fallback if Firebase has none)
+
+			// ── FIX: REDIRECT_TABS is now the single source of truth.
+			// The Firebase override (loadMoreTabs) has been removed so these
+			// values are always used and never overwritten at runtime.
 			var REDIRECT_TABS=[
 			  {label:'MatTube', icon:'fab fa-youtube', url:'https://htmltools.me/MatTube/'},
 			  {label:'AI Chat', icon:'fas fa-robot', url:'https://htmltools.me/AI/'},
@@ -1102,36 +1105,6 @@
 			  {label:'HTMeet', icon:'fas fa-video', url:'https://htmltools.me/Meet/'},
 			  {label:'Remove Background', icon:'fas fa-eraser', url:'https://htmltools.me/Removebg'},
 			];
-
-			// Load dynamic more-tabs from Firebase
-			(function loadMoreTabs() {
-			  function tryLoad() {
-			    if (!window._db || !window._ref || !window._onValue) { setTimeout(tryLoad, 500); return; }
-			    window._onValue(window._ref(window._db, 'siteConfig/moreTabs'), function(snap) {
-			      var tabs = snap.val();
-			      // Accept both array and object formats from Firebase
-			      if (tabs) {
-			        var tabArray = Array.isArray(tabs) ? tabs : Object.values(tabs);
-			        // Filter out any entries that lack a url field
-			        tabArray = tabArray.filter(function(t) { return t && (t.url || t.href || t.link); });
-			        // Normalise: ensure every entry uses the 'url' key
-			        tabArray = tabArray.map(function(t) {
-			          return {
-			            label: t.label || t.name || t.title || 'Link',
-			            icon: t.icon || 'fas fa-link',
-			            url: t.url || t.href || t.link,
-			            svgIcon: t.svgIcon || null
-			          };
-			        });
-			        if (tabArray.length > 0) {
-			          REDIRECT_TABS = tabArray;
-			          buildNav();
-			        }
-			      }
-			    });
-			  }
-			  tryLoad();
-			})();
 
 			var PAGE_COUNT=4;
 			var customTabs=JSON.parse(localStorage.getItem('custom_tabs_active')||'[]');
@@ -1173,7 +1146,6 @@
 			      ? '<span style="width:18px;text-align:center;font-size:15px;">'+rt.svgIcon+'</span>'
 			      : '<i class="'+(rt.icon||'fas fa-link')+'"></i>';
 			    item.innerHTML = iconHtml + '<span style="flex:1">'+rt.label+'</span><i class="fas fa-external-link-alt redirect-ext"></i>';
-			    // FIX: use window.open to open in a new tab instead of navigating away
 			    item.addEventListener('click',function(e){
 			      e.preventDefault();
 			      closeRedirectMenu();
