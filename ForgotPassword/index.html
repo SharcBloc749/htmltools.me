@@ -24,8 +24,25 @@
     <div class="err" id="err"></div>
     <div class="back" onclick="window.location.href='https://htmltools.me'">← Back to HTMLTools</div>
 </div>
-<script>
-    async function sendReset() {
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getAuth, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+        authDomain: "htmltools-library.firebaseapp.com",
+        databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
+        projectId: "htmltools-library",
+        storageBucket: "htmltools-library.firebasestorage.app",
+        messagingSenderId: "973699554480",
+        appId: "1:973699554480:web:33ed9d341fc48ed8092f75"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    window.sendReset = async function() {
         const email = document.getElementById('email').value.trim();
         const msg = document.getElementById('msg');
         const err = document.getElementById('err');
@@ -43,27 +60,19 @@
         btn.textContent = 'Sending...';
 
         try {
-            const res = await fetch('https://htmltools-reset.bozhetarnikmatthew.workers.dev/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to_email: email,
-                    to_name: email.split('@')[0],
-                    reset_link: 'https://htmltools.me/ResetPassword/?email=' + encodeURIComponent(email)
-                })
+            await sendPasswordResetEmail(auth, email, {
+                url: 'https://htmltools.me/ResetPassword/'
             });
-
-            if (res.ok) {
-                msg.style.display = 'block';
-            } else {
-                const data = await res.json();
-                err.textContent = data?.message || 'Failed to send. Please try again.';
-                err.style.display = 'block';
-            }
+            msg.style.display = 'block';
         } catch(e) {
-            err.textContent = 'Failed to send. Please try again.';
+            if (e.code === 'auth/user-not-found') {
+                err.textContent = 'No account found with that email.';
+            } else if (e.code === 'auth/invalid-email') {
+                err.textContent = 'Please enter a valid email address.';
+            } else {
+                err.textContent = e.message;
+            }
             err.style.display = 'block';
-            console.error(e);
         }
 
         btn.disabled = false;
