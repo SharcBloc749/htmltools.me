@@ -1,0 +1,1547 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width,initial-scale=1.0,maximum-scale=1.0"
+		/>
+		<title>Matthew Admin Panel</title>
+		<link rel="icon" type="image/png" href="Adminlogo.png" />
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+		/>
+		<style>
+			:root{
+			  --bg:#04060a;--surface:#080c12;--panel:#0e1420;
+			  --border:#1a2535;--border2:#243050;
+			  --text:#d8e8f8;--muted:#4a6080;--muted2:#2a3a50;
+			  --accent:#4da6ff;--accent2:#7b5cff;
+			  --green:#28c96a;--red:#e83050;--yellow:#f0b030;--orange:#ff7040;
+			  --owner:#ffd700;
+			  --radius:10px;--radius-lg:16px;
+			  --font:'Segoe UI',system-ui,sans-serif;
+			  --mono:'Cascadia Code','Fira Code',monospace;
+			  --nav-w:240px;
+			  --nav-w-collapsed:60px;
+			}
+			*{box-sizing:border-box;margin:0;padding:0;}
+			html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);}
+			::-webkit-scrollbar{width:5px;height:5px;}
+			::-webkit-scrollbar-track{background:transparent;}
+			::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+			/* ── AUTH GATE ── */
+			#auth-gate{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
+			#auth-gate.hidden{display:none;}
+			.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:3rem 2.5rem;width:100%;max-width:420px;text-align:center;}
+			.auth-logo{font-size:3rem;margin-bottom:1rem;filter:drop-shadow(0 0 20px rgba(255,215,0,.4));}
+			.auth-title{font-size:1.8rem;font-weight:900;color:var(--owner);margin-bottom:.25rem;letter-spacing:-.04em;}
+			.auth-sub{font-size:.8rem;color:var(--muted);margin-bottom:2rem;}
+			.auth-input{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:.9rem 1.1rem;border-radius:12px;font-size:.95rem;font-family:var(--font);outline:none;margin-bottom:.75rem;transition:border-color .2s;}
+			.auth-input:focus{border-color:var(--owner);}
+			.auth-btn{width:100%;padding:.9rem;background:linear-gradient(135deg,#c8860a,var(--owner));color:#000;font-family:var(--font);font-size:.9rem;font-weight:800;border:none;border-radius:12px;cursor:pointer;transition:all .15s;letter-spacing:.05em;}
+			.auth-btn:hover{opacity:.9;transform:translateY(-1px);}
+			.auth-err{font-size:.75rem;color:var(--red);margin-top:.5rem;display:none;padding:.5rem;background:rgba(232,48,80,.08);border-radius:8px;}
+			.owner-badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);color:var(--owner);font-size:.65rem;font-weight:700;padding:.3rem .8rem;border-radius:20px;margin-bottom:1.5rem;letter-spacing:.1em;}
+
+			/* ── LAYOUT ── */
+			.app{display:flex;height:100vh;overflow:hidden;}
+
+			/* ── SIDEBAR ── */
+			.sidebar{width:var(--nav-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width .2s;overflow:hidden;position:relative;z-index:10;}
+			.sidebar.collapsed{width:var(--nav-w-collapsed);}
+			.sb-top{padding:16px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+			.sb-brand{display:flex;align-items:center;gap:10px;overflow:hidden;flex:1;}
+			.sb-icon{width:34px;height:34px;background:linear-gradient(135deg,#c8860a,var(--owner));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+			.sb-title{font-size:14px;font-weight:800;color:var(--owner);white-space:nowrap;letter-spacing:-.2px;}
+			.sb-sub{font-size:10px;color:var(--muted);white-space:nowrap;}
+			.sb-collapse{background:none;border:none;color:var(--muted);cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;flex-shrink:0;}
+			.sb-collapse:hover{background:rgba(255,255,255,.06);color:var(--text);}
+			.sb-nav{flex:1;overflow-y:auto;padding:10px 8px;display:flex;flex-direction:column;gap:2px;}
+			.sb-group-label{font-size:9px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.15em;padding:10px 8px 4px;white-space:nowrap;overflow:hidden;}
+			.sidebar.collapsed .sb-group-label{opacity:0;}
+			.sb-link{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;transition:all .15s;color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap;border:1px solid transparent;position:relative;}
+			.sb-link:hover{color:var(--text);background:rgba(255,255,255,.04);}
+			.sb-link.active{color:var(--text);background:rgba(77,166,255,.12);border-color:rgba(77,166,255,.25);}
+			.sb-link i{width:18px;text-align:center;font-size:13px;flex-shrink:0;}
+			.sb-link-text{overflow:hidden;text-overflow:ellipsis;}
+			.sidebar.collapsed .sb-link-text{display:none;}
+			.sb-badge{background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 5px;margin-left:auto;flex-shrink:0;}
+			.sidebar.collapsed .sb-badge{position:absolute;top:4px;right:4px;}
+			.sb-bottom{padding:12px 8px;border-top:1px solid var(--border);flex-shrink:0;}
+			.sb-user{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-radius:8px;}
+			.sb-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#c8860a,var(--owner));display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:700;flex-shrink:0;}
+			.sb-user-info{overflow:hidden;flex:1;}
+			.sb-user-name{font-size:12px;font-weight:700;color:var(--owner);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+			.sb-user-role{font-size:10px;color:var(--muted);}
+			.sidebar.collapsed .sb-user-info{display:none;}
+			.sb-signout{background:none;border:none;color:var(--red);cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;transition:background .15s;flex-shrink:0;}
+			.sb-signout:hover{background:rgba(232,48,80,.12);}
+			.sidebar.collapsed .sb-signout{display:none;}
+
+			/* ── MAIN ── */
+			.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+			.topbar{height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;}
+			.topbar-title{font-size:16px;font-weight:800;letter-spacing:-.3px;}
+			.topbar-badge{background:rgba(255,215,0,.15);border:1px solid rgba(255,215,0,.3);color:var(--owner);font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:.08em;}
+			.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+			.topbar-time{font-size:11px;color:var(--muted);}
+			.content{flex:1;overflow-y:auto;padding:24px;}
+			@media(max-width:900px){.content{padding:14px;}}
+
+			/* ── SECTIONS ── */
+			.section{display:none;}
+			.section.active{display:block;}
+
+			/* ── CARDS ── */
+			.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px;}
+			.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+			.card-header h3{font-size:14px;font-weight:700;margin:0;}
+			.card-header-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+			.card-body{padding:20px;}
+
+			/* ── STATS GRID ── */
+			.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px;}
+			.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;position:relative;overflow:hidden;transition:border-color .2s;}
+			.stat-card:hover{border-color:var(--border2);}
+			.stat-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+			.stat-value{font-size:28px;font-weight:900;letter-spacing:-.04em;}
+			.stat-sub{font-size:10.5px;color:var(--muted);margin-top:4px;}
+			.stat-icon{position:absolute;bottom:12px;right:14px;font-size:20px;opacity:.12;}
+
+			/* ── BTNS ── */
+			.btn{background:var(--panel);border:1px solid var(--border2);color:var(--text);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:var(--font);transition:all .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+			.btn:hover{border-color:var(--muted);background:rgba(255,255,255,.04);}
+			.btn:active{transform:scale(.97);}
+			.btn-primary{background:linear-gradient(135deg,var(--accent),#2878cc);border:none;color:#fff;}
+			.btn-success{background:linear-gradient(135deg,var(--green),#1a8840);border:none;color:#fff;}
+			.btn-danger{background:linear-gradient(135deg,var(--red),#901030);border:none;color:#fff;}
+			.btn-warning{background:linear-gradient(135deg,var(--yellow),#b07010);border:none;color:#000;}
+			.btn-owner{background:linear-gradient(135deg,#c8860a,var(--owner));border:none;color:#000;font-weight:800;}
+			.btn-sm{padding:5px 12px;font-size:11px;}
+			.btn-icon{width:34px;height:34px;padding:0;justify-content:center;border-radius:8px;}
+
+			/* ── FORM ELEMENTS ── */
+			.form-group{margin-bottom:16px;}
+			.form-label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+			.form-input{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:8px;font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s;}
+			.form-input:focus{border-color:var(--accent);}
+			textarea.form-input{font-family:var(--mono);font-size:12px;resize:vertical;min-height:80px;}
+			.form-row{display:flex;gap:10px;}
+			.form-row .form-group{flex:1;}
+			.toggle{position:relative;width:42px;height:24px;flex-shrink:0;}
+			.toggle input{opacity:0;width:0;height:0;}
+			.toggle-slider{position:absolute;inset:0;background:var(--border2);border-radius:12px;cursor:pointer;transition:.3s;}
+			.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s;}
+			.toggle input:checked + .toggle-slider{background:var(--green);}
+			.toggle input:checked + .toggle-slider::before{transform:translateX(18px);}
+			.toggle-row{display:flex;align-items:center;gap:12px;padding:10px 0;}
+
+			/* ── TABLE ── */
+			.data-table{width:100%;border-collapse:collapse;font-size:12px;}
+			.data-table th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg);}
+			.data-table td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+			.data-table tr:last-child td{border-bottom:none;}
+			.data-table tr:hover td{background:rgba(255,255,255,.02);}
+			.table-wrap{overflow-x:auto;}
+			.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+			.badge-green{background:rgba(40,201,106,.15);color:var(--green);}
+			.badge-red{background:rgba(232,48,80,.15);color:var(--red);}
+			.badge-yellow{background:rgba(240,176,48,.15);color:var(--yellow);}
+			.badge-blue{background:rgba(77,166,255,.15);color:var(--accent);}
+			.badge-gold{background:rgba(255,215,0,.15);color:var(--owner);}
+			.user-info{display:flex;align-items:center;gap:10px;}
+			.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+
+			/* ── GRID LAYOUTS ── */
+			.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+			@media(max-width:768px){.two-col{grid-template-columns:1fr;}}
+			.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+			@media(max-width:900px){.three-col{grid-template-columns:1fr 1fr;}}
+			@media(max-width:600px){.three-col{grid-template-columns:1fr;}}
+
+			/* ── MORE TABS ── */
+			.tab-item-edit{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;gap:12px;align-items:center;margin-bottom:8px;}
+			.tab-preview-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(245,184,66,.1);flex-shrink:0;}
+			.tab-edit-fields{flex:1;display:flex;gap:8px;flex-wrap:wrap;}
+			.tab-edit-fields input{flex:1;min-width:120px;}
+			.tab-actions{display:flex;gap:4px;flex-shrink:0;}
+			.icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:6px;max-height:300px;overflow-y:auto;padding:4px;}
+			.icon-option{width:50px;height:50px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:18px;gap:2px;}
+			.icon-option:hover,.icon-option.selected{border-color:var(--accent);background:rgba(77,166,255,.1);}
+			.icon-option span{font-size:8px;color:var(--muted);}
+			.preview-tab-item{background:var(--panel);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;transition:all .15s;display:inline-flex;align-items:center;gap:12px;text-decoration:none;color:var(--text);}
+			.preview-tab-item:hover{background:var(--bg);border-color:var(--accent);color:var(--accent);}
+
+			/* ── ACTIVITY LOG ── */
+			.log-item{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;font-size:12px;}
+			.log-item:last-child{border-bottom:none;}
+			.log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+			.log-dot.login{background:var(--green);}
+			.log-dot.admin{background:var(--owner);}
+			.log-dot.warn{background:var(--red);}
+			.log-dot.info{background:var(--accent);}
+			.log-body{flex:1;}
+			.log-msg{color:var(--text);}
+			.log-time{color:var(--muted);font-size:10.5px;margin-top:2px;}
+
+			/* ── NOTIF COMPOSER ── */
+			.notif-type-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+			.notif-type-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);color:var(--muted);cursor:pointer;font-size:12px;font-family:var(--font);transition:all .15s;}
+			.notif-type-btn.active{border-color:var(--accent);background:rgba(77,166,255,.1);color:var(--accent);}
+
+			/* ── PILL TABS ── */
+			.pill-tabs{display:flex;background:var(--bg);border-radius:10px;padding:4px;gap:2px;margin-bottom:16px;}
+			.pill-tab{flex:1;padding:7px 12px;border-radius:7px;border:none;background:transparent;color:var(--muted);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;}
+			.pill-tab.active{background:var(--panel);color:var(--text);border:1px solid var(--border);}
+
+			/* ── PROGRESS BAR ── */
+			.prog-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+			.prog-fill{height:100%;border-radius:3px;transition:width .3s;}
+
+			/* ── TOAST ── */
+			#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+			.toast-item{background:var(--panel);border:1px solid var(--border2);border-radius:10px;padding:12px 18px;font-size:13px;display:flex;align-items:center;gap:10px;animation:toastIn .3s ease;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:all;}
+			@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+			.toast-item.success{border-color:rgba(40,201,106,.4);}
+			.toast-item.error{border-color:rgba(232,48,80,.4);}
+			.toast-item.info{border-color:rgba(77,166,255,.4);}
+
+			/* ── MODAL ── */
+			.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:5000;backdrop-filter:blur(6px);}
+			.modal-overlay.active{display:flex;}
+			.modal{background:var(--panel);border:1px solid var(--border2);border-radius:var(--radius-lg);width:90%;max-width:560px;max-height:90vh;overflow-y:auto;}
+			.modal-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--panel);z-index:1;}
+			.modal-header h3{margin:0;font-size:15px;font-weight:700;}
+			.modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s;}
+			.modal-close:hover{background:rgba(232,48,80,.15);color:var(--red);}
+			.modal-body{padding:20px;}
+			.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+
+			/* ── MISC ── */
+			.chart-area{height:200px;background:var(--bg);border-radius:10px;border:1px solid var(--border);position:relative;overflow:hidden;}
+			.chart-bars{position:absolute;bottom:0;left:0;right:0;display:flex;gap:4px;padding:0 16px;align-items:flex-end;height:100%;}
+			.chart-bar{flex:1;border-radius:4px 4px 0 0;opacity:.7;transition:opacity .15s;cursor:pointer;}
+			.chart-bar:hover{opacity:1;}
+			.settings-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);}
+			.settings-row:last-child{border-bottom:none;}
+			.settings-info h4{font-size:13px;font-weight:600;margin-bottom:3px;}
+			.settings-info p{font-size:11.5px;color:var(--muted);}
+			.admin-item{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+			.admin-item-icon{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#c8860a,var(--owner));display:flex;align-items:center;justify-content:center;font-size:14px;color:#000;font-weight:700;flex-shrink:0;}
+			.admin-item-info{flex:1;}
+			.admin-item-email{font-size:13px;font-weight:600;color:var(--owner);}
+			.admin-item-role{font-size:11px;color:var(--muted);}
+			.owner-only-section{border:1px solid rgba(255,215,0,.2);border-radius:var(--radius-lg);padding:20px;background:rgba(255,215,0,.03);margin-bottom:16px;}
+			.owner-section-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:var(--owner);margin-bottom:16px;}
+			.mob-menu-btn{display:none;width:36px;height:36px;border-radius:8px;background:var(--panel);border:1px solid var(--border2);color:var(--muted);align-items:center;justify-content:center;cursor:pointer;font-size:14px;}
+			.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:19;backdrop-filter:blur(3px);}
+			.mob-overlay.show{display:block;}
+			@media(max-width:768px){
+			  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:20;transform:translateX(-100%);transition:transform .25s cubic-bezier(.22,1,.36,1);}
+			  .sidebar.mobile-open{transform:translateX(0);}
+			  .sidebar.collapsed{width:var(--nav-w);}
+			  .mob-menu-btn{display:flex!important;}
+			}
+		</style>
+	</head>
+	<body>
+		<div id="auth-gate">
+			<div class="auth-card">
+				<div class="auth-logo">👑</div>
+				<div class="owner-badge">⚡ OWNER ACCESS ONLY</div>
+				<div class="auth-title">Admin Panel</div>
+				<div class="auth-sub">
+					Sign in with the owner account to continue
+				</div>
+				<input
+					class="auth-input"
+					type="email"
+					id="auth-email"
+					placeholder="matthewbozhe@gmail.com"
+				/>
+				<input
+					class="auth-input"
+					type="password"
+					id="auth-pass"
+					placeholder="Password"
+					onkeydown="if(event.key==='Enter')doAuthLogin()"
+				/>
+				<button class="auth-btn" onclick="doAuthLogin()">
+					🔐 Access Admin Panel
+				</button>
+				<div class="auth-err" id="auth-err"></div>
+			</div>
+		</div>
+
+		<div
+			class="mob-overlay"
+			id="mobOverlay"
+			onclick="closeMobSidebar()"
+		></div>
+
+		<div class="app" id="appWrap" style="display:none;">
+			<div class="sidebar" id="sidebar">
+				<div class="sb-top">
+					<div class="sb-brand">
+						<div class="sb-icon">👑</div>
+						<div>
+							<div class="sb-title">Admin</div>
+							<div class="sb-sub">Matthew's Panel</div>
+						</div>
+					</div>
+					<button class="sb-collapse" onclick="toggleSidebar()">
+						<i class="fas fa-chevron-left" id="sbChevron"></i>
+					</button>
+				</div>
+				<nav class="sb-nav">
+					<div class="sb-group-label">Overview</div>
+					<div
+						class="sb-link active"
+						data-sec="dashboard"
+						onclick="navTo('dashboard',this)"
+					>
+						<i class="fas fa-th-large"></i>
+						<span class="sb-link-text">Dashboard</span>
+					</div>
+					<div
+						class="sb-link"
+						data-sec="activity"
+						onclick="navTo('activity',this)"
+					>
+						<i class="fas fa-stream"></i>
+						<span class="sb-link-text">Activity Log</span>
+						<span
+							class="sb-badge"
+							id="actBadge"
+							style="display:none"
+						>
+							0
+						</span>
+					</div>
+					<div class="sb-group-label">User Management</div>
+					<div
+						class="sb-link"
+						data-sec="users"
+						onclick="navTo('users',this)"
+					>
+						<i class="fas fa-users"></i>
+						<span class="sb-link-text">All Users</span>
+					</div>
+					<div
+						class="sb-link"
+						data-sec="bans"
+						onclick="navTo('bans',this)"
+					>
+						<i class="fas fa-ban"></i>
+						<span class="sb-link-text">Bans</span>
+					</div>
+					<div
+						class="sb-link"
+						data-sec="admins"
+						onclick="navTo('admins',this)"
+					>
+						<i class="fas fa-crown"></i>
+						<span class="sb-link-text">Admin Access</span>
+					</div>
+					<div class="sb-group-label">Broadcasting</div>
+					<div
+						class="sb-link"
+						data-sec="announce"
+						onclick="navTo('announce',this)"
+					>
+						<i class="fas fa-bullhorn"></i>
+						<span class="sb-link-text">Announcement</span>
+					</div>
+					<div
+						class="sb-link"
+						data-sec="notifications"
+						onclick="navTo('notifications',this)"
+					>
+						<i class="fas fa-bell"></i>
+						<span class="sb-link-text">Notifications</span>
+					</div>
+					<div class="sb-group-label">Site Control</div>
+					<div
+						class="sb-link"
+						data-sec="moretabs"
+						onclick="navTo('moretabs',this)"
+					>
+						<i class="fas fa-external-link-alt"></i>
+						<span class="sb-link-text">More Tabs</span>
+					</div>
+					<div
+						class="sb-link"
+						data-sec="sitesettings"
+						onclick="navTo('sitesettings',this)"
+					>
+						<i class="fas fa-cog"></i>
+						<span class="sb-link-text">Site Settings</span>
+					</div>
+					<div
+						class="sb-link"
+						data-sec="maintenance"
+						onclick="navTo('maintenance',this)"
+					>
+						<i class="fas fa-tools"></i>
+						<span class="sb-link-text">Maintenance</span>
+					</div>
+				</nav>
+				<div class="sb-bottom">
+					<div class="sb-user">
+						<div class="sb-avatar">M</div>
+						<div class="sb-user-info">
+							<div class="sb-user-name">Matthew</div>
+							<div class="sb-user-role">Owner &amp; Admin</div>
+						</div>
+						<button
+							class="sb-signout"
+							onclick="doSignOut()"
+							title="Sign Out"
+						>
+							<i class="fas fa-sign-out-alt"></i>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="main">
+				<div class="topbar">
+					<button class="mob-menu-btn" onclick="openMobSidebar()">
+						<i class="fas fa-bars"></i>
+					</button>
+					<div class="topbar-title" id="topbarTitle">Dashboard</div>
+					<span class="topbar-badge">👑 OWNER</span>
+					<div class="topbar-right">
+						<span class="topbar-time" id="clock"></span>
+						<button
+							class="btn btn-sm"
+							onclick="refreshCurrentSection()"
+						>
+							<i class="fas fa-sync-alt"></i>
+						</button>
+					</div>
+				</div>
+				<div class="content" id="mainContent">
+					<!-- ════ DASHBOARD ════ -->
+					<div class="section active" id="sec-dashboard">
+						<div class="stats-grid">
+							<div class="stat-card">
+								<div class="stat-label">Total Users</div>
+								<div class="stat-value" id="stat-users">—</div>
+								<div class="stat-sub">Registered accounts</div>
+								<i class="fas fa-users stat-icon"></i>
+							</div>
+							<div class="stat-card">
+								<div class="stat-label">Online Now</div>
+								<div
+									class="stat-value"
+									style="color:var(--green)"
+									id="stat-online"
+								>
+									—
+								</div>
+								<div class="stat-sub">Last 15 minutes</div>
+								<i
+									class="fas fa-circle stat-icon"
+									style="color:var(--green)"
+								></i>
+							</div>
+							<div class="stat-card">
+								<div class="stat-label">Banned Users</div>
+								<div
+									class="stat-value"
+									style="color:var(--red)"
+									id="stat-banned"
+								>
+									—
+								</div>
+								<div class="stat-sub">Active bans</div>
+								<i
+									class="fas fa-ban stat-icon"
+									style="color:var(--red)"
+								></i>
+							</div>
+							<div class="stat-card">
+								<div class="stat-label">Logins Today</div>
+								<div
+									class="stat-value"
+									style="color:var(--accent)"
+									id="stat-logins"
+								>
+									—
+								</div>
+								<div class="stat-sub">Sign-in events</div>
+								<i
+									class="fas fa-sign-in-alt stat-icon"
+									style="color:var(--accent)"
+								></i>
+							</div>
+						</div>
+						<div class="two-col">
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(77,166,255,.15);color:var(--accent);"
+									>
+										<i class="fas fa-chart-bar"></i>
+									</div>
+									<h3>Logins (7 Days)</h3>
+								</div>
+								<div class="card-body" style="padding:12px;">
+									<div class="chart-area">
+										<div
+											class="chart-bars"
+											id="chartBars"
+										></div>
+									</div>
+								</div>
+							</div>
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(40,201,106,.15);color:var(--green);"
+									>
+										<i class="fas fa-stream"></i>
+									</div>
+									<h3>Recent Activity</h3>
+								</div>
+								<div
+									style="max-height:240px;overflow-y:auto;"
+									id="recentActivity"
+								>
+									<div
+										style="padding:20px;text-align:center;color:var(--muted);font-size:12px;"
+									>
+										Loading...
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-header">
+								<div
+									class="card-header-icon"
+									style="background:rgba(240,176,48,.15);color:var(--yellow);"
+								>
+									<i class="fas fa-bolt"></i>
+								</div>
+								<h3>Quick Actions</h3>
+							</div>
+							<div class="card-body">
+								<div
+									style="display:flex;gap:10px;flex-wrap:wrap;"
+								>
+									<button
+										class="btn btn-warning"
+										onclick="navTo('announce',document.querySelector('[data-sec=announce]'))"
+									>
+										<i class="fas fa-bullhorn"></i>
+										Broadcast
+									</button>
+									<button
+										class="btn btn-primary"
+										onclick="navTo('notifications',document.querySelector('[data-sec=notifications]'))"
+									>
+										<i class="fas fa-bell"></i>
+										Send Notif
+									</button>
+									<button
+										class="btn btn-danger"
+										onclick="navTo('bans',document.querySelector('[data-sec=bans]'))"
+									>
+										<i class="fas fa-ban"></i>
+										Manage Bans
+									</button>
+									<button
+										class="btn btn-owner"
+										onclick="navTo('users',document.querySelector('[data-sec=users]'))"
+									>
+										<i class="fas fa-users"></i>
+										View Users
+									</button>
+									<button
+										class="btn"
+										onclick="navTo('moretabs',document.querySelector('[data-sec=moretabs]'))"
+									>
+										<i class="fas fa-external-link-alt"></i>
+										Edit More Tabs
+									</button>
+									<button
+										class="btn"
+										onclick="navTo('sitesettings',document.querySelector('[data-sec=sitesettings]'))"
+									>
+										<i class="fas fa-cog"></i>
+										Site Settings
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ ACTIVITY LOG ════ -->
+					<div class="section" id="sec-activity">
+						<div class="card">
+							<div class="card-header">
+								<div
+									class="card-header-icon"
+									style="background:rgba(77,166,255,.15);color:var(--accent);"
+								>
+									<i class="fas fa-stream"></i>
+								</div>
+								<h3>Activity Log</h3>
+								<div
+									style="margin-left:auto;display:flex;gap:8px;"
+								>
+									<button
+										class="btn btn-sm"
+										onclick="loadActivity()"
+									>
+										<i class="fas fa-sync-alt"></i>
+										Refresh
+									</button>
+									<button
+										class="btn btn-sm btn-danger"
+										onclick="clearActivityLog()"
+									>
+										<i class="fas fa-trash"></i>
+										Clear
+									</button>
+								</div>
+							</div>
+							<div
+								style="max-height:600px;overflow-y:auto;"
+								id="activityList"
+							>
+								<div
+									style="padding:20px;text-align:center;color:var(--muted);font-size:12px;"
+								>
+									Loading...
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ USERS ════ -->
+					<div class="section" id="sec-users">
+						<div class="card">
+							<div class="card-header">
+								<div
+									class="card-header-icon"
+									style="background:rgba(77,166,255,.15);color:var(--accent);"
+								>
+									<i class="fas fa-users"></i>
+								</div>
+								<h3>All Users</h3>
+								<div
+									style="margin-left:auto;display:flex;gap:8px;"
+								>
+									<input
+										class="form-input"
+										style="width:200px;padding:6px 10px;"
+										placeholder="Search..."
+										id="userSearch"
+										oninput="filterUsers()"
+									/>
+									<button
+										class="btn btn-sm"
+										onclick="loadUsers()"
+									>
+										<i class="fas fa-sync-alt"></i>
+									</button>
+								</div>
+							</div>
+							<div class="table-wrap">
+								<table class="data-table">
+									<thead>
+										<tr>
+											<th>User</th>
+											<th>Email</th>
+											<th>Joined</th>
+											<th>Last Sign In</th>
+											<th>Status</th>
+											<th>Actions</th>
+										</tr>
+									</thead>
+									<tbody id="usersTable">
+										<tr>
+											<td
+												colspan="6"
+												style="text-align:center;padding:30px;color:var(--muted);"
+											>
+												Loading...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ BANS ════ -->
+					<div class="section" id="sec-bans">
+						<div class="two-col">
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(232,48,80,.15);color:var(--red);"
+									>
+										<i class="fas fa-ban"></i>
+									</div>
+									<h3>Ban User</h3>
+								</div>
+								<div class="card-body">
+									<div class="form-group">
+										<label class="form-label">
+											User UID or Email
+										</label>
+										<input
+											class="form-input"
+											id="banUidInput"
+											placeholder="Paste UID..."
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">
+											Reason (optional)
+										</label>
+										<textarea
+											class="form-input"
+											id="banReasonInput"
+											rows="3"
+											placeholder="Reason..."
+										></textarea>
+									</div>
+									<button
+										class="btn btn-danger"
+										style="width:100%"
+										onclick="banUser()"
+									>
+										<i class="fas fa-ban"></i>
+										Ban User
+									</button>
+								</div>
+							</div>
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(40,201,106,.15);color:var(--green);"
+									>
+										<i class="fas fa-list"></i>
+									</div>
+									<h3>Banned Users</h3>
+								</div>
+								<div
+									style="max-height:320px;overflow-y:auto;"
+									id="bannedList"
+								>
+									<div
+										style="padding:20px;text-align:center;color:var(--muted);font-size:12px;"
+									>
+										Loading...
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-header">
+								<div
+									class="card-header-icon"
+									style="background:rgba(240,176,48,.15);color:var(--yellow);"
+								>
+									<i class="fas fa-sign-out-alt"></i>
+								</div>
+								<h3>Force Sign Out</h3>
+							</div>
+							<div class="card-body">
+								<div
+									style="display:flex;gap:10px;align-items:flex-end;"
+								>
+									<div
+										class="form-group"
+										style="flex:1;margin:0;"
+									>
+										<label class="form-label">
+											User UID
+										</label>
+										<input
+											class="form-input"
+											id="forceOutUid"
+											placeholder="Paste UID..."
+										/>
+									</div>
+									<button
+										class="btn btn-warning"
+										onclick="forceSignOut()"
+									>
+										<i class="fas fa-sign-out-alt"></i>
+										Force Sign Out
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ ADMINS ════ -->
+					<div class="section" id="sec-admins">
+						<div class="owner-only-section">
+							<div class="owner-section-title">
+								<i class="fas fa-crown"></i>
+								Admin Management (Owner Only)
+							</div>
+							<div class="two-col">
+								<div class="card">
+									<div class="card-header">
+										<div
+											class="card-header-icon"
+											style="background:rgba(255,215,0,.15);color:var(--owner);"
+										>
+											<i class="fas fa-user-plus"></i>
+										</div>
+										<h3>Grant Admin Access</h3>
+									</div>
+									<div class="card-body">
+										<div class="form-group">
+											<label class="form-label">
+												User Email
+											</label>
+											<input
+												class="form-input"
+												id="grantAdminEmail"
+												placeholder="user@gmail.com"
+											/>
+										</div>
+										<div class="form-group">
+											<label class="form-label">
+												Admin Level
+											</label>
+											<select
+												class="form-input"
+												id="grantAdminLevel"
+											>
+												<option value="moderator">
+													Moderator — Can ban,
+													announce
+												</option>
+												<option value="admin">
+													Admin — Full access except
+													owner tools
+												</option>
+											</select>
+										</div>
+										<button
+											class="btn btn-owner"
+											style="width:100%"
+											onclick="grantAdmin()"
+										>
+											<i class="fas fa-crown"></i>
+											Grant Admin
+										</button>
+									</div>
+								</div>
+								<div class="card">
+									<div class="card-header">
+										<div
+											class="card-header-icon"
+											style="background:rgba(255,215,0,.15);color:var(--owner);"
+										>
+											<i class="fas fa-users"></i>
+										</div>
+										<h3>Current Admins</h3>
+									</div>
+									<div
+										style="max-height:320px;overflow-y:auto;padding:12px;"
+										id="adminsList"
+									>
+										<div
+											style="color:var(--muted);font-size:12px;"
+										>
+											Loading...
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ ANNOUNCE ════ -->
+					<div class="section" id="sec-announce">
+						<div class="two-col">
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(240,176,48,.15);color:var(--yellow);"
+									>
+										<i class="fas fa-bullhorn"></i>
+									</div>
+									<h3>Site Announcement</h3>
+								</div>
+								<div class="card-body">
+									<div class="form-group">
+										<label class="form-label">
+											Message
+										</label>
+										<textarea
+											class="form-input"
+											id="announceText"
+											rows="4"
+											placeholder="Type announcement..."
+										></textarea>
+									</div>
+									<div style="display:flex;gap:8px;">
+										<button
+											class="btn btn-warning"
+											style="flex:1"
+											onclick="setAnnouncement()"
+										>
+											<i class="fas fa-paper-plane"></i>
+											Broadcast
+										</button>
+										<button
+											class="btn btn-danger"
+											onclick="clearAnnouncement()"
+										>
+											<i class="fas fa-times"></i>
+											Clear
+										</button>
+									</div>
+									<div
+										style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:12px;"
+										id="announcePreview"
+									>
+										Preview will appear here
+									</div>
+								</div>
+							</div>
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(77,166,255,.15);color:var(--accent);"
+									>
+										<i class="fas fa-history"></i>
+									</div>
+									<h3>Announcement History</h3>
+								</div>
+								<div
+									style="max-height:340px;overflow-y:auto;"
+									id="announceHistory"
+								>
+									<div
+										style="padding:20px;text-align:center;color:var(--muted);font-size:12px;"
+									>
+										No history
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ NOTIFICATIONS ════ -->
+					<div class="section" id="sec-notifications">
+						<div class="two-col">
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(77,166,255,.15);color:var(--accent);"
+									>
+										<i class="fas fa-bell"></i>
+									</div>
+									<h3>Send Notification</h3>
+								</div>
+								<div class="card-body">
+									<div class="pill-tabs" id="notifTargetTabs">
+										<button
+											class="pill-tab active"
+											onclick="setNotifTarget('broadcast',this)"
+										>
+											📢 Broadcast
+										</button>
+										<button
+											class="pill-tab"
+											onclick="setNotifTarget('user',this)"
+										>
+											👤 Specific User
+										</button>
+									</div>
+									<div
+										class="form-group"
+										id="notifUserGroup"
+										style="display:none"
+									>
+										<label class="form-label">
+											User UID
+										</label>
+										<input
+											class="form-input"
+											id="notifUserUid"
+											placeholder="Paste UID..."
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">
+											Icon (emoji)
+										</label>
+										<input
+											class="form-input"
+											id="notifIcon"
+											placeholder="📢"
+											value="📢"
+											style="font-size:18px;"
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">Type</label>
+										<div class="notif-type-row">
+											<button
+												class="notif-type-btn active"
+												onclick="setNotifType('system',this)"
+											>
+												⚙️ System
+											</button>
+											<button
+												class="notif-type-btn"
+												onclick="setNotifType('admin',this)"
+											>
+												👑 Admin
+											</button>
+											<button
+												class="notif-type-btn"
+												onclick="setNotifType('alert',this)"
+											>
+												🚨 Alert
+											</button>
+										</div>
+									</div>
+									<div class="form-group">
+										<label class="form-label">Title</label>
+										<input
+											class="form-input"
+											id="notifTitle"
+											placeholder="Notification title..."
+										/>
+									</div>
+									<div class="form-group">
+										<label class="form-label">
+											Message
+										</label>
+										<textarea
+											class="form-input"
+											id="notifMessage"
+											rows="3"
+											placeholder="Notification message..."
+										></textarea>
+									</div>
+									<button
+										class="btn btn-primary"
+										style="width:100%"
+										onclick="sendNotification()"
+									>
+										<i class="fas fa-paper-plane"></i>
+										Send Notification
+									</button>
+								</div>
+							</div>
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(40,201,106,.15);color:var(--green);"
+									>
+										<i class="fas fa-history"></i>
+									</div>
+									<h3>Sent Notifications</h3>
+								</div>
+								<div
+									style="max-height:460px;overflow-y:auto;"
+									id="notifHistory"
+								>
+									<div
+										style="padding:20px;text-align:center;color:var(--muted);font-size:12px;"
+									>
+										Loading...
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ MORE TABS ════ (with working preview) -->
+					<div class="section" id="sec-moretabs">
+						<div class="card">
+							<div class="card-header">
+								<div
+									class="card-header-icon"
+									style="background:rgba(240,176,48,.15);color:var(--yellow);"
+								>
+									<i class="fas fa-external-link-alt"></i>
+								</div>
+								<h3>More Tabs Manager</h3>
+								<div
+									style="margin-left:auto;display:flex;gap:8px;"
+								>
+									<button
+										class="btn btn-success btn-sm"
+										onclick="addMoreTab()"
+									>
+										<i class="fas fa-plus"></i>
+										Add
+									</button>
+									<button
+										class="btn btn-primary btn-sm"
+										onclick="saveMoreTabs()"
+									>
+										<i class="fas fa-save"></i>
+										Save
+									</button>
+								</div>
+							</div>
+							<div class="card-body">
+								<div
+									id="moreTabsList"
+									style="margin-bottom:16px;"
+								></div>
+								<div class="card" style="margin-top:16px;">
+									<div
+										class="card-header"
+										style="padding:12px 16px;cursor:pointer;"
+										onclick="toggleIconLib()"
+									>
+										<h3 style="font-size:13px;">
+											<i class="fas fa-icons"></i>
+											Icon Library (50 Preset Icons)
+										</h3>
+										<i
+											class="fas fa-chevron-down"
+											id="iconLibChev"
+											style="margin-left:auto;font-size:11px;"
+										></i>
+									</div>
+									<div
+										id="iconLibBody"
+										style="display:none;padding:14px;"
+									>
+										<div
+											style="font-size:12px;color:var(--muted);margin-bottom:10px;"
+										>
+											Click any icon to copy its emoji to
+											use as the icon field
+										</div>
+										<div
+											class="icon-grid"
+											id="iconGrid"
+										></div>
+									</div>
+								</div>
+								<!-- Live Preview: functional clickable links that actually redirect -->
+								<div
+									class="card"
+									style="margin-top:16px;border-color:var(--accent2);"
+								>
+									<div
+										class="card-header"
+										style="background:rgba(77,166,255,.05);"
+									>
+										<div class="card-header-icon">
+											<i class="fas fa-eye"></i>
+										</div>
+										<h3>
+											🔗 Live Preview — Click any tab to
+											open website
+										</h3>
+									</div>
+									<div
+										class="card-body"
+										id="liveTabPreview"
+										style="display:flex;flex-wrap:wrap;gap:12px;"
+									></div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ SITE SETTINGS ════ -->
+					<div class="section" id="sec-sitesettings">
+						<div class="card">
+							<div class="card-header">
+								<div
+									class="card-header-icon"
+									style="background:rgba(77,166,255,.15);color:var(--accent);"
+								>
+									<i class="fas fa-cog"></i>
+								</div>
+								<h3>Site Settings</h3>
+							</div>
+							<div class="card-body">
+								<div class="settings-row">
+									<div class="settings-info">
+										<h4>Login Gate</h4>
+										<p>Prevent all users from logging in</p>
+									</div>
+									<label class="toggle">
+										<input
+											type="checkbox"
+											id="toggleLogin"
+											onchange="setSiteConfig('matthewLoginDisabled',this.checked)"
+										/>
+										<span class="toggle-slider"></span>
+									</label>
+								</div>
+								<div class="settings-row">
+									<div class="settings-info">
+										<h4>New Registrations</h4>
+										<p>
+											Prevent new accounts from being
+											created
+										</p>
+									</div>
+									<label class="toggle">
+										<input
+											type="checkbox"
+											id="toggleSignup"
+											onchange="setSiteConfig('matthewSignupDisabled',this.checked)"
+										/>
+										<span class="toggle-slider"></span>
+									</label>
+								</div>
+								<div class="settings-row">
+									<div class="settings-info">
+										<h4>Maintenance Mode</h4>
+										<p>
+											Show maintenance banner to all users
+										</p>
+									</div>
+									<label class="toggle">
+										<input
+											type="checkbox"
+											id="toggleMaintenance"
+											onchange="toggleMaintenanceMode(this.checked)"
+										/>
+										<span class="toggle-slider"></span>
+									</label>
+								</div>
+							</div>
+						</div>
+						<div class="card">
+							<div class="card-header">
+								<div
+									class="card-header-icon"
+									style="background:rgba(232,48,80,.15);color:var(--red);"
+								>
+									<i class="fas fa-database"></i>
+								</div>
+								<h3>Database Management</h3>
+							</div>
+							<div class="card-body">
+								<div
+									style="display:flex;gap:10px;flex-wrap:wrap;"
+								>
+									<button
+										class="btn btn-warning"
+										onclick="exportDB()"
+									>
+										<i class="fas fa-download"></i>
+										Export Activity Log
+									</button>
+									<button
+										class="btn btn-danger"
+										onclick="clearActivityLog()"
+									>
+										<i class="fas fa-trash"></i>
+										Clear Activity Log
+									</button>
+									<button class="btn" onclick="exportUsers()">
+										<i class="fas fa-file-export"></i>
+										Export Users JSON
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- ════ MAINTENANCE ════ -->
+					<div class="section" id="sec-maintenance">
+						<div class="two-col">
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(240,176,48,.15);color:var(--yellow);"
+									>
+										<i class="fas fa-tools"></i>
+									</div>
+									<h3>Maintenance Banner</h3>
+								</div>
+								<div class="card-body">
+									<div class="form-group">
+										<label class="form-label">
+											Banner Message
+										</label>
+										<textarea
+											class="form-input"
+											id="maintenanceMsg"
+											rows="3"
+											placeholder="We'll be back soon!"
+										></textarea>
+									</div>
+									<div style="display:flex;gap:8px;">
+										<button
+											class="btn btn-warning"
+											style="flex:1"
+											onclick="setMaintenance()"
+										>
+											<i class="fas fa-wrench"></i>
+											Set Maintenance
+										</button>
+										<button
+											class="btn btn-danger"
+											onclick="clearMaintenance()"
+										>
+											<i class="fas fa-times"></i>
+											Clear
+										</button>
+									</div>
+								</div>
+							</div>
+							<div class="card">
+								<div class="card-header">
+									<div
+										class="card-header-icon"
+										style="background:rgba(232,48,80,.15);color:var(--red);"
+									>
+										<i class="fas fa-sign-out-alt"></i>
+									</div>
+									<h3>Mass Force Sign Out</h3>
+								</div>
+								<div class="card-body">
+									<p
+										style="font-size:12px;color:var(--muted);margin-bottom:16px;"
+									>
+										Force all non-owner users to be signed
+										out. Use before maintenance.
+									</p>
+									<button
+										class="btn btn-danger"
+										style="width:100%"
+										onclick="massForceSignOut()"
+									>
+										<i class="fas fa-user-slash"></i>
+										Force Sign Out All Users
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="toast"></div>
+		<div class="modal-overlay" id="userModal">
+			<div class="modal">
+				<div class="modal-header">
+					<h3 id="userModalTitle">User Details</h3>
+					<button
+						class="modal-close"
+						onclick="closeModal('userModal')"
+					>
+						&times;
+					</button>
+				</div>
+				<div class="modal-body" id="userModalBody"></div>
+				<div class="modal-footer" id="userModalFooter"></div>
+			</div>
+		</div>
+
+		<script type="module">
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+			import { getDatabase, ref, set, get, remove, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+			import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+			const OWNER_EMAIL = 'matthewbozhe@gmail.com';
+			const firebaseConfig = {
+			  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+			  authDomain: "htmltools-library.firebaseapp.com",
+			  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
+			  projectId: "htmltools-library",
+			  storageBucket: "htmltools-library.firebasestorage.app",
+			  messagingSenderId: "973699554480",
+			  appId: "1:973699554480:web:33ed9d341fc48ed8092f75"
+			};
+			const app = initializeApp(firebaseConfig);
+			const db = getDatabase(app);
+			const auth = getAuth(app);
+			let currentUser = null;
+			let allUsersCache = {};
+			let moreTabsData = [];
+
+			function isOwner(u){ return u && u.email && u.email.toLowerCase() === OWNER_EMAIL.toLowerCase(); }
+
+			window.doAuthLogin = async function() {
+			  const email = document.getElementById('auth-email').value.trim();
+			  const pass = document.getElementById('auth-pass').value;
+			  const errEl = document.getElementById('auth-err');
+			  errEl.style.display = 'none';
+			  if (!email || !pass) { errEl.textContent = 'Fill in all fields'; errEl.style.display='block'; return; }
+			  try { await signInWithEmailAndPassword(auth, email, pass); }
+			  catch(e) { errEl.textContent = e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim(); errEl.style.display='block'; }
+			};
+			window.doSignOut = async function() { await fbSignOut(auth); };
+
+			onAuthStateChanged(auth, async user => {
+			  currentUser = user;
+			  if (user && isOwner(user)) {
+			    document.getElementById('auth-gate').classList.add('hidden');
+			    document.getElementById('appWrap').style.display='flex';
+			    initAdmin();
+			  } else if (user && !isOwner(user)) {
+			    const adminSnap = await get(ref(db, `siteConfig/matthewAdmins/${user.uid}`));
+			    if (adminSnap.exists() && adminSnap.val()) {
+			      document.getElementById('auth-gate').classList.add('hidden');
+			      document.getElementById('appWrap').style.display='flex';
+			      initAdmin(adminSnap.val());
+			    } else {
+			      const errEl = document.getElementById('auth-err');
+			      errEl.textContent = 'Access denied. Owner or granted admins only.';
+			      errEl.style.display = 'block';
+			      await fbSignOut(auth);
+			    }
+			  } else {
+			    document.getElementById('auth-gate').classList.remove('hidden');
+			    document.getElementById('appWrap').style.display='none';
+			  }
+			});
+
+			async function initAdmin() {
+			  loadDashboard(); loadUsers(); loadActivity(); loadBanned(); loadAdmins();
+			  loadMoreTabsFromDB(); loadSiteSettings(); loadNotifHistory(); loadAnnounceHistory();
+			  buildIconGrid();
+			}
+			setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+			window.refreshCurrentSection = function() {
+			  const active = document.querySelector('.section.active');
+			  if (!active) return;
+			  const sec = active.id.replace('sec-','');
+			  if (sec==='dashboard') loadDashboard();
+			  else if (sec==='activity') loadActivity();
+			  else if (sec==='users') loadUsers();
+			  else if (sec==='bans') loadBanned();
+			  else if (sec==='admins') loadAdmins();
+			  else if (sec==='notifications') loadNotifHistory();
+			  toast('Refreshed','info');
+			};
+			window.navTo = function(sec, el) {
+			  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+			  document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
+			  const target = document.getElementById('sec-'+sec);
+			  if (target) target.classList.add('active');
+			  if (el) el.classList.add('active');
+			  const titles = {dashboard:'Dashboard',activity:'Activity Log',users:'All Users',bans:'Bans',admins:'Admin Access',announce:'Announcement',notifications:'Notifications',moretabs:'More Tabs',sitesettings:'Site Settings',maintenance:'Maintenance'};
+			  document.getElementById('topbarTitle').textContent = titles[sec] || sec;
+			  closeMobSidebar();
+			};
+			window.toggleSidebar = function() { const sb = document.getElementById('sidebar'); sb.classList.toggle('collapsed'); document.getElementById('sbChevron').style.transform = sb.classList.contains('collapsed') ? 'rotate(180deg)' : ''; };
+			window.openMobSidebar = function() { document.getElementById('sidebar').classList.add('mobile-open'); document.getElementById('mobOverlay').classList.add('show'); };
+			window.closeMobSidebar = function() { document.getElementById('sidebar').classList.remove('mobile-open'); document.getElementById('mobOverlay').classList.remove('show'); };
+			window.closeModal = function(id) { document.getElementById(id).classList.remove('active'); };
+			window.toast = function(msg, type='info') { const el = document.createElement('div'); el.className = `toast-item ${type}`; const icons = {success:'✅',error:'❌',info:'ℹ️'}; el.innerHTML = `<span>${icons[type]||'📌'}</span><span>${msg}</span>`; document.getElementById('toast').appendChild(el); setTimeout(() => el.remove(), 3500); };
+			function esc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+			function relTime(ts){ const d=Date.now()-ts; if(d<60000)return'Just now'; if(d<3600000)return Math.floor(d/60000)+'m ago'; if(d<86400000)return Math.floor(d/3600000)+'h ago'; return new Date(ts).toLocaleDateString(); }
+			window.copyToClip = function(text) { navigator.clipboard?.writeText(text).catch(()=>{ const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove(); }); };
+			window.dlBlob = function(data, name, mime) { const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;a.click(); };
+
+			// Dashboard, Users, Activity, Bans, Admins, Notifications, Announce, Settings, Maintenance (same as original, omitted for brevity but functional)
+			// (All core management functions preserved, only removed the tools sections and added preview redirect)
+			async function loadDashboard() { /* same as original but shortened for brevity */ const usersSnap=await get(ref(db,'users')); const users=usersSnap.val()||{}; const userArr=Object.values(users); document.getElementById('stat-users').textContent=userArr.length; const bannedSnap=await get(ref(db,'siteConfig/matthewBanned')); const banned=bannedSnap.val()||{}; document.getElementById('stat-banned').textContent=Object.keys(banned).length; const now=Date.now(); document.getElementById('stat-online').textContent=userArr.filter(u=>u.lastSignIn&&(now-u.lastSignIn)<15*60*1000).length; const actSnap=await get(ref(db,'activityLog')); const acts=actSnap.val()||{}; const today=new Date().toDateString(); document.getElementById('stat-logins').textContent=Object.values(acts).filter(a=>a.type==='login'&&new Date(a.ts).toDateString()===today).length; allUsersCache=users; const counts=[0,0,0,0,0,0,0]; Object.values(acts).forEach(a=>{if(a.ts&&a.type==='login'){const d=new Date(a.ts).getDay();counts[(d+6)%7]++;}}); const max=Math.max(...counts,1); const colors=['#4da6ff','#7b5cff','#28c96a','#f0b030','#e83050','#ff7040','#4da6ff']; const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; document.getElementById('chartBars').innerHTML=counts.map((c,i)=>`<div class="chart-bar" style="height:${Math.max(4,(c/max)*85)}%;background:${colors[i]};" title="${days[i]}: ${c} logins"></div>`).join(''); const actArr=Object.entries(acts).sort((a,b)=>b[1].ts-a[1].ts).slice(0,20); document.getElementById('recentActivity').innerHTML=actArr.map(([,a])=>`<div class="log-item"><div class="log-dot ${a.type==='login'?'login':a.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(a.message||a.type)}</div><div class="log-time">${relTime(a.ts)}</div></div></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No activity</div>'; }
+			window.loadUsers=async function(){const snap=await get(ref(db,'users'));allUsersCache=snap.val()||{};renderUsersTable(Object.values(allUsersCache));};
+			window.filterUsers=function(){const q=document.getElementById('userSearch').value.toLowerCase();renderUsersTable(Object.values(allUsersCache).filter(u=>(u.email||'').toLowerCase().includes(q)||(u.displayName||'').toLowerCase().includes(q)));};
+			function renderUsersTable(users){const tb=document.getElementById('usersTable');if(!users.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted);">No users found</td></tr>';return;}tb.innerHTML=users.map(u=>`<tr><td><div class="user-info"><div class="user-avatar" style="background:hsl(${Array.from(u.uid||'').reduce((a,c)=>a+c.charCodeAt(0),0)%360},60%,50%)">${(u.displayName||u.email||'?')[0].toUpperCase()}</div><span style="font-weight:600;">${esc(u.displayName||'—')}</span></div></td><td style="font-family:var(--mono);font-size:11px;">${esc(u.email||'')}</td><td style="font-size:11px;color:var(--muted);">${u.joinedAt?new Date(u.joinedAt).toLocaleDateString():'—'}</td><td style="font-size:11px;color:var(--muted);">${u.lastSignIn?relTime(u.lastSignIn):'—'}</td><td><span class="badge badge-green">Active</span></td><td><div style="display:flex;gap:4px;"><button class="btn btn-sm" onclick="viewUser('${u.uid}')"><i class="fas fa-eye"></i></button><button class="btn btn-sm btn-danger" onclick="quickBan('${u.uid}')"><i class="fas fa-ban"></i></button><button class="btn btn-sm btn-warning" onclick="document.getElementById('forceOutUid').value='${u.uid}';navTo('bans',document.querySelector('[data-sec=bans]'))"><i class="fas fa-sign-out-alt"></i></button></div></td></tr>`).join('');}
+			window.viewUser=function(uid){const u=allUsersCache[uid];if(!u)return;document.getElementById('userModalTitle').textContent=u.displayName||u.email;document.getElementById('userModalBody').innerHTML=`<div style="display:flex;flex-direction:column;gap:8px;font-size:13px;"><div><strong>UID:</strong> ${esc(u.uid)}</div><div><strong>Email:</strong> ${esc(u.email||'—')}</div><div><strong>Name:</strong> ${esc(u.displayName||'—')}</div><div><strong>Joined:</strong> ${u.joinedAt?new Date(u.joinedAt).toLocaleString():'—'}</div><div><strong>Last Sign In:</strong> ${u.lastSignIn?new Date(u.lastSignIn).toLocaleString():'—'}</div></div>`;document.getElementById('userModalFooter').innerHTML=`<button class="btn" onclick="copyToClip('${u.uid}');toast('UID copied!','success')"><i class="fas fa-copy"></i> Copy UID</button><button class="btn btn-danger" onclick="quickBan('${u.uid}');closeModal('userModal')"><i class="fas fa-ban"></i> Ban</button>`;document.getElementById('userModal').classList.add('active');};
+			window.quickBan=function(uid){document.getElementById('banUidInput').value=uid;navTo('bans',document.querySelector('[data-sec=bans]'));};
+			window.loadActivity=async function(){const snap=await get(ref(db,'activityLog'));const acts=snap.val()||{};const arr=Object.entries(acts).sort((a,b)=>b[1].ts-a[1].ts);document.getElementById('actBadge').textContent=arr.length;document.getElementById('actBadge').style.display=arr.length?'inline-flex':'none';document.getElementById('activityList').innerHTML=arr.slice(0,100).map(([k,a])=>`<div class="log-item"><div class="log-dot ${a.type==='login'?'login':a.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(a.message||a.type)}</div><div class="log-time">${a.ts?new Date(a.ts).toLocaleString():'—'} &bull; UID: ${esc(a.uid||'—')}</div></div><button class="btn btn-sm" onclick="removeActivityItem('${k}')"><i class="fas fa-times"></i></button></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);">No activity</div>';};
+			window.removeActivityItem=async function(key){await remove(ref(db,`activityLog/${key}`));loadActivity();};
+			window.clearActivityLog=async function(){if(!confirm('Clear all activity log?'))return;await set(ref(db,'activityLog'),null);loadActivity();toast('Activity log cleared','success');};
+			window.banUser=async function(){const uid=document.getElementById('banUidInput').value.trim();const reason=document.getElementById('banReasonInput').value.trim();if(!uid){toast('Enter a UID','error');return;}await set(ref(db,`siteConfig/matthewBanned/${uid}`),{banned:true,reason:reason||'No reason given',bannedAt:Date.now(),bannedBy:currentUser.email});await set(ref(db,`forceSignout/${uid}`),true);toast('User banned and force signed out','success');loadBanned();document.getElementById('banUidInput').value='';document.getElementById('banReasonInput').value='';};
+			window.loadBanned=async function(){const snap=await get(ref(db,'siteConfig/matthewBanned'));const banned=snap.val()||{};const list=document.getElementById('bannedList');const entries=Object.entries(banned).filter(([,v])=>v&&v.banned);if(!entries.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No banned users</div>';return;}list.innerHTML=entries.map(([uid,b])=>`<div class="admin-item"><div class="admin-item-icon" style="background:var(--red);color:#fff;">🚫</div><div class="admin-item-info"><div class="admin-item-email">${esc(uid)}</div><div class="admin-item-role">${esc(b.reason||'No reason')} — ${b.bannedAt?new Date(b.bannedAt).toLocaleDateString():'—'}</div></div><button class="btn btn-sm btn-success" onclick="unbanUser('${uid}')"><i class="fas fa-undo"></i> Unban</button></div>`).join('');};
+			window.unbanUser=async function(uid){await remove(ref(db,`siteConfig/matthewBanned/${uid}`));toast('User unbanned','success');loadBanned();};
+			window.forceSignOut=async function(){const uid=document.getElementById('forceOutUid').value.trim();if(!uid){toast('Enter a UID','error');return;}await set(ref(db,`forceSignout/${uid}`),true);toast('Force sign out sent','success');};
+			window.grantAdmin=async function(){if(!isOwner(currentUser)){toast('Only the owner can grant admin access','error');return;}const email=document.getElementById('grantAdminEmail').value.trim();const level=document.getElementById('grantAdminLevel').value;if(!email){toast('Enter an email','error');return;}const usersSnap=await get(ref(db,'users'));const users=usersSnap.val()||{};const match=Object.entries(users).find(([,u])=>u.email&&u.email.toLowerCase()===email.toLowerCase());if(!match){toast('User not found — they must have logged in at least once','error');return;}const [uid]=match;await set(ref(db,`siteConfig/matthewAdmins/${uid}`),{email,level,grantedAt:Date.now(),grantedBy:currentUser.email});toast(`Admin access granted to ${email}`,'success');loadAdmins();};
+			window.loadAdmins=async function(){const snap=await get(ref(db,'siteConfig/matthewAdmins'));const admins=snap.val()||{};const list=document.getElementById('adminsList');const entries=Object.entries(admins);if(!entries.length){list.innerHTML='<div style="color:var(--muted);font-size:12px;">No admins granted yet</div>';return;}list.innerHTML=entries.map(([uid,a])=>`<div class="admin-item"><div class="admin-item-icon">👑</div><div class="admin-item-info"><div class="admin-item-email">${esc(a.email||uid)}</div><div class="admin-item-role">${esc(a.level||'admin')} — granted ${a.grantedAt?new Date(a.grantedAt).toLocaleDateString():'—'}</div></div><button class="btn btn-sm btn-danger" onclick="revokeAdmin('${uid}')"><i class="fas fa-times"></i> Revoke</button></div>`).join('');};
+			window.revokeAdmin=async function(uid){if(!isOwner(currentUser)){toast('Only the owner can revoke admin','error');return;}if(!confirm('Revoke admin access?'))return;await remove(ref(db,`siteConfig/matthewAdmins/${uid}`));toast('Admin access revoked','success');loadAdmins();};
+			window.setAnnouncement=async function(){const text=document.getElementById('announceText').value.trim();if(!text){toast('Enter a message','error');return;}const data={text,postedBy:currentUser.displayName||currentUser.email,ts:Date.now()};await set(ref(db,'siteConfig/matthewAnnouncement'),data);await set(push(ref(db,'announceHistory')),data);toast('Announcement broadcast!','success');loadAnnounceHistory();};
+			window.clearAnnouncement=async function(){await set(ref(db,'siteConfig/matthewAnnouncement'),null);toast('Announcement cleared','success');};
+			document.getElementById('announceText')?.addEventListener('input',function(){document.getElementById('announcePreview').innerHTML=`<strong style="color:var(--yellow);">${esc(currentUser?.displayName||'Admin')}:</strong> ${esc(this.value||'Preview will appear here')}`;});
+			async function loadAnnounceHistory(){const snap=await get(ref(db,'announceHistory'));const hist=snap.val()||{};const entries=Object.entries(hist).sort((a,b)=>b[1].ts-a[1].ts).slice(0,10);document.getElementById('announceHistory').innerHTML=entries.map(([,h])=>`<div class="log-item"><div class="log-dot info"></div><div class="log-body"><div class="log-msg">${esc(h.text||'')}</div><div class="log-time">${esc(h.postedBy||'—')} &bull; ${relTime(h.ts)}</div></div><button class="btn btn-sm" onclick="document.getElementById('announceText').value='${esc(h.text||'')}';document.getElementById('announceText').dispatchEvent(new Event('input'))">Reuse</button></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No history</div>';}
+			let _notifTarget='broadcast',_notifType='system';
+			window.setNotifTarget=function(t,el){_notifTarget=t;el.closest('.pill-tabs').querySelectorAll('.pill-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');document.getElementById('notifUserGroup').style.display=t==='user'?'block':'none';};
+			window.setNotifType=function(t,el){_notifType=t;el.closest('.notif-type-row').querySelectorAll('.notif-type-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');};
+			window.sendNotification=async function(){const icon=document.getElementById('notifIcon').value.trim()||'📢';const title=document.getElementById('notifTitle').value.trim();const message=document.getElementById('notifMessage').value.trim();if(!title||!message){toast('Fill in title and message','error');return;}const notif={icon,type:_notifType,title,message,ts:Date.now(),sentBy:currentUser.email};if(_notifTarget==='broadcast'){await set(push(ref(db,'broadcastNotifs')),notif);toast('Broadcast notification sent!','success');}else{const uid=document.getElementById('notifUserUid').value.trim();if(!uid){toast('Enter user UID','error');return;}await set(push(ref(db,`userNotifs/${uid}`)),notif);toast('Notification sent to user!','success');}await set(push(ref(db,'notifHistory')),{...(_notifTarget==='broadcast'?{target:'broadcast'}:{target:'user',uid:document.getElementById('notifUserUid').value.trim()}),...notif});document.getElementById('notifTitle').value='';document.getElementById('notifMessage').value='';loadNotifHistory();};
+			async function loadNotifHistory(){const snap=await get(ref(db,'notifHistory'));const hist=snap.val()||{};const entries=Object.entries(hist).sort((a,b)=>b[1].ts-a[1].ts).slice(0,30);document.getElementById('notifHistory').innerHTML=entries.map(([,n])=>`<div class="log-item"><div class="log-dot ${n.type==='alert'?'warn':n.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(n.icon)} <strong>${esc(n.title)}</strong>: ${esc(n.message||'')}</div><div class="log-time">${n.target==='broadcast'?'📢 Broadcast':('👤 '+esc(n.uid||''))} &bull; ${relTime(n.ts)}</div></div></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications sent yet</div>';}
+			window.setSiteConfig=async function(key,val){await set(ref(db,`siteConfig/${key}`),val);toast(`${key} → ${val}`,'success');};
+			window.toggleMaintenanceMode=async function(on){if(on){const msg=document.getElementById('maintenanceMsg')?.value||'Maintenance in progress';await setMaintenance(msg);}else{await clearMaintenance();}};
+			window.setMaintenance=async function(msgParam){const msg=msgParam||document.getElementById('maintenanceMsg').value.trim()||'Under maintenance';await set(ref(db,'siteConfig/matthewAnnouncement'),{text:'🔧 '+msg,postedBy:'System',ts:Date.now()});toast('Maintenance banner set','success');};
+			window.clearMaintenance=async function(){await set(ref(db,'siteConfig/matthewAnnouncement'),null);toast('Maintenance banner cleared','success');};
+			async function loadSiteSettings(){const[loginS,signupS]=await Promise.all([get(ref(db,'siteConfig/matthewLoginDisabled')),get(ref(db,'siteConfig/matthewSignupDisabled'))]);document.getElementById('toggleLogin').checked=loginS.val()||false;document.getElementById('toggleSignup').checked=signupS.val()||false;}
+			window.exportUsers=async function(){const snap=await get(ref(db,'users'));dlBlob(JSON.stringify(snap.val()||{},null,2),'users.json','application/json');toast('Users exported','success');};
+			window.exportDB=async function(){const snap=await get(ref(db,'activityLog'));dlBlob(JSON.stringify(snap.val()||{},null,2),'activity.json','application/json');toast('Activity log exported','success');};
+			window.massForceSignOut=async function(){if(!confirm('Force sign out ALL users except yourself?'))return;const snap=await get(ref(db,'users'));const users=snap.val()||{};const promises=Object.keys(users).filter(uid=>uid!==currentUser.uid).map(uid=>set(ref(db,`forceSignout/${uid}`),true));await Promise.all(promises);toast(`Force sign out sent to ${promises.length} users`,'success');};
+
+			// More Tabs with working redirect preview
+			async function loadMoreTabsFromDB(){
+			  const snap=await get(ref(db,'siteConfig/moreTabs'));
+			  moreTabsData=snap.val()||[
+			    {label:'MatTube',icon:'fab fa-youtube',url:'https://htmltools.nekoweb.org/MatTube.html'},
+			    {label:'AI Chat',icon:'fas fa-robot',url:'https://htmltools.nekoweb.org/ai.html'},
+			    {label:'Upload Worldwide',icon:'fas fa-globe-americas',url:'https://htmltools.nekoweb.org/Create.html'},
+			    {label:'Make a Website',icon:'fas fa-hammer',url:'https://htmltools.nekoweb.org/Makeawebsite.html'},
+			    {label:'Geometry Dash',icon:'fas fa-circle-notch',url:'https://htmltools.nekoweb.org/Geometry-Dash.html'},
+			    {label:'HTMeet',icon:'fas fa-video',url:'https://htmltools.nekoweb.org/Meet.html'},
+			    {label:'Remove Background',icon:'fas fa-eraser',url:'https://htmltools.nekoweb.org/Removebg.html'},
+			  ];
+			  renderMoreTabs();
+			  renderLivePreview();
+			}
+			function renderMoreTabs(){
+			  const list=document.getElementById('moreTabsList');
+			  if(!moreTabsData.length){list.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px;">No tabs yet. Click Add.</div>';return;}
+			  list.innerHTML=moreTabsData.map((t,i)=>`
+			    <div class="tab-item-edit">
+			      <div class="tab-preview-icon">${t.svgIcon?`<span style="font-size:20px">${t.svgIcon}</span>`:`<i class="${t.icon||'fas fa-link'}" style="color:var(--yellow)"></i>`}</div>
+			      <div class="tab-edit-fields">
+			        <input class="form-input" placeholder="Label" value="${esc(t.label||'')}" oninput="moreTabsData[${i}].label=this.value; renderLivePreview()"/>
+			        <input class="form-input" placeholder="FA Icon class (e.g. fab fa-youtube)" value="${esc(t.icon||'')}" oninput="moreTabsData[${i}].icon=this.value; renderMoreTabs(); renderLivePreview()"/>
+			        <input class="form-input" placeholder="Emoji icon (overrides FA class)" value="${esc(t.svgIcon||'')}" oninput="moreTabsData[${i}].svgIcon=this.value; renderMoreTabs(); renderLivePreview()"/>
+			        <input class="form-input" placeholder="URL" value="${esc(t.url||'')}" oninput="moreTabsData[${i}].url=this.value; renderLivePreview()"/>
+			      </div>
+			      <div class="tab-actions">
+			        <button class="btn btn-icon" onclick="moveTab(${i},-1)"><i class="fas fa-arrow-up"></i></button>
+			        <button class="btn btn-icon" onclick="moveTab(${i},1)"><i class="fas fa-arrow-down"></i></button>
+			        <button class="btn btn-icon btn-danger" onclick="deleteTab(${i})"><i class="fas fa-trash"></i></button>
+			        <button class="btn btn-icon btn-primary" onclick="openTabUrl('${esc(t.url)}')" title="Test link"><i class="fas fa-external-link-alt"></i></button>
+			      </div>
+			    </div>`).join('');
+			}
+			function renderLivePreview(){
+			  const previewDiv=document.getElementById('liveTabPreview');
+			  if(!previewDiv)return;
+			  if(!moreTabsData.length){previewDiv.innerHTML='<div style="color:var(--muted);">No tabs configured</div>';return;}
+			  previewDiv.innerHTML=moreTabsData.map(t=>`<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer" class="preview-tab-item"><span style="font-size:20px;">${t.svgIcon?t.svgIcon:`<i class="${t.icon||'fas fa-link'}"></i>`}</span><span>${esc(t.label||'Unnamed')}</span><i class="fas fa-arrow-right" style="font-size:10px;"></i></a>`).join('');
+			}
+			window.openTabUrl=function(url){if(url&&url!=='https://')window.open(url,'_blank');else toast('Invalid URL','error');};
+			window.addMoreTab=function(){moreTabsData.push({label:'New Tab',icon:'fas fa-link',url:'https://'});renderMoreTabs();renderLivePreview();};
+			window.deleteTab=function(i){moreTabsData.splice(i,1);renderMoreTabs();renderLivePreview();};
+			window.moveTab=function(i,dir){const j=i+dir;if(j<0||j>=moreTabsData.length)return;[moreTabsData[i],moreTabsData[j]]=[moreTabsData[j],moreTabsData[i]];renderMoreTabs();renderLivePreview();};
+			window.saveMoreTabs=async function(){await set(ref(db,'siteConfig/moreTabs'),moreTabsData);toast('More Tabs saved!','success');};
+			window.toggleIconLib=function(){const b=document.getElementById('iconLibBody');const ch=document.getElementById('iconLibChev');if(b.style.display==='none'){b.style.display='block';ch.className='fas fa-chevron-up';}else{b.style.display='none';ch.className='fas fa-chevron-down';}};
+			const PRESET_ICONS=[{name:'YouTube',emoji:'📺'},{name:'Discord',emoji:'💬'},{name:'GitHub',emoji:'🐙'},{name:'Twitter',emoji:'🐦'},{name:'Instagram',emoji:'📸'},{name:'TikTok',emoji:'🎵'},{name:'Twitch',emoji:'🎮'},{name:'Reddit',emoji:'🤖'},{name:'Spotify',emoji:'🎧'},{name:'Netflix',emoji:'🎬'},{name:'Google',emoji:'🔍'},{name:'Gmail',emoji:'📧'},{name:'Drive',emoji:'☁️'},{name:'Maps',emoji:'🗺️'},{name:'Camera',emoji:'📷'},{name:'Music',emoji:'🎶'},{name:'Game',emoji:'🕹️'},{name:'Robot',emoji:'🤖'},{name:'Code',emoji:'💻'},{name:'Chat',emoji:'💭'},{name:'Video',emoji:'🎥'},{name:'Star',emoji:'⭐'},{name:'Heart',emoji:'❤️'},{name:'Fire',emoji:'🔥'},{name:'Globe',emoji:'🌍'},{name:'Upload',emoji:'📤'},{name:'Download',emoji:'📥'},{name:'Brush',emoji:'🎨'},{name:'Hammer',emoji:'🔨'},{name:'Wrench',emoji:'🔧'},{name:'Magic',emoji:'✨'},{name:'Bolt',emoji:'⚡'},{name:'Shield',emoji:'🛡️'},{name:'Crown',emoji:'👑'},{name:'Trophy',emoji:'🏆'},{name:'Book',emoji:'📚'},{name:'Flask',emoji:'🧪'},{name:'Atom',emoji:'⚛️'},{name:'Infinity',emoji:'♾️'},{name:'Link',emoji:'🔗'},{name:'Eraser',emoji:'🧹'},{name:'Scissors',emoji:'✂️'},{name:'Pin',emoji:'📌'},{name:'Clock',emoji:'⏰'},{name:'Calendar',emoji:'📅'},{name:'Search',emoji:'🔎'},{name:'Settings',emoji:'⚙️'},{name:'Key',emoji:'🔑'},{name:'Gem',emoji:'💎'},{name:'Rocket',emoji:'🚀'}];
+			function buildIconGrid(){document.getElementById('iconGrid').innerHTML=PRESET_ICONS.map(ic=>`<div class="icon-option" onclick="copyToClip('${ic.emoji}');toast('Copied ${ic.emoji}','success')" title="${ic.name}"><span style="font-size:20px">${ic.emoji}</span><span>${ic.name}</span></div>`).join('');}
+		</script>
+	</body>
+</html>
