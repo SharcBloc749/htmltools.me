@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Forgot Password - HTMLTools</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .box { background: #222; padding: 2rem; border-radius: 12px; width: 320px; display: flex; flex-direction: column; gap: 12px; }
+        h2 { margin: 0; text-align: center; }
+        input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; width: 100%; box-sizing: border-box; }
+        button { padding: 10px; border-radius: 8px; border: none; background: #4da6ff; color: #fff; font-weight: 700; cursor: pointer; font-size: 14px; }
+        .msg { font-size: 12px; text-align: center; color: #30d97a; display: none; padding: 8px; background: rgba(48,217,122,.1); border-radius: 6px; }
+        .err { font-size: 12px; text-align: center; color: #f04060; display: none; padding: 8px; background: rgba(240,64,96,.1); border-radius: 6px; }
+        .back { font-size: 12px; text-align: center; color: #4da6ff; cursor: pointer; text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="box">
+    <h2>Forgot Password</h2>
+    <p style="font-size:13px;color:#888;text-align:center;margin:0;">Enter your email and we'll send you a reset link.</p>
+    <input type="email" id="email" placeholder="you@example.com" />
+    <button id="sendBtn" onclick="sendReset()">Send Reset Email</button>
+    <div class="msg" id="msg">✅ Reset email sent! Check your inbox.</div>
+    <div class="err" id="err"></div>
+    <div class="back" onclick="window.location.href='https://htmltools.me'">← Back to HTMLTools</div>
+</div>
+
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+    emailjs.init('YOUR_PUBLIC_KEY');
+
+    async function sendReset() {
+        const email = document.getElementById('email').value.trim();
+        const msg = document.getElementById('msg');
+        const err = document.getElementById('err');
+        const btn = document.getElementById('sendBtn');
+        msg.style.display = 'none';
+        err.style.display = 'none';
+
+        if (!email) {
+            err.textContent = 'Please enter your email.';
+            err.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        try {
+            await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', {
+                to_email: email,
+                to_name: email.split('@')[0],
+                reset_link: 'https://htmltools.me/ResetPassword/?email=' + encodeURIComponent(email)
+            });
+            msg.style.display = 'block';
+        } catch(e) {
+            err.textContent = 'Failed to send. Please try again.';
+            err.style.display = 'block';
+            console.error(e);
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Send Reset Email';
+    }
+</script>
+</body>
+</html>
