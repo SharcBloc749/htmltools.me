@@ -53,7 +53,7 @@
 			.lg-err{display:none;font-size:.7rem;color:var(--red);text-align:center;margin-top:.5rem;padding:.4rem;background:rgba(240,64,96,.07);border-radius:6px;}
 			.lg-success{display:none;font-size:.7rem;color:var(--green);text-align:center;margin-top:.5rem;padding:.4rem;background:rgba(48,217,122,.07);border-radius:6px;}
 			.lg-locked-notice{display:none;background:rgba(240,64,96,.08);border:1px solid rgba(240,64,96,.25);border-radius:10px;padding:.85rem;text-align:center;font-size:.75rem;color:var(--red);}
-			.lg-forgot{text-align:center;margin-top:.6rem;display:none;}
+			.lg-forgot{text-align:center;margin-top:.6rem;}
 			.lg-forgot span{font-size:.72rem;color:var(--accent);cursor:pointer;text-decoration:underline;}
 			.lg-forgot span:hover{opacity:.8;}
 
@@ -354,6 +354,7 @@
 						<input type="password" id="lg-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')lgSubmit()" />
 					</div>
 					<button class="lg-submit" id="lg-submit-btn" onclick="lgSubmit()">SIGN IN</button>
+					<!-- FIX: removed display:none so forgot password is always visible on sign-in tab -->
 					<div class="lg-forgot" id="lg-forgot">
 						<span onclick="lgForgot()">Forgot Password?</span>
 					</div>
@@ -612,9 +613,9 @@
 		<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 		<script>
 			// ── REPLACE THESE WITH YOUR ACTUAL EMAILJS VALUES ──
-			const EMAILJS_SERVICE_ID  = 'service_mid7t0l';
-			const EMAILJS_TEMPLATE_ID = 'template_wdch3lh';
-			const EMAILJS_PUBLIC_KEY  = 'U6w_EdzgghaLMRwai';
+			const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';
+			const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';
+			const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';
 			emailjs.init(EMAILJS_PUBLIC_KEY);
 		</script>
 
@@ -784,6 +785,7 @@
 			  document.getElementById('lg-name-group').style.display = mode==='register' ? 'block' : 'none';
 			  document.getElementById('lg-password-group').style.display = 'block';
 			  document.getElementById('lg-submit-btn').textContent = mode==='login' ? 'SIGN IN' : 'CREATE ACCOUNT';
+			  // FIX: show forgot password only on login tab, hide on register tab
 			  document.getElementById('lg-forgot').style.display = mode==='login' ? 'block' : 'none';
 			  document.getElementById('lg-err').style.display = 'none';
 			  document.getElementById('lg-success').style.display = 'none';
@@ -822,42 +824,10 @@
 			  }
 			};
 
-			window.lgForgot = async function() {
-			  const email = document.getElementById('lg-email').value.trim();
-			  const errEl = document.getElementById('lg-err');
-			  const successEl = document.getElementById('lg-success');
-			  const btn = document.getElementById('lg-submit-btn');
-			  errEl.style.display = 'none';
-			  successEl.style.display = 'none';
-			  if (!email) {
-			    errEl.textContent = 'Please enter your email address first.';
-			    errEl.style.display = 'block';
-			    return;
-			  }
-			  btn.disabled = true;
-			  const origText = btn.textContent;
-			  btn.textContent = 'Sending...';
-			  try {
-			    await emailjs.send(
-			      window.EMAILJS_SERVICE_ID,
-			      window.EMAILJS_TEMPLATE_ID,
-			      {
-			        to_email: email,
-			        to_name: email.split('@')[0],
-			        reset_link: 'https://htmltools.me/reset?email=' + encodeURIComponent(email)
-			      }
-			    );
-			    successEl.textContent = '✅ Password reset email sent! Check your inbox.';
-			    successEl.style.display = 'block';
-			  } catch(e) {
-			    errEl.textContent = 'Failed to send reset email. Please try again.';
-			    errEl.style.display = 'block';
-			  }
-			  btn.disabled = false;
-			  btn.textContent = origText;
+			// FIX: redirect to htmltools.me/ForgotPassword/ instead of using EmailJS inline
+			window.lgForgot = function() {
+			  window.location.href = 'https://htmltools.me/ForgotPassword/';
 			};
-
-			window.doSignOut = async function() { await fbSignOut(auth); };
 		</script>
 		<script>
 			// expose EmailJS IDs to module scope
