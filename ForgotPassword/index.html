@@ -20,9 +20,9 @@
         button:disabled { opacity: 0.6; cursor: not-allowed; }
         .msg { font-size: 12px; text-align: center; color: #30d97a; display: none; padding: 10px; background: rgba(48,217,122,.08); border: 1px solid rgba(48,217,122,.2); border-radius: 8px; line-height: 1.5; }
         .err { font-size: 12px; text-align: center; color: #f04060; display: none; padding: 10px; background: rgba(240,64,96,.08); border: 1px solid rgba(240,64,96,.2); border-radius: 8px; }
-        .back { font-size: 12px; text-align: center; color: #555; cursor: pointer; }
-        .back:hover { color: #4da6ff; }
+        .back { font-size: 12px; text-align: center; color: #555; }
         .back a { color: inherit; text-decoration: none; }
+        .back a:hover { color: #4da6ff; }
     </style>
 </head>
 <body>
@@ -39,22 +39,8 @@
     <div class="back">← <a href="https://htmltools.me">Back to HTMLTools</a></div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getAuth, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
-
-    const app = initializeApp({
-        apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
-        authDomain: "htmltools-library.firebaseapp.com",
-        databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
-        projectId: "htmltools-library",
-        storageBucket: "htmltools-library.firebasestorage.app",
-        messagingSenderId: "973699554480",
-        appId: "1:973699554480:web:33ed9d341fc48ed8092f75"
-    });
-    const auth = getAuth(app);
-
-    window.sendReset = async function() {
+<script>
+    async function sendReset() {
         const email = document.getElementById('email').value.trim();
         const msg = document.getElementById('msg');
         const err = document.getElementById('err');
@@ -72,19 +58,23 @@
         btn.textContent = 'Sending...';
 
         try {
-            await sendPasswordResetEmail(auth, email, {
-                url: 'https://htmltools.me/ResetPassword/'
+            const res = await fetch('https://htmltools-reset.bozhetarnikmatthew.workers.dev/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to_email: email })
             });
-            msg.style.display = 'block';
-            btn.textContent = 'Resend Link';
-        } catch(e) {
-            if (e.code === 'auth/user-not-found') {
-                err.textContent = 'No account found with that email.';
-            } else if (e.code === 'auth/invalid-email') {
-                err.textContent = 'Please enter a valid email address.';
+
+            if (res.ok) {
+                msg.style.display = 'block';
+                btn.textContent = 'Resend Link';
             } else {
-                err.textContent = e.message;
+                const data = await res.json();
+                err.textContent = data?.error || 'Failed to send. Please try again.';
+                err.style.display = 'block';
+                btn.textContent = 'Send Reset Link';
             }
+        } catch(e) {
+            err.textContent = 'Failed to send. Please try again.';
             err.style.display = 'block';
             btn.textContent = 'Send Reset Link';
         }
