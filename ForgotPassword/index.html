@@ -17,10 +17,11 @@
         input { padding: 11px 14px; border-radius: 10px; border: 1px solid #2a2a2a; background: #111; color: #fff; font-size: 14px; outline: none; width: 100%; transition: border-color .2s; }
         input:focus { border-color: #4da6ff; }
         button { padding: 11px; border-radius: 10px; border: none; background: #4da6ff; color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; transition: background .2s, opacity .2s; }
-        button:hover { background: #3d95ee; }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        button:hover:not(:disabled) { background: #3d95ee; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; background: #2a2a2a; color: #666; }
         .msg { font-size: 12px; text-align: center; color: #30d97a; display: none; padding: 10px; background: rgba(48,217,122,.08); border: 1px solid rgba(48,217,122,.2); border-radius: 8px; line-height: 1.5; }
         .err { font-size: 12px; text-align: center; color: #f04060; display: none; padding: 10px; background: rgba(240,64,96,.08); border: 1px solid rgba(240,64,96,.2); border-radius: 8px; }
+        .cooldown-info { font-size: 11px; text-align: center; color: #555; display: none; }
         .back { font-size: 12px; text-align: center; color: #555; }
         .back a { color: inherit; text-decoration: none; }
         .back a:hover { color: #4da6ff; }
@@ -35,12 +36,87 @@
     <label>Email address</label>
     <input type="email" id="email" placeholder="you@example.com" />
     <button id="sendBtn" onclick="sendReset()">Send Reset Link</button>
+    <div class="cooldown-info" id="cooldown-info"></div>
     <div class="msg" id="msg">✅ Check your inbox!<br><span style="color:#888">A reset link has been sent to your email.</span></div>
     <div class="err" id="err"></div>
     <div class="back">← <a href="https://htmltools.me">Back to HTMLTools</a></div>
 </div>
 
 <script>
+    const COOLDOWN_STEPS = [20, 30, 40, 50, 60];
+    const RESET_AFTER_MS = 24 * 60 * 60 * 1000;
+    let countdownInterval = null;
+
+    function getState() {
+        try {
+            const raw = localStorage.getItem('fp_cooldown');
+            if (!raw) return { count: 0, lastSent: null };
+            const state = JSON.parse(raw);
+            if (state.lastSent && Date.now() - state.lastSent > RESET_AFTER_MS) {
+                localStorage.removeItem('fp_cooldown');
+                return { count: 0, lastSent: null };
+            }
+            return state;
+        } catch(e) { return { count: 0, lastSent: null }; }
+    }
+
+    function saveState(state) {
+        localStorage.setItem('fp_cooldown', JSON.stringify(state));
+    }
+
+    function getCooldownSeconds(count) {
+        if (count <= 0) return 0;
+        return COOLDOWN_STEPS[Math.min(count - 1, COOLDOWN_STEPS.length - 1)];
+    }
+
+    function getRemainingSeconds(state) {
+        if (!state.lastSent) return 0;
+        const cooldown = getCooldownSeconds(state.count);
+        const elapsed = Math.floor((Date.now() - state.lastSent) / 1000);
+        const remaining = cooldown - elapsed;
+        return remaining > 0 ? remaining : 0;
+    }
+
+    function startCountdown() {
+        const btn = document.getElementById('sendBtn');
+        const info = document.getElementById('cooldown-info');
+        if (countdownInterval) clearInterval(countdownInterval);
+
+        function tick() {
+            const state = getState();
+            const remaining = getRemainingSeconds(state);
+            if (remaining <= 0) {
+                clearInterval(countdownInterval);
+                btn.disabled = false;
+                btn.textContent = 'Resend Link';
+                info.style.display = 'none';
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = `Wait ${remaining}s`;
+            info.style.display = 'block';
+            const nextCount = state.count + 1;
+            const nextCooldown = getCooldownSeconds(nextCount);
+            if (state.count < COOLDOWN_STEPS.length) {
+                info.textContent = `Next request will have a ${nextCooldown}s cooldown.`;
+            } else {
+                info.textContent = 'Max cooldown reached (60s). Resets after 24h.';
+            }
+        }
+
+        tick();
+        countdownInterval = setInterval(tick, 1000);
+    }
+
+    window.addEventListener('load', function() {
+        const state = getState();
+        const remaining = getRemainingSeconds(state);
+        if (remaining > 0) {
+            document.getElementById('msg').style.display = 'block';
+            startCountdown();
+        }
+    });
+
     async function sendReset() {
         const email = document.getElementById('email').value.trim();
         const msg = document.getElementById('msg');
@@ -66,21 +142,23 @@
             });
 
             if (res.ok) {
+                const state = getState();
+                saveState({ count: state.count + 1, lastSent: Date.now() });
                 msg.style.display = 'block';
-                btn.textContent = 'Resend Link';
+                startCountdown();
             } else {
                 const data = await res.json();
                 err.textContent = data?.error || 'Failed to send. Please try again.';
                 err.style.display = 'block';
+                btn.disabled = false;
                 btn.textContent = 'Send Reset Link';
             }
         } catch(e) {
             err.textContent = 'Failed to send. Please try again.';
             err.style.display = 'block';
+            btn.disabled = false;
             btn.textContent = 'Send Reset Link';
         }
-
-        btn.disabled = false;
     }
 </script>
 </body>
