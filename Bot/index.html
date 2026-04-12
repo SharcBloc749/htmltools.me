@@ -3,68 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <title>HTMLTools Mail</title>
-    		<link rel="icon" type="image/png" href="/logo.png?v=2" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #0a0c12; color: #dce6f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 
-        /* ── GATE ── */
         #gate { width: 100%; max-width: 360px; background: #0d1016; border: 1px solid #1a2333; border-radius: 18px; padding: 2rem; text-align: center; }
         #gate.hidden { display: none; }
         .gate-logo { font-size: 2rem; margin-bottom: .75rem; }
         .gate-title { font-size: 1.3rem; font-weight: 800; margin-bottom: .25rem; }
         .gate-title span { color: #4da6ff; }
         .gate-sub { font-size: .72rem; color: #506070; margin-bottom: 1.25rem; }
-        .g-input { width: 100%; padding: .75rem 1rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; color: #dce6f5; font-size: .9rem; outline: none; margin-bottom: .6rem; transition: border-color .2s; }
+        .g-input { width: 100%; padding: .75rem 1rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; color: #dce6f5; font-size: .9rem; outline: none; margin-bottom: .6rem; transition: border-color .2s; font-family: inherit; }
         .g-input:focus { border-color: #4da6ff; }
-        .g-btn { width: 100%; padding: .85rem; background: #4da6ff; border: none; border-radius: 10px; color: #fff; font-size: .85rem; font-weight: 700; cursor: pointer; }
+        .g-btn { width: 100%; padding: .85rem; background: #4da6ff; border: none; border-radius: 10px; color: #fff; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
         .g-btn:hover { opacity: .88; }
         .g-err { display: none; margin-top: .6rem; font-size: .7rem; color: #f04060; background: rgba(240,64,96,.08); border-radius: 6px; padding: .4rem; }
 
-        /* ── APP ── */
-        #app { display: none; width: 100%; max-width: 620px; flex-direction: column; gap: 0; }
+        #app { display: none; width: 100%; max-width: 680px; flex-direction: column; gap: 0; }
         #app.show { display: flex; }
 
-        .app-header { background: #0d1016; border: 1px solid #1a2333; border-radius: 14px 14px 0 0; padding: .9rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
-        .app-header-left { display: flex; align-items: center; gap: .5rem; font-weight: 700; font-size: .95rem; }
-        .app-header-left span { color: #4da6ff; }
+        .app-header { background: #0d1016; border: 1px solid #1a2333; border-radius: 14px 14px 0 0; padding: .9rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+        .app-header-left { display: flex; align-items: center; gap: .75rem; font-weight: 700; font-size: .95rem; }
+        .app-header-left > span { color: #4da6ff; }
+        .header-tabs { display: flex; gap: .4rem; }
+        .header-tab { padding: .35rem .75rem; background: transparent; border: 1px solid #1a2333; border-radius: 6px; color: #506070; font-size: .72rem; font-weight: 600; cursor: pointer; transition: all .15s; font-family: inherit; }
+        .header-tab.active { background: rgba(77,166,255,.12); border-color: #4da6ff; color: #4da6ff; }
         .app-header-right { display: flex; align-items: center; gap: .5rem; font-size: .7rem; color: #506070; }
         .online-dot { width: 7px; height: 7px; border-radius: 50%; background: #30d97a; }
-        .signout { background: transparent; border: 1px solid rgba(240,64,96,.3); color: #f04060; font-size: .65rem; padding: .3rem .6rem; border-radius: 6px; cursor: pointer; }
+        .signout { background: transparent; border: 1px solid rgba(240,64,96,.3); color: #f04060; font-size: .65rem; padding: .3rem .6rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
         .signout:hover { background: rgba(240,64,96,.1); }
 
         .app-body { background: #0d1016; border: 1px solid #1a2333; border-top: none; border-radius: 0 0 14px 14px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
 
+        .panel { display: none; flex-direction: column; gap: 1rem; }
+        .panel.active { display: flex; }
+
         .field { display: flex; flex-direction: column; gap: .35rem; }
         .field label { font-size: .62rem; color: #506070; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
-        .field input, .field textarea { padding: .7rem .9rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .88rem; font-family: inherit; outline: none; transition: border-color .2s; width: 100%; }
-        .field input:focus, .field textarea:focus { border-color: #4da6ff; }
+        .field input, .field textarea, .field select { padding: .7rem .9rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .88rem; font-family: inherit; outline: none; transition: border-color .2s; width: 100%; }
+        .field input:focus, .field textarea:focus, .field select:focus { border-color: #4da6ff; }
         .field textarea { resize: vertical; min-height: 140px; line-height: 1.6; }
 
-        /* ── TYPE TABS ── */
+        .custom-from-wrap { display: none; flex-direction: column; gap: .35rem; margin-top: .4rem; }
+        .custom-from-wrap.show { display: flex; }
+        .custom-from-row { display: flex; align-items: center; gap: .5rem; }
+        .custom-from-row input { flex: 1; padding: .7rem .9rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .88rem; font-family: inherit; outline: none; transition: border-color .2s; }
+        .custom-from-row input:focus { border-color: #4da6ff; }
+        .custom-from-row span { color: #506070; font-size: .85rem; white-space: nowrap; }
+
         .type-tabs { display: flex; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; overflow: hidden; }
         .type-tab { flex: 1; padding: .6rem; background: transparent; border: none; color: #506070; font-size: .75rem; font-weight: 700; cursor: pointer; transition: all .15s; font-family: inherit; }
         .type-tab.active { background: rgba(77,166,255,.12); color: #4da6ff; }
 
-        /* ── TOOLBAR ── */
         .toolbar { display: flex; gap: .4rem; flex-wrap: wrap; }
         .tb { padding: .4rem .75rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 6px; color: #506070; font-size: .72rem; cursor: pointer; transition: all .15s; font-family: inherit; display: flex; align-items: center; gap: .3rem; }
         .tb:hover { border-color: #4da6ff; color: #4da6ff; }
 
-        /* ── IMAGES ── */
         .img-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
         .img-chip { background: #111722; border: 1px solid #1a2333; border-radius: 6px; padding: .3rem .6rem; font-size: .7rem; display: flex; align-items: center; gap: .4rem; }
         .img-chip img { width: 20px; height: 20px; border-radius: 3px; object-fit: cover; }
-        .img-chip-remove { color: #f04060; cursor: pointer; font-size: .75rem; }
+        .img-chip-remove { color: #f04060; cursor: pointer; }
 
-        /* ── PREVIEW ── */
         #preview-wrap { display: none; flex-direction: column; gap: .35rem; }
         #preview-wrap.show { display: flex; }
         #preview-wrap label { font-size: .62rem; color: #506070; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
         #preview-frame { width: 100%; min-height: 160px; border: 1px solid #1a2333; border-radius: 8px; background: #fff; }
 
-        /* ── SEND ── */
         .send-row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
         .send-btn { padding: .8rem 1.75rem; background: #4da6ff; border: none; border-radius: 10px; color: #fff; font-size: .88rem; font-weight: 700; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: .5rem; font-family: inherit; }
         .send-btn:hover { opacity: .88; transform: translateY(-1px); }
@@ -74,25 +79,53 @@
         .status { display: none; font-size: .75rem; padding: .45rem .8rem; border-radius: 6px; }
         .status.ok { display: block; background: rgba(48,217,122,.1); color: #30d97a; }
         .status.err { display: block; background: rgba(240,64,96,.08); color: #f04060; }
+
+        .section-title { font-size: .8rem; font-weight: 700; color: #dce6f5; }
+        .section-title span { color: #4da6ff; }
+        .access-card { background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; padding: 1rem; }
+        .access-user-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+        .access-user-email { font-size: .8rem; font-weight: 600; }
+        .access-user-senders { font-size: .65rem; color: #506070; margin-top: .2rem; }
+        .access-actions { display: flex; gap: .4rem; }
+        .access-btn { padding: .35rem .7rem; border-radius: 6px; font-size: .7rem; font-weight: 600; cursor: pointer; border: 1px solid; font-family: inherit; transition: all .15s; }
+        .access-btn.edit { border-color: #4da6ff; color: #4da6ff; background: transparent; }
+        .access-btn.edit:hover { background: rgba(77,166,255,.1); }
+        .access-btn.revoke { border-color: #f04060; color: #f04060; background: transparent; }
+        .access-btn.revoke:hover { background: rgba(240,64,96,.1); }
+        .add-access-form { background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: .75rem; }
+        .add-access-form input { padding: .65rem .9rem; background: #0d1016; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .85rem; font-family: inherit; outline: none; transition: border-color .2s; width: 100%; }
+        .add-access-form input:focus { border-color: #4da6ff; }
+        .hint { font-size: .65rem; color: #506070; }
+        .add-btn { padding: .7rem 1.25rem; background: #30d97a; border: none; border-radius: 8px; color: #fff; font-size: .8rem; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: .4rem; align-self: flex-start; }
+        .add-btn:hover { opacity: .88; }
+        .empty-access { font-size: .78rem; color: #506070; text-align: center; padding: 1.5rem; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1a2333; border-radius: 2px; }
     </style>
 </head>
 <body>
 
-<!-- GATE -->
 <div id="gate">
     <div class="gate-logo">✉️</div>
     <div class="gate-title">HTML<span>Tools</span> Mail</div>
-    <div class="gate-sub">Admin only. Sign in to continue.</div>
+    <div class="gate-sub">Sign in to access the mail tool.</div>
     <input type="email" id="g-email" class="g-input" placeholder="your@email.com" />
     <input type="password" id="g-pass" class="g-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')gateLogin()" />
     <button class="g-btn" onclick="gateLogin()">Sign In</button>
     <div class="g-err" id="g-err"></div>
 </div>
 
-<!-- APP -->
 <div id="app">
     <div class="app-header">
-        <div class="app-header-left">✉️ HTML<span>Tools</span> Mail</div>
+        <div class="app-header-left">
+            ✉️ HTML<span>Tools</span> Mail
+            <div class="header-tabs">
+                <button class="header-tab active" id="tab-compose" onclick="switchPanel('compose')">Compose</button>
+                <button class="header-tab" id="tab-access" onclick="switchPanel('access')" style="display:none">Access</button>
+            </div>
+        </div>
         <div class="app-header-right">
             <span class="online-dot"></span>
             <span id="user-label"></span>
@@ -100,80 +133,102 @@
         </div>
     </div>
     <div class="app-body">
-        <div class="field">
-            <label>To</label>
-            <input type="email" id="to" placeholder="recipient@example.com" />
-        </div>
-        <div class="field">
-            <label>Subject</label>
-            <input type="text" id="subject" placeholder="Email subject..." />
-        </div>
-        <div class="field">
-            <label>Type</label>
-            <div class="type-tabs">
-                <button class="type-tab active" id="tab-normal" onclick="setType('normal')">✏️ Normal</button>
-                <button class="type-tab" id="tab-html" onclick="setType('html')">🧩 HTML</button>
+
+        <!-- COMPOSE -->
+        <div class="panel active" id="panel-compose">
+            <div class="field">
+                <label>From</label>
+                <select id="from-select" onchange="onFromChange()">
+                    <option value="noreply@htmltools.me">noreply@htmltools.me</option>
+                    <option value="matthew@htmltools.me">matthew@htmltools.me</option>
+                    <option value="kovan@htmltools.me">kovan@htmltools.me</option>
+                    <option value="custom">✏️ Type custom address...</option>
+                </select>
+                <div class="custom-from-wrap" id="custom-from-wrap">
+                    <div class="custom-from-row">
+                        <input type="text" id="custom-from-input" placeholder="username" />
+                        <span>@htmltools.me</span>
+                    </div>
+                    <div class="hint">Only addresses you have access to will work.</div>
+                </div>
+            </div>
+            <div class="field">
+                <label>To</label>
+                <input type="email" id="to" placeholder="recipient@example.com" />
+            </div>
+            <div class="field">
+                <label>Subject</label>
+                <input type="text" id="subject" placeholder="Email subject..." />
+            </div>
+            <div class="field">
+                <label>Type</label>
+                <div class="type-tabs">
+                    <button class="type-tab active" id="tab-normal" onclick="setType('normal')">✏️ Normal</button>
+                    <button class="type-tab" id="tab-html" onclick="setType('html')">🧩 HTML</button>
+                </div>
+            </div>
+            <div class="toolbar" id="normal-toolbar">
+                <button class="tb" onclick="insertLink()"><i class="fas fa-link"></i> Insert Link</button>
+                <button class="tb" onclick="document.getElementById('img-input').click()"><i class="fas fa-image"></i> Attach Image</button>
+                <input type="file" id="img-input" accept="image/*" multiple style="display:none" onchange="handleImages(event)" />
+            </div>
+            <div class="img-chips" id="img-chips"></div>
+            <div class="field">
+                <label id="body-label">Message</label>
+                <textarea id="body" placeholder="Write your message here... URLs become clickable automatically."></textarea>
+            </div>
+            <div id="preview-wrap">
+                <label>Preview</label>
+                <iframe id="preview-frame" sandbox="allow-same-origin"></iframe>
+            </div>
+            <div class="send-row">
+                <button class="send-btn" id="send-btn" onclick="sendEmail()"><i class="fas fa-paper-plane"></i> Send</button>
+                <button class="preview-btn" id="preview-btn" onclick="togglePreview()"><i class="fas fa-eye"></i> Preview</button>
+                <div class="status" id="status"></div>
             </div>
         </div>
-        <div class="toolbar" id="normal-toolbar">
-            <button class="tb" onclick="insertLink()"><i class="fas fa-link"></i> Insert Link</button>
-            <button class="tb" onclick="document.getElementById('img-input').click()"><i class="fas fa-image"></i> Attach Image</button>
-            <input type="file" id="img-input" accept="image/*" multiple style="display:none" onchange="handleImages(event)" />
+
+        <!-- ACCESS MANAGER -->
+        <div class="panel" id="panel-access">
+            <div class="section-title">👥 Access Manager <span>— Super Admin Only</span></div>
+            <div class="add-access-form">
+                <div style="font-size:.75rem;font-weight:700;color:#dce6f5;">Grant Access to User</div>
+                <input type="email" id="new-user-email" placeholder="User's email (e.g. friend@gmail.com)" />
+                <input type="text" id="new-user-senders" placeholder="Allowed senders: noreply,matthew,kovan (comma separated)" />
+                <div class="hint">Just the username part before @htmltools.me — e.g. <strong>noreply,matthew</strong></div>
+                <button class="add-btn" onclick="grantAccess()"><i class="fas fa-plus"></i> Grant Access</button>
+                <div class="status" id="access-status"></div>
+            </div>
+            <div style="font-size:.75rem;font-weight:700;color:#dce6f5;">Users with Access</div>
+            <div id="access-list"><div class="empty-access">No users have been granted access yet.</div></div>
         </div>
-        <div class="img-chips" id="img-chips"></div>
-        <div class="field">
-            <label id="body-label">Message</label>
-            <textarea id="body" placeholder="Write your message here... URLs become clickable automatically."></textarea>
-        </div>
-        <div id="preview-wrap">
-            <label>Preview</label>
-            <iframe id="preview-frame" sandbox="allow-same-origin"></iframe>
-        </div>
-        <div class="send-row">
-            <button class="send-btn" id="send-btn" onclick="sendEmail()"><i class="fas fa-paper-plane"></i> Send</button>
-            <button class="preview-btn" id="preview-btn" onclick="togglePreview()"><i class="fas fa-eye"></i> Preview</button>
-            <div class="status" id="status"></div>
-        </div>
+
     </div>
 </div>
 
-<!-- Firebase Auth -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    const ALLOWED = 'matthewbozhe@gmail.com';
-    const auth = getAuth(initializeApp({
+    const SUPER_ADMIN = 'matthewbozhe@gmail.com';
+    const firebaseConfig = {
         apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
         authDomain: "htmltools-library.firebaseapp.com",
+        databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
         projectId: "htmltools-library",
-    }));
-
-    onAuthStateChanged(auth, user => {
-        if (user && user.email.toLowerCase() === ALLOWED) {
-            document.getElementById('gate').classList.add('hidden');
-            document.getElementById('app').classList.add('show');
-            document.getElementById('user-label').textContent = user.email;
-        } else if (user) {
-            signOut(auth);
-            document.getElementById('g-err').textContent = '⛔ Access denied.';
-            document.getElementById('g-err').style.display = 'block';
-        }
-    });
+    };
+    const auth = getAuth(initializeApp(firebaseConfig));
+    const db = getDatabase(initializeApp(firebaseConfig, 'db'));
 
     window.gateLogin = async function() {
         const email = document.getElementById('g-email').value.trim();
         const pass = document.getElementById('g-pass').value;
         const err = document.getElementById('g-err');
         err.style.display = 'none';
-        if (email.toLowerCase() !== ALLOWED) { err.textContent = '⛔ Access denied. Admins only.'; err.style.display = 'block'; return; }
-        if (!pass) { err.textContent = 'Please enter your password.'; err.style.display = 'block'; return; }
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-        } catch(e) {
-            err.textContent = '⛔ ' + e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();
-            err.style.display = 'block';
-        }
+        if (!email || !pass) { err.textContent = 'Please fill in both fields.'; err.style.display = 'block'; return; }
+        try { await signInWithEmailAndPassword(auth, email, pass); }
+        catch(e) { err.textContent = '⛔ ' + e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim(); err.style.display = 'block'; }
     };
 
     window.doLogout = async function() {
@@ -181,13 +236,143 @@
         document.getElementById('gate').classList.remove('hidden');
         document.getElementById('app').classList.remove('show');
     };
+
+    onAuthStateChanged(auth, async user => {
+        if (!user) {
+            document.getElementById('gate').classList.remove('hidden');
+            document.getElementById('app').classList.remove('show');
+            return;
+        }
+        const email = user.email.toLowerCase();
+        if (email === SUPER_ADMIN.toLowerCase()) {
+            showApp(user, null);
+            document.getElementById('tab-access').style.display = 'block';
+            listenAccessList();
+        } else {
+            const snap = await get(ref(db, `mailAccess/${email.replace(/\./g, '_')}`));
+            if (snap.exists()) {
+                const data = snap.val();
+                showApp(user, data.senders);
+                // Listen for revocation
+                onValue(ref(db, `mailAccess/${email.replace(/\./g, '_')}`), s => {
+                    if (!s.exists()) { signOut(auth); alert('Your access has been revoked.'); }
+                    else { updateFromSelect(s.val().senders); }
+                });
+            } else {
+                await signOut(auth);
+                const err = document.getElementById('g-err');
+                err.textContent = '⛔ You do not have access to this tool.';
+                err.style.display = 'block';
+            }
+        }
+    });
+
+    function showApp(user, senders) {
+        document.getElementById('gate').classList.add('hidden');
+        document.getElementById('app').classList.add('show');
+        document.getElementById('user-label').textContent = user.email;
+        if (senders) updateFromSelect(senders);
+    }
+
+    function updateFromSelect(senders) {
+        const sel = document.getElementById('from-select');
+        // Remove all options except custom
+        while (sel.options.length > 0) sel.remove(0);
+        senders.forEach(s => {
+            const opt = new Option(s + '@htmltools.me', s + '@htmltools.me');
+            sel.add(opt);
+        });
+        // No custom option for regular users
+    }
+
+    function listenAccessList() {
+        onValue(ref(db, 'mailAccess'), snap => {
+            const data = snap.val() || {};
+            const list = document.getElementById('access-list');
+            const entries = Object.entries(data);
+            if (!entries.length) { list.innerHTML = '<div class="empty-access">No users have been granted access yet.</div>'; return; }
+            list.innerHTML = '';
+            entries.forEach(([key, val]) => {
+                const card = document.createElement('div');
+                card.className = 'access-card';
+                card.innerHTML = `
+                    <div class="access-user-row">
+                        <div>
+                            <div class="access-user-email">${val.email}</div>
+                            <div class="access-user-senders">Can send from: ${val.senders.map(s => s + '@htmltools.me').join(', ')}</div>
+                        </div>
+                        <div class="access-actions">
+                            <button class="access-btn edit" onclick="editAccess('${key}','${val.email}','${val.senders.join(',')}')"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="access-btn revoke" onclick="revokeAccess('${key}','${val.email}')"><i class="fas fa-times"></i> Revoke</button>
+                        </div>
+                    </div>`;
+                list.appendChild(card);
+            });
+        });
+    }
+
+    window.grantAccess = async function() {
+        const email = document.getElementById('new-user-email').value.trim().toLowerCase();
+        const sendersRaw = document.getElementById('new-user-senders').value.trim();
+        if (!email) { showAccessStatus('Please enter a user email.', 'err'); return; }
+        if (!sendersRaw) { showAccessStatus('Please enter at least one sender.', 'err'); return; }
+        const senders = sendersRaw.split(',').map(s => s.trim().toLowerCase().replace('@htmltools.me','')).filter(Boolean);
+        const key = email.replace(/\./g,'_');
+        try {
+            await set(ref(db, `mailAccess/${key}`), { email, senders });
+            document.getElementById('new-user-email').value = '';
+            document.getElementById('new-user-senders').value = '';
+            showAccessStatus('✅ Access granted!', 'ok');
+        } catch(e) { showAccessStatus('❌ ' + e.message, 'err'); }
+    };
+
+    window.editAccess = function(key, email, sendersStr) {
+        document.getElementById('new-user-email').value = email;
+        document.getElementById('new-user-senders').value = sendersStr;
+        remove(ref(db, `mailAccess/${key}`));
+        document.getElementById('new-user-email').focus();
+        showAccessStatus('✏️ Editing — update and click Grant Access.', 'ok');
+    };
+
+    window.revokeAccess = async function(key, email) {
+        if (!confirm(`Revoke access for ${email}? They will be kicked out immediately.`)) return;
+        try { await remove(ref(db, `mailAccess/${key}`)); showAccessStatus(`✅ Revoked for ${email}.`, 'ok'); }
+        catch(e) { showAccessStatus('❌ ' + e.message, 'err'); }
+    };
+
+    function showAccessStatus(msg, type) {
+        const el = document.getElementById('access-status');
+        el.textContent = msg; el.className = 'status ' + type;
+    }
 </script>
 
 <script>
     const WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
-    let emailType = 'normal';
-    let images = [];
-    let previewOpen = false;
+    let emailType = 'normal', images = [], previewOpen = false;
+
+    function onFromChange() {
+        const sel = document.getElementById('from-select');
+        const wrap = document.getElementById('custom-from-wrap');
+        wrap.classList.toggle('show', sel.value === 'custom');
+    }
+    window.onFromChange = onFromChange;
+
+    function getFromAddress() {
+        const sel = document.getElementById('from-select');
+        if (sel.value === 'custom') {
+            const v = document.getElementById('custom-from-input').value.trim().toLowerCase();
+            return v ? v + '@htmltools.me' : null;
+        }
+        return sel.value;
+    }
+
+    function switchPanel(name) {
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.header-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('panel-' + name).classList.add('active');
+        document.getElementById('tab-' + name).classList.add('active');
+    }
+    window.switchPanel = switchPanel;
 
     function setType(type) {
         emailType = type;
@@ -196,117 +381,81 @@
         document.getElementById('normal-toolbar').style.display = type === 'normal' ? 'flex' : 'none';
         document.getElementById('img-chips').style.display = type === 'normal' ? 'flex' : 'none';
         document.getElementById('preview-btn').style.display = type === 'html' ? 'block' : 'none';
-        document.getElementById('body').placeholder = type === 'html'
-            ? '<h1>Hello!</h1>\n<p>Your message...</p>'
-            : 'Write your message here... URLs become clickable automatically.';
+        document.getElementById('body').placeholder = type === 'html' ? '<h1>Hello!</h1>\n<p>Your message...</p>' : 'Write your message here... URLs become clickable automatically.';
         document.getElementById('body-label').textContent = type === 'html' ? 'HTML Code' : 'Message';
-        if (type === 'normal') {
-            document.getElementById('preview-wrap').classList.remove('show');
-            previewOpen = false;
-            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview';
-        }
+        if (type === 'normal') { document.getElementById('preview-wrap').classList.remove('show'); previewOpen = false; document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview'; }
     }
+    window.setType = setType;
 
     function insertLink() {
-        const url = prompt('Enter URL:');
-        if (!url) return;
-        const text = prompt('Link text (leave blank to use URL):') || url;
-        const ta = document.getElementById('body');
-        const pos = ta.selectionStart;
-        ta.value = ta.value.slice(0, pos) + `[${text}](${url})` + ta.value.slice(pos);
+        const url = prompt('Enter URL:'); if (!url) return;
+        const text = prompt('Link text:') || url;
+        const ta = document.getElementById('body'), pos = ta.selectionStart;
+        ta.value = ta.value.slice(0,pos) + `[${text}](${url})` + ta.value.slice(pos);
     }
+    window.insertLink = insertLink;
 
     function handleImages(e) {
         Array.from(e.target.files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = ev => { images.push({ name: file.name, data: ev.target.result }); renderChips(); };
-            reader.readAsDataURL(file);
+            const r = new FileReader();
+            r.onload = ev => { images.push({ name: file.name, data: ev.target.result }); renderChips(); };
+            r.readAsDataURL(file);
         });
         e.target.value = '';
     }
+    window.handleImages = handleImages;
 
     function renderChips() {
-        const c = document.getElementById('img-chips');
-        c.innerHTML = '';
-        images.forEach((img, i) => {
-            const chip = document.createElement('div');
-            chip.className = 'img-chip';
-            chip.innerHTML = `<img src="${img.data}"><span>${img.name}</span><span class="img-chip-remove" onclick="removeImg(${i})">✕</span>`;
-            c.appendChild(chip);
-        });
+        const c = document.getElementById('img-chips'); c.innerHTML = '';
+        images.forEach((img,i) => { const d = document.createElement('div'); d.className = 'img-chip'; d.innerHTML = `<img src="${img.data}"><span>${img.name}</span><span class="img-chip-remove" onclick="removeImg(${i})">✕</span>`; c.appendChild(d); });
     }
-
-    window.removeImg = function(i) { images.splice(i, 1); renderChips(); };
+    window.removeImg = function(i) { images.splice(i,1); renderChips(); };
 
     function buildHtml() {
         if (emailType === 'html') return document.getElementById('body').value;
         let text = document.getElementById('body').value;
         text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" style="color:#4da6ff;">$1</a>');
         text = text.replace(/(^|[^"'=])(https?:\/\/[^\s<>"]+)/g, '$1<a href="$2" style="color:#4da6ff;">$2</a>');
-        text = text.replace(/\n/g, '<br>');
+        text = text.replace(/\n/g,'<br>');
         let html = `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222;max-width:600px;">${text}`;
-        images.forEach(img => { html += `<br><img src="${img.data}" style="max-width:100%;border-radius:8px;margin-top:12px;display:block;" alt="${img.name}">`; });
-        html += '</div>';
-        return html;
+        images.forEach(img => { html += `<br><img src="${img.data}" style="max-width:100%;border-radius:8px;margin-top:12px;display:block;">`; });
+        return html + '</div>';
     }
 
     function togglePreview() {
         previewOpen = !previewOpen;
-        const wrap = document.getElementById('preview-wrap');
-        const frame = document.getElementById('preview-frame');
-        if (previewOpen) {
-            wrap.classList.add('show');
-            const doc = frame.contentDocument || frame.contentWindow.document;
-            doc.open(); doc.write(buildHtml()); doc.close();
-            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
-        } else {
-            wrap.classList.remove('show');
-            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview';
-        }
+        const wrap = document.getElementById('preview-wrap'), frame = document.getElementById('preview-frame');
+        if (previewOpen) { wrap.classList.add('show'); const doc = frame.contentDocument||frame.contentWindow.document; doc.open(); doc.write(buildHtml()); doc.close(); document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye-slash"></i> Hide'; }
+        else { wrap.classList.remove('show'); document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview'; }
     }
+    window.togglePreview = togglePreview;
 
     window.sendEmail = async function() {
+        const from = getFromAddress();
         const to = document.getElementById('to').value.trim();
         const subject = document.getElementById('subject').value.trim();
         const body = document.getElementById('body').value.trim();
         const btn = document.getElementById('send-btn');
 
+        if (!from) { showStatus('Please select or enter a sender address.', 'err'); return; }
         if (!to) { showStatus('Please enter a recipient.', 'err'); return; }
         if (!subject) { showStatus('Please enter a subject.', 'err'); return; }
         if (!body) { showStatus('Please write a message.', 'err'); return; }
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         try {
-            const res = await fetch(WORKER, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'send_email', to, subject, html: buildHtml() })
-            });
+            const res = await fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'send_email', from, to, subject, html: buildHtml() }) });
             const data = await res.json();
             if (data.success) {
-                showStatus('✅ Sent!', 'ok');
-                document.getElementById('to').value = '';
-                document.getElementById('subject').value = '';
-                document.getElementById('body').value = '';
+                showStatus('✅ Sent from ' + from + '!', 'ok');
+                document.getElementById('to').value = ''; document.getElementById('subject').value = ''; document.getElementById('body').value = '';
                 images = []; renderChips();
-            } else {
-                showStatus('❌ Failed: ' + (data.error || JSON.stringify(data.data)), 'err');
-            }
-        } catch(e) {
-            showStatus('❌ ' + e.message, 'err');
-        }
-
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+            } else { showStatus('❌ ' + (data.error || JSON.stringify(data.data)), 'err'); }
+        } catch(e) { showStatus('❌ ' + e.message, 'err'); }
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
     };
 
-    function showStatus(msg, type) {
-        const el = document.getElementById('status');
-        el.textContent = msg;
-        el.className = 'status ' + type;
-    }
+    function showStatus(msg, type) { const el = document.getElementById('status'); el.textContent = msg; el.className = 'status ' + type; }
 </script>
 </body>
 </html>
