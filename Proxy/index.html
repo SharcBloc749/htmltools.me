@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proxy – HTMLTools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --border: #2a2a2a;
+      --text: #ffffff;
+      --text-muted: #888;
+      --text-dim: #555;
+      --accent: #4da6ff;
+      --accent-hover: #69b4ff;
+      --danger: #ff5f5f;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .nav-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent); }
+
+    .nav-back {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s;
+    }
+    .nav-back:hover { color: var(--text); }
+
+    /* ── MAIN ── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 24px 40px;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(77, 166, 255, 0.1);
+      border: 1px solid rgba(77, 166, 255, 0.25);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 100px;
+      margin-bottom: 20px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      font-size: 15px;
+      color: var(--text-muted);
+      max-width: 420px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── SEARCH BOX ── */
+    .search-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 20px;
+    }
+
+    .search-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .search-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input::placeholder { color: var(--text-dim); }
+    .search-input:focus { border-color: var(--accent); }
+
+    .search-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .search-btn:hover { background: var(--accent-hover); }
+    .search-btn:active { transform: scale(0.97); }
+
+    .search-hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .search-hint span {
+      color: var(--text-muted);
+    }
+
+    /* ── QUICK LINKS ── */
+    .quick-links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 40px;
+    }
+
+    .quick-link {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .quick-link:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── FRAME AREA ── */
+    .frame-wrapper {
+      width: 100%;
+      max-width: 1100px;
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .frame-wrapper.visible { display: flex; }
+
+    .frame-toolbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .frame-url-bar {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .frame-url-bar:focus { border-color: var(--accent); color: var(--text); }
+
+    .frame-go-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .frame-go-btn:hover { background: var(--accent-hover); }
+
+    .frame-close-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .frame-close-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    .proxy-frame {
+      width: 100%;
+      height: 75vh;
+      border: none;
+      background: #fff;
+    }
+
+    /* ── LOADING ── */
+    .loading-bar {
+      height: 3px;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.4s ease;
+      border-radius: 0;
+    }
+    .loading-bar.animating { width: 75%; }
+    .loading-bar.done { width: 100%; opacity: 0; transition: opacity 0.3s 0.2s, width 0.1s; }
+
+    /* ── ERROR STATE ── */
+    .error-msg {
+      display: none;
+      background: rgba(255, 95, 95, 0.08);
+      border: 1px solid rgba(255, 95, 95, 0.25);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #ff8080;
+      width: 100%;
+      max-width: 640px;
+      margin-bottom: 12px;
+    }
+    .error-msg.visible { display: block; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 32px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    footer a { color: var(--text-dim); text-decoration: none; }
+    footer a:hover { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a class="nav-logo" href="/">⚒️ HTML<span>Tools</span></a>
+    <a class="nav-back" href="/">← Back to Tools</a>
+  </nav>
+
+  <main>
+    <div class="hero">
+      <div class="hero-badge">🌐 Web Proxy</div>
+      <h1>Browse Freely</h1>
+      <p>Enter any URL or search with Google — navigation stays proxied so links don't break.</p>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <div class="search-card">
+      <div class="search-label">Search or Enter URL</div>
+      <div class="search-row">
+        <input
+          type="text"
+          class="search-input"
+          id="mainInput"
+          placeholder="Search Google or type a URL..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="search-btn" id="goBtn">
+          Go →
+        </button>
+      </div>
+      <div class="search-hint">
+        Press <span>Enter</span> to go · URLs auto-detected · Searches open via Google
+      </div>
+    </div>
+
+    <div class="quick-links">
+      <div class="quick-link" onclick="loadSite('https://wikipedia.org')">📖 Wikipedia</div>
+      <div class="quick-link" onclick="loadSite('https://reddit.com')">🤖 Reddit</div>
+      <div class="quick-link" onclick="loadSite('https://github.com')">🐙 GitHub</div>
+      <div class="quick-link" onclick="loadSite('https://news.ycombinator.com')">🔶 Hacker News</div>
+      <div class="quick-link" onclick="loadSite('https://stackoverflow.com')">📚 Stack Overflow</div>
+      <div class="quick-link" onclick="loadSite('https://bbc.com/news')">📰 BBC News</div>
+    </div>
+
+    <div class="frame-wrapper" id="frameWrapper">
+      <div class="loading-bar" id="loadingBar"></div>
+      <div class="frame-toolbar">
+        <input class="frame-url-bar" id="frameUrlBar" type="text" placeholder="Navigate to..." />
+        <button class="frame-go-btn" id="frameGoBtn">Go</button>
+        <button class="frame-close-btn" id="frameCloseBtn">✕ Close</button>
+      </div>
+      <iframe class="proxy-frame" id="proxyFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2026 HTMLTools · <a href="/">htmltools.me</a> · Proxy powered by Cloudflare Workers</p>
+  </footer>
+
+  <script>
+    const PROXY = 'https://htmltools.me/proxy-fetch?url=';
+    const GOOGLE_SEARCH = 'https://www.google.com/search?q=';
+
+    const mainInput = document.getElementById('mainInput');
+    const goBtn = document.getElementById('goBtn');
+    const frameWrapper = document.getElementById('frameWrapper');
+    const proxyFrame = document.getElementById('proxyFrame');
+    const frameUrlBar = document.getElementById('frameUrlBar');
+    const frameGoBtn = document.getElementById('frameGoBtn');
+    const frameCloseBtn = document.getElementById('frameCloseBtn');
+    const loadingBar = document.getElementById('loadingBar');
+    const errorMsg = document.getElementById('errorMsg');
+
+    function isUrl(input) {
+      const trimmed = input.trim();
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return true;
+      // Looks like a domain (e.g. "wikipedia.org" or "www.example.com")
+      return /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/.test(trimmed);
+    }
+
+    function normalizeUrl(input) {
+      const t = input.trim();
+      if (t.startsWith('http://') || t.startsWith('https://')) return t;
+      return 'https://' + t;
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('visible');
+      setTimeout(() => errorMsg.classList.remove('visible'), 4000);
+    }
+
+    function startLoading() {
+      loadingBar.classList.remove('done');
+      loadingBar.style.width = '0%';
+      setTimeout(() => loadingBar.classList.add('animating'), 10);
+    }
+
+    function doneLoading() {
+      loadingBar.classList.remove('animating');
+      loadingBar.classList.add('done');
+      setTimeout(() => { loadingBar.classList.remove('done'); loadingBar.style.width = '0%'; }, 600);
+    }
+
+    function loadSite(url) {
+      mainInput.value = url;
+      navigate(url);
+    }
+
+    function navigate(input) {
+      const trimmed = input.trim();
+      if (!trimmed) return;
+
+      errorMsg.classList.remove('visible');
+
+      let proxyUrl;
+      if (isUrl(trimmed)) {
+        const target = encodeURIComponent(normalizeUrl(trimmed));
+        proxyUrl = PROXY + target;
+        frameUrlBar.value = normalizeUrl(trimmed);
+      } else {
+        // It's a search query
+        const searchTarget = encodeURIComponent(GOOGLE_SEARCH + encodeURIComponent(trimmed));
+        proxyUrl = PROXY + searchTarget;
+        frameUrlBar.value = 'Google: ' + trimmed;
+      }
+
+      frameWrapper.classList.add('visible');
+      startLoading();
+
+      proxyFrame.src = proxyUrl;
+    }
+
+    // Main go button
+    goBtn.addEventListener('click', () => navigate(mainInput.value));
+    mainInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') navigate(mainInput.value);
+    });
+
+    // Toolbar go button
+    frameGoBtn.addEventListener('click', () => navigate(frameUrlBar.value));
+    frameUrlBar.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') navigate(frameUrlBar.value);
+    });
+
+    // Close button
+    frameCloseBtn.addEventListener('click', () => {
+      frameWrapper.classList.remove('visible');
+      proxyFrame.src = '';
+      frameUrlBar.value = '';
+      mainInput.value = '';
+    });
+
+    // Loading state on iframe load
+    proxyFrame.addEventListener('load', () => {
+      doneLoading();
+    });
+
+    proxyFrame.addEventListener('error', () => {
+      doneLoading();
+      showError('Failed to load the page. The site may be blocking proxies.');
+    });
+
+    // Focus search on load
+    mainInput.focus();
+  </script>
+</body>
+</html>
