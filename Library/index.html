@@ -1703,7 +1703,12 @@
 				const isOwnerOfBook=currentUser&&currentUser.uid===book.ownerId;
 				const adminUser=isAdmin(currentUser);
 				const isProtected=!!book.undeletable;
+
+				// PROTECTION RULES:
+				// Protected book → ONLY site owner can edit/delete/manage. Book owner & admins are fully locked out.
+				// Unprotected book → book owner OR any admin can edit/delete.
 				const canManage=isProtected?isOwnerUser:(isOwnerOfBook||adminUser);
+
 				const liked=currentUser&&book.likedBy&&book.likedBy[currentUser.uid];
 				const isSaved=currentUser&&!!savedBooks[id];
 				const isPinned=!!pinnedBooks[id];
@@ -1712,16 +1717,34 @@
 				const icons=['📄','📃','📋','🗒️','📑','📜'];
 				const icon=icons[Math.abs(id.split('').reduce((a,c)=>a+c.charCodeAt(0),0))%icons.length];
 
-				// Inspect button visible to book owner or admins
+				// Inspector visible to book owner or admins (even on protected books, for viewing stats)
 				const canInspect=isOwnerOfBook||adminUser;
 
 				// Platform badge
-				const platform=book.platform||'both';
+				const platform=book.platform||'computer';
 				const platformBadge=platform==='mobile'
 					?'<span class="platform-badge mobile">📱 Mobile</span>'
 					:platform==='computer'
 					?'<span class="platform-badge computer">💻 Computer</span>'
 					:'<span class="platform-badge both">🌐 Both</span>';
+
+				// Owner-actions section
+				let ownerActionsHtml='';
+				if(canManage){
+					ownerActionsHtml=`<div class="owner-actions">
+						<button class="btn btn-ghost btn-sm" style="flex:1" onclick="editBook('${id}')">✎ Edit</button>
+						<button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteBook('${id}')">✕ Delete</button>
+						${isOwnerUser?`
+							<button class="btn btn-ghost btn-sm" title="${isPinned?'Unpin':'Pin'}" onclick="togglePin('${id}')" style="border-color:rgba(255,216,110,.3);color:var(--accent4)">${isPinned?'📌 Unpin':'📌 Pin'}</button>
+							<button class="btn btn-ghost btn-sm" title="${isProtected?'Remove protection':'Protect book'}" onclick="toggleUndeletable('${id}')" style="border-color:rgba(110,168,255,.3);color:var(--accent3)">${isProtected?'🔓 Unprotect':'🔒 Protect'}</button>
+						`:''}
+					</div>`;
+				} else if(isProtected&&(isOwnerOfBook||adminUser)){
+					// Show a locked notice to book owners / admins so they know WHY they can't manage it
+					ownerActionsHtml=`<div class="owner-actions" style="opacity:.5;pointer-events:none;cursor:not-allowed">
+						<span style="font-size:.65rem;color:var(--muted);padding:.3rem .5rem;border:1px solid var(--border);border-radius:6px;flex:1;text-align:center">🔒 Protected — contact site owner</span>
+					</div>`;
+				}
 
 				return `<div class="book-card ${isPinned?'pinned':''} ${isProtected?'undeletable':''}" id="card-${id}">
 					${isPinned?'<div class="pin-badge">📌 PINNED</div>':''}
@@ -1751,14 +1774,7 @@
 						${book.allowViewCode?`<button class="btn btn-ghost btn-sm" onclick="viewCode('${id}')">⎘ Code</button>`:''}
 						<button class="play-btn" onclick="runBook('${id}')">▶ Play</button>
 					</div>
-					${canManage?`<div class="owner-actions">
-						<button class="btn btn-ghost btn-sm" style="flex:1" onclick="editBook('${id}')">✎ Edit</button>
-						<button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteBook('${id}')">✕ Delete</button>
-						${isOwnerUser?`
-							<button class="btn btn-ghost btn-sm" title="${isPinned?'Unpin':'Pin'}" onclick="togglePin('${id}')" style="border-color:rgba(255,216,110,.3);color:var(--accent4)">${isPinned?'📌 Unpin':'📌 Pin'}</button>
-							<button class="btn btn-ghost btn-sm" title="${isProtected?'Remove protection':'Protect book'}" onclick="toggleUndeletable('${id}')" style="border-color:rgba(110,168,255,.3);color:var(--accent3)">${isProtected?'🔓 Unprotect':'🔒 Protect'}</button>
-						`:''}
-					</div>`:''}
+					${ownerActionsHtml}
 				</div>`;
 			}
 
@@ -2010,12 +2026,14 @@
 				document.getElementById('book-code-input').value='';
 				document.getElementById('book-desc-input').value='';
 				document.getElementById('allow-view-code').checked=true;
-				selectPlatform('both');
+				selectPlatform('computer');
 				openOverlay('upload-overlay');
 			};
 			window.editBook=function(id){
 				const book=allBooks[id];if(!book||!currentUser)return;
-				if(book.undeletable&&!isOwner(currentUser)){showToast('This book is protected. Only the site owner can edit it.','error');return;}
+				// Protected = ONLY site owner can edit. Book owners and admins are locked out.
+				if(book.undeletable&&!isOwner(currentUser)){showToast('🔒 This book is protected. Only the site owner can edit it.','error');return;}
+				// Not protected: book owner OR admin can edit
 				if(currentUser.uid!==book.ownerId&&!isAdmin(currentUser)){showToast('Permission denied','error');return;}
 				editingBookId=id;
 				document.getElementById('upload-modal-title').textContent='Edit Book';
@@ -2024,7 +2042,7 @@
 				document.getElementById('book-code-input').value=book.code;
 				document.getElementById('book-desc-input').value=book.desc||'';
 				document.getElementById('allow-view-code').checked=!!book.allowViewCode;
-				selectPlatform(book.platform||'both');
+				selectPlatform(book.platform||'computer');
 				openOverlay('upload-overlay');
 			};
 			window.submitBook=async function(){
@@ -2032,7 +2050,7 @@
 				const code=document.getElementById('book-code-input').value.trim();
 				const desc=document.getElementById('book-desc-input').value.trim();
 				const allowViewCode=document.getElementById('allow-view-code').checked;
-				const platform=_selectedPlatform||'both';
+				const platform=_selectedPlatform||'computer';
 				if(!title){showToast('Please add a title','error');return;}
 				if(!code){showToast('Please add HTML code','error');return;}
 				const btn=document.getElementById('upload-submit-btn');
@@ -2040,17 +2058,28 @@
 				try{
 					if(editingBookId){
 						const currentBook=allBooks[editingBookId];
-						if(currentBook&&currentBook.undeletable&&!isOwner(currentUser)){showToast('This book is protected.','error');btn.textContent='SAVE CHANGES';btn.disabled=false;return;}
-						await update(ref(db,'books/'+editingBookId),{title,code,desc,allowViewCode,platform,updatedAt:Date.now()});showToast('Book updated!','success');
+						// Protected = ONLY site owner can save
+						if(currentBook&&currentBook.undeletable&&!isOwner(currentUser)){
+							showToast('🔒 This book is protected. Only the site owner can edit it.','error');
+							btn.textContent='SAVE CHANGES';btn.disabled=false;return;
+						}
+						await update(ref(db,'books/'+editingBookId),{title,code,desc,allowViewCode,platform,updatedAt:Date.now()});
+						showToast('Book updated!','success');
+					} else {
+						const newRef=push(ref(db,'books'));
+						await set(newRef,{title,code,desc,allowViewCode,platform,ownerId:currentUser.uid,ownerName:currentUser.displayName||currentUser.email,createdAt:Date.now(),likes:0});
+						logActivity('upload',`${currentUser.displayName||currentUser.email} published "${title}"`,currentUser.uid);
+						showToast('Book published! 🎉','success');
 					}
-					else{const newRef=push(ref(db,'books'));await set(newRef,{title,code,desc,allowViewCode,platform,ownerId:currentUser.uid,ownerName:currentUser.displayName||currentUser.email,createdAt:Date.now(),likes:0});logActivity('upload',`${currentUser.displayName||currentUser.email} published "${title}"`,currentUser.uid);showToast('Book published! 🎉','success');}
 					closeOverlay('upload-overlay');
 				}catch(e){showToast('Error: '+e.message,'error');}
 				btn.textContent=editingBookId?'SAVE CHANGES':'PUBLISH';btn.disabled=false;
 			};
 			window.deleteBook=async function(id){
 				const book=allBooks[id];if(!book||!currentUser)return;
-				if(book.undeletable&&!isOwner(currentUser)){showToast('This book is protected. Only the site owner can delete it.','error');return;}
+				// Protected = ONLY site owner. Book owners and admins cannot delete.
+				if(book.undeletable&&!isOwner(currentUser)){showToast('🔒 This book is protected. Only the site owner can delete it.','error');return;}
+				// Not protected: book owner OR admin can delete
 				if(currentUser.uid!==book.ownerId&&!isAdmin(currentUser)){showToast('Permission denied','error');return;}
 				if(!confirm(`Delete "${book.title}"? This cannot be undone.`))return;
 				const deletedEntry={...book,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email};
@@ -2228,9 +2257,12 @@
 				tbody.innerHTML=entries.map(([id,b])=>{
 					const cCount=commentCount(id);const codeKb=b.code?(new Blob([b.code]).size/1024).toFixed(1):'0';
 					const isPinned=!!pinnedBooks[id];const isUndel=!!b.undeletable;
-					const plat=b.platform||'both';
+					const plat=b.platform||'computer';
 					const platBadge=plat==='mobile'?'<span style="font-size:.55rem;background:rgba(127,255,110,.1);color:var(--accent);border:1px solid rgba(127,255,110,.2);padding:.1rem .35rem;border-radius:4px;font-weight:700">📱 Mobile</span>':plat==='computer'?'<span style="font-size:.55rem;background:rgba(110,168,255,.1);color:var(--accent3);border:1px solid rgba(110,168,255,.2);padding:.1rem .35rem;border-radius:4px;font-weight:700">💻 PC</span>':'<span style="font-size:.55rem;background:rgba(255,216,110,.1);color:var(--accent4);border:1px solid rgba(255,216,110,.2);padding:.1rem .35rem;border-radius:4px;font-weight:700">🌐 Both</span>';
-					return`<tr><td style="font-weight:700;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(b.title)}">${escHtml(b.title)}</td><td class="mono">${escHtml(b.ownerName||'Unknown')}</td><td class="mono">${timeAgo(b.createdAt)}</td><td style="color:var(--accent2)">♥ ${b.likes||0}</td><td style="color:var(--accent3)">👁 ${(b.views||0).toLocaleString()}</td><td style="color:var(--accent4)">${formatMinutes(b.playtimeSeconds||0)}</td><td style="color:#a78bfa">💬 ${cCount}</td><td class="mono" style="color:var(--muted)">${codeKb} KB</td><td>${platBadge}</td><td>${isPinned?'<span class="status-pill online" style="font-size:.5rem">📌 Pinned</span>':''}${isUndel?'<span class="status-pill" style="background:rgba(110,168,255,.1);color:var(--accent3);border-color:rgba(110,168,255,.2);font-size:.5rem">🔒 Protected</span>':''}</td><td><div class="actions-cell"><button class="btn btn-ghost btn-sm" onclick="runBook('${id}')">▶</button>${b.allowViewCode?`<button class="btn btn-ghost btn-sm" onclick="viewCode('${id}')">⎘</button>`:''}<button class="btn btn-ghost btn-sm" onclick="editBook('${id}');closeAdminPanel()">✎</button>${isOwner(currentUser)||!isUndel?`<button class="btn btn-danger btn-sm" onclick="deleteBook('${id}')">✕</button>`:'<span style="font-size:.6rem;color:var(--muted)">🔒</span>'}</div></td></tr>`;
+					// Protected = only site owner can edit/delete. Admins see lock icons.
+					const canEdit=!isUndel||isOwner(currentUser);
+					const canDelete=!isUndel||isOwner(currentUser);
+					return`<tr><td style="font-weight:700;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(b.title)}">${escHtml(b.title)}</td><td class="mono">${escHtml(b.ownerName||'Unknown')}</td><td class="mono">${timeAgo(b.createdAt)}</td><td style="color:var(--accent2)">♥ ${b.likes||0}</td><td style="color:var(--accent3)">👁 ${(b.views||0).toLocaleString()}</td><td style="color:var(--accent4)">${formatMinutes(b.playtimeSeconds||0)}</td><td style="color:#a78bfa">💬 ${cCount}</td><td class="mono" style="color:var(--muted)">${codeKb} KB</td><td>${platBadge}</td><td>${isPinned?'<span class="status-pill online" style="font-size:.5rem">📌 Pinned</span>':''}${isUndel?'<span class="status-pill" style="background:rgba(110,168,255,.1);color:var(--accent3);border-color:rgba(110,168,255,.2);font-size:.5rem">🔒 Protected</span>':''}</td><td><div class="actions-cell"><button class="btn btn-ghost btn-sm" onclick="runBook('${id}')">▶</button>${b.allowViewCode?`<button class="btn btn-ghost btn-sm" onclick="viewCode('${id}')">⎘</button>`:''} ${canEdit?`<button class="btn btn-ghost btn-sm" onclick="editBook('${id}');closeAdminPanel()">✎</button>`:'<span title="Protected" style="font-size:.8rem">🔒</span>'} ${canDelete?`<button class="btn btn-danger btn-sm" onclick="deleteBook('${id}')">✕</button>`:'<span style="font-size:.6rem;color:var(--muted)">🔒</span>'}</div></td></tr>`;
 				}).join('');
 			};
 			function renderDeletedTab(){
@@ -2282,13 +2314,15 @@
 			window.deleteUserBooks=async function(uid,email){
 				if(!isAdmin(currentUser))return;if(!confirm(`Delete ALL books by ${email}?`))return;
 				const userBooks=Object.entries(allBooks).filter(([,b])=>b&&b.ownerId===uid);
+				let skipped=0;
 				for(const[id,book]of userBooks){
-					if(book.undeletable&&!isOwner(currentUser))continue;
+					if(book.undeletable&&!isOwner(currentUser)){skipped++;continue;}
 					const deletedEntry={...book,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email};
 					await set(push(ref(db,'recentlyDeleted')),deletedEntry);
 					await remove(ref(db,'books/'+id));await remove(ref(db,'comments/'+id));await remove(ref(db,'playSessions/'+id));
 				}
-				logActivity('delete',`Admin deleted all books by ${email}`,currentUser.uid);showToast(`Deleted books by ${email}`,'success');
+				logActivity('delete',`Admin deleted books by ${email}${skipped?` (${skipped} protected skipped)`:''}`,currentUser.uid);
+				showToast(`Deleted books by ${email}${skipped?` · ${skipped} protected skipped`:''}`,skipped?'error':'success');
 			};
 			window.banUser=async function(uid,name){
 				if(!isOwner(currentUser)){showToast('Only the owner can ban users','error');return;}
