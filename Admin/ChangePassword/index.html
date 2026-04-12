@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HTMLTools — Change Password</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0a0c12; color: #dce6f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+
+        /* ── GATE ── */
+        #gate { width: 100%; max-width: 360px; background: #0d1016; border: 1px solid #1a2333; border-radius: 18px; padding: 2rem; text-align: center; }
+        #gate.hidden { display: none; }
+        .gate-logo { font-size: 2rem; margin-bottom: .75rem; }
+        .gate-title { font-size: 1.3rem; font-weight: 800; margin-bottom: .25rem; }
+        .gate-title span { color: #f04060; }
+        .gate-sub { font-size: .72rem; color: #506070; margin-bottom: 1.25rem; line-height: 1.6; }
+        .g-input { width: 100%; padding: .75rem 1rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; color: #dce6f5; font-size: .9rem; outline: none; margin-bottom: .6rem; transition: border-color .2s; font-family: inherit; }
+        .g-input:focus { border-color: #f04060; }
+        .g-btn { width: 100%; padding: .85rem; background: #f04060; border: none; border-radius: 10px; color: #fff; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+        .g-btn:hover { opacity: .88; }
+        .g-err { display: none; margin-top: .6rem; font-size: .7rem; color: #f04060; background: rgba(240,64,96,.08); border-radius: 6px; padding: .4rem; }
+
+        /* ── APP ── */
+        #app { display: none; width: 100%; max-width: 440px; flex-direction: column; gap: 0; }
+        #app.show { display: flex; }
+
+        .app-header { background: #0d1016; border: 1px solid #1a2333; border-radius: 14px 14px 0 0; padding: .9rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
+        .app-header-left { font-weight: 700; font-size: .95rem; display: flex; align-items: center; gap: .5rem; }
+        .app-header-left span { color: #f04060; }
+        .admin-badge { font-size: .6rem; background: rgba(240,64,96,.15); border: 1px solid rgba(240,64,96,.3); color: #f04060; padding: .15rem .5rem; border-radius: 20px; font-weight: 700; letter-spacing: .05em; }
+        .app-header-right { display: flex; align-items: center; gap: .5rem; font-size: .7rem; color: #506070; }
+        .online-dot { width: 7px; height: 7px; border-radius: 50%; background: #30d97a; }
+        .signout { background: transparent; border: 1px solid rgba(240,64,96,.3); color: #f04060; font-size: .65rem; padding: .3rem .6rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
+        .signout:hover { background: rgba(240,64,96,.1); }
+
+        .app-body { background: #0d1016; border: 1px solid #1a2333; border-top: none; border-radius: 0 0 14px 14px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.1rem; }
+
+        .section-desc { font-size: .75rem; color: #506070; line-height: 1.6; padding: .75rem 1rem; background: rgba(240,64,96,.05); border: 1px solid rgba(240,64,96,.15); border-radius: 8px; }
+
+        .field { display: flex; flex-direction: column; gap: .35rem; }
+        .field label { font-size: .62rem; color: #506070; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+        .field input { padding: .75rem 1rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .9rem; font-family: inherit; outline: none; transition: border-color .2s; width: 100%; }
+        .field input:focus { border-color: #f04060; }
+
+        .password-wrap { position: relative; }
+        .password-wrap input { padding-right: 2.5rem; }
+        .toggle-pw { position: absolute; right: .75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: #506070; cursor: pointer; font-size: .85rem; padding: 0; }
+        .toggle-pw:hover { color: #dce6f5; }
+
+        .pw-strength { height: 3px; border-radius: 2px; margin-top: .35rem; background: #1a2333; overflow: hidden; }
+        .pw-strength-bar { height: 100%; border-radius: 2px; transition: width .3s, background .3s; width: 0; }
+
+        .pw-match { font-size: .65rem; margin-top: .25rem; }
+        .pw-match.ok { color: #30d97a; }
+        .pw-match.err { color: #f04060; }
+
+        .submit-btn { padding: .85rem; background: linear-gradient(135deg, #f04060, #a02030); border: none; border-radius: 10px; color: #fff; font-size: .9rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: .5rem; }
+        .submit-btn:hover { opacity: .88; transform: translateY(-1px); }
+        .submit-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+        .status { display: none; font-size: .75rem; padding: .5rem .9rem; border-radius: 8px; text-align: center; }
+        .status.ok { display: block; background: rgba(48,217,122,.1); color: #30d97a; border: 1px solid rgba(48,217,122,.2); }
+        .status.err { display: block; background: rgba(240,64,96,.08); color: #f04060; border: 1px solid rgba(240,64,96,.2); }
+
+        .divider { height: 1px; background: #1a2333; }
+    </style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+    <div class="gate-logo">🔐</div>
+    <div class="gate-title">Admin <span>Tools</span></div>
+    <div class="gate-sub">This tool is restricted to administrators only.</div>
+    <input type="email" id="g-email" class="g-input" placeholder="your@email.com" />
+    <input type="password" id="g-pass" class="g-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')gateLogin()" />
+    <button class="g-btn" onclick="gateLogin()">Sign In</button>
+    <div class="g-err" id="g-err"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+    <div class="app-header">
+        <div class="app-header-left">
+            🔐 Change Password
+            <span class="admin-badge">ADMIN</span>
+        </div>
+        <div class="app-header-right">
+            <span class="online-dot"></span>
+            <span id="user-label"></span>
+            <button class="signout" onclick="doLogout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="app-body">
+        <div class="section-desc">
+            ⚠️ You are about to change another user's password. This action takes effect immediately and cannot be undone.
+        </div>
+
+        <div class="field">
+            <label>User's Email</label>
+            <input type="email" id="target-email" placeholder="user@example.com" />
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+            <label>New Password</label>
+            <div class="password-wrap">
+                <input type="password" id="new-password" placeholder="••••••••" oninput="checkStrength();checkMatch()" />
+                <button class="toggle-pw" type="button" onclick="togglePw('new-password', this)">👁</button>
+            </div>
+            <div class="pw-strength"><div class="pw-strength-bar" id="pw-bar"></div></div>
+        </div>
+
+        <div class="field">
+            <label>Confirm New Password</label>
+            <div class="password-wrap">
+                <input type="password" id="confirm-password" placeholder="••••••••" oninput="checkMatch()" />
+                <button class="toggle-pw" type="button" onclick="togglePw('confirm-password', this)">👁</button>
+            </div>
+            <div class="pw-match" id="pw-match"></div>
+        </div>
+
+        <button class="submit-btn" id="submit-btn" onclick="changePassword()">
+            🔑 Change Password
+        </button>
+
+        <div class="status" id="status"></div>
+    </div>
+</div>
+
+<!-- Firebase Auth -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const ALLOWED = 'matthewbozhe@gmail.com';
+    const auth = getAuth(initializeApp({
+        apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+        authDomain: "htmltools-library.firebaseapp.com",
+        projectId: "htmltools-library",
+    }));
+
+    onAuthStateChanged(auth, user => {
+        if (user && user.email.toLowerCase() === ALLOWED) {
+            document.getElementById('gate').classList.add('hidden');
+            document.getElementById('app').classList.add('show');
+            document.getElementById('user-label').textContent = user.email;
+        } else if (user) {
+            signOut(auth);
+            showGateErr('⛔ Access denied. Admins only.');
+        }
+    });
+
+    window.gateLogin = async function() {
+        const email = document.getElementById('g-email').value.trim();
+        const pass = document.getElementById('g-pass').value;
+        const err = document.getElementById('g-err');
+        err.style.display = 'none';
+        if (email.toLowerCase() !== ALLOWED) { showGateErr('⛔ Access denied. Admins only.'); return; }
+        if (!pass) { showGateErr('Please enter your password.'); return; }
+        try { await signInWithEmailAndPassword(auth, email, pass); }
+        catch(e) { showGateErr('⛔ ' + e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim()); }
+    };
+
+    window.doLogout = async function() {
+        await signOut(auth);
+        document.getElementById('gate').classList.remove('hidden');
+        document.getElementById('app').classList.remove('show');
+    };
+
+    function showGateErr(msg) {
+        const err = document.getElementById('g-err');
+        err.textContent = msg;
+        err.style.display = 'block';
+    }
+</script>
+
+<script>
+    const WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
+
+    function togglePw(id, btn) {
+        const input = document.getElementById(id);
+        if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+        else { input.type = 'password'; btn.textContent = '👁'; }
+    }
+    window.togglePw = togglePw;
+
+    function checkStrength() {
+        const pw = document.getElementById('new-password').value;
+        const bar = document.getElementById('pw-bar');
+        let score = 0;
+        if (pw.length >= 8) score++;
+        if (/[A-Z]/.test(pw)) score++;
+        if (/[0-9]/.test(pw)) score++;
+        if (/[^A-Za-z0-9]/.test(pw)) score++;
+        const colors = ['#f04060', '#f5b842', '#4da6ff', '#30d97a'];
+        const widths = ['25%', '50%', '75%', '100%'];
+        bar.style.width = pw.length === 0 ? '0' : widths[score - 1] || '25%';
+        bar.style.background = pw.length === 0 ? 'transparent' : colors[score - 1] || '#f04060';
+    }
+    window.checkStrength = checkStrength;
+
+    function checkMatch() {
+        const pw = document.getElementById('new-password').value;
+        const confirm = document.getElementById('confirm-password').value;
+        const el = document.getElementById('pw-match');
+        if (!confirm) { el.textContent = ''; el.className = 'pw-match'; return; }
+        if (pw === confirm) { el.textContent = '✅ Passwords match'; el.className = 'pw-match ok'; }
+        else { el.textContent = '❌ Passwords do not match'; el.className = 'pw-match err'; }
+    }
+    window.checkMatch = checkMatch;
+
+    window.changePassword = async function() {
+        const targetEmail = document.getElementById('target-email').value.trim();
+        const newPw = document.getElementById('new-password').value;
+        const confirmPw = document.getElementById('confirm-password').value;
+        const btn = document.getElementById('submit-btn');
+
+        if (!targetEmail) { showStatus('Please enter the user\'s email.', 'err'); return; }
+        if (!newPw) { showStatus('Please enter a new password.', 'err'); return; }
+        if (newPw.length < 6) { showStatus('Password must be at least 6 characters.', 'err'); return; }
+        if (newPw !== confirmPw) { showStatus('Passwords do not match.', 'err'); return; }
+        if (!confirm(`Change password for ${targetEmail}? This cannot be undone.`)) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Changing password...';
+
+        try {
+            const res = await fetch(WORKER, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'change_password', email: targetEmail, newPassword: newPw })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showStatus(`✅ Password changed for ${targetEmail}!`, 'ok');
+                document.getElementById('target-email').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('confirm-password').value = '';
+                document.getElementById('pw-bar').style.width = '0';
+                document.getElementById('pw-match').textContent = '';
+            } else {
+                showStatus('❌ Failed: ' + (data.error || 'Unknown error'), 'err');
+            }
+        } catch(e) {
+            showStatus('❌ Error: ' + e.message, 'err');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '🔑 Change Password';
+    };
+
+    function showStatus(msg, type) {
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.className = 'status ' + type;
+    }
+</script>
+</body>
+</html>
