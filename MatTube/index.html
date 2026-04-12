@@ -632,6 +632,31 @@
 			.auth-forgot a:hover{color:var(--blue);}
 			#auth-btn.signed-in{border-color:rgba(34,197,94,.3);color:#4ade80;background:rgba(34,197,94,.08);}
 			#auth-btn.signed-in:hover{background:rgba(229,57,53,.1);border-color:rgba(229,57,53,.3);color:#ef9a9a;}
+
+			/* ===== BAN OVERLAY ===== */
+			#ban-overlay{position:fixed;inset:0;z-index:9999999;background:#000;
+			  display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+			  padding:20px;}
+			#ban-overlay.active{display:flex;}
+			.ban-icon{width:90px;height:90px;border-radius:50%;background:rgba(229,57,53,.1);
+			  border:2px solid rgba(229,57,53,.4);display:flex;align-items:center;justify-content:center;
+			  animation:ban-pulse 2s ease-in-out infinite;}
+			@keyframes ban-pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,57,53,.3);}50%{box-shadow:0 0 0 20px rgba(229,57,53,0);}}
+			.ban-icon i{font-size:38px;color:#ef9a9a;}
+			.ban-title{font-size:24px;font-weight:800;color:#fff;letter-spacing:-.5px;}
+			.ban-sub{font-size:14px;color:#555;text-align:center;max-width:360px;line-height:1.7;}
+			.ban-badge{background:rgba(229,57,53,.1);border:1px solid rgba(229,57,53,.3);
+			  color:#ef9a9a;padding:6px 18px;border-radius:20px;font-size:12px;font-weight:700;
+			  letter-spacing:.5px;text-transform:uppercase;}
+
+			/* Login-required prompt in home view */
+			#login-required-notice{background:rgba(62,166,255,.08);border:1px solid rgba(62,166,255,.2);
+			  border-radius:12px;padding:14px 20px;margin-top:20px;font-size:13px;color:var(--blue);
+			  display:none;align-items:center;gap:10px;max-width:400px;}
+			#login-required-notice.show{display:flex;}
+			#login-required-notice button{background:var(--blue);border:none;color:#000;
+			  padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+			  font-family:var(--font);flex-shrink:0;}
 		</style>
 	</head>
 	<body>
@@ -651,14 +676,8 @@
 					<span class="logo-txt">MatTube</span>
 				</div>
 				<div id="search-wrap">
-					<input
-						type="text"
-						id="search-inp"
-						placeholder="Search YouTube…"
-					/>
-					<button id="search-btn">
-						<i class="fas fa-search"></i>
-					</button>
+					<input type="text" id="search-inp" placeholder="Search YouTube…" />
+					<button id="search-btn"><i class="fas fa-search"></i></button>
 				</div>
 				<div id="hdr-right">
 					<div class="lib-pill" id="lib-pill">
@@ -669,11 +688,7 @@
 						<i class="fas fa-list-ul"></i>
 						<span class="hbadge" id="qbadge">0</span>
 					</button>
-					<button
-						class="hdr-btn"
-						id="clr-lib-btn"
-						title="Clear library"
-					>
+					<button class="hdr-btn" id="clr-lib-btn" title="Clear library">
 						<i class="fas fa-trash"></i>
 					</button>
 					<button id="admin-btn" title="Admin Panel">
@@ -689,28 +704,13 @@
 			<!-- BODY -->
 			<div id="body">
 				<div id="nav">
-					<div class="ni on" id="n-home">
-						<i class="fas fa-home"></i>
-						<span>Home</span>
-					</div>
+					<div class="ni on" id="n-home"><i class="fas fa-home"></i><span>Home</span></div>
 					<div class="ndiv"></div>
-					<div class="ni" id="n-shorts">
-						<i class="fas fa-film"></i>
-						<span>Shorts</span>
-					</div>
-					<div class="ni" id="n-live">
-						<i class="fas fa-broadcast-tower"></i>
-						<span>Live</span>
-					</div>
+					<div class="ni" id="n-shorts"><i class="fas fa-film"></i><span>Shorts</span></div>
+					<div class="ni" id="n-live"><i class="fas fa-broadcast-tower"></i><span>Live</span></div>
 					<div class="ndiv"></div>
-					<div class="ni" id="n-lib">
-						<i class="fas fa-bookmark"></i>
-						<span>Library</span>
-					</div>
-					<div class="ni" id="n-hist">
-						<i class="fas fa-history"></i>
-						<span>History</span>
-					</div>
+					<div class="ni" id="n-lib"><i class="fas fa-bookmark"></i><span>Library</span></div>
+					<div class="ni" id="n-hist"><i class="fas fa-history"></i><span>History</span></div>
 				</div>
 
 				<div id="content">
@@ -720,57 +720,26 @@
 					<div id="v-home" class="view on">
 						<div class="h-icon"><i class="fab fa-youtube"></i></div>
 						<h2>What would you like to watch?</h2>
-						<p>
-							Search millions of videos or browse your saved
-							library.
-						</p>
+						<p>Search millions of videos or browse your saved library.</p>
 						<div class="h-hint">
 							<i class="fas fa-search" style="color:#333;"></i>
 							&nbsp; Type in the search bar above…
 						</div>
+						<!-- Login required notice -->
+						<div id="login-required-notice">
+							<i class="fas fa-lock"></i>
+							<span>Sign in to watch videos on MatTube.</span>
+							<button onclick="showAuthModal()">Sign In</button>
+						</div>
 						<div class="h-chips">
-							<button
-								class="chip"
-								data-q="lofi hip hop study 2025"
-							>
-								🎵 Lofi Study
-							</button>
-							<button class="chip" data-q="best music 2025">
-								🔥 Top Music
-							</button>
-							<button
-								class="chip"
-								data-q="javascript tutorial 2025"
-							>
-								💻 JS Tutorial
-							</button>
-							<button class="chip" data-q="travel vlog 2025">
-								✈️ Travel Vlogs
-							</button>
-							<button
-								class="chip"
-								data-q="cooking recipes easy 2025"
-							>
-								🍳 Easy Recipes
-							</button>
-							<button
-								class="chip"
-								data-q="funny compilation 2025"
-							>
-								😂 Funny Videos
-							</button>
-							<button
-								class="chip"
-								data-q="gaming highlights 2025"
-							>
-								🎮 Gaming
-							</button>
-							<button
-								class="chip"
-								data-q="science documentary 2025"
-							>
-								🔬 Science Docs
-							</button>
+							<button class="chip" data-q="lofi hip hop study 2025">🎵 Lofi Study</button>
+							<button class="chip" data-q="best music 2025">🔥 Top Music</button>
+							<button class="chip" data-q="javascript tutorial 2025">💻 JS Tutorial</button>
+							<button class="chip" data-q="travel vlog 2025">✈️ Travel Vlogs</button>
+							<button class="chip" data-q="cooking recipes easy 2025">🍳 Easy Recipes</button>
+							<button class="chip" data-q="funny compilation 2025">😂 Funny Videos</button>
+							<button class="chip" data-q="gaming highlights 2025">🎮 Gaming</button>
+							<button class="chip" data-q="science documentary 2025">🔬 Science Docs</button>
 						</div>
 					</div>
 
@@ -786,18 +755,11 @@
 					<!-- PLAYER -->
 					<div id="v-player" class="view">
 						<div class="pl-box">
-							<iframe
-								id="main-iframe"
-								src=""
-								allowfullscreen
-								allow="autoplay;encrypted-media"
-							></iframe>
+							<iframe id="main-iframe" src="" allowfullscreen allow="autoplay;encrypted-media"></iframe>
 							<div class="mvov" id="mvov">
 								<div class="mvov-hd">
 									<span>More Videos</span>
-									<button class="mvov-close" id="mvov-close">
-										&times;
-									</button>
+									<button class="mvov-close" id="mvov-close">&times;</button>
 								</div>
 								<div class="mvov-row" id="mvov-list"></div>
 							</div>
@@ -808,58 +770,25 @@
 								<div class="pl-ch" id="pl-ch">
 									<div class="pl-chav" id="pl-chav"></div>
 									<div>
-										<div
-											class="pl-chname"
-											id="pl-chname"
-										></div>
-										<div
-											class="pl-stats"
-											id="pl-stats"
-										></div>
+										<div class="pl-chname" id="pl-chname"></div>
+										<div class="pl-stats" id="pl-stats"></div>
 									</div>
 								</div>
 							</div>
 							<div class="pl-acts">
-								<button class="act" id="p-save">
-									<i class="fas fa-bookmark"></i>
-									Save
-								</button>
-								<button class="act" id="p-queue">
-									<i class="fas fa-plus"></i>
-									Queue
-								</button>
-								<button class="act share-act" id="p-share">
-									<i class="fas fa-share-alt"></i>
-									Share
-								</button>
-								<button class="act" id="p-comments">
-									<i class="fas fa-comments"></i>
-									Comments
-								</button>
+								<button class="act" id="p-save"><i class="fas fa-bookmark"></i> Save</button>
+								<button class="act" id="p-queue"><i class="fas fa-plus"></i> Queue</button>
+								<button class="act share-act" id="p-share"><i class="fas fa-share-alt"></i> Share</button>
+								<button class="act" id="p-comments"><i class="fas fa-comments"></i> Comments</button>
 							</div>
 							<div class="com-box" id="com-box">
 								<div class="com-hd">
-									<h4>
-										<i
-											class="fas fa-comments"
-											style="color:var(--blue);"
-										></i>
-										Comments
-									</h4>
-									<button class="cclose" id="close-com">
-										&times;
-									</button>
+									<h4><i class="fas fa-comments" style="color:var(--blue);"></i> Comments</h4>
+									<button class="cclose" id="close-com">&times;</button>
 								</div>
 								<div class="com-list" id="com-list"></div>
-								<div
-									class="lm-wrap"
-									id="com-lm"
-									style="display:none;"
-								>
-									<button class="lm-btn" id="com-lm-btn">
-										<i class="fas fa-chevron-down"></i>
-										Load More Comments
-									</button>
+								<div class="lm-wrap" id="com-lm" style="display:none;">
+									<button class="lm-btn" id="com-lm-btn"><i class="fas fa-chevron-down"></i> Load More Comments</button>
 								</div>
 							</div>
 						</div>
@@ -879,31 +808,18 @@
 							</div>
 						</div>
 						<div class="ch-tabs">
-							<div class="ch-tab on" data-tab="videos">
-								Videos
-							</div>
+							<div class="ch-tab on" data-tab="videos">Videos</div>
 							<div class="ch-tab" data-tab="shorts">Shorts</div>
 							<div class="ch-tab" data-tab="home">Home</div>
 						</div>
-						<div class="ch-content">
-							<div class="ch-vgrid" id="ch-vgrid"></div>
-						</div>
+						<div class="ch-content"><div class="ch-vgrid" id="ch-vgrid"></div></div>
 					</div>
 
 					<!-- HISTORY -->
 					<div id="v-hist" class="view">
 						<div class="hist-hd">
-							<h2>
-								<i
-									class="fas fa-history"
-									style="color:var(--red);margin-right:8px;"
-								></i>
-								Watch History
-							</h2>
-							<button id="clr-hist">
-								<i class="fas fa-trash"></i>
-								Clear All
-							</button>
+							<h2><i class="fas fa-history" style="color:var(--red);margin-right:8px;"></i>Watch History</h2>
+							<button id="clr-hist"><i class="fas fa-trash"></i> Clear All</button>
 						</div>
 						<div class="grid" id="hist-grid"></div>
 					</div>
@@ -913,30 +829,17 @@
 						<div class="sh-outer">
 							<div class="sh-reel-w">
 								<div class="sh-reel" id="sh-reel"></div>
-								<button class="sh-nav" id="sh-up">
-									<i class="fas fa-chevron-up"></i>
-								</button>
-								<button class="sh-nav" id="sh-dn">
-									<i class="fas fa-chevron-down"></i>
-								</button>
+								<button class="sh-nav" id="sh-up"><i class="fas fa-chevron-up"></i></button>
+								<button class="sh-nav" id="sh-dn"><i class="fas fa-chevron-down"></i></button>
 							</div>
 							<div class="ssc" id="ssc">
 								<div class="ssc-hd">
 									<h4 id="ssc-title">Comments</h4>
-									<button class="ssc-close" id="ssc-close">
-										&times;
-									</button>
+									<button class="ssc-close" id="ssc-close">&times;</button>
 								</div>
 								<div class="ssc-list" id="ssc-list"></div>
-								<div
-									class="ssc-lm"
-									id="ssc-lm"
-									style="display:none;"
-								>
-									<button id="ssc-lm-btn">
-										<i class="fas fa-chevron-down"></i>
-										Load More
-									</button>
+								<div class="ssc-lm" id="ssc-lm" style="display:none;">
+									<button id="ssc-lm-btn"><i class="fas fa-chevron-down"></i> Load More</button>
 								</div>
 							</div>
 						</div>
@@ -946,102 +849,39 @@
 					<div id="v-live" class="view">
 						<div id="live-list">
 							<div class="sec-hd2">
-								<h3>
-									<i
-										class="fas fa-broadcast-tower"
-										style="color:var(--red);"
-									></i>
-									Live Streams
-								</h3>
+								<h3><i class="fas fa-broadcast-tower" style="color:var(--red);"></i> Live Streams</h3>
 							</div>
 							<div class="live-grid" id="live-grid"></div>
 						</div>
 						<div id="live-player" style="display:none;">
-							<button class="live-back" id="live-back">
-								<i class="fas fa-arrow-left"></i>
-								Back to Live Streams
-							</button>
+							<button class="live-back" id="live-back"><i class="fas fa-arrow-left"></i> Back to Live Streams</button>
 							<div class="live-layout">
 								<div class="live-pl-box">
-									<iframe
-										id="live-iframe"
-										src=""
-										allowfullscreen
-										allow="autoplay;encrypted-media"
-									></iframe>
+									<iframe id="live-iframe" src="" allowfullscreen allow="autoplay;encrypted-media"></iframe>
 								</div>
 								<div class="live-info">
 									<div class="live-ttl" id="live-ttl"></div>
 									<div class="live-meta">
-										<span class="live-dot-badge">
-											🔴 LIVE
-										</span>
-										<span class="live-viewers">
-											<i class="fas fa-eye"></i>
-											<span id="live-vcount"></span>
-										</span>
+										<span class="live-dot-badge">🔴 LIVE</span>
+										<span class="live-viewers"><i class="fas fa-eye"></i><span id="live-vcount"></span></span>
 									</div>
 									<div class="live-chrow" id="live-chrow">
-										<div
-											class="live-chav"
-											id="live-chav"
-										></div>
-										<div
-											class="live-chname"
-											id="live-chname"
-										></div>
+										<div class="live-chav" id="live-chav"></div>
+										<div class="live-chname" id="live-chname"></div>
 									</div>
 									<div class="live-acts">
-										<button class="act" id="live-save">
-											<i class="fas fa-bookmark"></i>
-											Save
-										</button>
-										<button class="act" id="live-queue">
-											<i class="fas fa-plus"></i>
-											Queue
-										</button>
-										<button class="act" id="live-com-btn">
-											<i class="fas fa-comments"></i>
-											Comments
-										</button>
+										<button class="act" id="live-save"><i class="fas fa-bookmark"></i> Save</button>
+										<button class="act" id="live-queue"><i class="fas fa-plus"></i> Queue</button>
+										<button class="act" id="live-com-btn"><i class="fas fa-comments"></i> Comments</button>
 									</div>
-									<div
-										class="live-com-wrap"
-										id="live-com-wrap"
-									>
+									<div class="live-com-wrap" id="live-com-wrap">
 										<div class="com-hd">
-											<h4>
-												<i
-													class="fas fa-comments"
-													style="color:var(--blue);"
-												></i>
-												Comments
-											</h4>
-											<button
-												class="cclose"
-												id="live-close-com"
-											>
-												&times;
-											</button>
+											<h4><i class="fas fa-comments" style="color:var(--blue);"></i> Comments</h4>
+											<button class="cclose" id="live-close-com">&times;</button>
 										</div>
-										<div
-											class="com-list"
-											id="live-com-list"
-										></div>
-										<div
-											class="lm-wrap"
-											id="live-com-lm"
-											style="display:none;"
-										>
-											<button
-												class="lm-btn"
-												id="live-lm-btn"
-											>
-												<i
-													class="fas fa-chevron-down"
-												></i>
-												Load More Comments
-											</button>
+										<div class="com-list" id="live-com-list"></div>
+										<div class="lm-wrap" id="live-com-lm" style="display:none;">
+											<button class="lm-btn" id="live-lm-btn"><i class="fas fa-chevron-down"></i> Load More Comments</button>
 										</div>
 									</div>
 								</div>
@@ -1055,22 +895,13 @@
 		<!-- MINI PLAYER -->
 		<div id="mini">
 			<div class="mini-vid">
-				<iframe
-					id="mini-iframe"
-					src=""
-					allowfullscreen
-					allow="autoplay;encrypted-media"
-				></iframe>
+				<iframe id="mini-iframe" src="" allowfullscreen allow="autoplay;encrypted-media"></iframe>
 			</div>
 			<div class="mini-bar">
 				<div class="mini-title" id="mini-title"></div>
 				<div class="mini-acts">
-					<button class="mini-btn" id="mini-expand" title="Expand">
-						<i class="fas fa-expand-alt"></i>
-					</button>
-					<button class="mini-btn" id="mini-close" title="Close">
-						<i class="fas fa-times"></i>
-					</button>
+					<button class="mini-btn" id="mini-expand" title="Expand"><i class="fas fa-expand-alt"></i></button>
+					<button class="mini-btn" id="mini-close" title="Close"><i class="fas fa-times"></i></button>
 				</div>
 			</div>
 		</div>
@@ -1079,36 +910,18 @@
 		<div id="qpanel">
 			<div class="qp-hd">
 				<h3>
-					<i class="fas fa-list-ul" style="color:var(--red);"></i>
-					Queue
-					<span
-						id="qcount"
-						style="font-size:12px;font-weight:500;color:#444;background:#1a1a1a;padding:1px 9px;border-radius:20px;margin-left:2px;"
-					>
-						0
-					</span>
+					<i class="fas fa-list-ul" style="color:var(--red);"></i> Queue
+					<span id="qcount" style="font-size:12px;font-weight:500;color:#444;background:#1a1a1a;padding:1px 9px;border-radius:20px;margin-left:2px;">0</span>
 				</h3>
 				<div style="display:flex;gap:8px;align-items:center;">
-					<button
-						class="btn btn-d"
-						id="clr-queue"
-						style="font-size:11px;padding:4px 10px;"
-					>
-						<i class="fas fa-trash"></i>
-						Clear
-					</button>
+					<button class="btn btn-d" id="clr-queue" style="font-size:11px;padding:4px 10px;"><i class="fas fa-trash"></i> Clear</button>
 					<button class="qp-close" id="qp-close">&times;</button>
 				</div>
 			</div>
 			<div id="qlist">
 				<div class="q-empty">
-					<i
-						class="fas fa-list-ul"
-						style="font-size:30px;display:block;margin-bottom:10px;opacity:.25;"
-					></i>
-					Queue is empty.
-					<br />
-					Add videos while browsing!
+					<i class="fas fa-list-ul" style="font-size:30px;display:block;margin-bottom:10px;opacity:.25;"></i>
+					Queue is empty.<br />Add videos while browsing!
 				</div>
 			</div>
 		</div>
@@ -1121,16 +934,11 @@
 					<button class="m-close" id="hm-close">&times;</button>
 				</div>
 				<div class="m-body">
-					<p style="color:#666;font-size:13px;line-height:1.7;">
-						This will permanently delete all your watch history.
-					</p>
+					<p style="color:#666;font-size:13px;line-height:1.7;">This will permanently delete all your watch history.</p>
 				</div>
 				<div class="m-foot">
 					<button class="btn" id="hm-cancel">Cancel</button>
-					<button class="btn btn-d" id="hm-confirm">
-						<i class="fas fa-trash"></i>
-						Clear All
-					</button>
+					<button class="btn btn-d" id="hm-confirm"><i class="fas fa-trash"></i> Clear All</button>
 				</div>
 			</div>
 		</div>
@@ -1145,73 +953,27 @@
 		<div class="mover" id="prank-modal">
 			<div class="modal">
 				<div class="m-hd" style="border-color:rgba(245,158,11,.2);">
-					<h3 style="color:var(--admin);">
-						<i class="fas fa-mask" style="margin-right:8px;"></i>
-						Prank User
-					</h3>
+					<h3 style="color:var(--admin);"><i class="fas fa-mask" style="margin-right:8px;"></i>Prank User</h3>
 					<button class="m-close" id="pm-close">&times;</button>
 				</div>
 				<div class="m-body">
-					<p style="color:#555;font-size:12px;margin-bottom:12px;">
-						Target:
-						<strong
-							id="prank-target-lbl"
-							style="color:#888;"
-						></strong>
-					</p>
-					<p style="color:#888;font-size:13px;margin-bottom:8px;">
-						YouTube Video URL or ID:
-					</p>
-					<input
-						type="text"
-						id="prank-url"
-						placeholder="https://youtube.com/watch?v=... or video ID"
-					/>
+					<p style="color:#555;font-size:12px;margin-bottom:12px;">Target: <strong id="prank-target-lbl" style="color:#888;"></strong></p>
+					<p style="color:#888;font-size:13px;margin-bottom:8px;">YouTube Video URL or ID:</p>
+					<input type="text" id="prank-url" placeholder="https://youtube.com/watch?v=... or video ID" />
 					<div class="prank-presets">
-						<button class="prank-preset" data-id="dQw4w9WgXcQ">
-							🎵 Rickroll
-						</button>
-						<button class="prank-preset" data-id="jNQXAC9IVRw">
-							🐴 First YouTube Video
-						</button>
-						<button class="prank-preset" data-id="xvFZjo5PgG0">
-							🎪 Never Gonna Stop
-						</button>
-						<button class="prank-preset" data-id="y6120QOlsfU">
-							😱 Dramatic Chipmunk
-						</button>
-						<button class="prank-preset" data-id="L_jWHffIx5E">
-							🦁 Smash Mouth
-						</button>
+						<button class="prank-preset" data-id="dQw4w9WgXcQ">🎵 Rickroll</button>
+						<button class="prank-preset" data-id="jNQXAC9IVRw">🐴 First YouTube Video</button>
+						<button class="prank-preset" data-id="xvFZjo5PgG0">🎪 Never Gonna Stop</button>
+						<button class="prank-preset" data-id="y6120QOlsfU">😱 Dramatic Chipmunk</button>
+						<button class="prank-preset" data-id="L_jWHffIx5E">🦁 Smash Mouth</button>
 					</div>
 					<div class="prank-lock-row">
-						<label>
-							<input
-								type="checkbox"
-								id="prank-lock-chk"
-								checked
-							/>
-							Lock screen
-						</label>
-						<label>
-							<input
-								type="checkbox"
-								id="prank-auto-chk"
-								checked
-							/>
-							Autoplay
-						</label>
+						<label><input type="checkbox" id="prank-lock-chk" checked /> Lock screen</label>
+						<label><input type="checkbox" id="prank-auto-chk" checked /> Autoplay</label>
 					</div>
-					<div
-						style="margin-top:10px;display:flex;align-items:center;gap:10px;"
-					>
-						<label style="font-size:13px;color:#888;">
-							Auto-unlock after:
-						</label>
-						<select
-							id="prank-duration"
-							style="background:#111;border:1px solid #2a2a2a;color:#ccc;padding:6px 10px;border-radius:6px;font-size:12px;font-family:var(--font);"
-						>
+					<div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+						<label style="font-size:13px;color:#888;">Auto-unlock after:</label>
+						<select id="prank-duration" style="background:#111;border:1px solid #2a2a2a;color:#ccc;padding:6px 10px;border-radius:6px;font-size:12px;font-family:var(--font);">
 							<option value="0">Never</option>
 							<option value="30">30 seconds</option>
 							<option value="60">1 minute</option>
@@ -1222,13 +984,8 @@
 				</div>
 				<div class="m-foot">
 					<button class="btn" id="pm-cancel">Cancel</button>
-					<button
-						class="btn"
-						id="pm-send"
-						style="background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--admin);"
-					>
-						<i class="fas fa-bolt"></i>
-						Send Prank
+					<button class="btn" id="pm-send" style="background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--admin);">
+						<i class="fas fa-bolt"></i> Send Prank
 					</button>
 				</div>
 			</div>
@@ -1238,35 +995,17 @@
 		<div class="mover" id="bc-modal">
 			<div class="modal">
 				<div class="m-hd" style="border-color:rgba(62,166,255,.2);">
-					<h3 style="color:var(--blue);">
-						<i
-							class="fas fa-bullhorn"
-							style="margin-right:8px;"
-						></i>
-						Broadcast Message
-					</h3>
+					<h3 style="color:var(--blue);"><i class="fas fa-bullhorn" style="margin-right:8px;"></i>Broadcast Message</h3>
 					<button class="m-close" id="bc-close">&times;</button>
 				</div>
 				<div class="m-body">
-					<p style="color:#888;font-size:13px;margin-bottom:8px;">
-						Send to
-						<strong id="bc-target-lbl" style="color:#ccc;"></strong>
-						:
-					</p>
-					<textarea
-						id="bc-msg"
-						placeholder="Type your message…"
-					></textarea>
+					<p style="color:#888;font-size:13px;margin-bottom:8px;">Send to <strong id="bc-target-lbl" style="color:#ccc;"></strong>:</p>
+					<textarea id="bc-msg" placeholder="Type your message…"></textarea>
 				</div>
 				<div class="m-foot">
 					<button class="btn" id="bc-cancel">Cancel</button>
-					<button
-						class="btn"
-						id="bc-send"
-						style="background:rgba(62,166,255,.1);border-color:rgba(62,166,255,.25);color:var(--blue);"
-					>
-						<i class="fas fa-paper-plane"></i>
-						Send
+					<button class="btn" id="bc-send" style="background:rgba(62,166,255,.1);border-color:rgba(62,166,255,.25);color:var(--blue);">
+						<i class="fas fa-paper-plane"></i> Send
 					</button>
 				</div>
 			</div>
@@ -1276,187 +1015,72 @@
 		<div id="admin-panel">
 			<div class="adm-hd">
 				<div class="adm-hd-icon"><i class="fas fa-crown"></i></div>
-				<h2>
-					Admin Panel — MatTube
-					<span id="online-dot"></span>
-				</h2>
+				<h2>Admin Panel — MatTube <span id="online-dot"></span></h2>
 				<button class="adm-close" id="adm-close">&times;</button>
 			</div>
 			<div class="adm-body">
 				<div class="adm-sidebar">
-					<div class="adm-nav on" data-panel="viewers">
-						<i class="fas fa-users"></i>
-						Live Viewers
-					</div>
-					<div class="adm-nav" data-panel="broadcast">
-						<i class="fas fa-bullhorn"></i>
-						Broadcast
-					</div>
-					<div class="adm-nav" data-panel="stats">
-						<i class="fas fa-chart-bar"></i>
-						Stats
-					</div>
-					<div class="adm-nav" data-panel="unlock">
-						<i class="fas fa-unlock"></i>
-						Unlock All
+					<div class="adm-nav on" data-panel="viewers"><i class="fas fa-users"></i> Live Viewers</div>
+					<div class="adm-nav" data-panel="broadcast"><i class="fas fa-bullhorn"></i> Broadcast</div>
+					<div class="adm-nav" data-panel="stats"><i class="fas fa-chart-bar"></i> Stats</div>
+					<div class="adm-nav" data-panel="unlock"><i class="fas fa-unlock"></i> Unlock All</div>
+					<!-- OWNER-ONLY: Banned Users nav -->
+					<div class="adm-nav owner-only" data-panel="bans" id="adm-nav-bans" style="display:none;">
+						<i class="fas fa-ban"></i> Banned Users
 					</div>
 				</div>
 				<div class="adm-content">
 					<div id="adm-viewers">
-						<div
-							style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"
-						>
-							<h3
-								style="font-size:16px;font-weight:700;color:#fff;"
-							>
-								Live Viewers
-								<span
-									id="adm-count"
-									style="font-size:12px;color:#555;margin-left:8px;"
-								></span>
-							</h3>
-							<button class="adm-act warn" id="adm-refresh-btn">
-								<i class="fas fa-sync-alt"></i>
-								Refresh
-							</button>
+						<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+							<h3 style="font-size:16px;font-weight:700;color:#fff;">Live Viewers <span id="adm-count" style="font-size:12px;color:#555;margin-left:8px;"></span></h3>
+							<button class="adm-act warn" id="adm-refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
 						</div>
 						<div class="viewer-grid" id="viewer-grid">
-							<div class="spin">
-								<i class="fas fa-spinner"></i>
-								<p>Loading viewers…</p>
-							</div>
+							<div class="spin"><i class="fas fa-spinner"></i><p>Loading viewers…</p></div>
 						</div>
 					</div>
 					<div id="adm-broadcast" style="display:none;">
-						<h3
-							style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;"
-						>
-							Broadcast to Everyone
-						</h3>
-						<div
-							style="background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:20px;"
-						>
-							<p
-								style="font-size:13px;color:#666;margin-bottom:12px;"
-							>
-								Send a notification to all viewers:
-							</p>
-							<textarea
-								id="adm-bc-txt"
-								style="width:100%;background:#0d0d0d;border:1px solid #222;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;font-family:var(--font);outline:none;resize:vertical;min-height:80px;margin-bottom:12px;"
-								placeholder="Type broadcast message…"
-							></textarea>
-							<button
-								class="adm-act blue"
-								id="adm-bc-send"
-								style="padding:8px 18px;font-size:13px;"
-							>
-								<i class="fas fa-paper-plane"></i>
-								Broadcast to All
-							</button>
+						<h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;">Broadcast to Everyone</h3>
+						<div style="background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:20px;">
+							<p style="font-size:13px;color:#666;margin-bottom:12px;">Send a notification to all viewers:</p>
+							<textarea id="adm-bc-txt" style="width:100%;background:#0d0d0d;border:1px solid #222;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;font-family:var(--font);outline:none;resize:vertical;min-height:80px;margin-bottom:12px;" placeholder="Type broadcast message…"></textarea>
+							<button class="adm-act blue" id="adm-bc-send" style="padding:8px 18px;font-size:13px;"><i class="fas fa-paper-plane"></i> Broadcast to All</button>
 						</div>
-						<div
-							style="margin-top:20px;background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:20px;"
-						>
-							<p
-								style="font-size:13px;color:#666;margin-bottom:12px;"
-							>
-								<i
-									class="fas fa-bomb"
-									style="color:#ef9a9a;margin-right:6px;"
-								></i>
-								<strong style="color:#ef9a9a;">
-									Mass Prank
-								</strong>
-							</p>
+						<div style="margin-top:20px;background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:20px;">
+							<p style="font-size:13px;color:#666;margin-bottom:12px;"><i class="fas fa-bomb" style="color:#ef9a9a;margin-right:6px;"></i><strong style="color:#ef9a9a;">Mass Prank</strong></p>
 							<div style="display:flex;gap:8px;flex-wrap:wrap;">
-								<button
-									class="adm-act danger"
-									id="adm-mass-rickroll"
-								>
-									<i class="fas fa-music"></i>
-									Mass Rickroll
-								</button>
-								<button
-									class="adm-act danger"
-									id="adm-mass-lock"
-								>
-									<i class="fas fa-lock"></i>
-									Lock All
-								</button>
-								<button
-									class="adm-act warn"
-									id="adm-mass-unlock"
-								>
-									<i class="fas fa-unlock"></i>
-									Unlock All
-								</button>
+								<button class="adm-act danger" id="adm-mass-rickroll"><i class="fas fa-music"></i> Mass Rickroll</button>
+								<button class="adm-act danger" id="adm-mass-lock"><i class="fas fa-lock"></i> Lock All</button>
+								<button class="adm-act warn" id="adm-mass-unlock"><i class="fas fa-unlock"></i> Unlock All</button>
 							</div>
 						</div>
 					</div>
 					<div id="adm-stats" style="display:none;">
-						<h3
-							style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;"
-						>
-							Statistics
-						</h3>
+						<h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;">Statistics</h3>
 						<div class="adm-stats-row">
-							<div class="adm-stat-card">
-								<div class="adm-stat-val" id="stat-online">
-									0
-								</div>
-								<div class="adm-stat-lbl">Currently Online</div>
-							</div>
-							<div class="adm-stat-card">
-								<div class="adm-stat-val" id="stat-total">
-									0
-								</div>
-								<div class="adm-stat-lbl">Total Pranks</div>
-							</div>
-							<div class="adm-stat-card">
-								<div class="adm-stat-val" id="stat-pranked">
-									0
-								</div>
-								<div class="adm-stat-lbl">Broadcasts</div>
-							</div>
+							<div class="adm-stat-card"><div class="adm-stat-val" id="stat-online">0</div><div class="adm-stat-lbl">Currently Online</div></div>
+							<div class="adm-stat-card"><div class="adm-stat-val" id="stat-total">0</div><div class="adm-stat-lbl">Total Pranks</div></div>
+							<div class="adm-stat-card"><div class="adm-stat-val" id="stat-pranked">0</div><div class="adm-stat-lbl">Broadcasts</div></div>
 						</div>
-						<div
-							style="background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:20px;"
-						>
-							<p
-								style="font-size:13px;font-weight:600;color:#fff;margin-bottom:12px;"
-							>
-								Most Watched
-							</p>
-							<div
-								id="stat-top-vids"
-								style="display:flex;flex-direction:column;gap:8px;"
-							></div>
+						<div style="background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:20px;">
+							<p style="font-size:13px;font-weight:600;color:#fff;margin-bottom:12px;">Most Watched</p>
+							<div id="stat-top-vids" style="display:flex;flex-direction:column;gap:8px;"></div>
 						</div>
 					</div>
 					<div id="adm-unlock" style="display:none;">
-						<h3
-							style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;"
-						>
-							Emergency Unlock
+						<h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;">Emergency Unlock</h3>
+						<div style="background:#111;border:1px solid rgba(229,57,53,.2);border-radius:12px;padding:20px;">
+							<p style="font-size:13px;color:#888;line-height:1.7;margin-bottom:16px;">Release all locked screens and remove all active pranks for every user.</p>
+							<button class="adm-act warn" id="adm-unlock-all" style="padding:10px 22px;font-size:14px;"><i class="fas fa-unlock"></i> Unlock All Users Now</button>
+						</div>
+					</div>
+					<!-- OWNER-ONLY: Banned Users panel -->
+					<div id="adm-bans" style="display:none;">
+						<h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;">
+							<i class="fas fa-ban" style="color:#ef9a9a;margin-right:8px;"></i>Banned Users
 						</h3>
-						<div
-							style="background:#111;border:1px solid rgba(229,57,53,.2);border-radius:12px;padding:20px;"
-						>
-							<p
-								style="font-size:13px;color:#888;line-height:1.7;margin-bottom:16px;"
-							>
-								Release all locked screens and remove all active
-								pranks for every user.
-							</p>
-							<button
-								class="adm-act warn"
-								id="adm-unlock-all"
-								style="padding:10px 22px;font-size:14px;"
-							>
-								<i class="fas fa-unlock"></i>
-								Unlock All Users Now
-							</button>
+						<div id="bans-list" style="display:flex;flex-direction:column;gap:10px;">
+							<div class="spin"><i class="fas fa-spinner"></i><p>Loading…</p></div>
 						</div>
 					</div>
 				</div>
@@ -1467,80 +1091,55 @@
 		<div id="lock-overlay">
 			<div class="lock-icon"><i class="fas fa-lock"></i></div>
 			<div class="lock-msg" id="lock-msg-txt">Screen Locked</div>
-			<div class="lock-sub">
-				An admin has locked your screen. Please wait.
-			</div>
+			<div class="lock-sub">An admin has locked your screen. Please wait.</div>
 		</div>
 
 		<!-- PRANK VIDEO OVERLAY -->
 		<div id="prank-overlay">
-			<iframe
-				id="prank-iframe"
-				src=""
-				allowfullscreen
-				allow="autoplay;encrypted-media"
-			></iframe>
+			<iframe id="prank-iframe" src="" allowfullscreen allow="autoplay;encrypted-media"></iframe>
 			<div class="prank-bar">
-				<div class="prank-bar-msg" id="prank-bar-msg">
-					🎭 You've been pranked! Sit back and enjoy…
-				</div>
+				<div class="prank-bar-msg" id="prank-bar-msg">🎭 You've been pranked! Sit back and enjoy…</div>
 				<button id="prank-escape">Exit</button>
 			</div>
+		</div>
+
+		<!-- BAN OVERLAY -->
+		<div id="ban-overlay">
+			<div class="ban-icon"><i class="fas fa-ban"></i></div>
+			<div class="ban-title">You've Been Banned</div>
+			<div class="ban-badge">Account Suspended</div>
+			<div class="ban-sub">Your account has been banned from MatTube by an administrator. You no longer have access to this platform.</div>
 		</div>
 
 		<!-- AUTH MODAL -->
 		<div class="mover" id="auth-modal">
 			<div class="modal">
 				<div class="m-hd" style="border-color:#1a1a1a;">
-					<h3
-						id="auth-modal-title"
-						style="display:flex;align-items:center;gap:8px;"
-					>
-						<div
-							class="logo-icon"
-							style="width:24px;height:18px;border-radius:5px;flex-shrink:0;"
-						>
-							<i
-								class="fab fa-youtube"
-								style="font-size:10px;"
-							></i>
+					<h3 id="auth-modal-title" style="display:flex;align-items:center;gap:8px;">
+						<div class="logo-icon" style="width:24px;height:18px;border-radius:5px;flex-shrink:0;">
+							<i class="fab fa-youtube" style="font-size:10px;"></i>
 						</div>
 						MatTube Account
 					</h3>
-					<button class="m-close" id="auth-modal-close">
-						&times;
-					</button>
+					<button class="m-close" id="auth-modal-close">&times;</button>
 				</div>
 				<div class="m-body" style="padding:20px 20px 24px;">
 					<div class="auth-tabs">
 						<div class="auth-tab on" id="tab-signin">Sign In</div>
-						<div class="auth-tab" id="tab-signup">
-							Create Account
-						</div>
+						<div class="auth-tab" id="tab-signup">Create Account</div>
 					</div>
 					<div class="auth-err" id="auth-err"></div>
 					<div id="form-signin">
 						<div class="auth-field">
 							<label>EMAIL</label>
-							<input
-								class="auth-inp"
-								type="email"
-								id="si-email"
-								placeholder="your@email.com"
-								autocomplete="email"
-							/>
+							<input class="auth-inp" type="email" id="si-email" placeholder="your@email.com" autocomplete="email" />
 						</div>
 						<div class="auth-field">
 							<label>PASSWORD</label>
-							<input
-								class="auth-inp"
-								type="password"
-								id="si-pass"
-								placeholder="••••••••"
-								autocomplete="current-password"
-							/>
+							<input class="auth-inp" type="password" id="si-pass" placeholder="••••••••" autocomplete="current-password" />
 						</div>
 						<div class="auth-forgot">
+							<!-- CHANGE 1: Redirect to external forgot password page -->
 							<a id="forgot-link">Forgot password?</a>
 						</div>
 						<button class="auth-submit" id="si-btn">Sign In</button>
@@ -1549,58 +1148,26 @@
 						<div class="auth-name-row">
 							<div class="auth-field">
 								<label>FIRST NAME</label>
-								<input
-									class="auth-inp"
-									type="text"
-									id="su-fname"
-									placeholder="John"
-									autocomplete="given-name"
-								/>
+								<input class="auth-inp" type="text" id="su-fname" placeholder="John" autocomplete="given-name" />
 							</div>
 							<div class="auth-field">
 								<label>LAST NAME</label>
-								<input
-									class="auth-inp"
-									type="text"
-									id="su-lname"
-									placeholder="Doe"
-									autocomplete="family-name"
-								/>
+								<input class="auth-inp" type="text" id="su-lname" placeholder="Doe" autocomplete="family-name" />
 							</div>
 						</div>
 						<div class="auth-field">
 							<label>EMAIL</label>
-							<input
-								class="auth-inp"
-								type="email"
-								id="su-email"
-								placeholder="your@email.com"
-								autocomplete="email"
-							/>
+							<input class="auth-inp" type="email" id="su-email" placeholder="your@email.com" autocomplete="email" />
 						</div>
 						<div class="auth-field">
 							<label>PASSWORD</label>
-							<input
-								class="auth-inp"
-								type="password"
-								id="su-pass"
-								placeholder="At least 6 characters"
-								autocomplete="new-password"
-							/>
+							<input class="auth-inp" type="password" id="su-pass" placeholder="At least 6 characters" autocomplete="new-password" />
 						</div>
 						<div class="auth-field">
 							<label>CONFIRM PASSWORD</label>
-							<input
-								class="auth-inp"
-								type="password"
-								id="su-pass2"
-								placeholder="••••••••"
-								autocomplete="new-password"
-							/>
+							<input class="auth-inp" type="password" id="su-pass2" placeholder="••••••••" autocomplete="new-password" />
 						</div>
-						<button class="auth-submit" id="su-btn">
-							Create Account
-						</button>
+						<button class="auth-submit" id="su-btn">Create Account</button>
 					</div>
 				</div>
 			</div>
@@ -1638,6 +1205,7 @@
 			var sessionId = 'sess_' + Math.random().toString(36).slice(2,10) + '_' + Date.now();
 			var prankTarget = null;
 			var prankUnlockTimer = null;
+			var userIsBanned = false; // CHANGE 3: track ban state
 
 			var AV_COLS=['#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5','#039be5','#00897b','#43a047','#fb8c00','#6d4c41'];
 			var SH_Q=['minecraft shorts 2025','funny shorts','satisfying shorts 2025','gaming shorts 2025','viral shorts 2025'];
@@ -1661,6 +1229,126 @@
 			function showErr(m){var e=g('errbar');e.textContent='⚠ '+m;e.className='show';setTimeout(function(){e.className='';},6000);}
 			function g(id){return document.getElementById(id);}
 
+			/* ======================== CHANGE 2: Login Required Gate ======================== */
+			function requireLogin(callback){
+			  if(!fbUser){
+			    // Show notice on home and open auth modal
+			    var notice=g('login-required-notice');
+			    notice.classList.add('show');
+			    showAuthModal();
+			    // After sign-in, retry
+			    var onceSignedIn=function(){
+			      if(fbUser){callback();}
+			    };
+			    window._pendingPlayCallback=onceSignedIn;
+			    return false;
+			  }
+			  return true;
+			}
+
+			function updateLoginNotice(){
+			  var notice=g('login-required-notice');
+			  if(fbUser){notice.classList.remove('show');}
+			  // If there's a pending play callback after login
+			  if(fbUser&&window._pendingPlayCallback){
+			    var cb=window._pendingPlayCallback;
+			    window._pendingPlayCallback=null;
+			    setTimeout(cb,200);
+			  }
+			}
+
+			/* ======================== CHANGE 3: Ban System ======================== */
+			function activateBan(){
+			  userIsBanned=true;
+			  g('ban-overlay').classList.add('active');
+			  // Disable auth button entirely
+			  var ab=g('auth-btn');
+			  ab.disabled=true;
+			  ab.style.opacity='0.3';
+			  ab.style.pointerEvents='none';
+			  ab.title='Account banned';
+			  // Sign them out but prevent re-login
+			  if(window._fb&&fbUser){
+			    window._fb.signOut(window._fb.auth).catch(function(){});
+			  }
+			  // Block sign-in and sign-up buttons
+			  g('si-btn').disabled=true;
+			  g('su-btn').disabled=true;
+			  // Close auth modal if open
+			  g('auth-modal').classList.remove('on');
+			}
+
+			function checkBanStatus(uid){
+			  if(!window._fb||!uid)return;
+			  var fb=window._fb;
+			  fb.get(fb.ref(fb.db,'bans/'+uid)).then(function(snap){
+			    if(snap.val()){
+			      activateBan();
+			    }
+			  }).catch(function(){});
+			  // Also listen for real-time bans
+			  fb.onValue(fb.ref(fb.db,'bans/'+uid),function(snap){
+			    if(snap.val()&&!userIsBanned){
+			      activateBan();
+			    }
+			  });
+			}
+
+			function banUser(uid,email,name){
+			  if(!window._fb||!fbIsOwner)return;
+			  var fb=window._fb;
+			  fb.set(fb.ref(fb.db,'bans/'+uid),{
+			    email:email||'',
+			    displayName:name||'',
+			    bannedAt:fb.serverTimestamp(),
+			    bannedBy:fbUser.email
+			  }).then(function(){
+			    // Also send lock command
+			    sendCmd(uid,{type:'lock',message:'You have been banned.'});
+			    showShareToast('User banned!');
+			    renderAdmViewers();
+			  }).catch(function(){showShareToast('Failed to ban user.');});
+			}
+
+			function unbanUser(uid){
+			  if(!window._fb||!fbIsOwner)return;
+			  var fb=window._fb;
+			  fb.remove(fb.ref(fb.db,'bans/'+uid)).then(function(){
+			    showShareToast('User unbanned!');
+			    renderBansPanel();
+			  }).catch(function(){});
+			}
+
+			function renderBansPanel(){
+			  if(!window._fb)return;
+			  var fb=window._fb;
+			  var el=g('bans-list');
+			  el.innerHTML='<div class="spin"><i class="fas fa-spinner"></i><p>Loading…</p></div>';
+			  fb.get(fb.ref(fb.db,'bans')).then(function(snap){
+			    var data=snap.val()||{};
+			    var uids=Object.keys(data);
+			    if(!uids.length){el.innerHTML='<div class="empty"><i class="fas fa-check-circle" style="color:var(--green);"></i><p style="color:#555;">No banned users.</p></div>';return;}
+			    el.innerHTML='';
+			    uids.forEach(function(uid){
+			      var b=data[uid];
+			      var row=document.createElement('div');
+			      row.style.cssText='background:#111;border:1px solid rgba(229,57,53,.2);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;';
+			      row.innerHTML=
+			        '<div style="width:38px;height:38px;border-radius:50%;background:rgba(229,57,53,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+			          '<i class="fas fa-ban" style="color:#ef9a9a;font-size:15px;"></i>'+
+			        '</div>'+
+			        '<div style="flex:1;min-width:0;">'+
+			          '<div style="font-size:13px;font-weight:600;color:#f1f1f1;">'+esc(b.displayName||uid)+'</div>'+
+			          '<div style="font-size:11px;color:#555;margin-top:2px;">'+esc(b.email||uid)+'</div>'+
+			        '</div>'+
+			        '<button class="adm-act warn unban-btn" data-uid="'+esc(uid)+'"><i class="fas fa-unlock"></i> Unban</button>';
+			      row.querySelector('.unban-btn').addEventListener('click',function(){unbanUser(this.dataset.uid);});
+			      el.appendChild(row);
+			    });
+			  }).catch(function(){el.innerHTML='<div style="color:#ef9a9a;font-size:13px;">Error loading bans.</div>';});
+			}
+
+			/* ======================== AVATAR ======================== */
 			function getAv(chId){
 			  return new Promise(function(res){
 			    if(!chId){res(null);return;}
@@ -1859,7 +1547,15 @@
 			}
 			function renderGrid(items,isLib,isHist,el){if(!el)el=g('main-grid');el.innerHTML='';items.forEach(function(v){el.appendChild(makeCard(v,isLib,isHist));});}
 
+			/* CHANGE 2: playVideo now requires login */
 			function playVideo(v,fromHist){
+			  // Gate: must be logged in
+			  if(!fbUser){
+			    window._pendingPlayCallback=function(){playVideo(v,fromHist);};
+			    g('login-required-notice').classList.add('show');
+			    showAuthModal();
+			    return;
+			  }
 			  hideMini();curVid=v.id;
 			  curVData={id:v.id,title:v.title,channel:v.channel||'',channelId:v.channelId||'',thumb:v.thumb||thumb(v.id),views:v.views||''};
 			  if(!fromHist)pushNav({view:'play',v:JSON.parse(JSON.stringify(curVData))});
@@ -1882,7 +1578,6 @@
 			  g('p-share').className='act share-act';g('p-share').innerHTML='<i class="fas fa-share-alt"></i> Share';
 			  g('p-comments').className='act';g('p-comments').innerHTML='<i class="fas fa-comments"></i> Comments';
 			  g('com-box').className='com-box';comState.player.token=null;comState.player.vid=null;
-			  // Track in Firebase stats
 			  trackVideoView(v);
 			  fetch('https://www.googleapis.com/youtube/v3/videos?part=statistics&id='+v.id+'&key='+API)
 			    .then(function(r){return r.json();})
@@ -1897,7 +1592,6 @@
 			  loadRelated(v.id,v.channelId);
 			}
 
-			/* Track video views in Firebase for admin stats */
 			function trackVideoView(v){
 			  if(!window._fb||!fbUser)return;
 			  var fb=window._fb;
@@ -2222,7 +1916,6 @@
 			  if(f&&!f.src.includes('youtube')){
 			    f.src='https://www.youtube-nocookie.com/embed/'+shVids[idx].id+'?autoplay=1&mute=1&loop=1&playlist='+shVids[idx].id+'&rel=0&modestbranding=1&playsinline=1';
 			  }
-			  // Preload neighbours
 			  [idx-1,idx+1].forEach(function(ni){
 			    if(ni>=0&&ni<shVids.length){
 			      var nf=g('sh-iframe-'+ni);
@@ -2241,10 +1934,9 @@
 			  loadComments(vidId,false,g('ssc-list'),g('ssc-lm'),'ssc');
 			}
 
-			/* Shorts scroll observer */
 			function initShScroll(){
 			  var reel=g('sh-reel');
-			  var scrolling=false,scrollTimer=null;
+			  var scrollTimer=null;
 			  reel.addEventListener('scroll',function(){
 			    clearTimeout(scrollTimer);
 			    scrollTimer=setTimeout(function(){
@@ -2309,6 +2001,13 @@
 			}
 
 			function playLive(v){
+			  // Gate: must be logged in to watch live
+			  if(!fbUser){
+			    window._pendingPlayCallback=function(){playLive(v);};
+			    g('login-required-notice').classList.add('show');
+			    showAuthModal();
+			    return;
+			  }
 			  liveCurData=v;
 			  g('live-list').style.display='none';g('live-player').style.display='block';
 			  g('live-iframe').src='https://www.youtube-nocookie.com/embed/'+v.id+'?autoplay=1&rel=0&modestbranding=1';
@@ -2345,7 +2044,10 @@
 			  fb.onAuthStateChanged(fb.auth,function(user){
 			    fbUser=user||null;
 			    updateAuthUI();
+			    updateLoginNotice();
 			    if(user){
+			      // Check ban first
+			      checkBanStatus(user.uid);
 			      checkAdmin(user);
 			      setupPresence(user);
 			    } else {
@@ -2354,14 +2056,19 @@
 			      g('admin-btn').style.display='none';
 			    }
 			  });
-			  // Listen for admin commands
 			  listenCommands();
 			}
 
 			function checkAdmin(user){
 			  var fb=window._fb;
 			  fbIsOwner=(user.email&&user.email.toLowerCase()===OWNER_EMAIL.toLowerCase());
-			  if(fbIsOwner){fbIsAdmin=true;g('admin-btn').style.display='flex';return;}
+			  if(fbIsOwner){
+			    fbIsAdmin=true;
+			    g('admin-btn').style.display='flex';
+			    // Show owner-only elements
+			    g('adm-nav-bans').style.display='flex';
+			    return;
+			  }
 			  fb.get(fb.ref(fb.db,'adminList')).then(function(snap){
 			    var admins=snap.val()||{};
 			    var emails=Object.values(admins).map(function(a){return(a.email||'').toLowerCase();});
@@ -2395,7 +2102,6 @@
 			  }).catch(function(){});
 			}
 
-			/* Listen for admin commands directed at this user */
 			function listenCommands(){
 			  if(!window._fb)return;
 			  var fb=window._fb;
@@ -2404,11 +2110,9 @@
 			    fb.onValue(fb.ref(fb.db,'commands/'+user.uid),function(snap){
 			      var cmd=snap.val();
 			      if(!cmd)return;
-			      // Clear command after reading
 			      fb.remove(fb.ref(fb.db,'commands/'+user.uid));
 			      handleCommand(cmd);
 			    });
-			    // Also listen for broadcasts
 			    fb.onValue(fb.ref(fb.db,'broadcasts'),function(snap){
 			      var bc=snap.val();if(!bc)return;
 			      if(bc.message)showBcNotif(bc.message);
@@ -2443,20 +2147,13 @@
 			function activatePrank(videoId,locked,duration,message){
 			  if(!videoId)return;
 			  var po=g('prank-overlay');var pi=g('prank-iframe');
-			  var autoplay=1;
-			  pi.src='https://www.youtube-nocookie.com/embed/'+videoId+'?autoplay='+autoplay+'&rel=0&modestbranding=1';
+			  pi.src='https://www.youtube-nocookie.com/embed/'+videoId+'?autoplay=1&rel=0&modestbranding=1';
 			  po.classList.add('active');
 			  g('prank-bar-msg').textContent=message||'🎭 You\'ve been pranked! Sit back and enjoy…';
 			  var esc_btn=g('prank-escape');
-			  if(locked){
-			    esc_btn.style.display='none';
-			  } else {
-			    esc_btn.style.display='inline-block';
-			    esc_btn.onclick=function(){deactivatePrank();};
-			  }
-			  // Also activate lock if locked
+			  if(locked){esc_btn.style.display='none';}
+			  else{esc_btn.style.display='inline-block';esc_btn.onclick=function(){deactivatePrank();};}
 			  if(locked)activateLock();
-			  // Auto-unlock timer
 			  if(prankUnlockTimer)clearTimeout(prankUnlockTimer);
 			  if(duration&&duration>0){
 			    prankUnlockTimer=setTimeout(function(){deactivatePrank();deactivateLock();},duration*1000);
@@ -2514,6 +2211,7 @@
 			};
 
 			function showAuthModal(){
+			  if(userIsBanned)return; // Banned users cannot open auth modal
 			  g('auth-modal').classList.add('on');
 			  g('auth-err').classList.remove('show');
 			  setTimeout(function(){g('si-email').focus();},100);
@@ -2523,8 +2221,8 @@
 			function setAuthErr(msg){var e=g('auth-err');e.textContent=msg;e.classList.add('show');}
 
 			g('auth-btn').addEventListener('click',function(){
+			  if(userIsBanned)return; // Banned users cannot interact with auth
 			  if(fbUser){
-			    // Sign out
 			    if(window._fb)window._fb.signOut(window._fb.auth);
 			  } else {
 			    showAuthModal();
@@ -2543,6 +2241,7 @@
 			});
 
 			g('si-btn').addEventListener('click',function(){
+			  if(userIsBanned)return; // Banned users cannot sign in
 			  var fb=window._fb;if(!fb)return;
 			  var email=g('si-email').value.trim(),pass=g('si-pass').value;
 			  if(!email||!pass){setAuthErr('Please fill in all fields.');return;}
@@ -2553,6 +2252,7 @@
 			});
 
 			g('su-btn').addEventListener('click',function(){
+			  if(userIsBanned)return; // Banned users cannot sign up
 			  var fb=window._fb;if(!fb)return;
 			  var fname=g('su-fname').value.trim(),lname=g('su-lname').value.trim();
 			  var email=g('su-email').value.trim(),pass=g('su-pass').value,pass2=g('su-pass2').value;
@@ -2568,20 +2268,16 @@
 			    .catch(function(e){setAuthErr(AUTH_ERR[e.code]||'Sign up failed.');g('su-btn').disabled=false;g('su-btn').textContent='Create Account';});
 			});
 
+			/* CHANGE 1: Forgot password → redirect to external page */
 			g('forgot-link').addEventListener('click',function(){
-			  var fb=window._fb;if(!fb)return;
-			  var email=g('si-email').value.trim();
-			  if(!email){setAuthErr('Enter your email above first.');return;}
-			  fb.sendPasswordResetEmail(fb.auth,email)
-			    .then(function(){setAuthErr('Password reset email sent! Check your inbox.');g('auth-err').style.color='#4ade80';})
-			    .catch(function(e){setAuthErr(AUTH_ERR[e.code]||'Failed to send reset email.');});
+			  window.open('https://htmltools.me/ForgotPassword','_blank');
 			});
 
 			['si-email','si-pass'].forEach(function(id){
 			  g(id).addEventListener('keydown',function(e){if(e.key==='Enter')g('si-btn').click();});
 			});
 
-			/* ======================== ADMIN PANEL (inline) ======================== */
+			/* ======================== ADMIN PANEL ======================== */
 			g('admin-btn').addEventListener('click',function(){
 			  g('admin-panel').classList.add('open');
 			  renderAdmViewers();
@@ -2598,7 +2294,9 @@
 			    g('adm-broadcast').style.display=panel==='broadcast'?'block':'none';
 			    g('adm-stats').style.display=panel==='stats'?'block':'none';
 			    g('adm-unlock').style.display=panel==='unlock'?'block':'none';
+			    g('adm-bans').style.display=panel==='bans'?'block':'none';
 			    if(panel==='stats')loadAdmStats();
+			    if(panel==='bans')renderBansPanel();
 			  });
 			});
 
@@ -2618,6 +2316,8 @@
 			      var name=v.displayName||(v.email||uid).split('@')[0];
 			      var w=v.watching||{};
 			      var card=document.createElement('div');card.className='vcard';
+			      // Build ban button HTML — owner only
+			      var banBtnHtml=fbIsOwner?'<button class="adm-act danger adm-ban-btn" data-uid="'+esc(uid)+'" data-email="'+esc(v.email||'')+'" data-name="'+esc(name)+'"><i class="fas fa-ban"></i> Ban</button>':'';
 			      card.innerHTML=
 			        '<div class="vcard-top">'+
 			          '<div class="vcard-av" style="background:'+avCol(uid)+';">'+esc(name.charAt(0).toUpperCase())+'</div>'+
@@ -2638,6 +2338,7 @@
 			            '<button class="adm-act blue adm-msg-btn" data-uid="'+esc(uid)+'" data-name="'+esc(name)+'"><i class="fas fa-comment"></i> Message</button>'+
 			            '<button class="adm-act danger adm-lock-btn" data-uid="'+esc(uid)+'"><i class="fas fa-lock"></i> Lock</button>'+
 			            '<button class="adm-act adm-unlock-btn" data-uid="'+esc(uid)+'"><i class="fas fa-unlock"></i> Unlock</button>'+
+			            banBtnHtml+
 			          '</div>'
 			        :'<div style="font-size:11px;color:#444;margin-top:4px;">You</div>');
 			      if(!isMe){
@@ -2656,6 +2357,16 @@
 			        card.querySelector('.adm-unlock-btn').addEventListener('click',function(){
 			          sendCmd(this.dataset.uid,{type:'unlock'});
 			        });
+			        // Ban button — owner only
+			        var banBtn=card.querySelector('.adm-ban-btn');
+			        if(banBtn){
+			          banBtn.addEventListener('click',function(){
+			            var u=this.dataset.uid,em=this.dataset.email,nm=this.dataset.name;
+			            if(confirm('Ban "'+nm+'" ('+em+')? This will lock them out permanently.')){
+			              banUser(u,em,nm);
+			            }
+			          });
+			        }
 			      }
 			      grid.appendChild(card);
 			    });
@@ -2682,7 +2393,6 @@
 			  });
 			}
 
-			/* Broadcast panel */
 			g('adm-bc-send').addEventListener('click',function(){
 			  var msg=g('adm-bc-txt').value.trim();if(!msg)return;
 			  sendToAll({type:'broadcast',message:msg});
@@ -2704,7 +2414,6 @@
 			  showShareToast('All users unlocked!');
 			});
 
-			/* Prank modal */
 			function openPrankModal(uid,name){
 			  prankTarget=uid;
 			  g('prank-target-lbl').textContent=name;
@@ -2737,7 +2446,6 @@
 			  return null;
 			}
 
-			/* Broadcast modal */
 			g('bc-close').addEventListener('click',function(){g('bc-modal').classList.remove('on');});
 			g('bc-cancel').addEventListener('click',function(){g('bc-modal').classList.remove('on');});
 			g('bc-send').addEventListener('click',function(){
@@ -2750,17 +2458,14 @@
 			function loadAdmStats(){
 			  if(!window._fb)return;
 			  var fb=window._fb;
-			  // Online count
 			  fb.get(fb.ref(fb.db,'presence')).then(function(snap){
 			    var cnt=Object.keys(snap.val()||{}).length;
 			    g('stat-online').textContent=cnt;
 			  });
-			  // Pranks / broadcasts
 			  fb.get(fb.ref(fb.db,'stats')).then(function(snap){
 			    var s=snap.val()||{};
 			    g('stat-total').textContent=s.pranks||0;
 			    g('stat-pranked').textContent=s.broadcasts||0;
-			    // Top videos
 			    var topVids=s.topVids||{},meta=s.vidMeta||{};
 			    var arr=Object.keys(topVids).map(function(id){return{id:id,count:topVids[id],meta:meta[id]||{}};});
 			    arr.sort(function(a,b){return b.count-a.count;});
@@ -2841,17 +2546,14 @@
 			  this.textContent=chDescExp?'less':'more';
 			});
 
-			/* QUEUE */
 			g('qtoggle').addEventListener('click',function(){g('qpanel').classList.toggle('open');});
 			g('qp-close').addEventListener('click',function(){g('qpanel').classList.remove('open');});
 			g('clr-queue').addEventListener('click',function(){queue=[];renderQ();updQBadge();});
 
-			/* LIBRARY */
 			g('clr-lib-btn').addEventListener('click',function(){
 			  lib=[];saveLib();if(curView==='library')goLibrary();
 			});
 
-			/* HISTORY modal */
 			g('clr-hist').addEventListener('click',function(){g('hist-modal').classList.add('on');});
 			g('hm-close').addEventListener('click',function(){g('hist-modal').classList.remove('on');});
 			g('hm-cancel').addEventListener('click',function(){g('hist-modal').classList.remove('on');});
@@ -2859,13 +2561,11 @@
 			  hist=[];saveHist();g('hist-modal').classList.remove('on');renderHistGrid();
 			});
 
-			/* MINI PLAYER */
 			g('mini-close').addEventListener('click',hideMini);
 			g('mini-expand').addEventListener('click',function(){
 			  if(miniVData.id)playVideo(miniVData);
 			});
 
-			/* LIVE BACK */
 			g('live-back').addEventListener('click',function(){
 			  g('live-iframe').src='about:blank';
 			  g('live-list').style.display='block';
@@ -2873,16 +2573,13 @@
 			  liveCurData=null;
 			});
 
-			/* SHORTS comments close */
 			g('ssc-close').addEventListener('click',function(){g('ssc').classList.remove('open');});
 			g('ssc-lm-btn').addEventListener('click',function(){
 			  if(shComVid)loadComments(shComVid,true,g('ssc-list'),g('ssc-lm'),'ssc');
 			});
 
-			/* PRANK ESCAPE */
 			g('prank-escape').addEventListener('click',deactivatePrank);
 
-			/* Browser back/fwd */
 			window.addEventListener('popstate',function(e){
 			  var s=e.state;
 			  if(s&&s.videoId)playVideo({id:s.videoId,title:'Loading…',channel:'',channelId:'',thumb:thumb(s.videoId),views:''},true);
@@ -2897,4 +2594,3 @@
 		</script>
 	</body>
 </html>
-
