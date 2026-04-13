@@ -1342,34 +1342,32 @@
 
 			// ── MOBILE DETECTION ─────────────────────────────────────────
 			const _isMobileDevice=()=>(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)||window.innerWidth<=768);
-			let _mobileMode=_isMobileDevice(); // true = show only mobile+both games
-			let _computerMode=false; // user manually switched to computer mode on mobile
+			// _mobileFilterOn = true means "show only mobile+both games"
+			// Starts ON if on a mobile device, OFF on desktop
+			let _mobileFilterOn=_isMobileDevice();
 
 			// ── MOBILE BANNER INIT ───────────────────────────────────────
 			function initMobileBanner(){
-				if(_isMobileDevice()){
-					const banner=document.getElementById('mobile-mode-banner');
-					banner.classList.add('show');
-					updateMobileBanner();
-				}
+				// Always show the banner so users can toggle on any device
+				const banner=document.getElementById('mobile-mode-banner');
+				banner.classList.add('show');
+				updateMobileBanner();
 			}
 			function updateMobileBanner(){
-				const banner=document.getElementById('mobile-mode-banner');
 				const label=document.getElementById('mobile-banner-label');
 				const btn=document.getElementById('mobile-toggle-btn');
-				if(!banner)return;
-				if(_computerMode){
-					label.textContent='Showing all games (Computer Mode)';
-					btn.textContent='📱 Back to Mobile Mode';
-					btn.classList.add('computer-mode');
-				} else {
-					label.textContent='Showing mobile-friendly games';
-					btn.textContent='💻 Switch to Computer Mode';
+				if(_mobileFilterOn){
+					label.textContent='📱 Showing mobile-friendly games only';
+					btn.textContent='💻 Show all games';
 					btn.classList.remove('computer-mode');
+				} else {
+					label.textContent='💻 Showing all games';
+					btn.textContent='📱 Switch to Mobile Mode';
+					btn.classList.add('computer-mode');
 				}
 			}
 			window.toggleMobileMode=function(){
-				_computerMode=!_computerMode;
+				_mobileFilterOn=!_mobileFilterOn;
 				updateMobileBanner();
 				renderPins();
 				renderBooks();
@@ -1627,12 +1625,10 @@
 
 			// ── PINNED BOOKS ─────────────────────────────────────────────
 			function renderPins(){
-				const isMobileAuto=_isMobileDevice()&&!_computerMode;
 				const allPinnedIds=Object.keys(pinnedBooks).filter(id=>allBooks[id]&&pinnedBooks[id]);
-				// On mobile auto-mode, only show pinned books that are mobile/both
 				const pinnedIds=allPinnedIds.filter(id=>{
-					if(!isMobileAuto)return true;
-					const p=(allBooks[id]&&allBooks[id].platform)||'both';
+					if(!_mobileFilterOn)return true;
+					const p=(allBooks[id]&&allBooks[id].platform)||'computer';
 					return p==='mobile'||p==='both';
 				});
 				const banner=document.getElementById('pin-banner');
@@ -1652,44 +1648,50 @@
 			}
 
 			// ── RENDER BOOKS ─────────────────────────────────────────────
+			// Platform helper: books with no platform set are treated as 'computer'
+			function getBookPlatform(book){return book.platform||'computer';}
+
 			function renderBooks(){
 				const grid=document.getElementById('books-grid');
 				const search=document.getElementById('search-input').value.toLowerCase();
 				const pinnedIds=new Set(Object.keys(pinnedBooks).filter(id=>pinnedBooks[id]));
 
-				// Determine effective platform filter
-				// On mobile (not in computer mode), auto-filter to mobile+both unless user picked a specific filter
-				const isMobileAuto=_isMobileDevice()&&!_computerMode&&currentFilter!=='computer'&&currentFilter!=='mobile';
-
 				let entries=Object.entries(allBooks).filter(([id,book])=>{
 					if(!book||!book.title)return false;
 					if(pinnedIds.has(id))return false;
 					if(search&&!book.title.toLowerCase().includes(search)&&!(book.desc||'').toLowerCase().includes(search))return false;
+
+					const p=getBookPlatform(book);
+
+					// Special filter buttons always take priority over mobile banner
 					if(currentFilter==='mine')return currentUser&&currentUser.uid===book.ownerId;
 					if(currentFilter==='saved')return currentUser&&!!savedBooks[id];
-					// Platform filters
-					if(currentFilter==='mobile'){const p=book.platform||'both';return p==='mobile'||p==='both';}
-					if(currentFilter==='computer'){const p=book.platform||'both';return p==='computer'||p==='both';}
-					// Auto mobile filter
-					if(isMobileAuto){const p=book.platform||'both';return p==='mobile'||p==='both';}
+					if(currentFilter==='mobile')return p==='mobile'||p==='both';
+					if(currentFilter==='computer')return p==='computer'||p==='both';
+
+					// For all other filters: apply mobile banner filter on top
+					if(_mobileFilterOn)return p==='mobile'||p==='both';
+
 					return true;
 				});
-				if(currentFilter==='popular')entries.sort((a,b)=>popularityScore(b[1])-popularityScore(a[1]));
+
+				if(currentFilter==='popular'||currentFilter==='mobile'||currentFilter==='computer')
+					entries.sort((a,b)=>popularityScore(b[1])-popularityScore(a[1]));
 				else if(currentFilter==='newest')entries.sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
 				else if(currentFilter==='liked')entries.sort((a,b)=>(b[1].likes||0)-(a[1].likes||0));
 				else if(currentFilter==='az')entries.sort((a,b)=>(a[1].title||'').localeCompare(b[1].title||''));
 				else if(currentFilter==='commented')entries.sort((a,b)=>commentCount(b[0])-commentCount(a[0]));
 				else if(currentFilter==='views')entries.sort((a,b)=>(b[1].views||0)-(a[1].views||0));
 				else if(currentFilter==='playtime')entries.sort((a,b)=>(b[1].playtimeSeconds||0)-(a[1].playtimeSeconds||0));
-				else if(currentFilter==='mobile')entries.sort((a,b)=>popularityScore(b[1])-popularityScore(a[1]));
-				else if(currentFilter==='computer')entries.sort((a,b)=>popularityScore(b[1])-popularityScore(a[1]));
+
 				if(!entries.length){
 					let emptyMsg='The library is empty. Be the first to upload!';
 					if(currentFilter==='mine')emptyMsg="You haven't uploaded any books yet.";
 					else if(currentFilter==='saved')emptyMsg="You haven't saved any books yet.";
 					else if(search)emptyMsg='No books match your search.';
-					else if(currentFilter==='mobile'||isMobileAuto)emptyMsg='No mobile-friendly games yet. Be the first to upload one!';
-					else if(currentFilter==='computer')emptyMsg='No computer games yet. Be the first to upload one!';
+					else if(currentFilter==='mobile')emptyMsg='No mobile-friendly games yet.';
+					else if(currentFilter==='computer')emptyMsg='No computer games yet.';
+					else if(_mobileFilterOn)emptyMsg='No mobile-friendly games yet. Switch to "Show all games" to see everything.';
 					grid.innerHTML=`<div class="empty-state"><div class="big">📚</div>${emptyMsg}</div>`;
 					return;
 				}
@@ -1721,7 +1723,7 @@
 				const canInspect=isOwnerOfBook||adminUser;
 
 				// Platform badge
-				const platform=book.platform||'computer';
+				const platform=getBookPlatform(book);
 				const platformBadge=platform==='mobile'
 					?'<span class="platform-badge mobile">📱 Mobile</span>'
 					:platform==='computer'
