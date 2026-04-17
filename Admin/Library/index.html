@@ -1,1362 +1,967 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Create.html Admin - HTML Tools</title>
-<link rel="icon" type="image/png" href="/Adminlogo.png" />
-		<link
-			href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap"
-			rel="stylesheet"
-		/>
-		<style>
-			:root{--bg:#06060b;--surface:#0f0f18;--surface2:#181826;--border:#252535;--accent:#7fff6e;--accent2:#ff6e7f;--accent3:#6ea8ff;--accent4:#ffd86e;--text:#e8e8f0;--muted:#6b6b80;--r:10px}
-			*{box-sizing:border-box;margin:0;padding:0}
-			html,body{height:100%;overflow:hidden}
-			body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;display:flex;flex-direction:column}
-			body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 10%,rgba(255,110,127,.05) 0%,transparent 60%),radial-gradient(ellipse at 80% 90%,rgba(110,168,255,.04) 0%,transparent 60%);pointer-events:none;z-index:0}
-
-			/* LOGIN */
-			#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem}
-			#login-screen.hide{display:none}
-			.login-box{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem 2rem;text-align:center}
-			.login-box h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;margin-bottom:.25rem}
-			.login-box h1 span{color:var(--accent2)}
-			.login-box p{font-size:.72rem;color:var(--muted);margin-bottom:1.75rem}
-			.lg-field{text-align:left;margin-bottom:1rem}
-			.lg-field label{display:block;font-size:.62rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
-			.lg-field input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;padding:.7rem 1rem;border-radius:8px;outline:none;transition:border-color .2s}
-			.lg-field input:focus{border-color:var(--accent2)}
-			.lg-btn{width:100%;padding:.8rem;background:var(--accent2);color:#fff;font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;margin-top:.25rem;letter-spacing:.05em;transition:all .15s}
-			.lg-btn:hover{background:#ff8a97;transform:translateY(-1px)}
-			.lg-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-			.lg-err{font-size:.72rem;color:var(--accent2);text-align:center;margin-top:.5rem;padding:.5rem;border-radius:6px;background:rgba(255,110,127,.08);display:none}
-			.lg-notice{font-size:.65rem;color:var(--muted);margin-top:1rem;padding:.5rem;background:rgba(255,216,110,.06);border:1px solid rgba(255,216,110,.15);border-radius:6px;text-align:center}
-			.lg-notice span{color:var(--accent4)}
-
-			/* TOPBAR */
-			#topbar{background:var(--surface);border-bottom:1px solid rgba(255,110,127,.2);height:56px;display:flex;align-items:center;padding:0 1.5rem;gap:1rem;flex-shrink:0;position:relative;z-index:10}
-			#topbar::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent2),var(--accent4),var(--accent3))}
-			.topbar-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;display:flex;align-items:center;gap:.5rem}
-			.topbar-logo .pill{background:rgba(255,110,127,.15);border:1px solid rgba(255,110,127,.3);color:var(--accent2);font-size:.5rem;padding:.1rem .4rem;border-radius:4px;letter-spacing:.1em}
-			.topbar-user{font-size:.7rem;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:.5rem}
-			.topbar-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
-			.topbar-signout{background:transparent;border:1px solid rgba(255,110,127,.3);color:var(--accent2);font-family:'Space Mono',monospace;font-size:.65rem;padding:.35rem .75rem;border-radius:6px;cursor:pointer;transition:all .15s}
-			.topbar-signout:hover{background:rgba(255,110,127,.1)}
-			.live-badge{font-size:.55rem;background:rgba(127,255,110,.12);border:1px solid rgba(127,255,110,.25);color:var(--accent);padding:.15rem .5rem;border-radius:20px;font-weight:700;letter-spacing:.08em;animation:livePulse 2s infinite}
-			@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.6}}
-
-			/* LAYOUT */
-			#app{flex:1;display:flex;overflow:hidden;position:relative;z-index:1}
-			#sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
-			.sidebar-section{padding:.75rem .75rem .25rem;font-size:.55rem;color:var(--muted);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
-			.nav-btn{display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem .85rem;background:transparent;border:none;color:var(--muted);font-family:'Space Mono',monospace;font-size:.7rem;cursor:pointer;transition:all .15s;text-align:left;border-left:2px solid transparent}
-			.nav-btn:hover{background:var(--surface2);color:var(--text)}
-			.nav-btn.active{color:var(--accent2);background:rgba(255,110,127,.06);border-left-color:var(--accent2)}
-			.nav-btn .icon{font-size:1rem;flex-shrink:0}
-			.nav-badge{margin-left:auto;background:var(--accent2);color:#fff;font-size:.5rem;padding:.1rem .35rem;border-radius:20px;font-weight:700}
-
-			/* CONTENT */
-			#content{flex:1;overflow-y:auto;padding:2rem;display:flex;flex-direction:column;gap:1.5rem}
-
-			/* PANELS */
-			.panel{display:none;flex-direction:column;gap:1.5rem}
-			.panel.active{display:flex}
-
-			/* CARDS */
-			.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem}
-			.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;transition:all .2s}
-			.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
-			.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
-			.stat-card.g::after{background:var(--accent)}.stat-card.r::after{background:var(--accent2)}.stat-card.b::after{background:var(--accent3)}.stat-card.y::after{background:var(--accent4)}.stat-card.p::after{background:#a78bfa}
-			.sc-icon{font-size:1.4rem;margin-bottom:.4rem}
-			.sc-num{font-family:'Syne',sans-serif;font-weight:800;font-size:1.75rem;line-height:1}
-			.sc-num.g{color:var(--accent)}.sc-num.r{color:var(--accent2)}.sc-num.b{color:var(--accent3)}.sc-num.y{color:var(--accent4)}.sc-num.p{color:#a78bfa}
-			.sc-label{font-size:.58rem;color:var(--muted);margin-top:.3rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
-
-			/* SECTION */
-			.section-title{font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0}
-			.section-title .sub{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);font-weight:400}
-
-			/* TABLE */
-			.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto}
-			table{width:100%;border-collapse:collapse;min-width:500px}
-			th{background:var(--surface2);padding:.65rem 1rem;text-align:left;font-size:.58rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
-			td{padding:.75rem 1rem;font-size:.73rem;color:var(--text);border-bottom:1px solid rgba(37,37,53,.6);vertical-align:middle}
-			tr:last-child td{border-bottom:none}
-			tr:hover td{background:rgba(255,255,255,.015)}
-			.mono{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted)}
-			.actions{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center}
-
-			/* BUTTONS */
-			.btn{font-family:'Space Mono',monospace;font-size:.68rem;font-weight:700;padding:.4rem .85rem;border-radius:8px;border:none;cursor:pointer;transition:all .15s;letter-spacing:.04em;white-space:nowrap}
-			.btn:disabled{opacity:.5;cursor:not-allowed}
-			.btn-primary{background:var(--accent);color:#0a0a0f}.btn-primary:hover{background:#9fffa0}
-			.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
-			.btn-danger{background:transparent;color:var(--accent2);border:1px solid var(--accent2)}.btn-danger:hover{background:var(--accent2);color:#fff}
-			.btn-warn{background:transparent;color:var(--accent4);border:1px solid rgba(255,216,110,.4)}.btn-warn:hover{background:rgba(255,216,110,.1)}
-			.btn-sm{padding:.25rem .6rem;font-size:.6rem}
-			.btn-xs{padding:.15rem .4rem;font-size:.55rem}
-
-			/* BADGES */
-			.badge{font-size:.55rem;padding:.1rem .35rem;border-radius:4px;font-weight:700;letter-spacing:.05em;display:inline-flex;align-items:center}
-			.badge-green{background:rgba(127,255,110,.1);color:var(--accent);border:1px solid rgba(127,255,110,.2)}
-			.badge-red{background:rgba(255,110,127,.1);color:var(--accent2);border:1px solid rgba(255,110,127,.2)}
-			.badge-blue{background:rgba(110,168,255,.1);color:var(--accent3);border:1px solid rgba(110,168,255,.2)}
-			.badge-yellow{background:rgba(255,216,110,.1);color:var(--accent4);border:1px solid rgba(255,216,110,.2)}
-			.badge-owner{background:rgba(255,216,110,.12);color:var(--accent4);border:1px solid rgba(255,216,110,.3);font-size:.5rem;padding:.1rem .35rem;border-radius:4px;font-weight:700}
-			.badge-admin{background:rgba(255,110,127,.1);color:var(--accent2);border:1px solid rgba(255,110,127,.3);font-size:.5rem;padding:.1rem .35rem;border-radius:4px;font-weight:700}
-
-			/* TOOL BOX */
-			.tool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem}
-			.tool-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem}
-			.tool-box h3{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:.4rem}
-			.tool-box p{font-size:.67rem;color:var(--muted);margin-bottom:1rem;line-height:1.6}
-			.tool-box input,.tool-box textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.75rem;padding:.65rem .9rem;border-radius:8px;outline:none;transition:border-color .2s;margin-bottom:.75rem}
-			.tool-box input:focus,.tool-box textarea:focus{border-color:var(--accent2)}
-			.tool-box textarea{resize:vertical;min-height:80px}
-			.tool-box .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-			.status-row{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem}
-			.status-label{font-size:.75rem;font-weight:700}
-			.status-sub{font-size:.6rem;color:var(--muted);margin-top:.1rem}
-
-			/* AVATAR */
-			.av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#0a0a0f;flex-shrink:0}
-
-			/* PILL */
-			.pill{display:inline-flex;align-items:center;gap:.25rem;font-size:.55rem;padding:.15rem .45rem;border-radius:20px;font-weight:700;letter-spacing:.06em}
-			.pill-on{background:rgba(127,255,110,.1);color:var(--accent);border:1px solid rgba(127,255,110,.2)}
-			.pill-off{background:rgba(107,107,128,.1);color:var(--muted);border:1px solid var(--border)}
-			.pill-ban{background:rgba(255,110,127,.1);color:var(--accent2);border:1px solid rgba(255,110,127,.2)}
-
-			/* ACTIVITY */
-			.activity-item{display:flex;gap:.75rem;padding:.65rem 0;border-bottom:1px solid rgba(37,37,53,.5);align-items:flex-start}
-			.activity-item:last-child{border-bottom:none}
-			.adot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
-			.adot-g{background:var(--accent)}.adot-r{background:var(--accent2)}.adot-b{background:var(--accent3)}.adot-y{background:var(--accent4)}
-			.atext{font-size:.7rem;color:var(--text);line-height:1.5;flex:1}
-			.atime{font-size:.58rem;color:var(--muted);white-space:nowrap}
-
-			/* CHAT UI */
-			.chat-wrap{display:flex;flex-direction:column;gap:1rem;height:100%;min-height:0}
-			.chat-header-bar{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-			.chat-messages-box{flex:1;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:.5rem;min-height:300px;max-height:480px}
-			.chat-msg-row{display:flex;gap:.6rem;align-items:flex-start}
-			.chat-msg-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#0a0a0f;flex-shrink:0;margin-top:2px}
-			.chat-msg-body{flex:1;min-width:0}
-			.chat-msg-meta{display:flex;align-items:center;gap:.5rem;margin-bottom:.2rem;flex-wrap:wrap}
-			.chat-msg-name{font-size:.7rem;font-weight:700;color:var(--accent3)}
-			.chat-msg-time{font-size:.58rem;color:var(--muted)}
-			.chat-msg-autodel{font-size:.55rem;background:rgba(255,216,110,.1);border:1px solid rgba(255,216,110,.2);color:var(--accent4);padding:.1rem .3rem;border-radius:4px}
-			.chat-msg-text{font-size:.8rem;color:var(--text);word-break:break-word;line-height:1.5;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.5rem .75rem;display:inline-block;max-width:100%}
-			.chat-msg-del{background:none;border:1px solid rgba(255,110,127,.2);color:var(--accent2);cursor:pointer;font-size:.58rem;padding:.15rem .4rem;border-radius:4px;transition:all .15s;font-family:'Space Mono',monospace;margin-top:.3rem;display:block}
-			.chat-msg-del:hover{background:rgba(255,110,127,.1)}
-			.chat-empty-state{text-align:center;padding:3rem;color:var(--muted);font-size:.75rem}
-			.chat-input-row{display:flex;gap:.5rem;flex-shrink:0}
-			.chat-input-row input{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.78rem;padding:.65rem .9rem;border-radius:8px;outline:none;transition:border-color .2s}
-			.chat-input-row input:focus{border-color:var(--accent3)}
-			.chat-input-row input::placeholder{color:var(--muted)}
-
-			/* DELETED */
-			.deleted-item{display:flex;align-items:center;gap:1rem;padding:1rem;background:var(--surface);border:1px solid rgba(255,110,127,.15);border-radius:12px;margin-bottom:.5rem}
-			.deleted-info{flex:1;min-width:0}
-			.deleted-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem}
-			.deleted-meta{font-size:.62rem;color:var(--muted);margin-top:.2rem}
-			.deleted-actions{display:flex;gap:.4rem;flex-shrink:0}
-
-			/* TOAST */
-			#toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.7rem 1.2rem;font-size:.75rem;color:var(--text);transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:280px}
-			#toast.show{transform:translateY(0);opacity:1}
-			#toast.s{border-color:var(--accent);color:var(--accent)}
-			#toast.e{border-color:var(--accent2);color:var(--accent2)}
-
-			/* SEARCH */
-			.search-bar{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.72rem;padding:.55rem .9rem;border-radius:8px;outline:none;transition:border-color .2s;max-width:280px;width:100%}
-			.search-bar:focus{border-color:var(--accent2)}
-			.search-bar::placeholder{color:var(--muted)}
-
-			/* EMPTY */
-			.empty{text-align:center;padding:3rem;color:var(--muted);font-size:.75rem}
-			.empty .big{font-size:2rem;margin-bottom:.5rem}
-
-			/* MODAL */
-			.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:800;display:none;align-items:center;justify-content:center;padding:1rem}
-			.modal-bg.open{display:flex}
-			.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;padding:1.75rem;position:relative}
-			.modal h2{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between}
-			.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem}
-			.modal-close:hover{color:var(--text)}
-
-			/* ANNOUNCE PREVIEW */
-			.announce-preview{background:linear-gradient(90deg,rgba(255,110,127,.08),rgba(255,216,110,.05));border:1px solid rgba(255,110,127,.2);border-radius:8px;padding:.65rem 1rem;font-size:.75rem;display:none;align-items:center;gap:.5rem;margin-top:.5rem}
-			.announce-preview.show{display:flex}
-			.announce-badge{background:var(--accent2);color:#fff;font-size:.5rem;font-weight:700;padding:.15rem .4rem;border-radius:4px;letter-spacing:.08em;flex-shrink:0}
-
-			/* ADMINS LIST */
-			.admin-list-item{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:.5rem}
-			.admin-list-email{font-size:.78rem;color:var(--accent3)}
-
-			::-webkit-scrollbar{width:5px;height:5px}
-			::-webkit-scrollbar-track{background:transparent}
-			::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-			::-webkit-scrollbar-thumb:hover{background:var(--muted)}
-
-			@media(max-width:768px){#sidebar{width:56px}.nav-btn .label{display:none}.nav-btn{justify-content:center;padding:.7rem}.sidebar-section{display:none}#content{padding:1rem}}
-		</style>
-	</head>
-	<body>
-		<!-- LOGIN -->
-		<div id="login-screen">
-			<div class="login-box">
-				<div style="font-size:2rem;margin-bottom:.75rem">⚙️</div>
-				<h1>
-					Remote
-					<span>Admin</span>
-				</h1>
-				<p>HTML Library — Owner &amp; Admin Access Only</p>
-				<div class="lg-field">
-					<label>Email</label>
-					<input
-						type="email"
-						id="lg-email"
-						placeholder="your@email.com"
-						onkeydown="if(event.key==='Enter')doLogin()"
-					/>
-				</div>
-				<div class="lg-field">
-					<label>Password</label>
-					<input
-						type="password"
-						id="lg-password"
-						placeholder="••••••••"
-						onkeydown="if(event.key==='Enter')doLogin()"
-					/>
-				</div>
-				<button class="lg-btn" id="lg-btn" onclick="doLogin()">
-					ACCESS ADMIN PANEL
-				</button>
-				<div class="lg-err" id="lg-err"></div>
-				<div class="lg-notice">
-					Only
-					<span>verified by owner users</span>
-					can access this panel.
-				</div>
-			</div>
-		</div>
-
-		<!-- TOPBAR -->
-		<div id="topbar">
-			<div class="topbar-logo">
-				⚙ Admin
-				<span class="pill">REMOTE</span>
-			</div>
-			<span class="live-badge">● LIVE</span>
-			<div class="topbar-user">
-				<span class="topbar-dot"></span>
-				<span id="topbar-email"></span>
-				<span
-					id="topbar-role"
-					style="font-size:.6rem;color:var(--accent4)"
-				></span>
-				<button class="topbar-signout" onclick="doSignOut()">
-					Sign Out
-				</button>
-			</div>
-		</div>
-
-		<!-- APP -->
-		<div id="app">
-			<!-- SIDEBAR -->
-			<div id="sidebar">
-				<div class="sidebar-section">Main</div>
-				<button
-					class="nav-btn active"
-					data-tab="overview"
-					onclick="switchTab('overview',this)"
-				>
-					<span class="icon">📊</span>
-					<span class="label">Overview</span>
-				</button>
-				<button
-					class="nav-btn"
-					data-tab="users"
-					onclick="switchTab('users',this)"
-				>
-					<span class="icon">👥</span>
-					<span class="label">Users</span>
-				</button>
-				<button
-					class="nav-btn"
-					data-tab="books"
-					onclick="switchTab('books',this)"
-				>
-					<span class="icon">📚</span>
-					<span class="label">Books</span>
-				</button>
-				<button
-					class="nav-btn"
-					data-tab="chat"
-					onclick="switchTab('chat',this)"
-				>
-					<span class="icon">💬</span>
-					<span class="label">Chat</span>
-					<span
-						class="nav-badge"
-						id="chat-nav-badge"
-						style="display:none"
-					>
-						0
-					</span>
-				</button>
-				<div class="sidebar-section">Moderation</div>
-				<button
-					class="nav-btn"
-					data-tab="deleted"
-					onclick="switchTab('deleted',this)"
-				>
-					<span class="icon">🗑</span>
-					<span class="label">Deleted</span>
-				</button>
-				<button
-					class="nav-btn"
-					data-tab="activity"
-					onclick="switchTab('activity',this)"
-				>
-					<span class="icon">📋</span>
-					<span class="label">Activity</span>
-				</button>
-				<button
-					class="nav-btn"
-					data-tab="admins"
-					onclick="switchTab('admins',this)"
-					id="admins-nav"
-					style="display:none"
-				>
-					<span class="icon">🔑</span>
-					<span class="label">Admins</span>
-				</button>
-				<div class="sidebar-section">Site</div>
-				<button
-					class="nav-btn"
-					data-tab="tools"
-					onclick="switchTab('tools',this)"
-				>
-					<span class="icon">🛠</span>
-					<span class="label">Tools</span>
-				</button>
-				<button
-					class="nav-btn"
-					data-tab="access"
-					onclick="switchTab('access',this)"
-					id="access-nav"
-					style="display:none"
-				>
-					<span class="icon">🔐</span>
-					<span class="label">Access</span>
-				</button>
-			</div>
-
-			<!-- CONTENT -->
-			<div id="content">
-				<!-- OVERVIEW -->
-				<div class="panel active" id="tab-overview">
-					<div class="section-title">
-						📊 Platform Overview
-						<span class="sub">Live stats</span>
-					</div>
-					<div class="stat-row">
-						<div class="stat-card g">
-							<div class="sc-icon">👥</div>
-							<div class="sc-num g" id="st-users">—</div>
-							<div class="sc-label">Total Users</div>
-						</div>
-						<div class="stat-card b">
-							<div class="sc-icon">📚</div>
-							<div class="sc-num b" id="st-books">—</div>
-							<div class="sc-label">Total Books</div>
-						</div>
-						<div class="stat-card r">
-							<div class="sc-icon">♥</div>
-							<div class="sc-num r" id="st-likes">—</div>
-							<div class="sc-label">Total Likes</div>
-						</div>
-						<div class="stat-card y">
-							<div class="sc-icon">👁</div>
-							<div class="sc-num y" id="st-views">—</div>
-							<div class="sc-label">Total Views</div>
-						</div>
-						<div class="stat-card p">
-							<div class="sc-icon">⏱</div>
-							<div class="sc-num p" id="st-time">—</div>
-							<div class="sc-label">Total Playtime</div>
-						</div>
-						<div class="stat-card b">
-							<div class="sc-icon">💬</div>
-							<div class="sc-num b" id="st-comments">—</div>
-							<div class="sc-label">Comments</div>
-						</div>
-					</div>
-					<div class="section-title">
-						🔥 Top Books
-						<span class="sub">by likes</span>
-					</div>
-					<div class="table-wrap">
-						<table>
-							<thead>
-								<tr>
-									<th>#</th>
-									<th>Title</th>
-									<th>Author</th>
-									<th>♥</th>
-									<th>👁</th>
-									<th>⏱</th>
-								</tr>
-							</thead>
-							<tbody id="top-books-body"></tbody>
-						</table>
-					</div>
-					<div class="section-title">
-						🌟 Top Users
-						<span class="sub">by book count</span>
-					</div>
-					<div class="table-wrap">
-						<table>
-							<thead>
-								<tr>
-									<th>User</th>
-									<th>Books</th>
-									<th>Likes Rcvd</th>
-									<th>Last Seen</th>
-								</tr>
-							</thead>
-							<tbody id="top-users-body"></tbody>
-						</table>
-					</div>
-				</div>
-
-				<!-- USERS -->
-				<div class="panel" id="tab-users">
-					<div
-						style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem"
-					>
-						<div class="section-title">👥 All Users</div>
-						<input
-							class="search-bar"
-							type="text"
-							id="user-search"
-							placeholder="Search users..."
-							oninput="renderUsers()"
-						/>
-					</div>
-					<div class="table-wrap">
-						<table>
-							<thead>
-								<tr>
-									<th>User</th>
-									<th>Email</th>
-									<th>Joined</th>
-									<th>Last Seen</th>
-									<th>Time</th>
-									<th>Books</th>
-									<th>Status</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody id="users-body"></tbody>
-						</table>
-					</div>
-				</div>
-
-				<!-- BOOKS -->
-				<div class="panel" id="tab-books">
-					<div
-						style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem"
-					>
-						<div class="section-title">📚 All Books</div>
-						<input
-							class="search-bar"
-							type="text"
-							id="book-search"
-							placeholder="Search books..."
-							oninput="renderBooks()"
-						/>
-					</div>
-					<div class="table-wrap">
-						<table>
-							<thead>
-								<tr>
-									<th>Title</th>
-									<th>Author</th>
-									<th>Published</th>
-									<th>♥</th>
-									<th>👁</th>
-									<th>Size</th>
-									<th>Flags</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody id="books-body"></tbody>
-						</table>
-					</div>
-				</div>
-
-				<!-- CHAT -->
-				<div class="panel" id="tab-chat">
-					<div class="chat-wrap">
-						<div class="chat-header-bar">
-							<div class="section-title">
-								💬 Live Chat
-								<span class="sub" id="chat-count-label"></span>
-							</div>
-							<button
-								class="btn btn-danger btn-sm"
-								onclick="clearAllChat()"
-							>
-								🗑 Clear All
-							</button>
-						</div>
-						<div class="chat-messages-box" id="chat-messages-box">
-							<div class="chat-empty-state">No messages yet</div>
-						</div>
-						<div class="chat-input-row">
-							<input
-								type="text"
-								id="admin-chat-input"
-								placeholder="Send a message as admin..."
-								maxlength="400"
-								onkeydown="if(event.key==='Enter')sendAdminChat()"
-							/>
-							<button
-								class="btn btn-primary btn-sm"
-								onclick="sendAdminChat()"
-							>
-								Send
-							</button>
-						</div>
-					</div>
-				</div>
-
-				<!-- DELETED -->
-				<div class="panel" id="tab-deleted">
-					<div
-						style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem"
-					>
-						<div class="section-title">
-							🗑 Recently Deleted Books
-							<span class="sub">Last 30 days</span>
-						</div>
-						<button
-							class="btn btn-danger btn-sm"
-							onclick="clearDeletedHistory()"
-						>
-							Clear History
-						</button>
-					</div>
-					<div id="deleted-list">
-						<div class="empty">
-							<div class="big">🗑</div>
-							No deleted books
-						</div>
-					</div>
-				</div>
-
-				<!-- ACTIVITY -->
-				<div class="panel" id="tab-activity">
-					<div
-						style="display:flex;align-items:center;justify-content:space-between"
-					>
-						<div class="section-title">📋 Activity Log</div>
-						<button
-							class="btn btn-danger btn-sm"
-							onclick="clearActivity()"
-						>
-							Clear Log
-						</button>
-					</div>
-					<div
-						style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;overflow-y:auto;max-height:600px"
-					>
-						<div id="activity-log">
-							<div class="empty">
-								<div class="big">📋</div>
-								No activity
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- ADMINS (owner only) -->
-				<div class="panel" id="tab-admins">
-					<div class="section-title">
-						🔑 Admin Management
-						<span class="sub">Owner only</span>
-					</div>
-					<div class="tool-box" style="max-width:500px">
-						<h3>Grant Admin Access</h3>
-						<p>
-							Enter the email of the user you want to promote to
-							admin. They will gain access to the admin console on
-							Create.html and this remote admin panel.
-						</p>
-						<input
-							type="email"
-							id="grant-email"
-							placeholder="user@example.com"
-						/>
-						<button class="btn btn-primary" onclick="grantAdmin()">
-							✓ Grant Admin
-						</button>
-					</div>
-					<div class="section-title">Current Admins</div>
-					<div id="admins-list">
-						<div class="empty">
-							<div class="big">🔑</div>
-							No extra admins yet
-						</div>
-					</div>
-				</div>
-
-				<!-- TOOLS -->
-				<div class="panel" id="tab-tools">
-					<div class="section-title">🛠 Admin Tools</div>
-					<div class="tool-grid">
-						<div class="tool-box">
-							<h3>📢 Site Announcement</h3>
-							<p>
-								Post a banner that appears at the top of the
-								site for all users. Your name will be shown
-								alongside the message.
-							</p>
-							<textarea
-								id="announce-text"
-								placeholder="Your announcement..."
-								oninput="updateAnnouncePreview()"
-							></textarea>
-							<div class="announce-preview" id="announce-preview">
-								<span class="announce-badge">📢 ANNOUNCE</span>
-								<span
-									id="announce-preview-text"
-									style="font-size:.72rem;color:var(--text)"
-								></span>
-							</div>
-							<div class="row" style="margin-top:.75rem">
-								<button
-									class="btn btn-primary btn-sm"
-									onclick="postAnnouncement()"
-								>
-									📢 Post
-								</button>
-								<button
-									class="btn btn-danger btn-sm"
-									onclick="clearAnnouncement()"
-								>
-									✕ Clear
-								</button>
-							</div>
-						</div>
-						<div class="tool-box">
-							<h3>🔧 Maintenance Mode</h3>
-							<p>
-								When ON, regular users cannot upload new books.
-								Admins are unaffected. Use during updates or
-								moderation.
-							</p>
-							<div
-								id="maintenance-status-box"
-								style="margin-bottom:.75rem;font-size:.78rem;color:var(--muted)"
-							>
-								Status: checking...
-							</div>
-							<button
-								class="btn btn-ghost btn-sm"
-								onclick="toggleMaintenance()"
-							>
-								Toggle Maintenance
-							</button>
-						</div>
-						<div class="tool-box">
-							<h3>🗑 Bulk Delete Books</h3>
-							<p>
-								Delete all books by a specific user. Enter their
-								email. Protected books (site owner only) are
-								skipped unless you are the owner.
-							</p>
-							<input
-								type="email"
-								id="bulk-email"
-								placeholder="user@example.com"
-							/>
-							<button
-								class="btn btn-danger btn-sm"
-								onclick="bulkDelete()"
-							>
-								Delete All Books from User
-							</button>
-						</div>
-						<div class="tool-box">
-							<h3>📤 Export Data</h3>
-							<p>
-								Download a JSON export of books or users for
-								backup or analysis.
-							</p>
-							<div class="row">
-								<button
-									class="btn btn-ghost btn-sm"
-									onclick="exportData('books')"
-								>
-									📚 Books JSON
-								</button>
-								<button
-									class="btn btn-ghost btn-sm"
-									onclick="exportData('users')"
-								>
-									👥 Users JSON
-								</button>
-							</div>
-						</div>
-						<div class="tool-box">
-							<h3>📨 Broadcast Notification</h3>
-							<p>
-								Send a notification to every registered user at
-								once. Use sparingly.
-							</p>
-							<input
-								type="text"
-								id="broadcast-msg"
-								placeholder="Your message to all users..."
-							/>
-							<button
-								class="btn btn-warn btn-sm"
-								onclick="broadcastNotif()"
-							>
-								📨 Send to All Users
-							</button>
-						</div>
-						<div class="tool-box">
-							<h3>🧹 Clear Chat History</h3>
-							<p>
-								Permanently delete all messages from the
-								community chat. Cannot be undone.
-							</p>
-							<button
-								class="btn btn-danger btn-sm"
-								onclick="clearAllChat()"
-							>
-								🧹 Clear All Chat Messages
-							</button>
-						</div>
-					</div>
-				</div>
-
-				<!-- ACCESS CONTROL (owner only) -->
-				<div class="panel" id="tab-access">
-					<div class="section-title">
-						🔐 Access Control
-						<span class="sub">Owner only</span>
-					</div>
-					<div
-						style="max-width:500px;display:flex;flex-direction:column;gap:.75rem"
-					>
-						<div class="status-row">
-							<div>
-								<div class="status-label">Login Access</div>
-								<div class="status-sub" id="login-status">
-									Users can sign in
-								</div>
-							</div>
-							<button
-								class="btn btn-ghost btn-sm"
-								onclick="toggleLogin()"
-							>
-								Toggle
-							</button>
-						</div>
-						<div class="status-row">
-							<div>
-								<div class="status-label">
-									New Registrations
-								</div>
-								<div class="status-sub" id="signup-status">
-									New accounts allowed
-								</div>
-							</div>
-							<button
-								class="btn btn-ghost btn-sm"
-								onclick="toggleSignup()"
-							>
-								Toggle
-							</button>
-						</div>
-						<div class="status-row">
-							<div>
-								<div class="status-label">Maintenance Mode</div>
-								<div
-									class="status-sub"
-									id="maint-status-access"
-								>
-									Uploads enabled
-								</div>
-							</div>
-							<button
-								class="btn btn-ghost btn-sm"
-								onclick="toggleMaintenance()"
-							>
-								Toggle
-							</button>
-						</div>
-					</div>
-					<div class="section-title" style="margin-top:.5rem">
-						⛔ Quick Ban by Email
-					</div>
-					<div class="tool-box" style="max-width:500px">
-						<h3>Quick Ban</h3>
-						<p>
-							Find a user by their email address and ban them
-							immediately.
-						</p>
-						<input
-							type="email"
-							id="ban-email"
-							placeholder="user@example.com"
-						/>
-						<button
-							class="btn btn-danger btn-sm"
-							onclick="quickBan()"
-						>
-							⛔ Ban User
-						</button>
-					</div>
-				</div>
-			</div>
-			<!-- /content -->
-		</div>
-		<!-- /app -->
-
-		<!-- EDIT BOOK MODAL -->
-		<div class="modal-bg" id="edit-modal">
-			<div class="modal">
-				<h2>
-					✎ Edit Book
-					<button
-						class="modal-close"
-						onclick="closeModal('edit-modal')"
-					>
-						✕
-					</button>
-				</h2>
-				<div style="margin-bottom:1rem">
-					<label
-						style="display:block;font-size:.62rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem"
-					>
-						Title
-					</label>
-					<input
-						type="text"
-						id="edit-title"
-						style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;padding:.65rem .9rem;border-radius:8px;outline:none;transition:border-color .2s"
-					/>
-				</div>
-				<div style="margin-bottom:1rem">
-					<label
-						style="display:block;font-size:.62rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem"
-					>
-						Description
-					</label>
-					<input
-						type="text"
-						id="edit-desc"
-						style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;padding:.65rem .9rem;border-radius:8px;outline:none;transition:border-color .2s"
-					/>
-				</div>
-				<div
-					style="margin-bottom:1.25rem;display:flex;align-items:center;gap:.75rem"
-				>
-					<input
-						type="checkbox"
-						id="edit-open"
-						style="accent-color:var(--accent);width:15px;height:15px"
-					/>
-					<label
-						for="edit-open"
-						style="font-size:.75rem;cursor:pointer"
-					>
-						Allow others to view source code
-					</label>
-				</div>
-				<input type="hidden" id="edit-id" />
-				<div style="display:flex;gap:.5rem;justify-content:flex-end">
-					<button
-						class="btn btn-ghost btn-sm"
-						onclick="closeModal('edit-modal')"
-					>
-						Cancel
-					</button>
-					<button class="btn btn-primary btn-sm" onclick="saveEdit()">
-						Save Changes
-					</button>
-				</div>
-			</div>
-		</div>
-
-		<div id="toast"></div>
-
-		<script type="module">
-			import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-			import{getDatabase,ref,push,set,get,onValue,update,remove}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-			import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-			const OWNER_EMAIL='matthewbozhe@gmail.com';
-			const cfg={apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",databaseURL:"https://htmltools-library-default-rtdb.firebaseio.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"};
-			const app=initializeApp(cfg);
-			const db=getDatabase(app);
-			const auth=getAuth(app);
-
-			let currentUser=null,allBooks={},allUsers={},allComments={},allActivity=[],allChat={},recentlyDeleted=[],bannedUsers={},extraAdmins={},maintenanceMode=false,loginDisabled=false,signupDisabled=false;
-
-			// ── UTILS ─────────────────────────────────────────────────────────────
-			function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
-			function ago(ts){if(!ts)return'—';const d=Date.now()-ts;if(d<60000)return'just now';if(d<3600000)return Math.floor(d/60000)+'m ago';if(d<86400000)return Math.floor(d/3600000)+'h ago';if(d<2592000000)return Math.floor(d/86400000)+'d ago';return Math.floor(d/2592000000)+'mo ago';}
-			function fmt(s){if(!s||s<1)return'0s';if(s<60)return s+'s';const m=Math.floor(s/60);if(m<60)return m+' min';const h=Math.floor(m/60),mn=m%60;return mn>0?`${h}h ${mn}m`:`${h}h`;}
-			function avGrad(uid){const c=[['#7fff6e','#6ea8ff'],['#ff6e7f','#ffd86e'],['#6ea8ff','#a78bfa'],['#ffd86e','#7fff6e'],['#a78bfa','#ff6e7f']];const i=uid?uid.charCodeAt(0)%c.length:0;return`linear-gradient(135deg,${c[i][0]},${c[i][1]})`;}
-			window.toast=function(msg,type='s'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;clearTimeout(window._tt);window._tt=setTimeout(()=>{t.className='';},3000);};
-			window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
-
-			// ── IS OWNER / ADMIN ──────────────────────────────────────────────────
-			function isOwner(u){return u&&u.email&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase()}
-			function isAdminUser(u){
-				if(!u||!u.email)return false;
-				if(isOwner(u))return true;
-				return Object.values(extraAdmins).some(v=>{
-					if(!v)return false;
-					if(typeof v==='string')return v.toLowerCase()===u.email.toLowerCase();
-					if(typeof v==='object'&&v.email)return v.email.toLowerCase()===u.email.toLowerCase();
-					return false;
-				});
-			}
-
-			// ── AUTH ──────────────────────────────────────────────────────────────
-			window.doLogin=async function(){
-				const email=document.getElementById('lg-email').value.trim();
-				const pass=document.getElementById('lg-password').value;
-				const err=document.getElementById('lg-err');
-				const btn=document.getElementById('lg-btn');
-				err.style.display='none';
-				if(!email||!pass){err.textContent='Please fill in all fields.';err.style.display='block';return;}
-				btn.disabled=true;btn.textContent='...';
-				try{await signInWithEmailAndPassword(auth,email,pass);}
-				catch(e){err.textContent=e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();err.style.display='block';btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';}
-			};
-
-			window.doSignOut=async function(){await fbSignOut(auth);};
-
-			onAuthStateChanged(auth,async user=>{
-				currentUser=user;
-				if(!user){
-					document.getElementById('login-screen').classList.remove('hide');
-					document.getElementById('lg-btn').disabled=false;
-					document.getElementById('lg-btn').textContent='ACCESS ADMIN PANEL';
-					return;
-				}
-				const snap=await get(ref(db,'siteConfig/adminEmails'));
-				extraAdmins=snap.val()||{};
-				if(!isAdminUser(user)){
-					await fbSignOut(auth);
-					const err=document.getElementById('lg-err');
-					err.textContent='Access denied. You are not an admin.';
-					err.style.display='block';
-					document.getElementById('lg-btn').disabled=false;
-					document.getElementById('lg-btn').textContent='ACCESS ADMIN PANEL';
-					return;
-				}
-				document.getElementById('login-screen').classList.add('hide');
-				document.getElementById('topbar-email').textContent=user.email;
-				document.getElementById('topbar-role').textContent=isOwner(user)?'👑 OWNER':'⚙ ADMIN';
-				if(isOwner(user)){
-					document.getElementById('admins-nav').style.display='flex';
-					document.getElementById('access-nav').style.display='flex';
-				}
-				startListeners();
-			});
-
-			function startListeners(){
-				onValue(ref(db,'books'),snap=>{allBooks=snap.val()||{};refreshActive();});
-				onValue(ref(db,'users'),snap=>{allUsers=snap.val()||{};refreshActive();});
-				onValue(ref(db,'comments'),snap=>{allComments=snap.val()||{};refreshActive();});
-				onValue(ref(db,'bannedUsers'),snap=>{bannedUsers=snap.val()||{};refreshActive();});
-				onValue(ref(db,'siteConfig/adminEmails'),snap=>{extraAdmins=snap.val()||{};if(currentTab==='admins')renderAdmins();});
-				onValue(ref(db,'siteConfig/maintenance'),snap=>{
-					maintenanceMode=snap.val()||false;
-					const s=document.getElementById('maintenance-status-box');
-					if(s){s.textContent=`Status: ${maintenanceMode?'🔧 ON — uploads disabled':'✅ OFF — normal'}`;s.style.color=maintenanceMode?'var(--accent4)':'var(--accent)';}
-					const ms=document.getElementById('maint-status-access');
-					if(ms){ms.textContent=maintenanceMode?'🔧 Uploads disabled':'✅ Uploads enabled';ms.style.color=maintenanceMode?'var(--accent4)':'var(--accent)';}
-				});
-				onValue(ref(db,'siteConfig/loginDisabled'),snap=>{
-					loginDisabled=snap.val()||false;
-					const s=document.getElementById('login-status');
-					if(s){s.textContent=loginDisabled?'🔒 Login disabled':'✅ Users can sign in';s.style.color=loginDisabled?'var(--accent2)':'var(--accent)';}
-				});
-				onValue(ref(db,'siteConfig/signupDisabled'),snap=>{
-					signupDisabled=snap.val()||false;
-					const s=document.getElementById('signup-status');
-					if(s){s.textContent=signupDisabled?'🔒 Registrations closed':'✅ New accounts allowed';s.style.color=signupDisabled?'var(--accent2)':'var(--accent)';}
-				});
-
-				// ANNOUNCEMENT LISTENER
-				onValue(ref(db,'siteConfig/announcement'),snap=>{
-					const raw=snap.val();
-					const ta=document.getElementById('announce-text');
-					const preview=document.getElementById('announce-preview');
-					const previewText=document.getElementById('announce-preview-text');
-					if(raw===null||raw===undefined||raw===''){
-						if(ta)ta.value='';
-						if(preview)preview.classList.remove('show');
-						return;
-					}
-					let displayMsg='',inputMsg='';
-					if(typeof raw==='string'){inputMsg=raw;displayMsg=raw;}
-					else if(typeof raw==='object'){inputMsg=raw.text||'';const poster=raw.postedBy||'';displayMsg=poster?`${poster}: ${raw.text||''}`:raw.text||'';}
-					if(ta)ta.value=inputMsg;
-					if(previewText)previewText.textContent=displayMsg;
-					if(preview){if(inputMsg)preview.classList.add('show');else preview.classList.remove('show');}
-				});
-
-				onValue(ref(db,'recentlyDeleted'),snap=>{
-					const data=snap.val()||{};
-					recentlyDeleted=Object.entries(data).map(([id,b])=>({...b,_id:id})).filter(b=>(Date.now()-(b.deletedAt||0))<30*24*3600*1000).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
-					if(currentTab==='deleted')renderDeleted();
-				});
-				onValue(ref(db,'activityLog'),snap=>{
-					const data=snap.val()||{};
-					allActivity=Object.entries(data).map(([id,a])=>({...a,id})).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,300);
-					if(currentTab==='activity')renderActivity();
-				});
-				onValue(ref(db,'chat'),snap=>{
-					allChat=snap.val()||{};
-					const msgs=Object.values(allChat).filter(m=>m);
-					const count=msgs.length;
-					const badge=document.getElementById('chat-nav-badge');
-					if(count>0){badge.textContent=count;badge.style.display='inline-flex';}
-					else badge.style.display='none';
-					const countLabel=document.getElementById('chat-count-label');
-					if(countLabel)countLabel.textContent=`${count} message${count!==1?'s':''}`;
-					if(currentTab==='chat')renderChat();
-				});
-			}
-
-			// ── TAB SWITCHING ──────────────────────────────────────────────────────
-			let currentTab='overview';
-			window.switchTab=function(tab,el){
-				currentTab=tab;
-				document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-				document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-				if(el)el.classList.add('active');
-				const panel=document.getElementById(`tab-${tab}`);if(panel)panel.classList.add('active');
-				refreshActive();
-			};
-
-			function refreshActive(){
-				if(currentTab==='overview')renderOverview();
-				else if(currentTab==='users')renderUsers();
-				else if(currentTab==='books')renderBooks();
-				else if(currentTab==='chat')renderChat();
-				else if(currentTab==='deleted')renderDeleted();
-				else if(currentTab==='activity')renderActivity();
-				else if(currentTab==='admins')renderAdmins();
-			}
-
-			// ── OVERVIEW ──────────────────────────────────────────────────────────
-			function renderOverview(){
-				const books=Object.values(allBooks).filter(b=>b&&b.title);
-				const users=Object.values(allUsers);
-				let totalComments=0;Object.values(allComments).forEach(bc=>{totalComments+=Object.keys(bc||{}).length;});
-				document.getElementById('st-users').textContent=users.length;
-				document.getElementById('st-books').textContent=books.length;
-				document.getElementById('st-likes').textContent=books.reduce((s,b)=>s+(b.likes||0),0);
-				document.getElementById('st-views').textContent=books.reduce((s,b)=>s+(b.views||0),0).toLocaleString();
-				document.getElementById('st-time').textContent=fmt(books.reduce((s,b)=>s+(b.playtimeSeconds||0),0));
-				document.getElementById('st-comments').textContent=totalComments;
-				const topBooks=Object.entries(allBooks).filter(([,b])=>b&&b.title).sort((a,b)=>(b[1].likes||0)-(a[1].likes||0)).slice(0,5);
-				document.getElementById('top-books-body').innerHTML=topBooks.length?topBooks.map(([id,b],i)=>`<tr><td style="color:var(--muted);font-weight:700">#${i+1}</td><td style="font-weight:700">${esc(b.title)}</td><td class="mono">${esc(b.ownerName||'?')}</td><td style="color:var(--accent2)">♥ ${b.likes||0}</td><td style="color:var(--accent3)">👁 ${(b.views||0).toLocaleString()}</td><td style="color:var(--accent4)">${fmt(b.playtimeSeconds||0)}</td></tr>`).join(''):'<tr><td colspan="6"><div class="empty">No books yet</div></td></tr>';
-				const topUsers=Object.entries(allUsers).map(([uid,u])=>{const mb=Object.values(allBooks).filter(b=>b&&b.ownerId===uid);return{...u,uid,bc:mb.length,tl:mb.reduce((s,b)=>s+(b.likes||0),0)};}).sort((a,b)=>b.bc-a.bc).slice(0,5);
-				document.getElementById('top-users-body').innerHTML=topUsers.length?topUsers.map(u=>`<tr><td><div style="display:flex;align-items:center;gap:.5rem"><div class="av" style="background:${avGrad(u.uid)}">${(u.displayName||u.email||'?').charAt(0).toUpperCase()}</div><div style="font-size:.75rem;font-weight:700">${esc(u.displayName||'Anon')}</div></div></td><td style="color:var(--accent3);font-weight:700">${u.bc}</td><td style="color:var(--accent2)">♥ ${u.tl}</td><td class="mono">${ago(u.lastSignIn)}</td></tr>`).join(''):'<tr><td colspan="4"><div class="empty">No users</div></td></tr>';
-			}
-
-			// ── USERS ──────────────────────────────────────────────────────────────
-			window.renderUsers=function(){
-				const q=(document.getElementById('user-search')?.value||'').toLowerCase();
-				const tbody=document.getElementById('users-body');
-				const users=Object.entries(allUsers).filter(([,u])=>{if(!u)return false;if(q&&!(u.displayName||'').toLowerCase().includes(q)&&!(u.email||'').toLowerCase().includes(q))return false;return true;}).sort((a,b)=>(b[1].lastSignIn||0)-(a[1].lastSignIn||0));
-				if(!users.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="big">👥</div>No users</div></td></tr>';return;}
-				tbody.innerHTML=users.map(([uid,u])=>{
-					const mb=Object.values(allBooks).filter(b=>b&&b.ownerId===uid).length;
-					const isBanned=!!bannedUsers[uid];
-					const isOwnerU=u.email&&u.email.toLowerCase()===OWNER_EMAIL;
-					const isAdminU=!isOwnerU&&u.email&&Object.values(extraAdmins).some(v=>typeof v==='string'?v.toLowerCase()===u.email.toLowerCase():(v?.email||'').toLowerCase()===u.email.toLowerCase());
-					const online=(Date.now()-(u.lastSignIn||0))<5*60*1000;
-					return`<tr><td><div style="display:flex;align-items:center;gap:.5rem"><div class="av" style="background:${avGrad(uid)}">${(u.displayName||u.email||'?').charAt(0).toUpperCase()}</div><div><div style="font-size:.73rem;font-weight:700">${esc(u.displayName||'Anon')}</div>${isOwnerU?'<span class="badge-owner">OWNER</span>':isAdminU?'<span class="badge-admin">ADMIN</span>':''}</div></div></td><td class="mono">${esc(u.email||'')}</td><td class="mono">${ago(u.joinedAt)}</td><td class="mono">${ago(u.lastSignIn)}</td><td style="color:var(--accent4)">${fmt(u.totalTimeSeconds||0)}</td><td>${mb}</td><td>${isBanned?'<span class="pill pill-ban">⛔ BANNED</span>':online?'<span class="pill pill-on">● ONLINE</span>':'<span class="pill pill-off">○ OFFLINE</span>'}</td><td><div class="actions">${!isOwnerU?`${isBanned?`<button class="btn btn-ghost btn-xs" onclick="unban('${uid}','${esc(u.displayName||u.email)}')">✓ Unban</button>`:`<button class="btn btn-danger btn-xs" onclick="ban('${uid}','${esc(u.displayName||u.email)}')">⛔ Ban</button>`}<button class="btn btn-warn btn-xs" onclick="forceOut('${uid}','${esc(u.displayName||u.email)}')">⏻ Kick</button><button class="btn btn-ghost btn-xs" onclick="notifUser('${uid}')">📢</button><button class="btn btn-danger btn-xs" onclick="delUserBooks('${uid}','${esc(u.email||uid)}')">🗑</button>`:'<span style="font-size:.6rem;color:var(--accent4)">👑 owner</span>'}</div></td></tr>`;
-				}).join('');
-			};
-
-			window.ban=async function(uid,name){if(!isOwner(currentUser)){toast('Only the owner can ban','e');return;}if(!confirm(`Ban "${name}"?`))return;await set(ref(db,`bannedUsers/${uid}`),{bannedAt:Date.now(),bannedBy:currentUser.uid,name});logAct('ban',`Owner banned ${name}`);toast(`${name} banned`,'s');};
-			window.unban=async function(uid,name){if(!isOwner(currentUser)){toast('Only the owner can unban','e');return;}await remove(ref(db,`bannedUsers/${uid}`));logAct('unban',`Owner unbanned ${name}`);toast(`${name} unbanned`,'s');};
-			window.forceOut=async function(uid,name){if(!confirm(`Force sign out "${name}"?`))return;await set(ref(db,`forceSignout/${uid}`),{by:currentUser.email,at:Date.now()});logAct('kick',`Admin kicked ${name}`);toast(`${name} kicked`,'s');};
-			window.notifUser=async function(uid){const msg=prompt('Notification message:');if(!msg)return;await set(push(ref(db,`notifications/${uid}`)),{type:'admin',message:`[Admin] ${msg}`,createdAt:Date.now(),read:false});toast('Notification sent','s');};
-			window.delUserBooks=async function(uid,email){
-				if(!confirm(`Delete ALL books by ${email}?`))return;
-				const userBooks=Object.entries(allBooks).filter(([,b])=>b&&b.ownerId===uid);
-				for(const[id,book]of userBooks){
-					if(book.undeletable&&!isOwner(currentUser))continue;
-					await set(push(ref(db,'recentlyDeleted')),{...book,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email});
-					await remove(ref(db,'books/'+id));
-					await remove(ref(db,'comments/'+id));
-				}
-				logAct('delete',`Admin deleted all books by ${email}`);
-				toast('Books deleted','s');
-			};
-
-			// ── BOOKS ──────────────────────────────────────────────────────────────
-			window.renderBooks=function(){
-				const q=(document.getElementById('book-search')?.value||'').toLowerCase();
-				const tbody=document.getElementById('books-body');
-				let entries=Object.entries(allBooks).filter(([,b])=>{if(!b||!b.title)return false;if(q&&!b.title.toLowerCase().includes(q)&&!(b.ownerName||'').toLowerCase().includes(q))return false;return true;}).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
-				if(!entries.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="big">📚</div>No books</div></td></tr>';return;}
-				tbody.innerHTML=entries.map(([id,b])=>{
-					const isProtected=!!b.undeletable;const canDel=isOwner(currentUser)||!isProtected;const sz=b.code?(new Blob([b.code]).size/1024).toFixed(1):'0';
-					return`<tr><td style="font-weight:700;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(b.title)}">${esc(b.title)}</td><td class="mono">${esc(b.ownerName||'?')}</td><td class="mono">${ago(b.createdAt)}</td><td style="color:var(--accent2)">♥ ${b.likes||0}</td><td style="color:var(--accent3)">👁 ${(b.views||0).toLocaleString()}</td><td class="mono">${sz} KB</td><td>${isProtected?'<span class="badge badge-blue">🔒 Protected</span>':''}</td><td><div class="actions"><button class="btn btn-ghost btn-xs" onclick="openEdit('${id}')">✎</button>${canDel?`<button class="btn btn-danger btn-xs" onclick="deleteBook('${id}')">✕</button>`:'<span style="font-size:.55rem;color:var(--muted)">🔒</span>'}</div></td></tr>`;
-				}).join('');
-			};
-
-			window.openEdit=function(id){
-				const b=allBooks[id];if(!b)return;
-				document.getElementById('edit-id').value=id;
-				document.getElementById('edit-title').value=b.title||'';
-				document.getElementById('edit-desc').value=b.desc||'';
-				document.getElementById('edit-open').checked=!!b.allowViewCode;
-				document.getElementById('edit-modal').classList.add('open');
-			};
-
-			window.saveEdit=async function(){
-				const id=document.getElementById('edit-id').value;
-				const title=document.getElementById('edit-title').value.trim();
-				const desc=document.getElementById('edit-desc').value.trim();
-				const allowViewCode=document.getElementById('edit-open').checked;
-				if(!title){toast('Title required','e');return;}
-				await update(ref(db,'books/'+id),{title,desc,allowViewCode,updatedAt:Date.now()});
-				logAct('edit',`Admin edited book "${title}"`);
-				toast('Book updated','s');
-				closeModal('edit-modal');
-			};
-
-			window.deleteBook=async function(id){
-				const b=allBooks[id];if(!b)return;
-				if(b.undeletable&&!isOwner(currentUser)){toast('Book is protected','e');return;}
-				if(!confirm(`Delete "${b.title}"?`))return;
-				await set(push(ref(db,'recentlyDeleted')),{...b,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email});
-				await remove(ref(db,'books/'+id));
-				await remove(ref(db,'comments/'+id));
-				logAct('delete',`Admin deleted "${b.title}"`);
-				toast('Book deleted','s');
-			};
-
-			// ── CHAT ──────────────────────────────────────────────────────────────
-			function renderChat(){
-				const box=document.getElementById('chat-messages-box');
-				const msgs=Object.entries(allChat).filter(([,m])=>m).sort((a,b)=>(a[1].sentAt||0)-(b[1].sentAt||0));
-				if(!msgs.length){box.innerHTML='<div class="chat-empty-state">No messages yet</div>';return;}
-				const wasBottom=box.scrollHeight-box.scrollTop-box.clientHeight<80;
-				box.innerHTML=msgs.map(([mid,m])=>{
-					const initials=(m.senderName||'?').charAt(0).toUpperCase();
-					const autoDelEl=m.autoDelete?'<span class="chat-msg-autodel">⏱ auto-del</span>':'';
-					const adminTag=m.isAdmin?'<span class="badge-admin" style="font-size:.5rem;margin-left:.3rem">ADMIN</span>':'';
-					return`<div class="chat-msg-row"><div class="chat-msg-av" style="background:${avGrad(m.senderId||'')}">${initials}</div><div class="chat-msg-body"><div class="chat-msg-meta"><span class="chat-msg-name">${esc(m.senderName||'?')}${adminTag}</span><span class="chat-msg-time">${ago(m.sentAt)}</span>${autoDelEl}</div><div class="chat-msg-text">${esc(m.text||'')}</div><button class="chat-msg-del" onclick="deleteChatMsg('${mid}')">✕ Delete</button></div></div>`;
-				}).join('');
-				if(wasBottom)box.scrollTop=box.scrollHeight;
-			}
-
-			window.sendAdminChat=async function(){
-				const input=document.getElementById('admin-chat-input');
-				const text=input.value.trim();if(!text)return;
-				input.value='';
-				await set(push(ref(db,'chat')),{text,senderId:currentUser.uid,senderName:currentUser.displayName||currentUser.email,sentAt:Date.now(),autoDelete:false,isAdmin:true});
-			};
-
-			window.deleteChatMsg=async function(mid){
-				if(!confirm('Delete this message?'))return;
-				await remove(ref(db,`chat/${mid}`));
-				toast('Message deleted','s');
-			};
-
-			window.clearAllChat=async function(){
-				if(!confirm('Clear ALL chat messages? This cannot be undone.'))return;
-				await remove(ref(db,'chat'));
-				logAct('chat','Admin cleared all chat messages');
-				toast('Chat cleared','s');
-			};
-
-			// ── DELETED ───────────────────────────────────────────────────────────
-			function renderDeleted(){
-				const el=document.getElementById('deleted-list');
-				if(!recentlyDeleted.length){el.innerHTML='<div class="empty"><div class="big">🗑</div>No deleted books</div>';return;}
-				el.innerHTML=recentlyDeleted.map(b=>`<div class="deleted-item"><div class="deleted-info"><div class="deleted-title">${esc(b.title||'Untitled')}</div><div class="deleted-meta">by ${esc(b.ownerName||'?')} · deleted ${ago(b.deletedAt)} · by ${esc(b.deletedBy||'?')}</div></div><div class="deleted-actions"><button class="btn btn-primary btn-sm" onclick="restoreBook('${b._id}')">↩ Restore</button><button class="btn btn-danger btn-sm" onclick="permDelete('${b._id}')">✕ Delete</button></div></div>`).join('');
-			}
-
-			window.restoreBook=async function(did){
-				const book=recentlyDeleted.find(b=>b._id===did);if(!book)return;
-				const{_id,deletedAt,deletedBy,...bd}=book;
-				await set(push(ref(db,'books')),{...bd,restoredAt:Date.now()});
-				await remove(ref(db,`recentlyDeleted/${did}`));
-				logAct('restore',`Admin restored "${book.title}"`);
-				toast('Book restored 📚','s');
-			};
-
-			window.permDelete=async function(did){
-				if(!confirm('Permanently delete? Cannot be undone.'))return;
-				await remove(ref(db,`recentlyDeleted/${did}`));
-				toast('Permanently deleted','s');
-			};
-
-			window.clearDeletedHistory=async function(){
-				if(!isOwner(currentUser)){toast('Owner only','e');return;}
-				if(!confirm('Clear all deleted book history?'))return;
-				await remove(ref(db,'recentlyDeleted'));
-				toast('History cleared','s');
-			};
-
-			// ── ACTIVITY ──────────────────────────────────────────────────────────
-			function renderActivity(){
-				const el=document.getElementById('activity-log');
-				if(!allActivity.length){el.innerHTML='<div class="empty"><div class="big">📋</div>No activity</div>';return;}
-				const dotMap={login:'adot-g',upload:'adot-b',delete:'adot-r',ban:'adot-y',kick:'adot-y',unban:'adot-g',edit:'adot-b',chat:'adot-b',restore:'adot-g',announce:'adot-y'};
-				el.innerHTML=allActivity.map(a=>`<div class="activity-item"><div class="adot ${dotMap[a.type]||'adot-g'}"></div><div class="atext">${esc(a.message)}</div><div class="atime">${ago(a.ts)}</div></div>`).join('');
-			}
-
-			window.clearActivity=async function(){
-				if(!confirm('Clear activity log?'))return;
-				await remove(ref(db,'activityLog'));
-				toast('Log cleared','s');
-			};
-
-			async function logAct(type,message){
-				try{await set(push(ref(db,'activityLog')),{type,message,uid:currentUser?.uid||'',ts:Date.now()});}catch(e){}
-			}
-
-			// ── ADMINS ────────────────────────────────────────────────────────────
-			function renderAdmins(){
-				const el=document.getElementById('admins-list');
-				const admins=Object.entries(extraAdmins).filter(([,v])=>v);
-				if(!admins.length){el.innerHTML='<div class="empty"><div class="big">🔑</div>No extra admins yet</div>';return;}
-				el.innerHTML=admins.map(([key,v])=>{
-					const email=typeof v==='object'?(v.email||key):typeof v==='string'?v:key;
-					return`<div class="admin-list-item"><div><div class="admin-list-email">${esc(email)}</div><div style="font-size:.6rem;color:var(--muted);margin-top:.15rem">Admin access granted</div></div><button class="btn btn-danger btn-sm" onclick="revokeAdmin('${esc(key)}')">Revoke</button></div>`;
-				}).join('');
-			}
-
-			window.grantAdmin=async function(){
-				if(!isOwner(currentUser))return;
-				const email=document.getElementById('grant-email').value.trim().toLowerCase();
-				if(!email||!email.includes('@')){toast('Enter a valid email','e');return;}
-				if(email===OWNER_EMAIL){toast('You are the owner already','e');return;}
-				const key=email.replace(/[.@]/g,'_');
-				await set(ref(db,`siteConfig/adminEmails/${key}`),email);
-				document.getElementById('grant-email').value='';
-				logAct('admin',`Owner granted admin to ${email}`);
-				toast(`Admin granted to ${email}`,'s');
-			};
-
-			window.revokeAdmin=async function(key){
-				if(!isOwner(currentUser))return;
-				if(!confirm('Revoke admin access?'))return;
-				await remove(ref(db,`siteConfig/adminEmails/${key}`));
-				logAct('admin',`Owner revoked admin`);
-				toast('Admin revoked','s');
-			};
-
-			// ── TOOLS ─────────────────────────────────────────────────────────────
-			window.updateAnnouncePreview=function(){
-				const text=document.getElementById('announce-text').value.trim();
-				const preview=document.getElementById('announce-preview');
-				const previewText=document.getElementById('announce-preview-text');
-				if(text){const name=currentUser?.displayName||currentUser?.email||'Admin';previewText.textContent=`${name}: ${text}`;preview.classList.add('show');}
-				else preview.classList.remove('show');
-			};
-
-			window.postAnnouncement=async function(){
-				const msg=document.getElementById('announce-text').value.trim();
-				if(!msg){toast('Enter an announcement','e');return;}
-				const posterName=currentUser.displayName||currentUser.email;
-				await set(ref(db,'siteConfig/announcement'),{text:msg,postedBy:posterName,postedAt:Date.now()});
-				logAct('announce',`${posterName} posted announcement`);
-				toast('Announcement posted! 📢','s');
-			};
-
-			window.clearAnnouncement=async function(){
-				await remove(ref(db,'siteConfig/announcement'));
-				const el=document.getElementById('announce-text');if(el)el.value='';
-				document.getElementById('announce-preview').classList.remove('show');
-				toast('Announcement cleared','s');
-			};
-
-			window.toggleMaintenance=async function(){
-				await set(ref(db,'siteConfig/maintenance'),!maintenanceMode);
-				toast(`Maintenance mode ${!maintenanceMode?'ON':'OFF'}`,'s');
-			};
-
-			window.bulkDelete=async function(){
-				const email=document.getElementById('bulk-email').value.trim().toLowerCase();
-				if(!email){toast('Enter an email','e');return;}
-				const user=Object.entries(allUsers).find(([,u])=>u.email&&u.email.toLowerCase()===email);
-				if(!user){toast('User not found','e');return;}
-				await delUserBooks(user[0],email);
-				document.getElementById('bulk-email').value='';
-			};
-
-			window.exportData=function(type){
-				let data;
-				if(type==='books'){data=Object.entries(allBooks).map(([id,b])=>({id,title:b.title,author:b.ownerName,likes:b.likes||0,views:b.views||0,playtimeSeconds:b.playtimeSeconds||0,createdAt:new Date(b.createdAt||0).toISOString()}));}
-				else{data=Object.entries(allUsers).map(([uid,u])=>{const bc=Object.values(allBooks).filter(b=>b&&b.ownerId===uid).length;return{uid,displayName:u.displayName,email:u.email,joinedAt:new Date(u.joinedAt||0).toISOString(),lastSignIn:new Date(u.lastSignIn||0).toISOString(),totalTimeSeconds:u.totalTimeSeconds||0,bookCount:bc};});}
-				const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-				const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`htmllibrary-${type}-${Date.now()}.json`;a.click();
-				toast(`${type} exported!`,'s');
-			};
-
-			window.broadcastNotif=async function(){
-				const msg=document.getElementById('broadcast-msg').value.trim();
-				if(!msg){toast('Enter a message','e');return;}
-				if(!confirm(`Send this notification to all ${Object.keys(allUsers).length} users?`))return;
-				const sends=Object.keys(allUsers).map(uid=>set(push(ref(db,`notifications/${uid}`)),{type:'admin',message:`[Broadcast] ${msg}`,createdAt:Date.now(),read:false}));
-				await Promise.all(sends);
-				document.getElementById('broadcast-msg').value='';
-				logAct('announce',`Admin broadcast: ${msg}`);
-				toast(`Sent to ${sends.length} users`,'s');
-			};
-
-			// ── ACCESS CONTROL ────────────────────────────────────────────────────
-			window.toggleLogin=async function(){
-				if(!isOwner(currentUser)){toast('Owner only','e');return;}
-				await set(ref(db,'siteConfig/loginDisabled'),!loginDisabled);
-				toast(`Login ${!loginDisabled?'disabled':'enabled'}`,'s');
-			};
-
-			window.toggleSignup=async function(){
-				if(!isOwner(currentUser)){toast('Owner only','e');return;}
-				await set(ref(db,'siteConfig/signupDisabled'),!signupDisabled);
-				toast(`Registrations ${!signupDisabled?'closed':'opened'}`,'s');
-			};
-
-			window.quickBan=async function(){
-				if(!isOwner(currentUser)){toast('Owner only','e');return;}
-				const email=document.getElementById('ban-email').value.trim().toLowerCase();
-				if(!email){toast('Enter an email','e');return;}
-				const user=Object.entries(allUsers).find(([,u])=>u.email&&u.email.toLowerCase()===email);
-				if(!user){toast('User not found','e');return;}
-				const[uid,u]=user;
-				if(!confirm(`Ban ${u.displayName||email}?`))return;
-				await set(ref(db,`bannedUsers/${uid}`),{bannedAt:Date.now(),bannedBy:currentUser.uid,name:u.displayName||email});
-				logAct('ban',`Owner banned ${u.displayName||email}`);
-				document.getElementById('ban-email').value='';
-				toast(`${u.displayName||email} banned`,'s');
-			};
-		</script>
-	</body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HTML Library Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#06060b;--surface:#0f0f18;--surface2:#181826;--border:#252535;--accent:#7fff6e;--accent2:#ff6e7f;--accent3:#6ea8ff;--accent4:#ffd86e;--text:#e8e8f0;--muted:#6b6b80;--r:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 10%,rgba(255,110,127,.05) 0%,transparent 60%),radial-gradient(ellipse at 80% 90%,rgba(110,168,255,.04) 0%,transparent 60%);pointer-events:none;z-index:0}
+
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem}
+#login-screen.hide{display:none}
+.login-box{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem 2rem;text-align:center}
+.login-box h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;margin-bottom:.25rem}
+.login-box h1 span{color:var(--accent2)}
+.login-box p{font-size:.72rem;color:var(--muted);margin-bottom:1.75rem}
+.lg-field{text-align:left;margin-bottom:1rem}
+.lg-field label{display:block;font-size:.62rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
+.lg-field input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;padding:.7rem 1rem;border-radius:8px;outline:none;transition:border-color .2s}
+.lg-field input:focus{border-color:var(--accent2)}
+.lg-btn{width:100%;padding:.8rem;background:var(--accent2);color:#fff;font-family:'Space Mono',monospace;font-size:.8rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;margin-top:.25rem;letter-spacing:.05em;transition:all .15s}
+.lg-btn:hover{background:#ff8a97;transform:translateY(-1px)}
+.lg-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.lg-err{font-size:.72rem;color:var(--accent2);text-align:center;margin-top:.5rem;padding:.5rem;border-radius:6px;background:rgba(255,110,127,.08);display:none}
+
+#topbar{background:var(--surface);border-bottom:1px solid rgba(255,110,127,.2);height:56px;display:flex;align-items:center;padding:0 1.5rem;gap:1rem;flex-shrink:0;position:relative;z-index:10}
+#topbar::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent2),var(--accent4),var(--accent3))}
+.topbar-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;display:flex;align-items:center;gap:.5rem}
+.topbar-logo .pill{background:rgba(255,110,127,.15);border:1px solid rgba(255,110,127,.3);color:var(--accent2);font-size:.5rem;padding:.1rem .4rem;border-radius:4px;letter-spacing:.1em}
+.topbar-user{font-size:.7rem;color:var(--muted);margin-left:auto;display:flex;align-items:center;gap:.5rem}
+.topbar-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.topbar-signout{background:transparent;border:1px solid rgba(255,110,127,.3);color:var(--accent2);font-family:'Space Mono',monospace;font-size:.65rem;padding:.35rem .75rem;border-radius:6px;cursor:pointer;transition:all .15s}
+.topbar-signout:hover{background:rgba(255,110,127,.1)}
+.live-badge{font-size:.55rem;background:rgba(127,255,110,.12);border:1px solid rgba(127,255,110,.25);color:var(--accent);padding:.15rem .5rem;border-radius:20px;font-weight:700;letter-spacing:.08em;animation:livePulse 2s infinite}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.6}}
+.db-indicator{font-size:.55rem;display:flex;align-items:center;gap:.35rem;padding:.2rem .5rem;border-radius:4px;background:rgba(110,168,255,.08);border:1px solid rgba(110,168,255,.2);color:var(--accent3)}
+.db-dot{width:6px;height:6px;border-radius:50%;background:var(--accent3)}
+
+#app{flex:1;display:flex;overflow:hidden;position:relative;z-index:1}
+#sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-section{padding:.75rem .75rem .25rem;font-size:.55rem;color:var(--muted);font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.nav-btn{display:flex;align-items:center;gap:.6rem;width:100%;padding:.6rem .85rem;background:transparent;border:none;color:var(--muted);font-family:'Space Mono',monospace;font-size:.7rem;cursor:pointer;transition:all .15s;text-align:left;border-left:2px solid transparent}
+.nav-btn:hover{background:var(--surface2);color:var(--text)}
+.nav-btn.active{color:var(--accent2);background:rgba(255,110,127,.06);border-left-color:var(--accent2)}
+.nav-btn .icon{font-size:1rem;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--accent2);color:#fff;font-size:.5rem;padding:.1rem .35rem;border-radius:20px;font-weight:700}
+
+#content{flex:1;overflow-y:auto;padding:2rem;display:flex;flex-direction:column;gap:1.5rem}
+.panel{display:none;flex-direction:column;gap:1.5rem}
+.panel.active{display:flex}
+
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;position:relative;overflow:hidden;transition:all .2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.stat-card.g::after{background:var(--accent)}.stat-card.r::after{background:var(--accent2)}.stat-card.b::after{background:var(--accent3)}.stat-card.y::after{background:var(--accent4)}.stat-card.p::after{background:#a78bfa}
+.sc-icon{font-size:1.4rem;margin-bottom:.4rem}
+.sc-num{font-family:'Syne',sans-serif;font-weight:800;font-size:1.75rem;line-height:1}
+.sc-num.g{color:var(--accent)}.sc-num.r{color:var(--accent2)}.sc-num.b{color:var(--accent3)}.sc-num.y{color:var(--accent4)}.sc-num.p{color:#a78bfa}
+.sc-label{font-size:.58rem;color:var(--muted);margin-top:.3rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+
+.section-title{font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;display:flex;align-items:center;gap:.75rem;flex-shrink:0}
+.section-title .sub{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);font-weight:400}
+
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:500px}
+th{background:var(--surface2);padding:.65rem 1rem;text-align:left;font-size:.58rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:.75rem 1rem;font-size:.73rem;color:var(--text);border-bottom:1px solid rgba(37,37,53,.6);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.015)}
+.mono{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--muted)}
+.actions{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center}
+
+.btn{font-family:'Space Mono',monospace;font-size:.68rem;font-weight:700;padding:.4rem .85rem;border-radius:8px;border:none;cursor:pointer;transition:all .15s;letter-spacing:.04em;white-space:nowrap}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#0a0a0f}.btn-primary:hover{background:#9fffa0}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:transparent;color:var(--accent2);border:1px solid var(--accent2)}.btn-danger:hover{background:var(--accent2);color:#fff}
+.btn-warn{background:transparent;color:var(--accent4);border:1px solid rgba(255,216,110,.4)}.btn-warn:hover{background:rgba(255,216,110,.1)}
+.btn-sm{padding:.25rem .6rem;font-size:.6rem}
+.btn-xs{padding:.15rem .4rem;font-size:.55rem}
+
+.badge{font-size:.55rem;padding:.1rem .35rem;border-radius:4px;font-weight:700;letter-spacing:.05em;display:inline-flex;align-items:center}
+.badge-green{background:rgba(127,255,110,.1);color:var(--accent);border:1px solid rgba(127,255,110,.2)}
+.badge-red{background:rgba(255,110,127,.1);color:var(--accent2);border:1px solid rgba(255,110,127,.2)}
+.badge-blue{background:rgba(110,168,255,.1);color:var(--accent3);border:1px solid rgba(110,168,255,.2)}
+.badge-yellow{background:rgba(255,216,110,.1);color:var(--accent4);border:1px solid rgba(255,216,110,.2)}
+.badge-owner{background:rgba(255,216,110,.12);color:var(--accent4);border:1px solid rgba(255,216,110,.3);font-size:.5rem;padding:.1rem .35rem;border-radius:4px;font-weight:700}
+.badge-admin{background:rgba(255,110,127,.1);color:var(--accent2);border:1px solid rgba(255,110,127,.3);font-size:.5rem;padding:.1rem .35rem;border-radius:4px;font-weight:700}
+.badge-old{background:rgba(255,216,110,.08);color:var(--accent4);border:1px solid rgba(255,216,110,.2);font-size:.5rem;padding:.1rem .3rem;border-radius:3px;font-weight:700}
+.badge-new{background:rgba(127,255,110,.08);color:var(--accent);border:1px solid rgba(127,255,110,.2);font-size:.5rem;padding:.1rem .3rem;border-radius:3px;font-weight:700}
+
+.tool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem}
+.tool-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem}
+.tool-box h3{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:.4rem}
+.tool-box p{font-size:.67rem;color:var(--muted);margin-bottom:1rem;line-height:1.6}
+.tool-box input,.tool-box textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.75rem;padding:.65rem .9rem;border-radius:8px;outline:none;transition:border-color .2s;margin-bottom:.75rem}
+.tool-box input:focus,.tool-box textarea:focus{border-color:var(--accent2)}
+.tool-box textarea{resize:vertical;min-height:80px}
+.tool-box .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.status-row{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem}
+.status-label{font-size:.75rem;font-weight:700}
+.status-sub{font-size:.6rem;color:var(--muted);margin-top:.1rem}
+
+.av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#0a0a0f;flex-shrink:0}
+.pill{display:inline-flex;align-items:center;gap:.25rem;font-size:.55rem;padding:.15rem .45rem;border-radius:20px;font-weight:700;letter-spacing:.06em}
+.pill-on{background:rgba(127,255,110,.1);color:var(--accent);border:1px solid rgba(127,255,110,.2)}
+.pill-off{background:rgba(107,107,128,.1);color:var(--muted);border:1px solid var(--border)}
+.pill-ban{background:rgba(255,110,127,.1);color:var(--accent2);border:1px solid rgba(255,110,127,.2)}
+
+.activity-item{display:flex;gap:.75rem;padding:.65rem 0;border-bottom:1px solid rgba(37,37,53,.5);align-items:flex-start}
+.activity-item:last-child{border-bottom:none}
+.adot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.adot-g{background:var(--accent)}.adot-r{background:var(--accent2)}.adot-b{background:var(--accent3)}.adot-y{background:var(--accent4)}
+.atext{font-size:.7rem;color:var(--text);line-height:1.5;flex:1}
+.atime{font-size:.58rem;color:var(--muted);white-space:nowrap}
+
+.chat-wrap{display:flex;flex-direction:column;gap:1rem;height:100%;min-height:0}
+.chat-header-bar{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.chat-messages-box{flex:1;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:.5rem;min-height:300px;max-height:480px}
+.chat-msg-row{display:flex;gap:.6rem;align-items:flex-start}
+.chat-msg-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#0a0a0f;flex-shrink:0;margin-top:2px}
+.chat-msg-body{flex:1;min-width:0}
+.chat-msg-meta{display:flex;align-items:center;gap:.5rem;margin-bottom:.2rem;flex-wrap:wrap}
+.chat-msg-name{font-size:.7rem;font-weight:700;color:var(--accent3)}
+.chat-msg-time{font-size:.58rem;color:var(--muted)}
+.chat-msg-autodel{font-size:.55rem;background:rgba(255,216,110,.1);border:1px solid rgba(255,216,110,.2);color:var(--accent4);padding:.1rem .3rem;border-radius:4px}
+.chat-msg-text{font-size:.8rem;color:var(--text);word-break:break-word;line-height:1.5;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.5rem .75rem;display:inline-block;max-width:100%}
+.chat-msg-del{background:none;border:1px solid rgba(255,110,127,.2);color:var(--accent2);cursor:pointer;font-size:.58rem;padding:.15rem .4rem;border-radius:4px;transition:all .15s;font-family:'Space Mono',monospace;margin-top:.3rem;display:block}
+.chat-msg-del:hover{background:rgba(255,110,127,.1)}
+.chat-empty-state{text-align:center;padding:3rem;color:var(--muted);font-size:.75rem}
+.chat-input-row{display:flex;gap:.5rem;flex-shrink:0}
+.chat-input-row input{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.78rem;padding:.65rem .9rem;border-radius:8px;outline:none;transition:border-color .2s}
+.chat-input-row input:focus{border-color:var(--accent3)}
+.chat-input-row input::placeholder{color:var(--muted)}
+
+.deleted-item{display:flex;align-items:center;gap:1rem;padding:1rem;background:var(--surface);border:1px solid rgba(255,110,127,.15);border-radius:12px;margin-bottom:.5rem}
+.deleted-info{flex:1;min-width:0}
+.deleted-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem}
+.deleted-meta{font-size:.62rem;color:var(--muted);margin-top:.2rem}
+.deleted-actions{display:flex;gap:.4rem;flex-shrink:0}
+
+#toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:.7rem 1.2rem;font-size:.75rem;color:var(--text);transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:280px}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.s{border-color:var(--accent);color:var(--accent)}
+#toast.e{border-color:var(--accent2);color:var(--accent2)}
+
+.search-bar{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.72rem;padding:.55rem .9rem;border-radius:8px;outline:none;transition:border-color .2s;max-width:280px;width:100%}
+.search-bar:focus{border-color:var(--accent2)}
+.search-bar::placeholder{color:var(--muted)}
+.empty{text-align:center;padding:3rem;color:var(--muted);font-size:.75rem}
+.empty .big{font-size:2rem;margin-bottom:.5rem}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:800;display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:500px;padding:1.75rem;position:relative}
+.modal h2{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem}
+.modal-close:hover{color:var(--text)}
+.modal .f-group{margin-bottom:1rem}
+.modal .f-group label{display:block;font-size:.62rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem}
+.modal .f-group input,.modal .f-group textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.8rem;padding:.65rem .9rem;border-radius:8px;outline:none;transition:border-color .2s}
+.modal .f-group input:focus,.modal .f-group textarea:focus{border-color:var(--accent)}
+.modal .f-group textarea{resize:vertical;min-height:120px}
+
+.announce-preview{background:linear-gradient(90deg,rgba(255,110,127,.08),rgba(255,216,110,.05));border:1px solid rgba(255,110,127,.2);border-radius:8px;padding:.65rem 1rem;font-size:.75rem;display:none;align-items:center;gap:.5rem;margin-top:.5rem}
+.announce-preview.show{display:flex}
+.announce-badge{background:var(--accent2);color:#fff;font-size:.5rem;font-weight:700;padding:.15rem .4rem;border-radius:4px;letter-spacing:.08em;flex-shrink:0}
+.admin-list-item{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;margin-bottom:.5rem}
+.admin-list-email{font-size:.78rem;color:var(--accent3)}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+@media(max-width:768px){#sidebar{width:56px}.nav-btn .label{display:none}.nav-btn{justify-content:center;padding:.7rem}.sidebar-section{display:none}#content{padding:1rem}}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div style="font-size:2rem;margin-bottom:.75rem">⚙️</div>
+    <h1>Remote <span>Admin</span></h1>
+    <p>HTML Library — Owner &amp; Admin Access Only</p>
+    <div class="lg-field"><label>Email</label><input type="email" id="lg-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <div class="lg-field"><label>Password</label><input type="password" id="lg-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+    <button class="lg-btn" id="lg-btn" onclick="doLogin()">ACCESS ADMIN PANEL</button>
+    <div class="lg-err" id="lg-err"></div>
+  </div>
+</div>
+
+<div id="topbar">
+  <div class="topbar-logo">⚙ Admin <span class="pill">DUAL DB</span></div>
+  <span class="live-badge">● LIVE</span>
+  <div class="db-indicator"><span class="db-dot"></span>OLD DB + NEW DB</div>
+  <div class="topbar-user">
+    <span class="topbar-dot"></span>
+    <span id="topbar-email"></span>
+    <span id="topbar-role" style="font-size:.6rem;color:var(--accent4)"></span>
+    <button class="topbar-signout" onclick="doSignOut()">Sign Out</button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="sidebar">
+    <div class="sidebar-section">Main</div>
+    <button class="nav-btn active" data-tab="overview" onclick="switchTab('overview',this)"><span class="icon">📊</span><span class="label">Overview</span></button>
+    <button class="nav-btn" data-tab="users" onclick="switchTab('users',this)"><span class="icon">👥</span><span class="label">Users</span></button>
+    <button class="nav-btn" data-tab="books" onclick="switchTab('books',this)"><span class="icon">📚</span><span class="label">Books</span></button>
+    <button class="nav-btn" data-tab="chat" onclick="switchTab('chat',this)"><span class="icon">💬</span><span class="label">Chat</span><span class="nav-badge" id="chat-nav-badge" style="display:none">0</span></button>
+    <div class="sidebar-section">Moderation</div>
+    <button class="nav-btn" data-tab="deleted" onclick="switchTab('deleted',this)"><span class="icon">🗑</span><span class="label">Deleted</span></button>
+    <button class="nav-btn" data-tab="activity" onclick="switchTab('activity',this)"><span class="icon">📋</span><span class="label">Activity</span></button>
+    <button class="nav-btn" data-tab="admins" onclick="switchTab('admins',this)" id="admins-nav" style="display:none"><span class="icon">🔑</span><span class="label">Admins</span></button>
+    <div class="sidebar-section">Site</div>
+    <button class="nav-btn" data-tab="tools" onclick="switchTab('tools',this)"><span class="icon">🛠</span><span class="label">Tools</span></button>
+    <button class="nav-btn" data-tab="access" onclick="switchTab('access',this)" id="access-nav" style="display:none"><span class="icon">🔐</span><span class="label">Access</span></button>
+  </div>
+
+  <div id="content">
+
+    <!-- OVERVIEW -->
+    <div class="panel active" id="tab-overview">
+      <div class="section-title">📊 Platform Overview <span class="sub">Both databases · Live</span></div>
+      <div class="stat-row">
+        <div class="stat-card g"><div class="sc-icon">👥</div><div class="sc-num g" id="st-users">—</div><div class="sc-label">Total Users</div></div>
+        <div class="stat-card b"><div class="sc-icon">📚</div><div class="sc-num b" id="st-books">—</div><div class="sc-label">Total Books</div></div>
+        <div class="stat-card r"><div class="sc-icon">♥</div><div class="sc-num r" id="st-likes">—</div><div class="sc-label">Total Likes</div></div>
+        <div class="stat-card y"><div class="sc-icon">👁</div><div class="sc-num y" id="st-views">—</div><div class="sc-label">Total Views</div></div>
+        <div class="stat-card p"><div class="sc-icon">⏱</div><div class="sc-num p" id="st-time">—</div><div class="sc-label">Playtime</div></div>
+        <div class="stat-card b"><div class="sc-icon">💬</div><div class="sc-num b" id="st-comments">—</div><div class="sc-label">Comments</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div>
+          <div class="section-title" style="margin-bottom:.75rem">📚 New DB Books <span class="sub">Top by likes</span></div>
+          <div class="table-wrap"><table><thead><tr><th>#</th><th>Title</th><th>♥</th><th>👁</th></tr></thead><tbody id="top-new-books"></tbody></table></div>
+        </div>
+        <div>
+          <div class="section-title" style="margin-bottom:.75rem">📦 Old DB Books <span class="sub">Top by likes</span></div>
+          <div class="table-wrap"><table><thead><tr><th>#</th><th>Title</th><th>♥</th><th>👁</th></tr></thead><tbody id="top-old-books"></tbody></table></div>
+        </div>
+      </div>
+      <div class="section-title">🌟 Top Users <span class="sub">By new DB book count</span></div>
+      <div class="table-wrap"><table><thead><tr><th>User</th><th>Books</th><th>Likes Rcvd</th><th>Last Seen</th></tr></thead><tbody id="top-users-body"></tbody></table></div>
+    </div>
+
+    <!-- USERS -->
+    <div class="panel" id="tab-users">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+        <div class="section-title">👥 All Users</div>
+        <input class="search-bar" type="text" id="user-search" placeholder="Search users..." oninput="renderUsers()"/>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>User</th><th>Email</th><th>Joined</th><th>Last Seen</th><th>Time</th><th>Books</th><th>Status</th><th>Actions</th></tr></thead><tbody id="users-body"></tbody></table></div>
+    </div>
+
+    <!-- BOOKS -->
+    <div class="panel" id="tab-books">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+        <div class="section-title">📚 All Books <span class="sub" id="books-sub"></span></div>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+          <select id="db-filter" onchange="renderBooks()" style="background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:.68rem;padding:.4rem .6rem;border-radius:6px;outline:none">
+            <option value="all">All DBs</option>
+            <option value="new">New DB only</option>
+            <option value="old">Old DB only</option>
+          </select>
+          <input class="search-bar" type="text" id="book-search" placeholder="Search books..." oninput="renderBooks()"/>
+        </div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Title</th><th>Author</th><th>DB</th><th>Published</th><th>♥</th><th>👁</th><th>Size</th><th>Flags</th><th>Actions</th></tr></thead><tbody id="books-body"></tbody></table></div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="panel" id="tab-chat">
+      <div class="chat-wrap">
+        <div class="chat-header-bar">
+          <div class="section-title">💬 Live Chat <span class="sub" id="chat-count-label"></span></div>
+          <button class="btn btn-danger btn-sm" onclick="clearAllChat()">🗑 Clear All</button>
+        </div>
+        <div class="chat-messages-box" id="chat-messages-box"><div class="chat-empty-state">No messages yet</div></div>
+        <div class="chat-input-row">
+          <input type="text" id="admin-chat-input" placeholder="Send a message as admin..." maxlength="400" onkeydown="if(event.key==='Enter')sendAdminChat()"/>
+          <button class="btn btn-primary btn-sm" onclick="sendAdminChat()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETED -->
+    <div class="panel" id="tab-deleted">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+        <div class="section-title">🗑 Recently Deleted <span class="sub">Last 30 days · New DB</span></div>
+        <button class="btn btn-danger btn-sm" onclick="clearDeletedHistory()">Clear History</button>
+      </div>
+      <div id="deleted-list"><div class="empty"><div class="big">🗑</div>No deleted books</div></div>
+    </div>
+
+    <!-- ACTIVITY -->
+    <div class="panel" id="tab-activity">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="section-title">📋 Activity Log <span class="sub">New DB</span></div>
+        <button class="btn btn-danger btn-sm" onclick="clearActivity()">Clear Log</button>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem;overflow-y:auto;max-height:600px">
+        <div id="activity-log"><div class="empty"><div class="big">📋</div>No activity</div></div>
+      </div>
+    </div>
+
+    <!-- ADMINS -->
+    <div class="panel" id="tab-admins">
+      <div class="section-title">🔑 Admin Management <span class="sub">Owner only · New DB</span></div>
+      <div class="tool-box" style="max-width:500px">
+        <h3>Grant Admin Access</h3>
+        <p>Enter the email of the user to promote. They gain access to this admin panel and admin features on the main site.</p>
+        <input type="email" id="grant-email" placeholder="user@example.com"/>
+        <button class="btn btn-primary" onclick="grantAdmin()">✓ Grant Admin</button>
+      </div>
+      <div class="section-title">Current Admins</div>
+      <div id="admins-list"><div class="empty"><div class="big">🔑</div>No extra admins yet</div></div>
+    </div>
+
+    <!-- TOOLS -->
+    <div class="panel" id="tab-tools">
+      <div class="section-title">🛠 Admin Tools</div>
+      <div class="tool-grid">
+        <div class="tool-box">
+          <h3>📢 Site Announcement</h3>
+          <p>Post a banner that appears at the top of the site for all users. Your name is shown alongside the message. Stored in New DB.</p>
+          <textarea id="announce-text" placeholder="Your announcement..." oninput="updateAnnouncePreview()"></textarea>
+          <div class="announce-preview" id="announce-preview"><span class="announce-badge">📢 ADMIN</span><span id="announce-preview-text" style="font-size:.72rem;color:var(--text)"></span></div>
+          <div class="row" style="margin-top:.75rem">
+            <button class="btn btn-primary btn-sm" onclick="postAnnouncement()">📢 Post</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAnnouncement()">✕ Clear</button>
+          </div>
+        </div>
+        <div class="tool-box">
+          <h3>🔧 Maintenance Mode</h3>
+          <p>When ON, regular users cannot upload new books. Admins are unaffected. Stored in New DB.</p>
+          <div id="maintenance-status-box" style="margin-bottom:.75rem;font-size:.78rem;color:var(--muted)">Status: checking...</div>
+          <button class="btn btn-ghost btn-sm" onclick="toggleMaintenance()">Toggle Maintenance</button>
+        </div>
+        <div class="tool-box">
+          <h3>🗑 Bulk Delete (New DB)</h3>
+          <p>Delete all New DB books by a specific user email. Protected books are skipped unless you are the owner.</p>
+          <input type="email" id="bulk-email" placeholder="user@example.com"/>
+          <button class="btn btn-danger btn-sm" onclick="bulkDelete()">Delete All Books from User</button>
+        </div>
+        <div class="tool-box">
+          <h3>📤 Export Data</h3>
+          <p>Download a JSON export of books (both DBs merged) or users (New DB) for backup or analysis.</p>
+          <div class="row">
+            <button class="btn btn-ghost btn-sm" onclick="exportData('books')">📚 Books JSON</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportData('users')">👥 Users JSON</button>
+          </div>
+        </div>
+        <div class="tool-box">
+          <h3>📨 Broadcast Notification</h3>
+          <p>Send a notification to every registered user (New DB users) at once. Use sparingly.</p>
+          <input type="text" id="broadcast-msg" placeholder="Your message to all users..."/>
+          <button class="btn btn-warn btn-sm" onclick="broadcastNotif()">📨 Send to All Users</button>
+        </div>
+        <div class="tool-box">
+          <h3>🧹 Clear Chat History</h3>
+          <p>Permanently delete all messages from the community chat (New DB). Cannot be undone.</p>
+          <button class="btn btn-danger btn-sm" onclick="clearAllChat()">🧹 Clear All Chat Messages</button>
+        </div>
+        <div class="tool-box">
+          <h3>📌 Manage Pinned Books</h3>
+          <p>Pin up to 3 books from the New DB. Pinned books appear at the top of the library for everyone.</p>
+          <input type="text" id="pin-book-id" placeholder="New DB book ID (e.g. -Nabc123...)"/>
+          <div class="row">
+            <button class="btn btn-primary btn-sm" onclick="pinBook()">📌 Pin Book</button>
+            <button class="btn btn-danger btn-sm" onclick="unpinAll()">✕ Unpin All</button>
+          </div>
+          <div id="pinned-list" style="margin-top:.75rem;font-size:.7rem;color:var(--muted)">Loading...</div>
+        </div>
+        <div class="tool-box">
+          <h3>⛔ Force Sign Out</h3>
+          <p>Force a user to sign out immediately by their UID. Find their UID in the Users tab.</p>
+          <input type="text" id="kick-uid" placeholder="User UID"/>
+          <button class="btn btn-danger btn-sm" onclick="forceSignoutByUid()">⏻ Force Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCESS -->
+    <div class="panel" id="tab-access">
+      <div class="section-title">🔐 Access Control <span class="sub">Owner only · New DB</span></div>
+      <div style="max-width:500px;display:flex;flex-direction:column;gap:.75rem">
+        <div class="status-row"><div><div class="status-label">Login Access</div><div class="status-sub" id="login-status">Users can sign in</div></div><button class="btn btn-ghost btn-sm" onclick="toggleLogin()">Toggle</button></div>
+        <div class="status-row"><div><div class="status-label">New Registrations</div><div class="status-sub" id="signup-status">New accounts allowed</div></div><button class="btn btn-ghost btn-sm" onclick="toggleSignup()">Toggle</button></div>
+        <div class="status-row"><div><div class="status-label">Maintenance Mode</div><div class="status-sub" id="maint-status-access">Uploads enabled</div></div><button class="btn btn-ghost btn-sm" onclick="toggleMaintenance()">Toggle</button></div>
+      </div>
+      <div class="section-title" style="margin-top:.5rem">⛔ Quick Ban by Email</div>
+      <div class="tool-box" style="max-width:500px">
+        <h3>Quick Ban</h3>
+        <p>Find a user by email and ban them. They will see the ban screen and lose all access.</p>
+        <input type="email" id="ban-email" placeholder="user@example.com"/>
+        <button class="btn btn-danger btn-sm" onclick="quickBan()">⛔ Ban User</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- EDIT BOOK MODAL -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h2>✎ Edit Book <button class="modal-close" onclick="closeModal('edit-modal')">✕</button></h2>
+    <div class="f-group"><label>Title</label><input type="text" id="edit-title"/></div>
+    <div class="f-group"><label>Description</label><input type="text" id="edit-desc"/></div>
+    <div class="f-group"><label>HTML Code</label><textarea id="edit-code" style="min-height:200px;font-size:.68rem"></textarea></div>
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+      <input type="checkbox" id="edit-open" style="accent-color:var(--accent);width:15px;height:15px"/>
+      <label for="edit-open" style="font-size:.75rem;cursor:pointer">Allow others to view source code</label>
+    </div>
+    <input type="hidden" id="edit-id"/>
+    <input type="hidden" id="edit-db"/>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('edit-modal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,push,set,get,onValue,update,remove}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const OWNER_EMAIL='matthewbozhe@gmail.com';
+
+// ── OLD DB (read only for books, auth lives here) ─────────────────────────
+const oldCfg={apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",databaseURL:"https://htmltools-library-default-rtdb.firebaseio.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"};
+const oldApp=initializeApp(oldCfg,'old');
+const oldDb=getDatabase(oldApp);
+const auth=getAuth(oldApp);
+
+// ── NEW DB (main writable db) ─────────────────────────────────────────────
+const newCfg={apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"};
+const newApp=initializeApp(newCfg,'new');
+const newDb=getDatabase(newApp);
+
+let currentUser=null;
+let allBooksOld={},allBooksNew={},allBooks={};
+let allUsers={},allComments={},allActivity=[],allChat={};
+let recentlyDeleted=[],bannedUsers={},extraAdmins={};
+let maintenanceMode=false,loginDisabled=false,signupDisabled=false;
+let deletedOldBooks={},pinnedBooks={};
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+function ago(ts){if(!ts)return'—';const d=Date.now()-ts;if(d<60000)return'just now';if(d<3600000)return Math.floor(d/60000)+'m ago';if(d<86400000)return Math.floor(d/3600000)+'h ago';if(d<2592000000)return Math.floor(d/86400000)+'d ago';return Math.floor(d/2592000000)+'mo ago';}
+function fmt(s){if(!s||s<1)return'0s';if(s<60)return s+'s';const m=Math.floor(s/60);if(m<60)return m+' min';const h=Math.floor(m/60),mn=m%60;return mn>0?`${h}h ${mn}m`:`${h}h`;}
+function avGrad(uid){const c=[['#7fff6e','#6ea8ff'],['#ff6e7f','#ffd86e'],['#6ea8ff','#a78bfa'],['#ffd86e','#7fff6e'],['#a78bfa','#ff6e7f']];const i=uid?uid.charCodeAt(0)%c.length:0;return`linear-gradient(135deg,${c[i][0]},${c[i][1]})`;}
+window.toast=function(msg,type='s'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;clearTimeout(window._tt);window._tt=setTimeout(()=>{t.className='';},3000);};
+window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
+
+function isOwner(u){return u&&u.email&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase()}
+function isAdminUser(u){
+  if(!u||!u.email)return false;
+  if(isOwner(u))return true;
+  return Object.values(extraAdmins).some(v=>{
+    if(!v)return false;
+    if(typeof v==='string')return v.toLowerCase()===u.email.toLowerCase();
+    if(typeof v==='object'&&v.email)return v.email.toLowerCase()===u.email.toLowerCase();
+    return false;
+  });
+}
+
+function mergeBooks(){
+  allBooks={};
+  Object.entries(allBooksOld).forEach(([id,b])=>{if(b&&b.title&&!deletedOldBooks[id])allBooks['old_'+id]={...b,_db:'old',_origId:id};});
+  Object.entries(allBooksNew).forEach(([id,b])=>{if(b&&b.title)allBooks['new_'+id]={...b,_db:'new',_origId:id};});
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+window.doLogin=async function(){
+  const email=document.getElementById('lg-email').value.trim();
+  const pass=document.getElementById('lg-password').value;
+  const err=document.getElementById('lg-err');
+  const btn=document.getElementById('lg-btn');
+  err.style.display='none';
+  if(!email||!pass){err.textContent='Please fill in all fields.';err.style.display='block';return;}
+  btn.disabled=true;btn.textContent='...';
+  try{await signInWithEmailAndPassword(auth,email,pass);}
+  catch(e){err.textContent=e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();err.style.display='block';btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';}
+};
+window.doSignOut=async function(){await fbSignOut(auth);};
+
+onAuthStateChanged(auth,async user=>{
+  currentUser=user;
+  if(!user){
+    document.getElementById('login-screen').classList.remove('hide');
+    document.getElementById('lg-btn').disabled=false;
+    document.getElementById('lg-btn').textContent='ACCESS ADMIN PANEL';
+    return;
+  }
+  // load adminEmails from NEW DB
+  const snap=await get(ref(newDb,'siteConfig/adminEmails'));
+  extraAdmins=snap.val()||{};
+  if(!isAdminUser(user)){
+    await fbSignOut(auth);
+    const err=document.getElementById('lg-err');
+    err.textContent='Access denied. You are not an admin.';
+    err.style.display='block';
+    document.getElementById('lg-btn').disabled=false;
+    document.getElementById('lg-btn').textContent='ACCESS ADMIN PANEL';
+    return;
+  }
+  document.getElementById('login-screen').classList.add('hide');
+  document.getElementById('topbar-email').textContent=user.email;
+  document.getElementById('topbar-role').textContent=isOwner(user)?'👑 OWNER':'⚙ ADMIN';
+  if(isOwner(user)){
+    document.getElementById('admins-nav').style.display='flex';
+    document.getElementById('access-nav').style.display='flex';
+  }
+  startListeners();
+});
+
+function startListeners(){
+  // OLD DB — books only (read-only)
+  onValue(ref(oldDb,'books'),snap=>{allBooksOld=snap.val()||{};mergeBooks();refreshActive();});
+
+  // NEW DB — everything
+  onValue(ref(newDb,'books'),snap=>{allBooksNew=snap.val()||{};mergeBooks();refreshActive();});
+  onValue(ref(newDb,'users'),snap=>{allUsers=snap.val()||{};refreshActive();});
+  onValue(ref(newDb,'comments'),snap=>{allComments=snap.val()||{};refreshActive();});
+  onValue(ref(newDb,'bannedUsers'),snap=>{bannedUsers=snap.val()||{};refreshActive();});
+  onValue(ref(newDb,'siteConfig/adminEmails'),snap=>{extraAdmins=snap.val()||{};if(currentTab==='admins')renderAdmins();});
+  onValue(ref(newDb,'siteConfig/deletedOldBooks'),snap=>{deletedOldBooks=snap.val()||{};mergeBooks();refreshActive();});
+  onValue(ref(newDb,'siteConfig/pinnedBooks'),snap=>{pinnedBooks=snap.val()||{};renderPinnedList();});
+  onValue(ref(newDb,'siteConfig/maintenance'),snap=>{
+    maintenanceMode=snap.val()||false;
+    const s=document.getElementById('maintenance-status-box');
+    if(s){s.textContent=`Status: ${maintenanceMode?'🔧 ON — uploads disabled':'✅ OFF — normal'}`;s.style.color=maintenanceMode?'var(--accent4)':'var(--accent)';}
+    const ms=document.getElementById('maint-status-access');
+    if(ms){ms.textContent=maintenanceMode?'🔧 Uploads disabled':'✅ Uploads enabled';ms.style.color=maintenanceMode?'var(--accent4)':'var(--accent)';}
+  });
+  onValue(ref(newDb,'siteConfig/loginDisabled'),snap=>{
+    loginDisabled=snap.val()||false;
+    const s=document.getElementById('login-status');
+    if(s){s.textContent=loginDisabled?'🔒 Login disabled':'✅ Users can sign in';s.style.color=loginDisabled?'var(--accent2)':'var(--accent)';}
+  });
+  onValue(ref(newDb,'siteConfig/signupDisabled'),snap=>{
+    signupDisabled=snap.val()||false;
+    const s=document.getElementById('signup-status');
+    if(s){s.textContent=signupDisabled?'🔒 Registrations closed':'✅ New accounts allowed';s.style.color=signupDisabled?'var(--accent2)':'var(--accent)';}
+  });
+  onValue(ref(newDb,'siteConfig/announcement'),snap=>{
+    const raw=snap.val();
+    const ta=document.getElementById('announce-text');
+    const preview=document.getElementById('announce-preview');
+    const previewText=document.getElementById('announce-preview-text');
+    if(!raw){if(ta)ta.value='';if(preview)preview.classList.remove('show');return;}
+    let inputMsg='',displayMsg='';
+    if(typeof raw==='string'){inputMsg=raw;displayMsg=raw;}
+    else if(typeof raw==='object'){inputMsg=raw.text||'';const poster=raw.postedBy||'';displayMsg=poster?`${poster}: ${inputMsg}`:inputMsg;}
+    if(ta)ta.value=inputMsg;
+    if(previewText)previewText.textContent=displayMsg;
+    if(preview){if(inputMsg)preview.classList.add('show');else preview.classList.remove('show');}
+  });
+  onValue(ref(newDb,'recentlyDeleted'),snap=>{
+    const data=snap.val()||{};
+    recentlyDeleted=Object.entries(data).map(([id,b])=>({...b,_id:id})).filter(b=>(Date.now()-(b.deletedAt||0))<30*24*3600*1000).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
+    if(currentTab==='deleted')renderDeleted();
+  });
+  onValue(ref(newDb,'activityLog'),snap=>{
+    const data=snap.val()||{};
+    allActivity=Object.entries(data).map(([id,a])=>({...a,id})).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,300);
+    if(currentTab==='activity')renderActivity();
+  });
+  onValue(ref(newDb,'chat'),snap=>{
+    allChat=snap.val()||{};
+    const count=Object.values(allChat).filter(m=>m).length;
+    const badge=document.getElementById('chat-nav-badge');
+    if(count>0){badge.textContent=count;badge.style.display='inline-flex';}else badge.style.display='none';
+    const cl=document.getElementById('chat-count-label');
+    if(cl)cl.textContent=`${count} message${count!==1?'s':''}`;
+    if(currentTab==='chat')renderChat();
+  });
+}
+
+// ── TAB ───────────────────────────────────────────────────────────────────
+let currentTab='overview';
+window.switchTab=function(tab,el){
+  currentTab=tab;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const panel=document.getElementById(`tab-${tab}`);if(panel)panel.classList.add('active');
+  refreshActive();
+};
+function refreshActive(){
+  if(currentTab==='overview')renderOverview();
+  else if(currentTab==='users')renderUsers();
+  else if(currentTab==='books')renderBooks();
+  else if(currentTab==='chat')renderChat();
+  else if(currentTab==='deleted')renderDeleted();
+  else if(currentTab==='activity')renderActivity();
+  else if(currentTab==='admins')renderAdmins();
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────
+function renderOverview(){
+  const allBooksArr=Object.values(allBooks).filter(b=>b&&b.title);
+  const users=Object.values(allUsers);
+  let totalComments=0;Object.values(allComments).forEach(bc=>{totalComments+=Object.keys(bc||{}).length;});
+  document.getElementById('st-users').textContent=users.length;
+  document.getElementById('st-books').textContent=Object.keys(allBooks).length;
+  document.getElementById('st-likes').textContent=allBooksArr.reduce((s,b)=>s+(b.likes||0),0);
+  document.getElementById('st-views').textContent=allBooksArr.reduce((s,b)=>s+(b.views||0),0).toLocaleString();
+  document.getElementById('st-time').textContent=fmt(allBooksArr.reduce((s,b)=>s+(b.playtimeSeconds||0),0));
+  document.getElementById('st-comments').textContent=totalComments;
+
+  const newBooks=Object.entries(allBooksNew).filter(([,b])=>b&&b.title).sort((a,b)=>(b[1].likes||0)-(a[1].likes||0)).slice(0,5);
+  document.getElementById('top-new-books').innerHTML=newBooks.length?newBooks.map(([id,b],i)=>`<tr><td style="color:var(--muted);font-weight:700">#${i+1}</td><td style="font-weight:700;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title)}</td><td style="color:var(--accent2)">♥ ${b.likes||0}</td><td style="color:var(--accent3)">👁 ${(b.views||0).toLocaleString()}</td></tr>`).join(''):'<tr><td colspan="4"><div class="empty">No books</div></td></tr>';
+
+  const oldBooks=Object.entries(allBooksOld).filter(([id,b])=>b&&b.title&&!deletedOldBooks[id]).sort((a,b)=>(b[1].likes||0)-(a[1].likes||0)).slice(0,5);
+  document.getElementById('top-old-books').innerHTML=oldBooks.length?oldBooks.map(([id,b],i)=>`<tr><td style="color:var(--muted);font-weight:700">#${i+1}</td><td style="font-weight:700;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title)}</td><td style="color:var(--accent2)">♥ ${b.likes||0}</td><td style="color:var(--accent3)">👁 ${(b.views||0).toLocaleString()}</td></tr>`).join(''):'<tr><td colspan="4"><div class="empty">No books</div></td></tr>';
+
+  const topUsers=Object.entries(allUsers).map(([uid,u])=>{const mb=Object.values(allBooksNew).filter(b=>b&&b.ownerId===uid);return{...u,uid,bc:mb.length,tl:mb.reduce((s,b)=>s+(b.likes||0),0)};}).sort((a,b)=>b.bc-a.bc).slice(0,5);
+  document.getElementById('top-users-body').innerHTML=topUsers.length?topUsers.map(u=>`<tr><td><div style="display:flex;align-items:center;gap:.5rem"><div class="av" style="background:${avGrad(u.uid)}">${(u.displayName||u.email||'?').charAt(0).toUpperCase()}</div><div style="font-size:.75rem;font-weight:700">${esc(u.displayName||'Anon')}</div></div></td><td style="color:var(--accent3);font-weight:700">${u.bc}</td><td style="color:var(--accent2)">♥ ${u.tl}</td><td class="mono">${ago(u.lastSignIn)}</td></tr>`).join(''):'<tr><td colspan="4"><div class="empty">No users</div></td></tr>';
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────
+window.renderUsers=function(){
+  const q=(document.getElementById('user-search')?.value||'').toLowerCase();
+  const tbody=document.getElementById('users-body');
+  const users=Object.entries(allUsers).filter(([,u])=>{if(!u)return false;if(q&&!(u.displayName||'').toLowerCase().includes(q)&&!(u.email||'').toLowerCase().includes(q))return false;return true;}).sort((a,b)=>(b[1].lastSignIn||0)-(a[1].lastSignIn||0));
+  if(!users.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="big">👥</div>No users</div></td></tr>';return;}
+  tbody.innerHTML=users.map(([uid,u])=>{
+    const mb=Object.values(allBooksNew).filter(b=>b&&b.ownerId===uid).length;
+    const isBanned=!!bannedUsers[uid];
+    const isOwnerU=u.email&&u.email.toLowerCase()===OWNER_EMAIL;
+    const isAdminU=!isOwnerU&&u.email&&Object.values(extraAdmins).some(v=>typeof v==='string'?v.toLowerCase()===u.email.toLowerCase():(v?.email||'').toLowerCase()===u.email.toLowerCase());
+    const online=(Date.now()-(u.lastSignIn||0))<5*60*1000;
+    return`<tr><td><div style="display:flex;align-items:center;gap:.5rem"><div class="av" style="background:${avGrad(uid)}">${(u.displayName||u.email||'?').charAt(0).toUpperCase()}</div><div><div style="font-size:.73rem;font-weight:700">${esc(u.displayName||'Anon')}</div><div class="mono" style="font-size:.55rem">${uid.substring(0,8)}...</div>${isOwnerU?'<span class="badge-owner">OWNER</span>':isAdminU?'<span class="badge-admin">ADMIN</span>':''}</div></div></td><td class="mono">${esc(u.email||'')}</td><td class="mono">${ago(u.joinedAt)}</td><td class="mono">${ago(u.lastSignIn)}</td><td style="color:var(--accent4)">${fmt(u.totalTimeSeconds||0)}</td><td>${mb}</td><td>${isBanned?'<span class="pill pill-ban">⛔ BANNED</span>':online?'<span class="pill pill-on">● ONLINE</span>':'<span class="pill pill-off">○ OFFLINE</span>'}</td><td><div class="actions">${!isOwnerU?`${isBanned?`<button class="btn btn-ghost btn-xs" onclick="unban('${uid}','${esc(u.displayName||u.email)}')">✓ Unban</button>`:`<button class="btn btn-danger btn-xs" onclick="banUser('${uid}','${esc(u.displayName||u.email||uid)}')">⛔ Ban</button>`}<button class="btn btn-warn btn-xs" onclick="forceOut('${uid}','${esc(u.displayName||u.email)}')">⏻ Kick</button><button class="btn btn-ghost btn-xs" onclick="notifUser('${uid}')">📢</button><button class="btn btn-danger btn-xs" onclick="delUserBooks('${uid}','${esc(u.email||uid)}')">🗑 Books</button>`:'<span style="font-size:.6rem;color:var(--accent4)">👑 owner</span>'}</div></td></tr>`;
+  }).join('');
+};
+
+window.banUser=async function(uid,name){if(!isOwner(currentUser)){toast('Only the owner can ban','e');return;}if(!confirm(`Ban "${name}"?`))return;await set(ref(newDb,`bannedUsers/${uid}`),{bannedAt:Date.now(),bannedBy:currentUser.uid,name});logAct('ban',`Owner banned ${name}`);toast(`${name} banned`,'s');};
+window.unban=async function(uid,name){if(!isOwner(currentUser)){toast('Only the owner can unban','e');return;}await remove(ref(newDb,`bannedUsers/${uid}`));logAct('unban',`Owner unbanned ${name}`);toast(`${name} unbanned`,'s');};
+window.forceOut=async function(uid,name){if(!confirm(`Force sign out "${name}"?`))return;await set(ref(newDb,`forceSignout/${uid}`),{by:currentUser.email,at:Date.now()});logAct('kick',`Admin kicked ${name}`);toast(`${name} kicked`,'s');};
+window.notifUser=async function(uid){const msg=prompt('Notification message:');if(!msg)return;await set(push(ref(newDb,`notifications/${uid}`)),{type:'admin',message:`[Admin] ${msg}`,createdAt:Date.now(),read:false});toast('Notification sent','s');};
+window.delUserBooks=async function(uid,email){
+  if(!confirm(`Delete ALL new DB books by ${email}?`))return;
+  const userBooks=Object.entries(allBooksNew).filter(([,b])=>b&&b.ownerId===uid);
+  for(const[id,book]of userBooks){
+    if(book.undeletable&&!isOwner(currentUser))continue;
+    const{_db:_d,_origId:_o,...clean}=book;
+    try{await set(push(ref(newDb,'recentlyDeleted')),{...clean,originalId:'new_'+id,deletedAt:Date.now(),deletedBy:currentUser.email});}catch(e){}
+    await remove(ref(newDb,'books/'+id));
+    try{await remove(ref(newDb,'comments/new_'+id));}catch(e){}
+  }
+  logAct('delete',`Admin deleted all new DB books by ${email}`);
+  toast('Books deleted','s');
+};
+
+// ── BOOKS ─────────────────────────────────────────────────────────────────
+window.renderBooks=function(){
+  const q=(document.getElementById('book-search')?.value||'').toLowerCase();
+  const dbf=(document.getElementById('db-filter')?.value||'all');
+  const tbody=document.getElementById('books-body');
+  const sub=document.getElementById('books-sub');
+
+  let entries=Object.entries(allBooks).filter(([id,b])=>{
+    if(!b||!b.title)return false;
+    if(dbf==='new'&&b._db!=='new')return false;
+    if(dbf==='old'&&b._db!=='old')return false;
+    if(q&&!b.title.toLowerCase().includes(q)&&!(b.ownerName||'').toLowerCase().includes(q))return false;
+    return true;
+  }).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+
+  if(sub)sub.textContent=`${entries.length} book${entries.length!==1?'s':''}`;
+  if(!entries.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty"><div class="big">📚</div>No books</div></td></tr>';return;}
+
+  tbody.innerHTML=entries.map(([id,b])=>{
+    const isProtected=!!b.undeletable;
+    const canEdit=b._db==='new';
+    const canDel=(b._db==='new'&&(isOwner(currentUser)||!isProtected))||(b._db==='old');
+    const sz=b.code?(new Blob([b.code]).size/1024).toFixed(1):'0';
+    const dbBadge=b._db==='new'?'<span class="badge-new">NEW</span>':'<span class="badge-old">OLD</span>';
+    return`<tr><td style="font-weight:700;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(b.title)}">${esc(b.title)}</td><td class="mono">${esc(b.ownerName||'?')}</td><td>${dbBadge}</td><td class="mono">${ago(b.createdAt)}</td><td style="color:var(--accent2)">♥ ${b.likes||0}</td><td style="color:var(--accent3)">👁 ${(b.views||0).toLocaleString()}</td><td class="mono">${sz} KB</td><td>${isProtected?'<span class="badge badge-blue">🔒 Protected</span>':''}</td><td><div class="actions">${canEdit?`<button class="btn btn-ghost btn-xs" onclick="openEdit('${id}')">✎</button>`:'<span style="font-size:.55rem;color:var(--muted)">R/O</span>'}${canDel?`<button class="btn btn-danger btn-xs" onclick="deleteBook('${id}')">✕</button>`:'<span style="font-size:.55rem;color:var(--muted)">🔒</span>'}</div></td></tr>`;
+  }).join('');
+};
+
+window.openEdit=function(id){
+  const b=allBooks[id];if(!b||b._db!=='new')return;
+  document.getElementById('edit-id').value=b._origId;
+  document.getElementById('edit-db').value='new';
+  document.getElementById('edit-title').value=b.title||'';
+  document.getElementById('edit-desc').value=b.desc||'';
+  document.getElementById('edit-code').value=b.code||'';
+  document.getElementById('edit-open').checked=!!b.allowViewCode;
+  document.getElementById('edit-modal').classList.add('open');
+};
+
+window.saveEdit=async function(){
+  const id=document.getElementById('edit-id').value;
+  const title=document.getElementById('edit-title').value.trim();
+  const desc=document.getElementById('edit-desc').value.trim();
+  const code=document.getElementById('edit-code').value;
+  const allowViewCode=document.getElementById('edit-open').checked;
+  if(!title){toast('Title required','e');return;}
+  await update(ref(newDb,'books/'+id),{title,desc,code,allowViewCode,updatedAt:Date.now()});
+  logAct('edit',`Admin edited book "${title}"`);
+  toast('Book updated','s');
+  closeModal('edit-modal');
+};
+
+window.deleteBook=async function(id){
+  const b=allBooks[id];if(!b)return;
+  if(b.undeletable&&!isOwner(currentUser)){toast('Book is protected — owner only','e');return;}
+  if(!confirm(`Delete "${b.title}"?`))return;
+
+  if(b._db==='new'){
+    const{_db:_d,_origId:_o,...clean}=b;
+    try{await set(push(ref(newDb,'recentlyDeleted')),{...clean,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email});}catch(e){}
+    await remove(ref(newDb,'books/'+b._origId));
+    try{await remove(ref(newDb,'comments/'+id));}catch(e){}
+    try{await remove(ref(newDb,'playSessions/'+id));}catch(e){}
+  } else {
+    // Flag old book as deleted in new DB
+    await set(ref(newDb,'siteConfig/deletedOldBooks/'+b._origId),true);
+    try{await remove(ref(newDb,'bookMirror/oldmirror_'+b._origId));}catch(e){}
+  }
+
+  if(pinnedBooks[id]){try{await remove(ref(newDb,'siteConfig/pinnedBooks/'+id));}catch(e){}}
+  logAct('delete',`Admin deleted "${b.title}" (${b._db} DB)`);
+  toast('Book deleted','s');
+};
+
+// ── CHAT ─────────────────────────────────────────────────────────────────
+function renderChat(){
+  const box=document.getElementById('chat-messages-box');
+  const msgs=Object.entries(allChat).filter(([,m])=>m).sort((a,b)=>(a[1].sentAt||0)-(b[1].sentAt||0));
+  if(!msgs.length){box.innerHTML='<div class="chat-empty-state">No messages yet</div>';return;}
+  const wasBottom=box.scrollHeight-box.scrollTop-box.clientHeight<80;
+  box.innerHTML=msgs.map(([mid,m])=>{
+    const initials=(m.senderName||'?').charAt(0).toUpperCase();
+    const autoDelEl=m.autoDelete?'<span class="chat-msg-autodel">⏱ auto-del</span>':'';
+    const adminTag=m.isAdmin?'<span class="badge-admin" style="font-size:.5rem;margin-left:.3rem">ADMIN</span>':'';
+    return`<div class="chat-msg-row"><div class="chat-msg-av" style="background:${avGrad(m.senderId||'')}">${initials}</div><div class="chat-msg-body"><div class="chat-msg-meta"><span class="chat-msg-name">${esc(m.senderName||'?')}${adminTag}</span><span class="chat-msg-time">${ago(m.sentAt)}</span>${autoDelEl}</div><div class="chat-msg-text">${esc(m.text||'')}</div><button class="chat-msg-del" onclick="deleteChatMsg('${mid}')">✕ Delete</button></div></div>`;
+  }).join('');
+  if(wasBottom)box.scrollTop=box.scrollHeight;
+}
+
+window.sendAdminChat=async function(){
+  const input=document.getElementById('admin-chat-input');
+  const text=input.value.trim();if(!text)return;
+  input.value='';
+  await set(push(ref(newDb,'chat')),{text,senderId:currentUser.uid,senderName:(currentUser.displayName||currentUser.email)+'',sentAt:Date.now(),autoDelete:false,isAdmin:true});
+};
+window.deleteChatMsg=async function(mid){
+  if(!confirm('Delete this message?'))return;
+  await remove(ref(newDb,`chat/${mid}`));
+  toast('Message deleted','s');
+};
+window.clearAllChat=async function(){
+  if(!confirm('Clear ALL chat messages? Cannot be undone.'))return;
+  await remove(ref(newDb,'chat'));
+  logAct('chat','Admin cleared all chat messages');
+  toast('Chat cleared','s');
+};
+
+// ── DELETED ───────────────────────────────────────────────────────────────
+function renderDeleted(){
+  const el=document.getElementById('deleted-list');
+  if(!recentlyDeleted.length){el.innerHTML='<div class="empty"><div class="big">🗑</div>No deleted books</div>';return;}
+  el.innerHTML=recentlyDeleted.map(b=>`<div class="deleted-item"><div class="deleted-info"><div class="deleted-title">${esc(b.title||'Untitled')}</div><div class="deleted-meta">by ${esc(b.ownerName||'?')} · deleted ${ago(b.deletedAt)} · by ${esc(b.deletedBy||'?')}</div></div><div class="deleted-actions"><button class="btn btn-primary btn-sm" onclick="restoreBook('${b._id}')">↩ Restore</button><button class="btn btn-danger btn-sm" onclick="permDelete('${b._id}')">✕ Delete</button></div></div>`).join('');
+}
+
+window.restoreBook=async function(did){
+  const book=recentlyDeleted.find(b=>b._id===did);if(!book)return;
+  const{_id,deletedAt,deletedBy,...bd}=book;
+  // Strip internal props before pushing to firebase
+  const{_db,_origId,...cleanBd}=bd;
+  await set(push(ref(newDb,'books')),{...cleanBd,restoredAt:Date.now()});
+  await remove(ref(newDb,`recentlyDeleted/${did}`));
+  logAct('restore',`Admin restored "${book.title}"`);
+  toast('Book restored 📚','s');
+};
+window.permDelete=async function(did){
+  if(!confirm('Permanently delete? Cannot be undone.'))return;
+  await remove(ref(newDb,`recentlyDeleted/${did}`));
+  toast('Permanently deleted','s');
+};
+window.clearDeletedHistory=async function(){
+  if(!isOwner(currentUser)){toast('Owner only','e');return;}
+  if(!confirm('Clear all deleted book history?'))return;
+  await remove(ref(newDb,'recentlyDeleted'));
+  toast('History cleared','s');
+};
+
+// ── ACTIVITY ──────────────────────────────────────────────────────────────
+function renderActivity(){
+  const el=document.getElementById('activity-log');
+  if(!allActivity.length){el.innerHTML='<div class="empty"><div class="big">📋</div>No activity</div>';return;}
+  const dotMap={login:'adot-g',upload:'adot-b',delete:'adot-r',ban:'adot-y',kick:'adot-y',unban:'adot-g',edit:'adot-b',chat:'adot-b',restore:'adot-g',announce:'adot-y',pin:'adot-y',comment:'adot-b'};
+  el.innerHTML=allActivity.map(a=>`<div class="activity-item"><div class="adot ${dotMap[a.type]||'adot-g'}"></div><div class="atext">${esc(a.message)}</div><div class="atime">${ago(a.ts)}</div></div>`).join('');
+}
+window.clearActivity=async function(){
+  if(!confirm('Clear activity log?'))return;
+  await remove(ref(newDb,'activityLog'));
+  toast('Log cleared','s');
+};
+async function logAct(type,message){
+  try{await set(push(ref(newDb,'activityLog')),{type,message,uid:currentUser?.uid||'',ts:Date.now()});}catch(e){}
+}
+
+// ── ADMINS ────────────────────────────────────────────────────────────────
+function renderAdmins(){
+  const el=document.getElementById('admins-list');
+  const admins=Object.entries(extraAdmins).filter(([,v])=>v);
+  if(!admins.length){el.innerHTML='<div class="empty"><div class="big">🔑</div>No extra admins yet</div>';return;}
+  el.innerHTML=admins.map(([key,v])=>{
+    const email=typeof v==='object'?(v.email||key):typeof v==='string'?v:key;
+    return`<div class="admin-list-item"><div><div class="admin-list-email">${esc(email)}</div><div style="font-size:.6rem;color:var(--muted);margin-top:.15rem">Admin access granted</div></div><button class="btn btn-danger btn-sm" onclick="revokeAdmin('${esc(key)}')">Revoke</button></div>`;
+  }).join('');
+}
+window.grantAdmin=async function(){
+  if(!isOwner(currentUser))return;
+  const email=document.getElementById('grant-email').value.trim().toLowerCase();
+  if(!email||!email.includes('@')){toast('Enter a valid email','e');return;}
+  if(email===OWNER_EMAIL){toast('You are the owner','e');return;}
+  const key=email.replace(/[.@]/g,'_');
+  await set(ref(newDb,`siteConfig/adminEmails/${key}`),email);
+  document.getElementById('grant-email').value='';
+  logAct('admin',`Owner granted admin to ${email}`);
+  toast(`Admin granted to ${email}`,'s');
+};
+window.revokeAdmin=async function(key){
+  if(!isOwner(currentUser))return;
+  if(!confirm('Revoke admin access?'))return;
+  await remove(ref(newDb,`siteConfig/adminEmails/${key}`));
+  logAct('admin','Owner revoked admin');
+  toast('Admin revoked','s');
+};
+
+// ── TOOLS ─────────────────────────────────────────────────────────────────
+window.updateAnnouncePreview=function(){
+  const text=document.getElementById('announce-text').value.trim();
+  const preview=document.getElementById('announce-preview');
+  const previewText=document.getElementById('announce-preview-text');
+  if(text){const name=currentUser?.displayName||currentUser?.email||'Admin';previewText.textContent=`${name}: ${text}`;preview.classList.add('show');}
+  else preview.classList.remove('show');
+};
+window.postAnnouncement=async function(){
+  const msg=document.getElementById('announce-text').value.trim();
+  if(!msg){toast('Enter an announcement','e');return;}
+  const posterName=currentUser.displayName||currentUser.email;
+  await set(ref(newDb,'siteConfig/announcement'),{text:msg,postedBy:posterName,postedAt:Date.now()});
+  logAct('announce',`${posterName} posted announcement`);
+  toast('Announcement posted! 📢','s');
+};
+window.clearAnnouncement=async function(){
+  await remove(ref(newDb,'siteConfig/announcement'));
+  const el=document.getElementById('announce-text');if(el)el.value='';
+  document.getElementById('announce-preview').classList.remove('show');
+  toast('Announcement cleared','s');
+};
+window.toggleMaintenance=async function(){
+  await set(ref(newDb,'siteConfig/maintenance'),!maintenanceMode);
+  toast(`Maintenance mode ${!maintenanceMode?'ON':'OFF'}`,'s');
+};
+
+window.pinBook=async function(){
+  const rawId=document.getElementById('pin-book-id').value.trim();
+  if(!rawId){toast('Enter a book ID','e');return;}
+  // Accept either raw firebase key or composite id like "new_-Nabc"
+  const id=rawId.startsWith('new_')?rawId:'new_'+rawId;
+  const origId=rawId.startsWith('new_')?rawId.replace('new_',''):rawId;
+  if(!allBooksNew[origId]){toast('Book not found in New DB','e');return;}
+  const pinnedCount=Object.keys(pinnedBooks).filter(k=>pinnedBooks[k]).length;
+  if(pinnedCount>=3){toast('Max 3 books can be pinned','e');return;}
+  await set(ref(newDb,`siteConfig/pinnedBooks/${id}`),true);
+  logAct('pin',`Admin pinned "${allBooksNew[origId]?.title}"`);
+  toast('Book pinned! 📌','s');
+  document.getElementById('pin-book-id').value='';
+};
+window.unpinAll=async function(){
+  if(!confirm('Unpin all pinned books?'))return;
+  await remove(ref(newDb,'siteConfig/pinnedBooks'));
+  toast('All unpinned','s');
+};
+function renderPinnedList(){
+  const el=document.getElementById('pinned-list');if(!el)return;
+  const pinned=Object.keys(pinnedBooks).filter(id=>pinnedBooks[id]);
+  if(!pinned.length){el.textContent='No pinned books';return;}
+  el.innerHTML=pinned.map(id=>{const b=allBooks[id];return`<div style="display:flex;align-items:center;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border)"><span>📌 ${esc(b?.title||id)}</span><button class="btn btn-ghost btn-xs" onclick="unpinOne('${id}')">✕</button></div>`;}).join('');
+}
+window.unpinOne=async function(id){await remove(ref(newDb,'siteConfig/pinnedBooks/'+id));toast('Unpinned','s');};
+
+window.bulkDelete=async function(){
+  const email=document.getElementById('bulk-email').value.trim().toLowerCase();
+  if(!email){toast('Enter an email','e');return;}
+  const user=Object.entries(allUsers).find(([,u])=>u.email&&u.email.toLowerCase()===email);
+  if(!user){toast('User not found in new DB users','e');return;}
+  await delUserBooks(user[0],email);
+  document.getElementById('bulk-email').value='';
+};
+
+window.exportData=function(type){
+  let data;
+  if(type==='books'){
+    data=Object.entries(allBooks).map(([id,b])=>({id,db:b._db||'?',title:b.title,author:b.ownerName,likes:b.likes||0,views:b.views||0,playtimeSeconds:b.playtimeSeconds||0,createdAt:new Date(b.createdAt||0).toISOString()}));
+  } else {
+    data=Object.entries(allUsers).map(([uid,u])=>{const bc=Object.values(allBooksNew).filter(b=>b&&b.ownerId===uid).length;return{uid,displayName:u.displayName,email:u.email,joinedAt:new Date(u.joinedAt||0).toISOString(),lastSignIn:new Date(u.lastSignIn||0).toISOString(),totalTimeSeconds:u.totalTimeSeconds||0,bookCount:bc};});
+  }
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`htmllibrary-${type}-${Date.now()}.json`;a.click();
+  toast(`${type} exported!`,'s');
+};
+
+window.broadcastNotif=async function(){
+  const msg=document.getElementById('broadcast-msg').value.trim();
+  if(!msg){toast('Enter a message','e');return;}
+  if(!confirm(`Send to all ${Object.keys(allUsers).length} users?`))return;
+  const sends=Object.keys(allUsers).map(uid=>set(push(ref(newDb,`notifications/${uid}`)),{type:'admin',message:`[Broadcast] ${msg}`,createdAt:Date.now(),read:false}));
+  await Promise.all(sends);
+  document.getElementById('broadcast-msg').value='';
+  logAct('announce',`Admin broadcast: ${msg}`);
+  toast(`Sent to ${sends.length} users`,'s');
+};
+
+window.forceSignoutByUid=async function(){
+  const uid=document.getElementById('kick-uid').value.trim();
+  if(!uid){toast('Enter a UID','e');return;}
+  await set(ref(newDb,`forceSignout/${uid}`),{by:currentUser.email,at:Date.now()});
+  document.getElementById('kick-uid').value='';
+  toast('Force sign out triggered','s');
+};
+
+// ── ACCESS ────────────────────────────────────────────────────────────────
+window.toggleLogin=async function(){
+  if(!isOwner(currentUser)){toast('Owner only','e');return;}
+  await set(ref(newDb,'siteConfig/loginDisabled'),!loginDisabled);
+  toast(`Login ${!loginDisabled?'disabled':'enabled'}`,'s');
+};
+window.toggleSignup=async function(){
+  if(!isOwner(currentUser)){toast('Owner only','e');return;}
+  await set(ref(newDb,'siteConfig/signupDisabled'),!signupDisabled);
+  toast(`Registrations ${!signupDisabled?'closed':'opened'}`,'s');
+};
+window.quickBan=async function(){
+  if(!isOwner(currentUser)){toast('Owner only','e');return;}
+  const email=document.getElementById('ban-email').value.trim().toLowerCase();
+  if(!email){toast('Enter an email','e');return;}
+  const user=Object.entries(allUsers).find(([,u])=>u.email&&u.email.toLowerCase()===email);
+  if(!user){toast('User not found in new DB','e');return;}
+  const[uid,u]=user;
+  if(!confirm(`Ban ${u.displayName||email}?`))return;
+  await set(ref(newDb,`bannedUsers/${uid}`),{bannedAt:Date.now(),bannedBy:currentUser.uid,name:u.displayName||email});
+  logAct('ban',`Owner banned ${u.displayName||email}`);
+  document.getElementById('ban-email').value='';
+  toast(`${u.displayName||email} banned`,'s');
+};
+</script>
+</body>
 </html>
