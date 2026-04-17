@@ -76,7 +76,6 @@
 			.book-card:hover .book-card-bg{opacity:.2}
 			.book-card > *:not(.book-card-bg){position:relative;z-index:1}
 
-			/* DB source badge */
 			.db-badge{position:absolute;bottom:.5rem;left:.75rem;font-size:.5rem;background:rgba(110,168,255,.1);border:1px solid rgba(110,168,255,.2);color:var(--accent3);padding:.1rem .35rem;border-radius:4px;font-weight:700;letter-spacing:.05em;z-index:2;opacity:.6}
 
 			.pin-badge{position:absolute;top:.75rem;right:.75rem;font-size:.6rem;background:rgba(255,216,110,.15);border:1px solid rgba(255,216,110,.3);color:var(--accent4);padding:.1rem .4rem;border-radius:4px;font-weight:700;letter-spacing:.06em;z-index:2}
@@ -984,7 +983,7 @@
 			</div>
 		</div>
 
-		<!-- ADMIN PANEL (legacy, kept for JS compat) -->
+		<!-- ADMIN PANEL (legacy) -->
 		<div id="admin-overlay">
 			<div id="admin-topbar">
 				<div class="admin-logo">
@@ -1529,26 +1528,18 @@
 
 			const OWNER_EMAIL='matthewbozhe@gmail.com';
 
-			// ── DB1: OLD (read-only) — books from here are displayed but not written ──
 			const oldFirebaseConfig={apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",databaseURL:"https://htmltools-library-default-rtdb.firebaseio.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"};
 			const oldApp=initializeApp(oldFirebaseConfig,'old');
 			const oldDb=getDatabase(oldApp);
-			// Auth lives on old project
 			const auth=getAuth(oldApp);
 
-			// ── DB2: NEW — all writes go here ──
 			const newFirebaseConfig={apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79",measurementId:"G-5KJ8DE63ZC"};
 			const newApp=initializeApp(newFirebaseConfig,'new');
 			const newDb=getDatabase(newApp);
 
-			// Helper: write to new DB, read config/users/chat/notifs/comments from new DB too (falls back)
-			// Books: read from BOTH, write to new only
-			// All other writes: new DB only
-
 			let currentUser=null;
-			// allBooks merges old + new. New books have _db:'new', old have _db:'old'
 			let allBooksOld={},allBooksNew={};
-			let allBooks={};  // merged view
+			let allBooks={};
 			let allUsers={},allComments={},allActivity=[],currentFilter='popular',editingBookId=null,commentingBookId=null,myNotifs=[],bannedUsers={},maintenanceMode=false,siteAnnouncement='',extraAdmins={},savedBooks={},pinnedBooks={},loginDisabled=false,signupDisabled=false,_lgMode='login',recentlyDeleted=[],_viewingCodeBookId=null;
 			let chatMessages={},chatPanelOpen=false,chatUnread=0;
 			let _countdownTimers={},_countdownDisplayTimers={};
@@ -1557,31 +1548,15 @@
 
 			function mergeBooks(){
 				allBooks={};
-				// old books first (read-only legacy)
 				Object.entries(allBooksOld).forEach(([id,b])=>{if(b&&b.title)allBooks['old_'+id]={...b,_db:'old',_origId:id};});
-				// new books override / add
 				Object.entries(allBooksNew).forEach(([id,b])=>{if(b&&b.title)allBooks['new_'+id]={...b,_db:'new',_origId:id};});
 			}
 
-			// Write helpers — always to new DB
 			function dbRef(path){return ref(newDb,path);}
 			function dbSet(path,val){return set(ref(newDb,path),val);}
 			function dbUpdate(path,val){return update(ref(newDb,path),val);}
 			function dbRemove(path){return remove(ref(newDb,path));}
 			function dbPush(path,val){return set(push(ref(newDb,path)),val);}
-
-			// Get the actual DB ref for a book (reads go to either, writes always new)
-			function bookWriteRef(compositeId){
-				// compositeId = 'new_xyz' or 'old_xyz'
-				// New books: write to new DB
-				// Old books: we can't write to old DB, so we MIRROR into new DB under 'books/old_mirror_xyz'
-				if(compositeId.startsWith('new_')){
-					const origId=compositeId.slice(4);return ref(newDb,'books/'+origId);
-				} else {
-					// For old books we need to copy to new DB first if editing
-					return null; // handled specially
-				}
-			}
 
 			// ── THEME ────────────────────────────────────────────────────
 			const THEME_PRESETS=[{a:'#7fff6e',b:'#6ea8ff',label:'Default'},{a:'#ffd86e',b:'#ff6e7f',label:'Sunset'},{a:'#ff6e7f',b:'#a78bfa',label:'Rose'},{a:'#a78bfa',b:'#6ea8ff',label:'Purple'},{a:'#ffd86e',b:'#7fff6e',label:'Lime Gold'},{a:'#ff9f43',b:'#ffd86e',label:'Amber'},{a:'#6ea8ff',b:'#a78bfa',label:'Ocean'},{a:'#ff6e7f',b:'#ffd86e',label:'Neon'},{a:'#ffffff',b:'#cccccc',label:'White'},{a:'#00ffcc',b:'#6ea8ff',label:'Cyan'}];
@@ -1684,10 +1659,7 @@
 				if(secs>0){const snap=await get(ref(newDb,`users/${currentUser.uid}/totalTimeSeconds`));await set(ref(newDb,`users/${currentUser.uid}/totalTimeSeconds`),(snap.val()||0)+secs);}
 			},60000);
 
-			// ── LISTEN: OLD DB (books read-only) ─────────────────────────
 			onValue(ref(oldDb,'books'),snap=>{allBooksOld=snap.val()||{};mergeBooks();renderBooks();renderPins();});
-
-			// ── LISTEN: NEW DB ────────────────────────────────────────────
 			onValue(ref(newDb,'books'),snap=>{allBooksNew=snap.val()||{};mergeBooks();renderBooks();renderPins();});
 			onValue(ref(newDb,'comments'),snap=>{allComments=snap.val()||{};if(commentingBookId&&document.getElementById('comments-overlay').classList.contains('open'))renderCommentsList(commentingBookId);renderBooks();});
 			onValue(ref(newDb,'users'),snap=>{allUsers=snap.val()||{};});
@@ -1709,7 +1681,7 @@
 			onValue(ref(newDb,'recentlyDeleted'),snap=>{const data=snap.val()||{};recentlyDeleted=Object.entries(data).map(([id,b])=>({...b,_id:id})).filter(b=>(Date.now()-(b.deletedAt||0))<30*24*3600*1000).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));});
 			onValue(ref(newDb,'activityLog'),snap=>{const data=snap.val()||{};allActivity=Object.entries(data).map(([id,a])=>({...a,id})).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,200);});
 
-			// ── CHAT (new DB) ─────────────────────────────────────────────
+			// ── CHAT ─────────────────────────────────────────────────────
 			onValue(ref(newDb,'chat'),snap=>{
 				const data=snap.val()||{};const prevCount=Object.keys(chatMessages).length;chatMessages=data;
 				if(chatPanelOpen){renderChat();}else{const newCount=Object.keys(data).length;if(newCount>prevCount){chatUnread+=(newCount-prevCount);const badge=document.getElementById('chat-fab-badge');badge.textContent=chatUnread>9?'9+':chatUnread;badge.classList.add('show');}}
@@ -1735,7 +1707,6 @@
 			window.deleteChatMsg=async function(mid){if(!currentUser)return;const msg=chatMessages[mid];if(!msg)return;if(msg.senderId!==currentUser.uid&&!isAdmin(currentUser)){showToast('You can only delete your own messages','error');return;}if(!confirm('Delete this message?'))return;await remove(ref(newDb,`chat/${mid}`));if(_countdownTimers[mid]){clearTimeout(_countdownTimers[mid]);delete _countdownTimers[mid];}showToast('Message deleted','success');};
 			document.getElementById('chat-autodel-check').addEventListener('change',function(){document.getElementById('chat-autodel-label').classList.toggle('on',this.checked);});
 
-			// ── ACTIVITY LOG ──────────────────────────────────────────────
 			async function logActivity(type,message,uid){try{await set(push(ref(newDb,'activityLog')),{type,message,uid:uid||'',ts:Date.now()});}catch(e){}}
 
 			// ── PINNED BOOKS ──────────────────────────────────────────────
@@ -1789,8 +1760,6 @@
 
 			function buildCardHtml(id,book,isPinnedCard){
 				const isOwnerUser=isOwner(currentUser);const isOwnerOfBook=currentUser&&currentUser.uid===book.ownerId;const adminUser=isAdmin(currentUser);const isProtected=!!book.undeletable;
-				const isOldBook=book._db==='old';
-				// Old books: only owner/admin can edit (will create a copy in new DB)
 				const canManage=isProtected?isOwnerUser:(isOwnerOfBook||adminUser);
 				const liked=currentUser&&book.likedBy&&book.likedBy[currentUser.uid];const isSaved=currentUser&&!!savedBooks[id];const isPinned=!!pinnedBooks[id];
 				const likes=book.likes||0;const cCount=commentCount(id);
@@ -1847,9 +1816,7 @@
 			}
 
 			function commentCount(bookId){
-				// Comments are keyed by composite ID in new DB
 				if(allComments[bookId])return Object.keys(allComments[bookId]).length;
-				// Also check without prefix for backwards compat
 				return 0;
 			}
 			window.setFilter=function(f,el){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBooks();};
@@ -1883,17 +1850,16 @@
 				openOverlay('saved-overlay');
 			};
 
-			// ── PIN (new DB) ──────────────────────────────────────────────
+			// ── PIN ───────────────────────────────────────────────────────
 			window.togglePin=async function(id){
 				if(!isOwner(currentUser))return;
 				if(pinnedBooks[id]){await remove(ref(newDb,`siteConfig/pinnedBooks/${id}`));showToast('Book unpinned','success');}
 				else{const pinnedCount=Object.keys(pinnedBooks).filter(k=>pinnedBooks[k]).length;if(pinnedCount>=3){showToast('Max 3 books can be pinned','error');return;}await set(ref(newDb,`siteConfig/pinnedBooks/${id}`),true);logActivity('pin',`Owner pinned "${allBooks[id]?.title}"`,currentUser.uid);showToast('Book pinned! 📌','success');}
 			};
 
-			// ── UNDELETABLE (new DB) ──────────────────────────────────────
+			// ── UNDELETABLE ───────────────────────────────────────────────
 			window.toggleUndeletable=async function(id){
 				if(!isOwner(currentUser)){showToast('Only the owner can protect books','error');return;}const book=allBooks[id];if(!book)return;
-				// For new books, update normally. For old books, can't write back.
 				if(book._db==='new'){await update(ref(newDb,'books/'+book._origId),{undeletable:!book.undeletable});}
 				else{showToast('Cannot protect legacy books (read-only database)','error');return;}
 				showToast(book.undeletable?'Protection removed':'Book is now protected 🔒','success');
@@ -1902,9 +1868,7 @@
 			// ── SHARE ─────────────────────────────────────────────────────
 			window.shareBook=function(id){const url=window.location.href.split('?')[0]+'?book='+id;navigator.clipboard.writeText(url).then(()=>showToast('Link copied!','success')).catch(()=>prompt('Copy this link:',url));};
 			const urlParams=new URLSearchParams(window.location.search);const sharedBookId=urlParams.get('book');
-			if(sharedBookId){setTimeout(()=>{if(allBooks[sharedBookId])runBook(sharedBookId);else{// try both prefixed variants
-				const newId='new_'+sharedBookId,oldId='old_'+sharedBookId;
-				if(allBooks[newId])runBook(newId);else if(allBooks[oldId])runBook(oldId);}},1500);}
+			if(sharedBookId){setTimeout(()=>{if(allBooks[sharedBookId])runBook(sharedBookId);else{const newId='new_'+sharedBookId,oldId='old_'+sharedBookId;if(allBooks[newId])runBook(newId);else if(allBooks[oldId])runBook(oldId);}},1500);}
 
 			// ── PLAY + VIEWS + PLAYTIME ───────────────────────────────────
 			let _runningBookId=null,_playtimeInterval=null,_runnerStartTime=null;
@@ -1913,11 +1877,8 @@
 				document.getElementById('runner-title').textContent=book.title;document.getElementById('runner-frame').srcdoc=book.code;
 				document.getElementById('runner-overlay').classList.add('open');document.getElementById('runner-live-time').textContent='0s';
 				if(localStorage.getItem('htmllib_hide_chat_game')==='1')document.getElementById('chat-fab').classList.add('hidden-during-game');
-				// Increment views — for new books write to new DB; for old books we track in new DB under mirror key
 				if(book._db==='new'){update(ref(newDb),{[`books/${book._origId}/views`]:(book.views||0)+1});}
-				else{// Mirror view count in new DB
-					const mirrorKey='oldmirror_'+book._origId;
-					get(ref(newDb,`bookMirror/${mirrorKey}/views`)).then(snap=>{set(ref(newDb,`bookMirror/${mirrorKey}/views`),(snap.val()||book.views||0)+1);});}
+				else{const mirrorKey='oldmirror_'+book._origId;get(ref(newDb,`bookMirror/${mirrorKey}/views`)).then(snap=>{set(ref(newDb,`bookMirror/${mirrorKey}/views`),(snap.val()||book.views||0)+1);});}
 				_playtimeInterval=setInterval(()=>{if(!document.hidden&&_runnerStartTime){const elapsed=Math.floor((Date.now()-_runnerStartTime)/1000);document.getElementById('runner-live-time').textContent=formatMinutes(elapsed);}},500);
 			};
 
@@ -1928,7 +1889,6 @@
 				const book=allBooks[id];
 				if(currentUser&&elapsed>=1){try{await set(push(ref(newDb,`playSessions/${id}`)),{uid:currentUser.uid,displayName:currentUser.displayName||currentUser.email.split('@')[0]||'User',seconds:elapsed,playedAt:Date.now()});}catch(e){}}
 				if(keepRunning){_runnerStartTime=Date.now();}else{clearInterval(_playtimeInterval);_playtimeInterval=null;_runningBookId=null;_runnerStartTime=null;}
-				// Update playtime in new DB
 				if(book&&book._db==='new'){const current=(book.playtimeSeconds)||0;update(ref(newDb),{[`books/${book._origId}/playtimeSeconds`]:current+elapsed});}
 				else if(book){const mirrorKey='oldmirror_'+book._origId;const snap=await get(ref(newDb,`bookMirror/${mirrorKey}/playtimeSeconds`));set(ref(newDb,`bookMirror/${mirrorKey}/playtimeSeconds`),(snap.val()||book.playtimeSeconds||0)+elapsed);}
 			}
@@ -1946,14 +1906,13 @@
 				if(e.key==='Escape'&&!runnerOpen&&!chatOpen){document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));closeNotifPanel();}
 			});
 
-			// ── LIKE (new DB) ─────────────────────────────────────────────
+			// ── LIKE ──────────────────────────────────────────────────────
 			window.toggleLike=async function(id){
 				if(!currentUser){showToast('Sign in to like books','error');openAuth();return;}const book=allBooks[id];if(!book)return;
 				const liked=book.likedBy&&book.likedBy[currentUser.uid];
 				if(book._db==='new'){
 					const updates={};updates[`books/${book._origId}/likedBy/${currentUser.uid}`]=liked?null:true;updates[`books/${book._origId}/likes`]=Math.max(0,(book.likes||0)+(liked?-1:1));await update(ref(newDb),updates);
 				} else {
-					// Old book: store like in new DB under mirror
 					const mirrorKey='oldmirror_'+book._origId;
 					const updates={};updates[`bookMirror/${mirrorKey}/likedBy/${currentUser.uid}`]=liked?null:true;
 					const snap=await get(ref(newDb,`bookMirror/${mirrorKey}/likes`));
@@ -1962,7 +1921,7 @@
 				if(!liked&&book.ownerId&&book.ownerId!==currentUser.uid){await set(push(ref(newDb,`notifications/${book.ownerId}`)),{type:'like',fromName:currentUser.displayName||currentUser.email,fromUid:currentUser.uid,bookTitle:book.title,bookId:id,createdAt:Date.now(),read:false});}
 			};
 
-			// ── NOTIFICATIONS (new DB) ────────────────────────────────────
+			// ── NOTIFICATIONS ─────────────────────────────────────────────
 			function listenNotifs(uid){onValue(ref(newDb,`notifications/${uid}`),snap=>{const data=snap.val()||{};myNotifs=Object.entries(data).map(([nid,n])=>({...n,nid})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));const unread=myNotifs.filter(n=>!n.read).length;const badge=document.getElementById('notif-badge');if(unread>0){badge.textContent=unread>9?'9+':unread;badge.classList.add('show');}else badge.classList.remove('show');renderNotifs();});}
 			function renderNotifs(){const list=document.getElementById('notif-list');if(!myNotifs.length){list.innerHTML='<div class="notif-empty">No notifications yet</div>';return;}list.innerHTML=myNotifs.map(n=>`<div class="notif-item ${n.read?'':'unread'}"><div class="notif-icon">${n.type==='like'?'♥':n.type==='comment'?'💬':'🔔'}</div><div class="notif-content"><div class="notif-text">${notifMessage(n)}</div><div class="notif-time">${timeAgo(n.createdAt)}</div></div></div>`).join('');}
 			function notifMessage(n){if(n.type==='like')return`<strong>${escHtml(n.fromName)}</strong> liked your book <strong>${escHtml(n.bookTitle)}</strong>`;if(n.type==='comment')return`<strong>${escHtml(n.fromName)}</strong> commented on <strong>${escHtml(n.bookTitle)}</strong>: "${escHtml((n.commentText||'').substring(0,60))}${(n.commentText||'').length>60?'…':''}"`;return escHtml(n.message||'New notification');}
@@ -1971,7 +1930,7 @@
 			document.addEventListener('click',e=>{const panel=document.getElementById('notif-panel');const bell=document.getElementById('notif-bell');if(panel.classList.contains('open')&&!panel.contains(e.target)&&e.target!==bell&&!bell.contains(e.target))closeNotifPanel();});
 			window.clearAllNotifs=async function(){if(!currentUser)return;await remove(ref(newDb,`notifications/${currentUser.uid}`));showToast('Notifications cleared','success');};
 
-			// ── COMMENTS (new DB) ─────────────────────────────────────────
+			// ── COMMENTS ─────────────────────────────────────────────────
 			window.openComments=function(id){
 				const book=allBooks[id];if(!book)return;commentingBookId=id;
 				document.getElementById('comments-modal-title').textContent=`💬 ${escHtml(book.title)}`;renderCommentsList(id);
@@ -2022,7 +1981,7 @@
 			window.copyCode=function(){navigator.clipboard.writeText(document.getElementById('code-display').textContent).then(()=>showToast('Copied!','success'));};
 			window.downloadCode=function(){const code=document.getElementById('code-display').textContent;const bookTitle=_viewingCodeBookId?(allBooks[_viewingCodeBookId]?.title||'book'):'book';const blob=new Blob([code],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=bookTitle.replace(/[^a-z0-9]/gi,'_')+'.html';a.click();showToast('Downloaded!','success');};
 
-			// ── UPLOAD / EDIT (always new DB) ─────────────────────────────
+			// ── UPLOAD / EDIT ─────────────────────────────────────────────
 			function resetUploadImages(){_uploadLogoB64=null;_uploadBgB64=null;['logo','bg'].forEach(type=>{const preview=document.getElementById(`${type}-preview`);if(preview){preview.style.display='none';preview.src='';}const input=document.getElementById(`${type}-file-input`);if(input)input.value='';const area=document.getElementById(`${type}-upload-area`);if(area){area.classList.remove('has-image');const label=area.querySelector('.upload-label');if(label)label.style.display='';}});}
 
 			window.openUpload=function(){
@@ -2056,17 +2015,14 @@
 						const currentBook=allBooks[editingBookId];
 						if(currentBook&&currentBook.undeletable&&!isOwner(currentUser)){showToast('🔒 This book is protected.','error');btn.textContent='SAVE CHANGES';btn.disabled=false;return;}
 						if(currentBook._db==='new'){
-							// Simple update in new DB
 							await update(ref(newDb,'books/'+currentBook._origId),bookData);
 						} else {
-							// Old book edit: create a copy in new DB, inheriting metadata
 							const newRef=push(ref(newDb,'books'));
 							await set(newRef,{...bookData,ownerId:currentBook.ownerId,ownerName:currentBook.ownerName,createdAt:currentBook.createdAt||Date.now(),likes:currentBook.likes||0,views:currentBook.views||0,playtimeSeconds:currentBook.playtimeSeconds||0,migratedFromOld:currentBook._origId});
 							showToast('Old book copied to new database and updated! 📚','success');closeOverlay('upload-overlay');btn.textContent='SAVE CHANGES';btn.disabled=false;return;
 						}
 						showToast('Book updated!','success');
 					} else {
-						// New upload always goes to new DB
 						const newRef=push(ref(newDb,'books'));
 						await set(newRef,{...bookData,ownerId:currentUser.uid,ownerName:currentUser.displayName||currentUser.email,createdAt:Date.now(),likes:0});
 						logActivity('upload',`${currentUser.displayName||currentUser.email} published "${title}"`,currentUser.uid);showToast('Book published! 🎉','success');
@@ -2076,29 +2032,57 @@
 				btn.textContent=editingBookId?'SAVE CHANGES':'PUBLISH';btn.disabled=false;
 			};
 
+			// ── DELETE BOOK (FIXED) ───────────────────────────────────────
+			// ROOT CAUSE: The original code did `{...book, _db:undefined}` before saving to Firebase.
+			// Firebase REJECTS undefined values and throws an error immediately, so the delete
+			// operation failed before remove() was ever called — for ALL books, including new DB ones.
+			// FIX: Destructure _db and _origId out before building deletedEntry.
 			window.deleteBook=async function(id){
 				const book=allBooks[id];if(!book||!currentUser)return;
 				if(book.undeletable&&!isOwner(currentUser)){showToast('🔒 This book is protected.','error');return;}
 				if(currentUser.uid!==book.ownerId&&!isAdmin(currentUser)){showToast('Permission denied','error');return;}
-				if(!confirm(`Delete "${book.title}"? This cannot be undone.`))return;
-				const deletedEntry={...book,_db:undefined,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email};
-				await set(push(ref(newDb,'recentlyDeleted')),deletedEntry);
-				if(book._db==='new'){
-					await remove(ref(newDb,'books/'+book._origId));await remove(ref(newDb,'comments/'+id));await remove(ref(newDb,'playSessions/'+id));
+				if(!confirm('Delete "'+book.title+'"? This cannot be undone.'))return;
+
+				// Strip _db and _origId — Firebase cannot store undefined/internal props
+				const {_db:_dbProp,_origId:_origIdProp,...cleanBook}=book;
+				const deletedEntry={...cleanBook,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email||''};
+				// Save to recentlyDeleted (non-critical — don't let failure block actual delete)
+				try{await set(push(ref(newDb,'recentlyDeleted')),deletedEntry);}catch(e){console.warn('recentlyDeleted save failed (non-critical):',e);}
+
+				try{
+					if(book._db==='new'){
+						// _origId is the actual Firebase key (e.g. '-Nabcd1234')
+						// composite id is 'new_-Nabcd1234' — used for comments/playSessions
+						await remove(ref(newDb,'books/'+book._origId));
+						// comments and playSessions are stored under the composite id
+						try{await remove(ref(newDb,'comments/'+id));}catch(e){}
+						try{await remove(ref(newDb,'playSessions/'+id));}catch(e){}
+						// clean up any mirror data for this book
+						try{await remove(ref(newDb,'bookMirror/oldmirror_'+book._origId));}catch(e){}
+					} else {
+						// Old DB book: we can't write to old DB, flag as deleted in new DB config
+						await set(ref(newDb,'siteConfig/deletedOldBooks/'+book._origId),true);
+						// Clean up any mirrored stats/likes stored in new DB
+						try{await remove(ref(newDb,'bookMirror/oldmirror_'+book._origId));}catch(e){}
+					}
+				}catch(e){
+					showToast('Error deleting book: '+e.message,'error');
+					return; // Don't proceed with pinned cleanup if main delete failed
 				}
-				// Old books: we can only remove from old DB if we have write access (we don't).
-				// So we flag it as deleted in new DB. The card will no longer show once refreshed
-				// because we track deletedOldBooks in new DB config.
-				else{await set(ref(newDb,`siteConfig/deletedOldBooks/${book._origId}`),true);}
-				if(pinnedBooks[id])await remove(ref(newDb,`siteConfig/pinnedBooks/${id}`));
-				logActivity('delete',`${currentUser.displayName||currentUser.email} deleted "${book.title}"`,currentUser.uid);showToast('Book deleted','success');
+
+				// Remove from pinned if pinned
+				if(pinnedBooks[id]){
+					try{await remove(ref(newDb,'siteConfig/pinnedBooks/'+id));}catch(e){}
+				}
+
+				logActivity('delete',(currentUser.displayName||currentUser.email)+' deleted "'+book.title+'"',currentUser.uid);
+				showToast('Book deleted','success');
 			};
 
-			// Listen for deleted old books to filter them out
+			// Listen for deleted old books to filter them out of display
 			let deletedOldBooks={};
 			onValue(ref(newDb,'siteConfig/deletedOldBooks'),snap=>{deletedOldBooks=snap.val()||{};mergeAndFilter();renderBooks();renderPins();});
-			function mergeAndFilter(){mergeBooks();// remove flagged old books
-				Object.keys(deletedOldBooks).forEach(origId=>{delete allBooks['old_'+origId];});}
+			function mergeAndFilter(){mergeBooks();Object.keys(deletedOldBooks).forEach(origId=>{delete allBooks['old_'+origId];});}
 
 			// ── PROFILE ───────────────────────────────────────────────────
 			window.openProfile=function(){
@@ -2109,7 +2093,7 @@
 				openOverlay('profile-overlay');
 			};
 
-			// ── AUTH (old Firebase project for auth) ──────────────────────
+			// ── AUTH ──────────────────────────────────────────────────────
 			window.lgSwitchTab=function(mode){_lgMode=mode;document.getElementById('lg-tab-login').classList.toggle('active',mode==='login');document.getElementById('lg-tab-register').classList.toggle('active',mode==='register');document.getElementById('lg-name-group').style.display=mode==='register'?'block':'none';document.getElementById('lg-submit').textContent=mode==='login'?'SIGN IN':'CREATE ACCOUNT';const forgotLink=document.getElementById('lg-forgot-link');if(forgotLink)forgotLink.style.display=mode==='login'?'block':'none';updateLgLockedState();};
 			function updateLgLockedState(){const lockedLogin=document.getElementById('lg-locked-login');const lockedSignup=document.getElementById('lg-locked-signup');const form=document.getElementById('lg-form');if(!lockedLogin)return;if(_lgMode==='login'&&loginDisabled){lockedLogin.style.display='block';lockedSignup.style.display='none';form.style.display='none';}else if(_lgMode==='register'&&signupDisabled){lockedSignup.style.display='block';lockedLogin.style.display='none';form.style.display='none';}else{lockedLogin.style.display='none';lockedSignup.style.display='none';form.style.display='block';}}
 			window.lgSubmit=async function(){
