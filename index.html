@@ -896,7 +896,6 @@
 		<!-- EmailJS -->
 		<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 		<script>
-			// ── REPLACE THESE WITH YOUR ACTUAL EMAILJS VALUES ──
 			const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';
 			const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';
 			const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';
@@ -911,8 +910,8 @@
 
 			const OWNER_EMAIL = 'matthewbozhe@gmail.com';
 
-			// ── NEW FIREBASE PROJECT (htmltools-library) ──
-			const firebaseConfig = {
+			// ── AUTH + USER DATA: htmltools-library ──
+			const authConfig = {
 			  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
 			  authDomain: "htmltools-library.firebaseapp.com",
 			  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
@@ -922,9 +921,26 @@
 			  appId: "1:973699554480:web:7543f6caa2ed6742092f75"
 			};
 
-			const app = initializeApp(firebaseConfig);
-			const db = getDatabase(app);
-			const auth = getAuth(app);
+			// ── ADMIN DATA: htmltools-main (announcements, bans, notifs, siteConfig) ──
+			const dataConfig = {
+			  apiKey: "AIzaSyCAtRRv7hxrBKxeJdh4VsL7j0jh5kf2X1U",
+			  authDomain: "htmltools-main.firebaseapp.com",
+			  projectId: "htmltools-main",
+			  storageBucket: "htmltools-main.firebasestorage.app",
+			  messagingSenderId: "692809314189",
+			  appId: "1:692809314189:web:c386a54b41af7c867657c4",
+			  databaseURL: "https://htmltools-main-default-rtdb.firebaseio.com"
+			};
+
+			const authApp = initializeApp(authConfig, "authApp");
+			const dataApp = initializeApp(dataConfig, "dataApp");
+
+			// db  = htmltools-library  (users, activity log, game data)
+			// dbData = htmltools-main  (siteConfig, announcements, bans, notifs, forceSignout)
+			const db     = getDatabase(authApp);
+			const dbData = getDatabase(dataApp);
+			const auth   = getAuth(authApp);
+
 			let currentUser = null;
 			let loginDisabled = false, signupDisabled = false;
 			let _lgMode = 'login';
@@ -986,9 +1002,12 @@
 			  return new Date(ts).toLocaleDateString();
 			}
 
-			onValue(ref(db, 'siteConfig/matthewLoginDisabled'), snap => { loginDisabled = snap.val() || false; updateLgLocked(); });
-			onValue(ref(db, 'siteConfig/matthewSignupDisabled'), snap => { signupDisabled = snap.val() || false; updateLgLocked(); });
-			onValue(ref(db, 'siteConfig/matthewAnnouncement'), snap => {
+			// ── KEY FIX: ALL siteConfig listeners now read from dbData (htmltools-main) ──
+			onValue(ref(dbData, 'siteConfig/matthewLoginDisabled'), snap => { loginDisabled = snap.val() || false; updateLgLocked(); });
+			onValue(ref(dbData, 'siteConfig/matthewSignupDisabled'), snap => { signupDisabled = snap.val() || false; updateLgLocked(); });
+
+			// ── KEY FIX: Announcements now read from dbData (htmltools-main) ──
+			onValue(ref(dbData, 'siteConfig/matthewAnnouncement'), snap => {
 			  const data = snap.val();
 			  const banner = document.getElementById('announce-banner');
 			  const text = document.getElementById('announce-text');
@@ -999,13 +1018,16 @@
 			    text.innerHTML = poster ? `<strong style="color:var(--yellow)">${poster}:</strong> ${msg}` : msg;
 			  } else { banner.classList.remove('show'); }
 			});
-			onValue(ref(db, 'siteConfig/matthewBanned'), snap => {
+
+			// ── KEY FIX: Ban checks now read from dbData (htmltools-main) ──
+			onValue(ref(dbData, 'siteConfig/matthewBanned'), snap => {
 			  const banned = snap.val() || {};
 			  if (currentUser && !isOwner(currentUser) && banned[currentUser.uid]) { showBanScreen(currentUser.email); }
 			});
 
 			function listenUserNotifs(uid) {
-			  onValue(ref(db, `userNotifs/${uid}`), snap => {
+			  // ── KEY FIX: Notifications read from dbData (htmltools-main) ──
+			  onValue(ref(dbData, `userNotifs/${uid}`), snap => {
 			    const items = snap.val();
 			    if (!items) return;
 			    Object.entries(items).forEach(([key, n]) => {
@@ -1016,7 +1038,7 @@
 			    });
 			    renderNotifs(); updateBadge();
 			  });
-			  onValue(ref(db, 'broadcastNotifs'), snap => {
+			  onValue(ref(dbData, 'broadcastNotifs'), snap => {
 			    const items = snap.val();
 			    if (!items) return;
 			    Object.entries(items).forEach(([key, n]) => {
@@ -1030,10 +1052,11 @@
 			}
 
 			function listenForceSignout(uid) {
-			  onValue(ref(db, `forceSignout/${uid}`), async snap => {
+			  // ── KEY FIX: forceSignout read from dbData (htmltools-main) ──
+			  onValue(ref(dbData, `forceSignout/${uid}`), async snap => {
 			    if (snap.exists() && snap.val() && !isOwner(currentUser)) {
 			      addNotif('🚪', 'alert', 'Signed Out', 'An admin has signed you out remotely.');
-			      await remove(ref(db, `forceSignout/${uid}`));
+			      await remove(ref(dbData, `forceSignout/${uid}`));
 			      await fbSignOut(auth);
 			    }
 			  });
@@ -1042,7 +1065,8 @@
 			onAuthStateChanged(auth, async user => {
 			  currentUser = user;
 			  if (user) {
-			    const banSnap = await get(ref(db, `siteConfig/matthewBanned/${user.uid}`));
+			    // ── KEY FIX: Ban check on sign-in reads from dbData ──
+			    const banSnap = await get(ref(dbData, `siteConfig/matthewBanned/${user.uid}`));
 			    if (banSnap.exists() && banSnap.val() && !isOwner(user)) { showBanScreen(user.email); return; }
 			    document.getElementById('login-gate').classList.add('hidden');
 			    document.getElementById('user-display').style.display = 'flex';
@@ -1050,6 +1074,7 @@
 			    listenForceSignout(user.uid);
 			    listenUserNotifs(user.uid);
 			    addNotif('👋', 'system', 'Welcome back!', `Signed in as ${user.displayName || user.email}`);
+			    // User profile data still stored in htmltools-library (db)
 			    const existing = (await get(ref(db, `users/${user.uid}`))).val() || {};
 			    await set(ref(db, `users/${user.uid}`), { ...existing, displayName: user.displayName||'', email: user.email, uid: user.uid, lastSignIn: Date.now(), joinedAt: existing.joinedAt||Date.now() });
 			    await set(push(ref(db, 'activityLog')), { type:'login', message:`${user.displayName||user.email} signed into Matthew.html`, uid: user.uid, site:'matthew', ts: Date.now() });
@@ -1117,7 +1142,6 @@
 			window.doSignOut = async function() { await fbSignOut(auth); };
 		</script>
 		<script>
-			// expose EmailJS IDs to module scope
 			window.EMAILJS_SERVICE_ID  = EMAILJS_SERVICE_ID;
 			window.EMAILJS_TEMPLATE_ID = EMAILJS_TEMPLATE_ID;
 
