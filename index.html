@@ -905,216 +905,216 @@
 
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 		<script type="module">
-						import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-						import { getDatabase, ref, set, get, onValue, remove, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-						import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+			import { getDatabase, ref, set, get, onValue, remove, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+			import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-						const OWNER_EMAIL = 'matthewbozhe@gmail.com';
+			const OWNER_EMAIL = 'matthewbozhe@gmail.com';
 
-						// ── NEW FIREBASE PROJECT (htmltools-library) ──
-						const firebaseConfig = {
-						  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
-						  authDomain: "htmltools-library.firebaseapp.com",
-						  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
-						  projectId: "htmltools-library",
-						  storageBucket: "htmltools-library.firebasestorage.app",
-						  messagingSenderId: "973699554480",
-						  appId: "1:973699554480:web:7543f6caa2ed6742092f75"
-						};
+			// ── NEW FIREBASE PROJECT (htmltools-library) ──
+			const firebaseConfig = {
+			  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+			  authDomain: "htmltools-library.firebaseapp.com",
+			  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
+			  projectId: "htmltools-library",
+			  storageBucket: "htmltools-library.firebasestorage.app",
+			  messagingSenderId: "973699554480",
+			  appId: "1:973699554480:web:7543f6caa2ed6742092f75"
+			};
 
-						const app = initializeApp(firebaseConfig);
-						const db = getDatabase(app);
-						const auth = getAuth(app);
-						let currentUser = null;
-						let loginDisabled = false, signupDisabled = false;
-						let _lgMode = 'login';
-						window._db = db; window._auth = auth; window._ref = ref; window._get = get; window._onValue = onValue;
-						function isOwner(u) { return u && u.email && u.email.toLowerCase() === OWNER_EMAIL.toLowerCase(); }
+			const app = initializeApp(firebaseConfig);
+			const db = getDatabase(app);
+			const auth = getAuth(app);
+			let currentUser = null;
+			let loginDisabled = false, signupDisabled = false;
+			let _lgMode = 'login';
+			window._db = db; window._auth = auth; window._ref = ref; window._get = get; window._onValue = onValue;
+			function isOwner(u) { return u && u.email && u.email.toLowerCase() === OWNER_EMAIL.toLowerCase(); }
 
-						// ── Notifications ──────────────────────────────────────────
-						window._notifications = [];
-						function addNotif(icon, type, title, msg) {
-						  const n = { id: Date.now() + Math.random(), icon, type, title, msg, ts: Date.now(), read: false };
-						  window._notifications.unshift(n);
-						  renderNotifs();
-						  updateBadge();
-						}
-						window.addNotif = addNotif;
-						window.toggleNotifPanel = function(e) {
-						  e.stopPropagation();
-						  const panel = document.getElementById('notif-panel');
-						  panel.classList.toggle('open');
-						};
-						document.addEventListener('click', function(e) {
-						  const panel = document.getElementById('notif-panel');
-						  if (!panel.contains(e.target) && e.target.id !== 'notif-btn' && !document.getElementById('notif-btn').contains(e.target)) {
-						    panel.classList.remove('open');
-						  }
-						});
-						window.markAllRead = function() {
-						  window._notifications.forEach(n => n.read = true);
-						  renderNotifs(); updateBadge();
-						};
-						function renderNotifs() {
-						  const list = document.getElementById('notif-list');
-						  if (!window._notifications.length) { list.innerHTML = '<div class="notif-empty">No notifications yet</div>'; return; }
-						  list.innerHTML = window._notifications.slice(0,30).map(n => `
-						    <div class="notif-item${n.read?'':' unread'}" onclick="window._notifications.find(x=>x.id===${n.id}).read=true;renderNotifs();updateBadge();">
-						      <div class="notif-icon ${n.type}">${n.icon}</div>
-						      <div class="notif-body">
-						        <div class="notif-title">${n.title}</div>
-						        <div class="notif-msg">${n.msg}</div>
-						        <div class="notif-time">${relTime(n.ts)}</div>
-						      </div>
-						      ${n.read ? '' : '<div class="notif-dot"></div>'}
-						    </div>
-						  `).join('');
-						}
-						window.renderNotifs = renderNotifs;
-						function updateBadge() {
-						  const unread = window._notifications.filter(n=>!n.read).length;
-						  const badge = document.getElementById('notif-badge');
-						  if (unread > 0) { badge.textContent = unread > 9 ? '9+' : unread; badge.classList.add('show'); }
-						  else { badge.classList.remove('show'); }
-						}
-						window.updateBadge = updateBadge;
-						function relTime(ts) {
-						  const d = Date.now() - ts;
-						  if (d < 60000) return 'Just now';
-						  if (d < 3600000) return Math.floor(d/60000) + 'm ago';
-						  if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
-						  return new Date(ts).toLocaleDateString();
-						}
+			// ── Notifications ──────────────────────────────────────────
+			window._notifications = [];
+			function addNotif(icon, type, title, msg) {
+			  const n = { id: Date.now() + Math.random(), icon, type, title, msg, ts: Date.now(), read: false };
+			  window._notifications.unshift(n);
+			  renderNotifs();
+			  updateBadge();
+			}
+			window.addNotif = addNotif;
+			window.toggleNotifPanel = function(e) {
+			  e.stopPropagation();
+			  const panel = document.getElementById('notif-panel');
+			  panel.classList.toggle('open');
+			};
+			document.addEventListener('click', function(e) {
+			  const panel = document.getElementById('notif-panel');
+			  if (!panel.contains(e.target) && e.target.id !== 'notif-btn' && !document.getElementById('notif-btn').contains(e.target)) {
+			    panel.classList.remove('open');
+			  }
+			});
+			window.markAllRead = function() {
+			  window._notifications.forEach(n => n.read = true);
+			  renderNotifs(); updateBadge();
+			};
+			function renderNotifs() {
+			  const list = document.getElementById('notif-list');
+			  if (!window._notifications.length) { list.innerHTML = '<div class="notif-empty">No notifications yet</div>'; return; }
+			  list.innerHTML = window._notifications.slice(0,30).map(n => `
+			    <div class="notif-item${n.read?'':' unread'}" onclick="window._notifications.find(x=>x.id===${n.id}).read=true;renderNotifs();updateBadge();">
+			      <div class="notif-icon ${n.type}">${n.icon}</div>
+			      <div class="notif-body">
+			        <div class="notif-title">${n.title}</div>
+			        <div class="notif-msg">${n.msg}</div>
+			        <div class="notif-time">${relTime(n.ts)}</div>
+			      </div>
+			      ${n.read ? '' : '<div class="notif-dot"></div>'}
+			    </div>
+			  `).join('');
+			}
+			window.renderNotifs = renderNotifs;
+			function updateBadge() {
+			  const unread = window._notifications.filter(n=>!n.read).length;
+			  const badge = document.getElementById('notif-badge');
+			  if (unread > 0) { badge.textContent = unread > 9 ? '9+' : unread; badge.classList.add('show'); }
+			  else { badge.classList.remove('show'); }
+			}
+			window.updateBadge = updateBadge;
+			function relTime(ts) {
+			  const d = Date.now() - ts;
+			  if (d < 60000) return 'Just now';
+			  if (d < 3600000) return Math.floor(d/60000) + 'm ago';
+			  if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
+			  return new Date(ts).toLocaleDateString();
+			}
 
-						onValue(ref(db, 'siteConfig/matthewLoginDisabled'), snap => { loginDisabled = snap.val() || false; updateLgLocked(); });
-						onValue(ref(db, 'siteConfig/matthewSignupDisabled'), snap => { signupDisabled = snap.val() || false; updateLgLocked(); });
-						onValue(ref(db, 'siteConfig/matthewAnnouncement'), snap => {
-						  const data = snap.val();
-						  const banner = document.getElementById('announce-banner');
-						  const text = document.getElementById('announce-text');
-						  if (data && (data.text || typeof data === 'string')) {
-						    const msg = typeof data === 'string' ? data : data.text;
-						    const poster = typeof data === 'object' && data.postedBy ? data.postedBy : null;
-						    banner.classList.add('show');
-						    text.innerHTML = poster ? `<strong style="color:var(--yellow)">${poster}:</strong> ${msg}` : msg;
-						  } else { banner.classList.remove('show'); }
-						});
-						onValue(ref(db, 'siteConfig/matthewBanned'), snap => {
-						  const banned = snap.val() || {};
-						  if (currentUser && !isOwner(currentUser) && banned[currentUser.uid]) { showBanScreen(currentUser.email); }
-						});
+			onValue(ref(db, 'siteConfig/matthewLoginDisabled'), snap => { loginDisabled = snap.val() || false; updateLgLocked(); });
+			onValue(ref(db, 'siteConfig/matthewSignupDisabled'), snap => { signupDisabled = snap.val() || false; updateLgLocked(); });
+			onValue(ref(db, 'siteConfig/matthewAnnouncement'), snap => {
+			  const data = snap.val();
+			  const banner = document.getElementById('announce-banner');
+			  const text = document.getElementById('announce-text');
+			  if (data && (data.text || typeof data === 'string')) {
+			    const msg = typeof data === 'string' ? data : data.text;
+			    const poster = typeof data === 'object' && data.postedBy ? data.postedBy : null;
+			    banner.classList.add('show');
+			    text.innerHTML = poster ? `<strong style="color:var(--yellow)">${poster}:</strong> ${msg}` : msg;
+			  } else { banner.classList.remove('show'); }
+			});
+			onValue(ref(db, 'siteConfig/matthewBanned'), snap => {
+			  const banned = snap.val() || {};
+			  if (currentUser && !isOwner(currentUser) && banned[currentUser.uid]) { showBanScreen(currentUser.email); }
+			});
 
-						function listenUserNotifs(uid) {
-						  onValue(ref(db, `userNotifs/${uid}`), snap => {
-						    const items = snap.val();
-						    if (!items) return;
-						    Object.entries(items).forEach(([key, n]) => {
-						      if (!window._notifications.find(x => x.firebaseKey === key)) {
-						        const notif = { id: Date.now()+Math.random(), firebaseKey: key, icon: n.icon||'📢', type: n.type||'admin', title: n.title||'Admin', msg: n.message||'', ts: n.ts||Date.now(), read: false };
-						        window._notifications.unshift(notif);
-						      }
-						    });
-						    renderNotifs(); updateBadge();
-						  });
-						  onValue(ref(db, 'broadcastNotifs'), snap => {
-						    const items = snap.val();
-						    if (!items) return;
-						    Object.entries(items).forEach(([key, n]) => {
-						      if (!window._notifications.find(x => x.firebaseKey === key)) {
-						        const notif = { id: Date.now()+Math.random(), firebaseKey: key, icon: n.icon||'📢', type: n.type||'system', title: n.title||'Broadcast', msg: n.message||'', ts: n.ts||Date.now(), read: false };
-						        window._notifications.unshift(notif);
-						      }
-						    });
-						    renderNotifs(); updateBadge();
-						  });
-						}
+			function listenUserNotifs(uid) {
+			  onValue(ref(db, `userNotifs/${uid}`), snap => {
+			    const items = snap.val();
+			    if (!items) return;
+			    Object.entries(items).forEach(([key, n]) => {
+			      if (!window._notifications.find(x => x.firebaseKey === key)) {
+			        const notif = { id: Date.now()+Math.random(), firebaseKey: key, icon: n.icon||'📢', type: n.type||'admin', title: n.title||'Admin', msg: n.message||'', ts: n.ts||Date.now(), read: false };
+			        window._notifications.unshift(notif);
+			      }
+			    });
+			    renderNotifs(); updateBadge();
+			  });
+			  onValue(ref(db, 'broadcastNotifs'), snap => {
+			    const items = snap.val();
+			    if (!items) return;
+			    Object.entries(items).forEach(([key, n]) => {
+			      if (!window._notifications.find(x => x.firebaseKey === key)) {
+			        const notif = { id: Date.now()+Math.random(), firebaseKey: key, icon: n.icon||'📢', type: n.type||'system', title: n.title||'Broadcast', msg: n.message||'', ts: n.ts||Date.now(), read: false };
+			        window._notifications.unshift(notif);
+			      }
+			    });
+			    renderNotifs(); updateBadge();
+			  });
+			}
 
-						function listenForceSignout(uid) {
-						  onValue(ref(db, `forceSignout/${uid}`), async snap => {
-						    if (snap.exists() && snap.val() && !isOwner(currentUser)) {
-						      addNotif('🚪', 'alert', 'Signed Out', 'An admin has signed you out remotely.');
-						      await remove(ref(db, `forceSignout/${uid}`));
-						      await fbSignOut(auth);
-						    }
-						  });
-						}
+			function listenForceSignout(uid) {
+			  onValue(ref(db, `forceSignout/${uid}`), async snap => {
+			    if (snap.exists() && snap.val() && !isOwner(currentUser)) {
+			      addNotif('🚪', 'alert', 'Signed Out', 'An admin has signed you out remotely.');
+			      await remove(ref(db, `forceSignout/${uid}`));
+			      await fbSignOut(auth);
+			    }
+			  });
+			}
 
-						onAuthStateChanged(auth, async user => {
-						  currentUser = user;
-						  if (user) {
-						    const banSnap = await get(ref(db, `siteConfig/matthewBanned/${user.uid}`));
-						    if (banSnap.exists() && banSnap.val() && !isOwner(user)) { showBanScreen(user.email); return; }
-						    document.getElementById('login-gate').classList.add('hidden');
-						    document.getElementById('user-display').style.display = 'flex';
-						    document.getElementById('user-name-label').textContent = user.displayName || user.email;
-						    listenForceSignout(user.uid);
-						    listenUserNotifs(user.uid);
-						    addNotif('👋', 'system', 'Welcome back!', `Signed in as ${user.displayName || user.email}`);
-						    const existing = (await get(ref(db, `users/${user.uid}`))).val() || {};
-						    await set(ref(db, `users/${user.uid}`), { ...existing, displayName: user.displayName||'', email: user.email, uid: user.uid, lastSignIn: Date.now(), joinedAt: existing.joinedAt||Date.now() });
-						    await set(push(ref(db, 'activityLog')), { type:'login', message:`${user.displayName||user.email} signed into Matthew.html`, uid: user.uid, site:'matthew', ts: Date.now() });
-						  } else {
-						    document.getElementById('login-gate').classList.remove('hidden');
-						    document.getElementById('user-display').style.display = 'none';
-						    updateLgLocked();
-						  }
-						});
+			onAuthStateChanged(auth, async user => {
+			  currentUser = user;
+			  if (user) {
+			    const banSnap = await get(ref(db, `siteConfig/matthewBanned/${user.uid}`));
+			    if (banSnap.exists() && banSnap.val() && !isOwner(user)) { showBanScreen(user.email); return; }
+			    document.getElementById('login-gate').classList.add('hidden');
+			    document.getElementById('user-display').style.display = 'flex';
+			    document.getElementById('user-name-label').textContent = user.displayName || user.email;
+			    listenForceSignout(user.uid);
+			    listenUserNotifs(user.uid);
+			    addNotif('👋', 'system', 'Welcome back!', `Signed in as ${user.displayName || user.email}`);
+			    const existing = (await get(ref(db, `users/${user.uid}`))).val() || {};
+			    await set(ref(db, `users/${user.uid}`), { ...existing, displayName: user.displayName||'', email: user.email, uid: user.uid, lastSignIn: Date.now(), joinedAt: existing.joinedAt||Date.now() });
+			    await set(push(ref(db, 'activityLog')), { type:'login', message:`${user.displayName||user.email} signed into Matthew.html`, uid: user.uid, site:'matthew', ts: Date.now() });
+			  } else {
+			    document.getElementById('login-gate').classList.remove('hidden');
+			    document.getElementById('user-display').style.display = 'none';
+			    updateLgLocked();
+			  }
+			});
 
-						function showBanScreen(email) {
-						  document.getElementById('ban-screen').classList.add('show');
-						  document.getElementById('ban-email-display').textContent = 'Logged in as: ' + (email||'');
-						}
+			function showBanScreen(email) {
+			  document.getElementById('ban-screen').classList.add('show');
+			  document.getElementById('ban-email-display').textContent = 'Logged in as: ' + (email||'');
+			}
 
-						window.lgTab = function(mode) {
-						  _lgMode = mode;
-						  document.getElementById('lg-tab-login').classList.toggle('active', mode==='login');
-						  document.getElementById('lg-tab-register').classList.toggle('active', mode==='register');
-						  document.getElementById('lg-name-group').style.display = mode==='register' ? 'block' : 'none';
-						  document.getElementById('lg-password-group').style.display = 'block';
-						  document.getElementById('lg-submit-btn').textContent = mode==='login' ? 'SIGN IN' : 'CREATE ACCOUNT';
-						  document.getElementById('lg-forgot').style.display = mode==='login' ? 'block' : 'none';
-						  document.getElementById('lg-err').style.display = 'none';
-						  document.getElementById('lg-success').style.display = 'none';
-						  updateLgLocked();
-						};
+			window.lgTab = function(mode) {
+			  _lgMode = mode;
+			  document.getElementById('lg-tab-login').classList.toggle('active', mode==='login');
+			  document.getElementById('lg-tab-register').classList.toggle('active', mode==='register');
+			  document.getElementById('lg-name-group').style.display = mode==='register' ? 'block' : 'none';
+			  document.getElementById('lg-password-group').style.display = 'block';
+			  document.getElementById('lg-submit-btn').textContent = mode==='login' ? 'SIGN IN' : 'CREATE ACCOUNT';
+			  document.getElementById('lg-forgot').style.display = mode==='login' ? 'block' : 'none';
+			  document.getElementById('lg-err').style.display = 'none';
+			  document.getElementById('lg-success').style.display = 'none';
+			  updateLgLocked();
+			};
 
-						function updateLgLocked() {
-						  const llLogin = document.getElementById('lg-locked-login');
-						  const llSignup = document.getElementById('lg-locked-signup');
-						  const fw = document.getElementById('lg-form-wrap');
-						  if (_lgMode === 'login' && loginDisabled) { llLogin.style.display='block'; llSignup.style.display='none'; fw.style.display='none'; }
-						  else if (_lgMode === 'register' && signupDisabled) { llSignup.style.display='block'; llLogin.style.display='none'; fw.style.display='none'; }
-						  else { llLogin.style.display='none'; llSignup.style.display='none'; fw.style.display='block'; }
-						}
+			function updateLgLocked() {
+			  const llLogin = document.getElementById('lg-locked-login');
+			  const llSignup = document.getElementById('lg-locked-signup');
+			  const fw = document.getElementById('lg-form-wrap');
+			  if (_lgMode === 'login' && loginDisabled) { llLogin.style.display='block'; llSignup.style.display='none'; fw.style.display='none'; }
+			  else if (_lgMode === 'register' && signupDisabled) { llSignup.style.display='block'; llLogin.style.display='none'; fw.style.display='none'; }
+			  else { llLogin.style.display='none'; llSignup.style.display='none'; fw.style.display='block'; }
+			}
 
-						window.lgSubmit = async function() {
-						  if (_lgMode==='login' && loginDisabled) return;
-						  if (_lgMode==='register' && signupDisabled) return;
-						  const email = document.getElementById('lg-email').value.trim();
-						  const pass = document.getElementById('lg-password').value;
-						  const name = document.getElementById('lg-name').value.trim();
-						  const errEl = document.getElementById('lg-err');
-						  const btn = document.getElementById('lg-submit-btn');
-						  errEl.style.display = 'none';
-						  if (!email || !pass) { errEl.textContent='Fill in all fields'; errEl.style.display='block'; return; }
-						  btn.disabled = true; btn.textContent = '...';
-						  try {
-						    if (_lgMode === 'register') {
-						      const cred = await createUserWithEmailAndPassword(auth, email, pass);
-						      if (name) await updateProfile(cred.user, { displayName: name });
-						    } else { await signInWithEmailAndPassword(auth, email, pass); }
-						  } catch(e) {
-						    errEl.textContent = e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();
-						    errEl.style.display = 'block';
-						    btn.disabled = false; btn.textContent = _lgMode==='login' ? 'SIGN IN' : 'CREATE ACCOUNT';
-						  }
-						};
+			window.lgSubmit = async function() {
+			  if (_lgMode==='login' && loginDisabled) return;
+			  if (_lgMode==='register' && signupDisabled) return;
+			  const email = document.getElementById('lg-email').value.trim();
+			  const pass = document.getElementById('lg-password').value;
+			  const name = document.getElementById('lg-name').value.trim();
+			  const errEl = document.getElementById('lg-err');
+			  const btn = document.getElementById('lg-submit-btn');
+			  errEl.style.display = 'none';
+			  if (!email || !pass) { errEl.textContent='Fill in all fields'; errEl.style.display='block'; return; }
+			  btn.disabled = true; btn.textContent = '...';
+			  try {
+			    if (_lgMode === 'register') {
+			      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+			      if (name) await updateProfile(cred.user, { displayName: name });
+			    } else { await signInWithEmailAndPassword(auth, email, pass); }
+			  } catch(e) {
+			    errEl.textContent = e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();
+			    errEl.style.display = 'block';
+			    btn.disabled = false; btn.textContent = _lgMode==='login' ? 'SIGN IN' : 'CREATE ACCOUNT';
+			  }
+			};
 
-						window.lgForgot = function() {
-						  window.location.href = 'https://htmltools.nekoweb.org/ForgotPassword';
-						};
+			window.lgForgot = function() {
+			  window.location.href = 'https://htmltools.nekoweb.org/ForgotPassword';
+			};
 
-						window.doSignOut = async function() { await fbSignOut(auth); };
+			window.doSignOut = async function() { await fbSignOut(auth); };
 		</script>
 		<script>
 			// expose EmailJS IDs to module scope
