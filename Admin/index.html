@@ -4,7 +4,7 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width,initial-scale=1.0" />
 		<title>Admin Menu - HTML Tools</title>
-<link rel="icon" type="image/png" href="/Adminlogo.png" />
+		<link rel="icon" type="image/png" href="Adminlogo.png" />
 		<link
 			href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
 			rel="stylesheet"
@@ -720,609 +720,608 @@
 		<div id="toast"></div>
 
 		<script type="module">
-			import { initializeApp }      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-			import { getDatabase, ref, push, set, get, onValue, remove }
-			                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-			import { getAuth, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged }
-			                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+						import { initializeApp }      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+						import { getDatabase, ref, push, set, get, onValue, remove }
+						                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+						import { getAuth, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged }
+						                               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-			// ─── Config ─────────────────────────────────────────────────────────────────
-			const OWNER_EMAIL  = 'matthewbozhe@gmail.com';
-			const HALIFAX_TZ   = 'America/Halifax';
-			const MC_EXPIRE_MS = 30 * 1000;
+						// ─── Config ─────────────────────────────────────────────────────────────────
+						const OWNER_EMAIL  = 'matthewbozhe@gmail.com';
+						const HALIFAX_TZ   = 'America/Halifax';
+						const MC_EXPIRE_MS = 30 * 1000;
 
-			const firebaseConfig = {
-			  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
-			  authDomain: "htmltools-library.firebaseapp.com",
-			  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
-			  projectId: "htmltools-library",
-			  storageBucket: "htmltools-library.firebasestorage.app",
-			  messagingSenderId: "973699554480",
-			  appId: "1:973699554480:web:33ed9d341fc48ed8092f75"
+						const firebaseConfig = {
+			  apiKey: "AIzaSyCAtRRv7hxrBKxeJdh4VsL7j0jh5kf2X1U",
+			  authDomain: "htmltools-main.firebaseapp.com",
+			  projectId: "htmltools-main",
+			  storageBucket: "htmltools-main.firebasestorage.app",
+			  messagingSenderId: "692809314189",
+			  appId: "1:692809314189:web:c386a54b41af7c867657c4"
 			};
 
-			const fbApp = initializeApp(firebaseConfig);
-			const db    = getDatabase(fbApp);
-			const auth  = getAuth(fbApp);
+						const fbApp = initializeApp(firebaseConfig);
+						const db    = getDatabase(fbApp);
+						const auth  = getAuth(fbApp);
 
-			// ─── State ───────────────────────────────────────────────────────────────────
-			let currentUser    = null;
-			let allUsers       = {};
-			let allBooks       = {};
-			let allActivity    = [];
-			let allSites       = {};
-			let extraAdmins    = {};
-			let bannedCreate   = {};
-			let bannedMatthew  = {};
-			let bannedAi       = {};
-			let activityFilter = 'all';
-			let currentPanel   = 'overview';
-			let allMCMessages  = {};
-			let mcTimers       = {};
+						// ─── State ───────────────────────────────────────────────────────────────────
+						let currentUser    = null;
+						let allUsers       = {};
+						let allBooks       = {};
+						let allActivity    = [];
+						let allSites       = {};
+						let extraAdmins    = {};
+						let bannedCreate   = {};
+						let bannedMatthew  = {};
+						let bannedAi       = {};
+						let activityFilter = 'all';
+						let currentPanel   = 'overview';
+						let allMCMessages  = {};
+						let mcTimers       = {};
 
-			// ─── Helpers ─────────────────────────────────────────────────────────────────
-			const isOwner = u => !!(u && u.email && u.email.toLowerCase() === OWNER_EMAIL.toLowerCase());
-			const isAdmin = u => {
-			  if (!u || !u.email) return false;
-			  if (isOwner(u)) return true;
-			  const e = u.email.toLowerCase();
-			  return Object.values(extraAdmins).some(v => {
-			    if (!v) return false;
-			    if (typeof v === 'string') return v.toLowerCase() === e;
-			    if (typeof v === 'object' && v.email) return v.email.toLowerCase() === e;
-			    return false;
-			  });
-			};
+						// ─── Helpers ─────────────────────────────────────────────────────────────────
+						const isOwner = u => !!(u && u.email && u.email.toLowerCase() === OWNER_EMAIL.toLowerCase());
+						const isAdmin = u => {
+						  if (!u || !u.email) return false;
+						  if (isOwner(u)) return true;
+						  const e = u.email.toLowerCase();
+						  return Object.values(extraAdmins).some(v => {
+						    if (!v) return false;
+						    if (typeof v === 'string') return v.toLowerCase() === e;
+						    if (typeof v === 'object' && v.email) return v.email.toLowerCase() === e;
+						    return false;
+						  });
+						};
 
-			function showToast(msg, type = '') {
-			  const t = document.getElementById('toast');
-			  t.textContent = msg;
-			  t.className = 'show' + (type ? ' ' + type : '');
-			  clearTimeout(window._tt);
-			  window._tt = setTimeout(() => { t.className = ''; }, 3200);
-			}
+						function showToast(msg, type = '') {
+						  const t = document.getElementById('toast');
+						  t.textContent = msg;
+						  t.className = 'show' + (type ? ' ' + type : '');
+						  clearTimeout(window._tt);
+						  window._tt = setTimeout(() => { t.className = ''; }, 3200);
+						}
 
-			const esc = s => s ? String(s)
-			  .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-			  .replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
+						const esc = s => s ? String(s)
+						  .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+						  .replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
 
-			function timeAgo(ts) {
-			  if (!ts) return '—';
-			  const d = Date.now() - ts;
-			  if (d < 60000)    return 'just now';
-			  if (d < 3600000)  return Math.floor(d / 60000) + 'm ago';
-			  if (d < 86400000) return Math.floor(d / 3600000) + 'h ago';
-			  return Math.floor(d / 86400000) + 'd ago';
-			}
-			function halifaxDateTime(ts) {
-			  if (!ts) return '—';
-			  return new Date(ts).toLocaleString('en-CA', {
-			    timeZone: HALIFAX_TZ, month: 'short', day: 'numeric',
-			    hour: '2-digit', minute: '2-digit', hour12: true
-			  });
-			}
-			async function logActivity(type, message, uid, site) {
-			  await set(push(ref(db, 'activityLog')), {
-			    type, message, uid: uid || '', site: site || '', ts: Date.now()
-			  });
-			}
+						function timeAgo(ts) {
+						  if (!ts) return '—';
+						  const d = Date.now() - ts;
+						  if (d < 60000)    return 'just now';
+						  if (d < 3600000)  return Math.floor(d / 60000) + 'm ago';
+						  if (d < 86400000) return Math.floor(d / 3600000) + 'h ago';
+						  return Math.floor(d / 86400000) + 'd ago';
+						}
+						function halifaxDateTime(ts) {
+						  if (!ts) return '—';
+						  return new Date(ts).toLocaleString('en-CA', {
+						    timeZone: HALIFAX_TZ, month: 'short', day: 'numeric',
+						    hour: '2-digit', minute: '2-digit', hour12: true
+						  });
+						}
+						async function logActivity(type, message, uid, site) {
+						  await set(push(ref(db, 'activityLog')), {
+						    type, message, uid: uid || '', site: site || '', ts: Date.now()
+						  });
+						}
 
-			// ─── Confirm Modal ───────────────────────────────────────────────────────────
-			let _confirmResolve = null;
-			function safeConfirm(title, body) {
-			  return new Promise(res => {
-			    _confirmResolve = res;
-			    document.getElementById('confirm-title').textContent = title;
-			    document.getElementById('confirm-body').textContent  = body;
-			    document.getElementById('confirm-modal').classList.add('open');
-			  });
-			}
-			function confirmResult(v) {
-			  document.getElementById('confirm-modal').classList.remove('open');
-			  if (_confirmResolve) { _confirmResolve(v); _confirmResolve = null; }
-			}
-			document.getElementById('confirm-modal').addEventListener('click', e => {
-			  if (e.target === document.getElementById('confirm-modal')) confirmResult(false);
-			});
-			document.getElementById('confirm-cancel').addEventListener('click', () => confirmResult(false));
-			document.getElementById('confirm-ok').addEventListener('click',     () => confirmResult(true));
+						// ─── Confirm Modal ───────────────────────────────────────────────────────────
+						let _confirmResolve = null;
+						function safeConfirm(title, body) {
+						  return new Promise(res => {
+						    _confirmResolve = res;
+						    document.getElementById('confirm-title').textContent = title;
+						    document.getElementById('confirm-body').textContent  = body;
+						    document.getElementById('confirm-modal').classList.add('open');
+						  });
+						}
+						function confirmResult(v) {
+						  document.getElementById('confirm-modal').classList.remove('open');
+						  if (_confirmResolve) { _confirmResolve(v); _confirmResolve = null; }
+						}
+						document.getElementById('confirm-modal').addEventListener('click', e => {
+						  if (e.target === document.getElementById('confirm-modal')) confirmResult(false);
+						});
+						document.getElementById('confirm-cancel').addEventListener('click', () => confirmResult(false));
+						document.getElementById('confirm-ok').addEventListener('click',     () => confirmResult(true));
 
-			// ─── Add Site Modal (OWNER ONLY) ─────────────────────────────────────────────
-			function openAddSiteModal() {
-			  // Hard gate: only the owner may open this modal
-			  if (!isOwner(currentUser)) { showToast('Only the owner can add sites', 'error'); return; }
-			  ['new-site-name','new-site-url','new-site-desc','new-site-cat']
-			    .forEach(id => { document.getElementById(id).value = ''; });
-			  document.getElementById('add-site-modal').classList.add('open');
-			}
-			function closeAddSiteModal() {
-			  document.getElementById('add-site-modal').classList.remove('open');
-			}
-			async function submitAddSite() {
-			  // Hard gate: only the owner may submit
-			  if (!isOwner(currentUser)) { showToast('Only the owner can add sites', 'error'); return; }
-			  const name = document.getElementById('new-site-name').value.trim();
-			  const url  = document.getElementById('new-site-url').value.trim();
-			  const desc = document.getElementById('new-site-desc').value.trim();
-			  const cat  = document.getElementById('new-site-cat').value.trim();
-			  if (!name || !url) { showToast('Name and URL are required', 'error'); return; }
-			  try {
-			    await set(push(ref(db, 'sites')), {
-			      name, url, description: desc, category: cat,
-			      createdAt: Date.now(), createdBy: currentUser.email, likes: 0, visible: true
-			    });
-			    await logActivity('admin', `Owner added site: ${name}`, currentUser.uid, 'all');
-			    closeAddSiteModal();
-			    showToast(`Site "${name}" added ✓`, 'success');
-			  } catch (err) {
-			    showToast('Error: ' + err.message, 'error');
-			  }
-			}
-			document.getElementById('add-site-modal').addEventListener('click', e => {
-			  if (e.target === document.getElementById('add-site-modal')) closeAddSiteModal();
-			});
-			document.getElementById('add-site-cancel').addEventListener('click', closeAddSiteModal);
-			document.getElementById('add-site-submit').addEventListener('click', submitAddSite);
-			document.getElementById('nav-add-site-btn').addEventListener('click', openAddSiteModal);
+						// ─── Add Site Modal (OWNER ONLY) ─────────────────────────────────────────────
+						function openAddSiteModal() {
+						  // Hard gate: only the owner may open this modal
+						  if (!isOwner(currentUser)) { showToast('Only the owner can add sites', 'error'); return; }
+						  ['new-site-name','new-site-url','new-site-desc','new-site-cat']
+						    .forEach(id => { document.getElementById(id).value = ''; });
+						  document.getElementById('add-site-modal').classList.add('open');
+						}
+						function closeAddSiteModal() {
+						  document.getElementById('add-site-modal').classList.remove('open');
+						}
+						async function submitAddSite() {
+						  // Hard gate: only the owner may submit
+						  if (!isOwner(currentUser)) { showToast('Only the owner can add sites', 'error'); return; }
+						  const name = document.getElementById('new-site-name').value.trim();
+						  const url  = document.getElementById('new-site-url').value.trim();
+						  const desc = document.getElementById('new-site-desc').value.trim();
+						  const cat  = document.getElementById('new-site-cat').value.trim();
+						  if (!name || !url) { showToast('Name and URL are required', 'error'); return; }
+						  try {
+						    await set(push(ref(db, 'sites')), {
+						      name, url, description: desc, category: cat,
+						      createdAt: Date.now(), createdBy: currentUser.email, likes: 0, visible: true
+						    });
+						    await logActivity('admin', `Owner added site: ${name}`, currentUser.uid, 'all');
+						    closeAddSiteModal();
+						    showToast(`Site "${name}" added ✓`, 'success');
+						  } catch (err) {
+						    showToast('Error: ' + err.message, 'error');
+						  }
+						}
+						document.getElementById('add-site-modal').addEventListener('click', e => {
+						  if (e.target === document.getElementById('add-site-modal')) closeAddSiteModal();
+						});
+						document.getElementById('add-site-cancel').addEventListener('click', closeAddSiteModal);
+						document.getElementById('add-site-submit').addEventListener('click', submitAddSite);
+						document.getElementById('nav-add-site-btn').addEventListener('click', openAddSiteModal);
 
-			// ─── Remove Site (OWNER ONLY) ─────────────────────────────────────────────────
-			async function removeSite(id, name) {
-			  // Hard gate: only the owner may remove sites
-			  if (!isOwner(currentUser)) { showToast('Only the owner can remove sites', 'error'); return; }
-			  if (!await safeConfirm('Remove Site', `Permanently remove "${name}" from the platform?`)) return;
-			  try {
-			    await remove(ref(db, 'sites/' + id));
-			    await logActivity('admin', `Owner removed site: ${name}`, currentUser.uid, 'all');
-			    showToast(`Site "${name}" removed ✓`, 'success');
-			  } catch (err) {
-			    showToast('Error: ' + err.message, 'error');
-			  }
-			}
+						// ─── Remove Site (OWNER ONLY) ─────────────────────────────────────────────────
+						async function removeSite(id, name) {
+						  // Hard gate: only the owner may remove sites
+						  if (!isOwner(currentUser)) { showToast('Only the owner can remove sites', 'error'); return; }
+						  if (!await safeConfirm('Remove Site', `Permanently remove "${name}" from the platform?`)) return;
+						  try {
+						    await remove(ref(db, 'sites/' + id));
+						    await logActivity('admin', `Owner removed site: ${name}`, currentUser.uid, 'all');
+						    showToast(`Site "${name}" removed ✓`, 'success');
+						  } catch (err) {
+						    showToast('Error: ' + err.message, 'error');
+						  }
+						}
 
-			// ─── Auth ─────────────────────────────────────────────────────────────────────
-			async function doSignOut() {
-			  await fbSignOut(auth);
-			  document.getElementById('no-permission').style.display = 'none';
-			  document.getElementById('app').style.display           = 'none';
-			  document.getElementById('gate').style.display          = 'flex';
-			  document.getElementById('gate-btn').textContent        = 'SIGN IN →';
-			}
-			async function gateLogin() {
-			  const email = document.getElementById('g-email').value.trim();
-			  const pass  = document.getElementById('g-pass').value;
-			  const err   = document.getElementById('gate-err');
-			  const btn   = document.getElementById('gate-btn');
-			  err.style.display = 'none';
-			  if (!email || !pass) { err.textContent = 'Fill in all fields.'; err.style.display = 'block'; return; }
-			  try {
-			    btn.textContent = 'Signing in…';
-			    await signInWithEmailAndPassword(auth, email, pass);
-			  } catch (e) {
-			    err.textContent   = e.message.replace('Firebase:','').replace(/\(.*\)/,'').trim();
-			    err.style.display = 'block';
-			    btn.textContent   = 'SIGN IN →';
-			  }
-			}
+						// ─── Auth ─────────────────────────────────────────────────────────────────────
+						async function doSignOut() {
+						  await fbSignOut(auth);
+						  document.getElementById('no-permission').style.display = 'none';
+						  document.getElementById('app').style.display           = 'none';
+						  document.getElementById('gate').style.display          = 'flex';
+						  document.getElementById('gate-btn').textContent        = 'SIGN IN →';
+						}
+						async function gateLogin() {
+						  const email = document.getElementById('g-email').value.trim();
+						  const pass  = document.getElementById('g-pass').value;
+						  const err   = document.getElementById('gate-err');
+						  const btn   = document.getElementById('gate-btn');
+						  err.style.display = 'none';
+						  if (!email || !pass) { err.textContent = 'Fill in all fields.'; err.style.display = 'block'; return; }
+						  try {
+						    btn.textContent = 'Signing in…';
+						    await signInWithEmailAndPassword(auth, email, pass);
+						  } catch (e) {
+						    err.textContent   = e.message.replace('Firebase:','').replace(/\(.*\)/,'').trim();
+						    err.style.display = 'block';
+						    btn.textContent   = 'SIGN IN →';
+						  }
+						}
 
-			document.getElementById('gate-btn').addEventListener('click', gateLogin);
-			document.getElementById('g-email').addEventListener('keydown', e => { if (e.key==='Enter') gateLogin(); });
-			document.getElementById('g-pass').addEventListener('keydown',  e => { if (e.key==='Enter') gateLogin(); });
-			document.getElementById('noperm-refresh').addEventListener('click', () => window.location.reload());
-			document.getElementById('noperm-signout').addEventListener('click', doSignOut);
-			document.getElementById('header-signout').addEventListener('click', doSignOut);
-			document.getElementById('btn-refresh-overview').addEventListener('click', () => { renderOverview(); showToast('Refreshed ✓','success'); });
-			document.getElementById('btn-clear-activity').addEventListener('click', clearAllActivity);
-			document.getElementById('act-btn-all').addEventListener('click', () => filterActivity('all'));
-			document.getElementById('act-search').addEventListener('input', renderActivityLog);
-			document.getElementById('btn-refresh-audit').addEventListener('click', renderAuditLog);
-			document.getElementById('btn-clear-audit').addEventListener('click', clearAuditLog);
-			document.getElementById('audit-search').addEventListener('input', renderAuditLog);
-			document.getElementById('audit-type-filter').addEventListener('change', renderAuditLog);
-			document.getElementById('btn-refresh-analytics').addEventListener('click', renderAnalytics);
-			document.getElementById('mc-send-btn').addEventListener('click', mcSendMessage);
-			document.getElementById('mc-input').addEventListener('keydown', e => {
-			  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); mcSendMessage(); }
-			});
-			document.getElementById('mc-input').addEventListener('input', function() { mcInputResize(this); });
-			document.getElementById('btn-grant-admin').addEventListener('click', grantAdminAccess);
-			document.querySelectorAll('.nav-item[data-nav]').forEach(el => {
-			  el.addEventListener('click', () => navTo(el.dataset.nav, el));
-			});
+						document.getElementById('gate-btn').addEventListener('click', gateLogin);
+						document.getElementById('g-email').addEventListener('keydown', e => { if (e.key==='Enter') gateLogin(); });
+						document.getElementById('g-pass').addEventListener('keydown',  e => { if (e.key==='Enter') gateLogin(); });
+						document.getElementById('noperm-refresh').addEventListener('click', () => window.location.reload());
+						document.getElementById('noperm-signout').addEventListener('click', doSignOut);
+						document.getElementById('header-signout').addEventListener('click', doSignOut);
+						document.getElementById('btn-refresh-overview').addEventListener('click', () => { renderOverview(); showToast('Refreshed ✓','success'); });
+						document.getElementById('btn-clear-activity').addEventListener('click', clearAllActivity);
+						document.getElementById('act-btn-all').addEventListener('click', () => filterActivity('all'));
+						document.getElementById('act-search').addEventListener('input', renderActivityLog);
+						document.getElementById('btn-refresh-audit').addEventListener('click', renderAuditLog);
+						document.getElementById('btn-clear-audit').addEventListener('click', clearAuditLog);
+						document.getElementById('audit-search').addEventListener('input', renderAuditLog);
+						document.getElementById('audit-type-filter').addEventListener('change', renderAuditLog);
+						document.getElementById('btn-refresh-analytics').addEventListener('click', renderAnalytics);
+						document.getElementById('mc-send-btn').addEventListener('click', mcSendMessage);
+						document.getElementById('mc-input').addEventListener('keydown', e => {
+						  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); mcSendMessage(); }
+						});
+						document.getElementById('mc-input').addEventListener('input', function() { mcInputResize(this); });
+						document.getElementById('btn-grant-admin').addEventListener('click', grantAdminAccess);
+						document.querySelectorAll('.nav-item[data-nav]').forEach(el => {
+						  el.addEventListener('click', () => navTo(el.dataset.nav, el));
+						});
 
-			// ─── onAuthStateChanged ──────────────────────────────────────────────────────
-			onAuthStateChanged(auth, async user => {
-			  currentUser = user;
-			  if (!user) {
-			    document.getElementById('gate').style.display          = 'flex';
-			    document.getElementById('app').style.display           = 'none';
-			    document.getElementById('no-permission').style.display = 'none';
-			    document.getElementById('gate-btn').textContent        = 'SIGN IN →';
-			    return;
-			  }
-			  document.getElementById('gate').style.display = 'none';
+						// ─── onAuthStateChanged ──────────────────────────────────────────────────────
+						onAuthStateChanged(auth, async user => {
+						  currentUser = user;
+						  if (!user) {
+						    document.getElementById('gate').style.display          = 'flex';
+						    document.getElementById('app').style.display           = 'none';
+						    document.getElementById('no-permission').style.display = 'none';
+						    document.getElementById('gate-btn').textContent        = 'SIGN IN →';
+						    return;
+						  }
+						  document.getElementById('gate').style.display = 'none';
 
-			  const adminSnap = await get(ref(db, 'siteConfig/adminEmails'));
-			  extraAdmins = adminSnap.val() || {};
+						  const adminSnap = await get(ref(db, 'siteConfig/adminEmails'));
+						  extraAdmins = adminSnap.val() || {};
 
-			  if (!isAdmin(user)) {
-			    document.getElementById('no-permission').style.display = 'flex';
-			    document.getElementById('noperm-email-label').textContent = 'Signed in as: ' + user.email;
-			    document.getElementById('app').style.display = 'none';
-			    return;
-			  }
+						  if (!isAdmin(user)) {
+						    document.getElementById('no-permission').style.display = 'flex';
+						    document.getElementById('noperm-email-label').textContent = 'Signed in as: ' + user.email;
+						    document.getElementById('app').style.display = 'none';
+						    return;
+						  }
 
-			  document.getElementById('no-permission').style.display = 'none';
-			  document.getElementById('app').style.display           = 'flex';
-			  document.getElementById('h-username').textContent      = user.displayName || user.email;
-			  if (isOwner(user)) document.getElementById('owner-pill').style.display = 'inline-flex';
+						  document.getElementById('no-permission').style.display = 'none';
+						  document.getElementById('app').style.display           = 'flex';
+						  document.getElementById('h-username').textContent      = user.displayName || user.email;
+						  if (isOwner(user)) document.getElementById('owner-pill').style.display = 'inline-flex';
 
-			  initListeners();
-			  mcInit();
-			  renderSidebarSites();
-			});
+						  initListeners();
+						  mcInit();
+						  renderSidebarSites();
+						});
 
-			// ─── Firebase Listeners ──────────────────────────────────────────────────────
-			function initListeners() {
-			  onValue(ref(db, 'users'), snap => {
-			    allUsers = snap.val() || {};
-			    updateOnlineCount();
-			    if (currentPanel === 'overview')  renderOverview();
-			    if (currentPanel === 'analytics') renderAnalytics();
-			  });
-			  onValue(ref(db, 'books'), snap => {
-			    allBooks = snap.val() || {};
-			    if (currentPanel === 'overview')  renderOverview();
-			    if (currentPanel === 'analytics') renderAnalytics();
-			  });
-			  onValue(ref(db, 'sites'), snap => {
-			    allSites = {};
-			    snap.forEach(c => { allSites[c.key] = { ...c.val(), id: c.key }; });
-			    renderOverview();
-			    renderSidebarSites();
-			  });
-			  onValue(ref(db, 'bannedUsers'),             snap => { bannedCreate  = snap.val() || {}; });
-			  onValue(ref(db, 'siteConfig/matthewBanned'),snap => { bannedMatthew = snap.val() || {}; });
-			  onValue(ref(db, 'siteConfig/aiBanned'),     snap => { bannedAi      = snap.val() || {}; });
-			  onValue(ref(db, 'siteConfig/adminEmails'),  snap => {
-			    extraAdmins = snap.val() || {};
-			    if (currentPanel === 'permissions') renderPermissions();
-			    if (currentUser && !isAdmin(currentUser)) {
-			      document.getElementById('app').style.display           = 'none';
-			      document.getElementById('no-permission').style.display = 'flex';
-			    }
-			  });
-			  onValue(ref(db, 'activityLog'), snap => {
-			    const d = snap.val() || {};
-			    allActivity = Object.entries(d)
-			      .map(([id, a]) => ({ ...a, id }))
-			      .sort((a, b) => (b.ts||0) - (a.ts||0))
-			      .slice(0, 500);
-			    renderActivityLog();
-			    if (currentPanel === 'overview') renderOverview();
-			    if (currentPanel === 'audit')    renderAuditLog();
-			  });
-			  renderOverview();
-			}
+						// ─── Firebase Listeners ──────────────────────────────────────────────────────
+						function initListeners() {
+						  onValue(ref(db, 'users'), snap => {
+						    allUsers = snap.val() || {};
+						    updateOnlineCount();
+						    if (currentPanel === 'overview')  renderOverview();
+						    if (currentPanel === 'analytics') renderAnalytics();
+						  });
+						  onValue(ref(db, 'books'), snap => {
+						    allBooks = snap.val() || {};
+						    if (currentPanel === 'overview')  renderOverview();
+						    if (currentPanel === 'analytics') renderAnalytics();
+						  });
+						  onValue(ref(db, 'sites'), snap => {
+						    allSites = {};
+						    snap.forEach(c => { allSites[c.key] = { ...c.val(), id: c.key }; });
+						    renderOverview();
+						    renderSidebarSites();
+						  });
+						  onValue(ref(db, 'bannedUsers'),             snap => { bannedCreate  = snap.val() || {}; });
+						  onValue(ref(db, 'siteConfig/matthewBanned'),snap => { bannedMatthew = snap.val() || {}; });
+						  onValue(ref(db, 'siteConfig/aiBanned'),     snap => { bannedAi      = snap.val() || {}; });
+						  onValue(ref(db, 'siteConfig/adminEmails'),  snap => {
+						    extraAdmins = snap.val() || {};
+						    if (currentPanel === 'permissions') renderPermissions();
+						    if (currentUser && !isAdmin(currentUser)) {
+						      document.getElementById('app').style.display           = 'none';
+						      document.getElementById('no-permission').style.display = 'flex';
+						    }
+						  });
+						  onValue(ref(db, 'activityLog'), snap => {
+						    const d = snap.val() || {};
+						    allActivity = Object.entries(d)
+						      .map(([id, a]) => ({ ...a, id }))
+						      .sort((a, b) => (b.ts||0) - (a.ts||0))
+						      .slice(0, 500);
+						    renderActivityLog();
+						    if (currentPanel === 'overview') renderOverview();
+						    if (currentPanel === 'audit')    renderAuditLog();
+						  });
+						  renderOverview();
+						}
 
-			function updateOnlineCount() {
-			  const count = Object.keys(allUsers).length;
-			  const el = document.getElementById('h-online');
-			  if (el) el.textContent = count + ' user' + (count !== 1 ? 's' : '');
-			}
+						function updateOnlineCount() {
+						  const count = Object.keys(allUsers).length;
+						  const el = document.getElementById('h-online');
+						  if (el) el.textContent = count + ' user' + (count !== 1 ? 's' : '');
+						}
 
-			// ─── Nav ──────────────────────────────────────────────────────────────────────
-			function navTo(name, el) {
-			  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-			  if (el) el.classList.add('active');
-			  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-			  const pan = document.getElementById('panel-' + name);
-			  if (pan) pan.classList.add('active');
-			  currentPanel = name;
-			  ({ activity: () => { filterActivity('all'); renderActivityLog(); },
-			     audit: renderAuditLog, analytics: renderAnalytics,
-			     permissions: renderPermissions, modchat: mcScrollBottom
-			  })[name]?.();
-			}
+						// ─── Nav ──────────────────────────────────────────────────────────────────────
+						function navTo(name, el) {
+						  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+						  if (el) el.classList.add('active');
+						  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+						  const pan = document.getElementById('panel-' + name);
+						  if (pan) pan.classList.add('active');
+						  currentPanel = name;
+						  ({ activity: () => { filterActivity('all'); renderActivityLog(); },
+						     audit: renderAuditLog, analytics: renderAnalytics,
+						     permissions: renderPermissions, modchat: mcScrollBottom
+						  })[name]?.();
+						}
 
-			// ─── Overview ─────────────────────────────────────────────────────────────────
-			function renderOverview() {
-			  const sites  = Object.values(allSites);
-			  const books  = Object.values(allBooks).filter(b => b && b.title);
-			  const users  = Object.values(allUsers);
-			  const banned = Object.keys(bannedCreate).length + Object.keys(bannedMatthew).length + Object.keys(bannedAi).length;
-			  let totalLikes = 0;
-			  sites.forEach(s => { totalLikes += (s.likes || 0); });
-			  totalLikes += books.reduce((a,b) => a + (b.likes||0), 0);
-			  document.getElementById('ov-sl-sites').textContent   = sites.length;
-			  document.getElementById('ov-totalusers').textContent = users.length;
-			  document.getElementById('ov-totalbooks').textContent = books.length;
-			  document.getElementById('ov-totallikes').textContent = totalLikes;
-			  document.getElementById('ov-banned').textContent     = banned;
-			  const recent = allActivity.slice(0, 7);
-			  const actEl  = document.getElementById('ov-activity-list');
-			  if (!recent.length) { actEl.innerHTML = '<div class="empty-state">No activity yet</div>'; return; }
-			  const cmap = { login:'act-green', upload:'act-blue', delete:'act-red', ban:'act-yellow', announce:'act-yellow', admin:'act-purple' };
-			  actEl.innerHTML = recent.map(a =>
-			    `<div class="activity-item">
-			      <div class="act-dot ${cmap[a.type]||'act-blue'}"></div>
-			      <div class="act-text">${esc(a.message)}${a.site?` <span class="act-site">${a.site.toUpperCase()}</span>`:''}</div>
-			      <div class="act-time">${timeAgo(a.ts)}</div>
-			    </div>`
-			  ).join('');
-			}
+						// ─── Overview ─────────────────────────────────────────────────────────────────
+						function renderOverview() {
+						  const sites  = Object.values(allSites);
+						  const books  = Object.values(allBooks).filter(b => b && b.title);
+						  const users  = Object.values(allUsers);
+						  const banned = Object.keys(bannedCreate).length + Object.keys(bannedMatthew).length + Object.keys(bannedAi).length;
+						  let totalLikes = 0;
+						  sites.forEach(s => { totalLikes += (s.likes || 0); });
+						  totalLikes += books.reduce((a,b) => a + (b.likes||0), 0);
+						  document.getElementById('ov-sl-sites').textContent   = sites.length;
+						  document.getElementById('ov-totalusers').textContent = users.length;
+						  document.getElementById('ov-totalbooks').textContent = books.length;
+						  document.getElementById('ov-totallikes').textContent = totalLikes;
+						  document.getElementById('ov-banned').textContent     = banned;
+						  const recent = allActivity.slice(0, 7);
+						  const actEl  = document.getElementById('ov-activity-list');
+						  if (!recent.length) { actEl.innerHTML = '<div class="empty-state">No activity yet</div>'; return; }
+						  const cmap = { login:'act-green', upload:'act-blue', delete:'act-red', ban:'act-yellow', announce:'act-yellow', admin:'act-purple' };
+						  actEl.innerHTML = recent.map(a =>
+						    `<div class="activity-item">
+						      <div class="act-dot ${cmap[a.type]||'act-blue'}"></div>
+						      <div class="act-text">${esc(a.message)}${a.site?` <span class="act-site">${a.site.toUpperCase()}</span>`:''}</div>
+						      <div class="act-time">${timeAgo(a.ts)}</div>
+						    </div>`
+						  ).join('');
+						}
 
-			// ─── Sidebar Sites ────────────────────────────────────────────────────────────
-			function renderSidebarSites() {
-			  const list   = document.getElementById('sidebar-sites-list');
-			  const addBtn = document.getElementById('sidebar-add-site-btn');
-			  if (!list) return;
+						// ─── Sidebar Sites ────────────────────────────────────────────────────────────
+						function renderSidebarSites() {
+						  const list   = document.getElementById('sidebar-sites-list');
+						  const addBtn = document.getElementById('sidebar-add-site-btn');
+						  if (!list) return;
 
-			  // "Add Site" button: owner only
-			  if (addBtn) addBtn.style.display = isOwner(currentUser) ? 'block' : 'none';
+						  // "Add Site" button: owner only
+						  if (addBtn) addBtn.style.display = isOwner(currentUser) ? 'block' : 'none';
 
-			  const sites = Object.values(allSites);
-			  if (!sites.length) {
-			    list.innerHTML = '<div style="padding:.4rem 1rem;font-size:.62rem;color:var(--muted2);font-style:italic;">No sites yet</div>';
-			    return;
-			  }
+						  const sites = Object.values(allSites);
+						  if (!sites.length) {
+						    list.innerHTML = '<div style="padding:.4rem 1rem;font-size:.62rem;color:var(--muted2);font-style:italic;">No sites yet</div>';
+						    return;
+						  }
 
-			  const ownerMode = isOwner(currentUser);
+						  const ownerMode = isOwner(currentUser);
 
-			  list.innerHTML = sites.map(s =>
-			    `<div class="nav-item-site${ownerMode?' owner-mode':''}" data-url="${esc(s.url||'')}" title="${esc(s.url||'')}">
-			      <span class="ni-icon" style="font-size:.75rem">🌐</span>
-			      <span class="ni-label">${esc(s.name||s.id||'Unnamed')}</span>
-			      ${ownerMode ? `<button class="site-remove-btn" data-id="${esc(s.id)}" data-name="${esc(s.name||s.id||'Unnamed')}" title="Remove site">✕</button>` : ''}
-			    </div>`
-			  ).join('');
+						  list.innerHTML = sites.map(s =>
+						    `<div class="nav-item-site${ownerMode?' owner-mode':''}" data-url="${esc(s.url||'')}" title="${esc(s.url||'')}">
+						      <span class="ni-icon" style="font-size:.75rem">🌐</span>
+						      <span class="ni-label">${esc(s.name||s.id||'Unnamed')}</span>
+						      ${ownerMode ? `<button class="site-remove-btn" data-id="${esc(s.id)}" data-name="${esc(s.name||s.id||'Unnamed')}" title="Remove site">✕</button>` : ''}
+						    </div>`
+						  ).join('');
 
-			  // Open site on row click (but not on the remove button)
-			  list.querySelectorAll('.nav-item-site').forEach(el => {
-			    el.addEventListener('click', e => {
-			      if (e.target.classList.contains('site-remove-btn')) return; // handled below
-			      if (el.dataset.url) window.open(el.dataset.url, '_blank');
-			    });
-			  });
+						  // Open site on row click (but not on the remove button)
+						  list.querySelectorAll('.nav-item-site').forEach(el => {
+						    el.addEventListener('click', e => {
+						      if (e.target.classList.contains('site-remove-btn')) return; // handled below
+						      if (el.dataset.url) window.open(el.dataset.url, '_blank');
+						    });
+						  });
 
-			  // Remove site buttons (owner only — they're not even rendered for non-owners)
-			  list.querySelectorAll('.site-remove-btn').forEach(btn => {
-			    btn.addEventListener('click', e => {
-			      e.stopPropagation();
-			      removeSite(btn.dataset.id, btn.dataset.name);
-			    });
-			  });
-			}
+						  // Remove site buttons (owner only — they're not even rendered for non-owners)
+						  list.querySelectorAll('.site-remove-btn').forEach(btn => {
+						    btn.addEventListener('click', e => {
+						      e.stopPropagation();
+						      removeSite(btn.dataset.id, btn.dataset.name);
+						    });
+						  });
+						}
 
-			// ─── Activity Log ─────────────────────────────────────────────────────────────
-			function setActivityFilterBtn(f) {
-			  const b = document.getElementById('act-btn-all');
-			  if (b) { b.style.borderColor = f==='all'?'var(--accent)':''; b.style.color = f==='all'?'var(--accent)':''; }
-			  activityFilter = f;
-			}
-			function filterActivity(f) { setActivityFilterBtn(f); renderActivityLog(); }
-			function renderActivityLog() {
-			  const el = document.getElementById('activity-log-list');
-			  if (!el) return;
-			  const q = (document.getElementById('act-search')?.value||'').toLowerCase();
-			  let items = allActivity;
-			  if (activityFilter !== 'all') items = items.filter(a => a.site === activityFilter);
-			  if (q) items = items.filter(a => (a.message||'').toLowerCase().includes(q));
-			  if (!items.length) { el.innerHTML = '<div class="empty-state">No activity</div>'; return; }
-			  const cmap = { login:'act-green', upload:'act-blue', delete:'act-red', ban:'act-yellow', announce:'act-yellow', admin:'act-purple' };
-			  el.innerHTML = items.map(a =>
-			    `<div class="activity-item">
-			      <div class="act-dot ${cmap[a.type]||'act-blue'}"></div>
-			      <div class="act-text">${esc(a.message)}${a.site?` <span class="act-site">${a.site.toUpperCase()}</span>`:''}</div>
-			      <div class="act-time">${timeAgo(a.ts)}</div>
-			    </div>`
-			  ).join('');
-			}
-			async function clearAllActivity() {
-			  if (!await safeConfirm('Clear Activity Log','This will permanently delete the entire activity log.')) return;
-			  await remove(ref(db,'activityLog'));
-			  showToast('Activity log cleared','success');
-			}
+						// ─── Activity Log ─────────────────────────────────────────────────────────────
+						function setActivityFilterBtn(f) {
+						  const b = document.getElementById('act-btn-all');
+						  if (b) { b.style.borderColor = f==='all'?'var(--accent)':''; b.style.color = f==='all'?'var(--accent)':''; }
+						  activityFilter = f;
+						}
+						function filterActivity(f) { setActivityFilterBtn(f); renderActivityLog(); }
+						function renderActivityLog() {
+						  const el = document.getElementById('activity-log-list');
+						  if (!el) return;
+						  const q = (document.getElementById('act-search')?.value||'').toLowerCase();
+						  let items = allActivity;
+						  if (activityFilter !== 'all') items = items.filter(a => a.site === activityFilter);
+						  if (q) items = items.filter(a => (a.message||'').toLowerCase().includes(q));
+						  if (!items.length) { el.innerHTML = '<div class="empty-state">No activity</div>'; return; }
+						  const cmap = { login:'act-green', upload:'act-blue', delete:'act-red', ban:'act-yellow', announce:'act-yellow', admin:'act-purple' };
+						  el.innerHTML = items.map(a =>
+						    `<div class="activity-item">
+						      <div class="act-dot ${cmap[a.type]||'act-blue'}"></div>
+						      <div class="act-text">${esc(a.message)}${a.site?` <span class="act-site">${a.site.toUpperCase()}</span>`:''}</div>
+						      <div class="act-time">${timeAgo(a.ts)}</div>
+						    </div>`
+						  ).join('');
+						}
+						async function clearAllActivity() {
+						  if (!await safeConfirm('Clear Activity Log','This will permanently delete the entire activity log.')) return;
+						  await remove(ref(db,'activityLog'));
+						  showToast('Activity log cleared','success');
+						}
 
-			// ─── Audit Log ────────────────────────────────────────────────────────────────
-			function renderAuditLog() {
-			  const tbody = document.getElementById('tbody-audit');
-			  if (!tbody) return;
-			  const q    = (document.getElementById('audit-search')?.value||'').toLowerCase();
-			  const type = document.getElementById('audit-type-filter')?.value||'all';
-			  let items  = allActivity;
-			  if (type !== 'all') {
-			    const g = { login:['login'], ban:['ban'], delete:['delete'], admin:['admin','sitelaunch'] };
-			    items = items.filter(a => (g[type]||[type]).includes(a.type));
-			  }
-			  if (q) items = items.filter(a => (a.message||'').toLowerCase().includes(q));
-			  if (!items.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem">No events found</td></tr>'; return; }
-			  const lbl = t => ({login:'🟢 Login',ban:'🔴 Ban',delete:'🗑 Delete',admin:'⚙ Admin',upload:'📤 Upload',announce:'📢 Announce'})[t]||t||'—';
-			  tbody.innerHTML = items.map(a =>
-			    `<tr>
-			      <td style="white-space:nowrap">${lbl(a.type)}</td>
-			      <td style="max-width:260px;word-break:break-word">${esc(a.message)}</td>
-			      <td>${a.site?`<span class="tag tag-all">${a.site.toUpperCase()}</span>`:'—'}</td>
-			      <td style="font-size:.62rem;color:var(--muted)">${esc((a.uid||'system').substring(0,14))}${(a.uid||'').length>14?'…':''}</td>
-			      <td style="white-space:nowrap;font-size:.62rem">${halifaxDateTime(a.ts)}</td>
-			    </tr>`
-			  ).join('');
-			}
-			async function clearAuditLog() {
-			  if (!isOwner(currentUser)) { showToast('Owner only','error'); return; }
-			  if (!await safeConfirm('Clear Audit Log','Permanently delete the entire audit log?')) return;
-			  await remove(ref(db,'activityLog'));
-			  showToast('Audit log cleared','success');
-			}
+						// ─── Audit Log ────────────────────────────────────────────────────────────────
+						function renderAuditLog() {
+						  const tbody = document.getElementById('tbody-audit');
+						  if (!tbody) return;
+						  const q    = (document.getElementById('audit-search')?.value||'').toLowerCase();
+						  const type = document.getElementById('audit-type-filter')?.value||'all';
+						  let items  = allActivity;
+						  if (type !== 'all') {
+						    const g = { login:['login'], ban:['ban'], delete:['delete'], admin:['admin','sitelaunch'] };
+						    items = items.filter(a => (g[type]||[type]).includes(a.type));
+						  }
+						  if (q) items = items.filter(a => (a.message||'').toLowerCase().includes(q));
+						  if (!items.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem">No events found</td></tr>'; return; }
+						  const lbl = t => ({login:'🟢 Login',ban:'🔴 Ban',delete:'🗑 Delete',admin:'⚙ Admin',upload:'📤 Upload',announce:'📢 Announce'})[t]||t||'—';
+						  tbody.innerHTML = items.map(a =>
+						    `<tr>
+						      <td style="white-space:nowrap">${lbl(a.type)}</td>
+						      <td style="max-width:260px;word-break:break-word">${esc(a.message)}</td>
+						      <td>${a.site?`<span class="tag tag-all">${a.site.toUpperCase()}</span>`:'—'}</td>
+						      <td style="font-size:.62rem;color:var(--muted)">${esc((a.uid||'system').substring(0,14))}${(a.uid||'').length>14?'…':''}</td>
+						      <td style="white-space:nowrap;font-size:.62rem">${halifaxDateTime(a.ts)}</td>
+						    </tr>`
+						  ).join('');
+						}
+						async function clearAuditLog() {
+						  if (!isOwner(currentUser)) { showToast('Owner only','error'); return; }
+						  if (!await safeConfirm('Clear Audit Log','Permanently delete the entire audit log?')) return;
+						  await remove(ref(db,'activityLog'));
+						  showToast('Audit log cleared','success');
+						}
 
-			// ─── Analytics ────────────────────────────────────────────────────────────────
-			function renderAnalytics() {
-			  const el = document.getElementById('analytics-content');
-			  if (!el) return;
-			  const users  = Object.values(allUsers);
-			  const books  = Object.values(allBooks).filter(b => b && b.title);
-			  const sites  = Object.values(allSites);
-			  const banned = Object.keys(bannedCreate).length + Object.keys(bannedMatthew).length + Object.keys(bannedAi).length;
-			  const tc = {};
-			  allActivity.forEach(a => { tc[a.type] = (tc[a.type]||0)+1; });
-			  el.innerHTML = `
-			    <div class="stats-grid">
-			      <div class="stat-card"><div class="stat-num purple">${sites.length}</div><div class="stat-label">Published Sites</div></div>
-			      <div class="stat-card"><div class="stat-num green">${books.length}</div><div class="stat-label">Total Books</div></div>
-			      <div class="stat-card"><div class="stat-num blue">${users.length}</div><div class="stat-label">Registered Users</div></div>
-			      <div class="stat-card"><div class="stat-num red">${banned}</div><div class="stat-label">Total Banned</div></div>
-			      <div class="stat-card"><div class="stat-num orange">${allActivity.length}</div><div class="stat-label">Log Events</div></div>
-			    </div>
-			    <div class="card"><div class="card-title">📊 Activity Breakdown</div>
-			      ${!Object.keys(tc).length ? '<div class="empty-state">No data</div>' :
-			        Object.entries(tc).sort((a,b)=>b[1]-a[1]).map(([type,count])=>{
-			          const pct=Math.round((count/allActivity.length)*100);
-			          return `<div style="margin-bottom:.75rem">
-			            <div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:.25rem"><span>${type}</span><span style="color:var(--muted)">${count} (${pct}%)</span></div>
-			            <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--accent),var(--acc-sl));border-radius:4px"></div></div>
-			          </div>`;
-			        }).join('')}
-			    </div>`;
-			}
+						// ─── Analytics ────────────────────────────────────────────────────────────────
+						function renderAnalytics() {
+						  const el = document.getElementById('analytics-content');
+						  if (!el) return;
+						  const users  = Object.values(allUsers);
+						  const books  = Object.values(allBooks).filter(b => b && b.title);
+						  const sites  = Object.values(allSites);
+						  const banned = Object.keys(bannedCreate).length + Object.keys(bannedMatthew).length + Object.keys(bannedAi).length;
+						  const tc = {};
+						  allActivity.forEach(a => { tc[a.type] = (tc[a.type]||0)+1; });
+						  el.innerHTML = `
+						    <div class="stats-grid">
+						      <div class="stat-card"><div class="stat-num purple">${sites.length}</div><div class="stat-label">Published Sites</div></div>
+						      <div class="stat-card"><div class="stat-num green">${books.length}</div><div class="stat-label">Total Books</div></div>
+						      <div class="stat-card"><div class="stat-num blue">${users.length}</div><div class="stat-label">Registered Users</div></div>
+						      <div class="stat-card"><div class="stat-num red">${banned}</div><div class="stat-label">Total Banned</div></div>
+						      <div class="stat-card"><div class="stat-num orange">${allActivity.length}</div><div class="stat-label">Log Events</div></div>
+						    </div>
+						    <div class="card"><div class="card-title">📊 Activity Breakdown</div>
+						      ${!Object.keys(tc).length ? '<div class="empty-state">No data</div>' :
+						        Object.entries(tc).sort((a,b)=>b[1]-a[1]).map(([type,count])=>{
+						          const pct=Math.round((count/allActivity.length)*100);
+						          return `<div style="margin-bottom:.75rem">
+						            <div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:.25rem"><span>${type}</span><span style="color:var(--muted)">${count} (${pct}%)</span></div>
+						            <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--accent),var(--acc-sl));border-radius:4px"></div></div>
+						          </div>`;
+						        }).join('')}
+						    </div>`;
+						}
 
-			// ─── Permissions ──────────────────────────────────────────────────────────────
-			function renderPermissions() {
-			  const el = document.getElementById('admins-list');
-			  if (!el) return;
-			  const formCard = document.getElementById('grant-admin-form-card');
-			  const notice   = document.getElementById('permissions-owner-only-notice');
-			  if (isOwner(currentUser)) {
-			    if (formCard) formCard.style.display = 'block';
-			    if (notice)   notice.style.display   = 'none';
-			  } else {
-			    if (formCard) formCard.style.display = 'none';
-			    if (notice)   notice.style.display   = 'block';
-			  }
-			  const admins = Object.entries(extraAdmins).filter(([,v]) => v);
-			  if (!admins.length) { el.innerHTML = '<div class="empty-state">No extra admins yet</div>'; return; }
-			  el.innerHTML = admins.map(([key,v]) => {
-			    const email = typeof v==='object'?(v.email||''):(typeof v==='string'?v:'');
-			    const scope = typeof v==='object'?(v.scope||'all'):'all';
-			    const when  = typeof v==='object'&&v.grantedAt ? halifaxDateTime(v.grantedAt) : '—';
-			    return `<div class="admin-list-item">
-			      <div>
-			        <div class="ali-email">${esc(email||key)}</div>
-			        <div class="ali-scope">Access: <strong>${esc(scope)}</strong> · Added: ${when}</div>
-			      </div>
-			      ${isOwner(currentUser)?`<button class="btn btn-danger btn-sm" data-key="${esc(key)}" data-email="${esc(email)}">Revoke</button>`:''}
-			    </div>`;
-			  }).join('');
-			  el.querySelectorAll('button[data-key]').forEach(btn => {
-			    btn.addEventListener('click', () => revokeAdmin(btn.dataset.key, btn.dataset.email));
-			  });
-			}
-			async function grantAdminAccess() {
-			  if (!isOwner(currentUser)) { showToast('Only the owner can grant admin access','error'); return; }
-			  const email = document.getElementById('grant-admin-email').value.trim().toLowerCase();
-			  const scope = document.getElementById('grant-admin-site').value;
-			  if (!email||!email.includes('@')) { showToast('Enter a valid email','error'); return; }
-			  if (email===OWNER_EMAIL.toLowerCase()) { showToast('This email is already the owner','error'); return; }
-			  const already = Object.values(extraAdmins).some(v => {
-			    const e = typeof v==='object'?v.email:(typeof v==='string'?v:'');
-			    return e && e.toLowerCase()===email;
-			  });
-			  if (already) { showToast('Already an admin','error'); return; }
-			  const key = email.replace(/\./g,'_').replace(/@/g,'__at__');
-			  await set(ref(db,`siteConfig/adminEmails/${key}`), { email, scope, grantedAt:Date.now(), grantedBy:currentUser.email });
-			  document.getElementById('grant-admin-email').value = '';
-			  await logActivity('admin',`Owner granted admin to ${email} (scope: ${scope})`,currentUser.uid,'all');
-			  showToast(`Admin access granted to ${email} ✓`,'success');
-			}
-			async function revokeAdmin(key, email) {
-			  if (!isOwner(currentUser)) { showToast('Only the owner can revoke admin access','error'); return; }
-			  if (!await safeConfirm('Revoke Admin',`Revoke admin access from ${email}?`)) return;
-			  await remove(ref(db,`siteConfig/adminEmails/${key}`));
-			  await logActivity('admin',`Owner revoked admin from ${email}`,currentUser.uid,'all');
-			  showToast(`Revoked ${email}`,'success');
-			}
+						// ─── Permissions ──────────────────────────────────────────────────────────────
+						function renderPermissions() {
+						  const el = document.getElementById('admins-list');
+						  if (!el) return;
+						  const formCard = document.getElementById('grant-admin-form-card');
+						  const notice   = document.getElementById('permissions-owner-only-notice');
+						  if (isOwner(currentUser)) {
+						    if (formCard) formCard.style.display = 'block';
+						    if (notice)   notice.style.display   = 'none';
+						  } else {
+						    if (formCard) formCard.style.display = 'none';
+						    if (notice)   notice.style.display   = 'block';
+						  }
+						  const admins = Object.entries(extraAdmins).filter(([,v]) => v);
+						  if (!admins.length) { el.innerHTML = '<div class="empty-state">No extra admins yet</div>'; return; }
+						  el.innerHTML = admins.map(([key,v]) => {
+						    const email = typeof v==='object'?(v.email||''):(typeof v==='string'?v:'');
+						    const scope = typeof v==='object'?(v.scope||'all'):'all';
+						    const when  = typeof v==='object'&&v.grantedAt ? halifaxDateTime(v.grantedAt) : '—';
+						    return `<div class="admin-list-item">
+						      <div>
+						        <div class="ali-email">${esc(email||key)}</div>
+						        <div class="ali-scope">Access: <strong>${esc(scope)}</strong> · Added: ${when}</div>
+						      </div>
+						      ${isOwner(currentUser)?`<button class="btn btn-danger btn-sm" data-key="${esc(key)}" data-email="${esc(email)}">Revoke</button>`:''}
+						    </div>`;
+						  }).join('');
+						  el.querySelectorAll('button[data-key]').forEach(btn => {
+						    btn.addEventListener('click', () => revokeAdmin(btn.dataset.key, btn.dataset.email));
+						  });
+						}
+						async function grantAdminAccess() {
+						  if (!isOwner(currentUser)) { showToast('Only the owner can grant admin access','error'); return; }
+						  const email = document.getElementById('grant-admin-email').value.trim().toLowerCase();
+						  const scope = document.getElementById('grant-admin-site').value;
+						  if (!email||!email.includes('@')) { showToast('Enter a valid email','error'); return; }
+						  if (email===OWNER_EMAIL.toLowerCase()) { showToast('This email is already the owner','error'); return; }
+						  const already = Object.values(extraAdmins).some(v => {
+						    const e = typeof v==='object'?v.email:(typeof v==='string'?v:'');
+						    return e && e.toLowerCase()===email;
+						  });
+						  if (already) { showToast('Already an admin','error'); return; }
+						  const key = email.replace(/\./g,'_').replace(/@/g,'__at__');
+						  await set(ref(db,`siteConfig/adminEmails/${key}`), { email, scope, grantedAt:Date.now(), grantedBy:currentUser.email });
+						  document.getElementById('grant-admin-email').value = '';
+						  await logActivity('admin',`Owner granted admin to ${email} (scope: ${scope})`,currentUser.uid,'all');
+						  showToast(`Admin access granted to ${email} ✓`,'success');
+						}
+						async function revokeAdmin(key, email) {
+						  if (!isOwner(currentUser)) { showToast('Only the owner can revoke admin access','error'); return; }
+						  if (!await safeConfirm('Revoke Admin',`Revoke admin access from ${email}?`)) return;
+						  await remove(ref(db,`siteConfig/adminEmails/${key}`));
+						  await logActivity('admin',`Owner revoked admin from ${email}`,currentUser.uid,'all');
+						  showToast(`Revoked ${email}`,'success');
+						}
 
-			// ─── Mod Chat ─────────────────────────────────────────────────────────────────
-			function mcInit() {
-			  onValue(ref(db,'modChat'), snap => {
-			    allMCMessages = snap.val() || {};
-			    renderMCMessages();
-			    mcCleanExpired();
-			  });
-			}
-			function mcCleanExpired() {
-			  const now = Date.now();
-			  Object.entries(allMCMessages).forEach(([id,msg]) => {
-			    if (!msg) return;
-			    if (now >= (msg.sentAt||0) + MC_EXPIRE_MS) remove(ref(db,'modChat/'+id)).catch(()=>{});
-			  });
-			}
-			function renderMCMessages() {
-			  const win = document.getElementById('modchat-window');
-			  if (!win) return;
-			  Object.values(mcTimers).forEach(t => clearInterval(t));
-			  mcTimers = {};
-			  const msgs = Object.entries(allMCMessages)
-			    .filter(([,m]) => m && m.text)
-			    .sort(([,a],[,b]) => (a.sentAt||0)-(b.sentAt||0));
-			  if (!msgs.length) { win.innerHTML='<div class="chat-system-msg">No messages yet. Start chatting!</div>'; return; }
-			  const now = Date.now();
-			  win.innerHTML = msgs.map(([id,msg]) => {
-			    const isOwn = currentUser && msg.uid===currentUser.uid;
-			    const sent  = msg.sentAt||now;
-			    const pct   = Math.max(0,((sent+MC_EXPIRE_MS-now)/MC_EXPIRE_MS)*100);
-			    return `<div class="chat-msg${isOwn?' own':''}" id="mcmsg-${esc(id)}">
-			      <div class="msg-sender${isOwn?' own-label':''}">${esc(msg.senderName||'Admin')}</div>
-			      <div class="msg-text">${esc(msg.text)}</div>
-			      <div class="msg-meta">
-			        <div class="msg-time">${halifaxDateTime(sent)}</div>
-			        <div class="msg-actions">
-			          ${isOwn?`<button class="msg-btn msg-btn-del" data-id="${esc(id)}">🗑 Delete</button>`:''}
-			        </div>
-			      </div>
-			      <div class="expire-bar"><div class="expire-bar-fill" id="mcbar-${esc(id)}" style="width:${pct}%"></div></div>
-			    </div>`;
-			  }).join('');
-			  win.querySelectorAll('.msg-btn-del').forEach(btn => {
-			    btn.addEventListener('click', () => mcDeleteMessage(btn.dataset.id));
-			  });
-			  msgs.forEach(([id,msg]) => {
-			    const expireAt = (msg.sentAt||now)+MC_EXPIRE_MS;
-			    const iv = setInterval(()=>{
-			      const rem = Math.max(0, expireAt-Date.now());
-			      const bar = document.getElementById('mcbar-'+id);
-			      const el  = document.getElementById('mcmsg-'+id);
-			      if (!el) { clearInterval(iv); return; }
-			      if (bar) bar.style.width = ((rem/MC_EXPIRE_MS)*100)+'%';
-			      if (rem<=0) { clearInterval(iv); remove(ref(db,'modChat/'+id)).catch(()=>{}); }
-			    }, 250);
-			    mcTimers[id] = iv;
-			  });
-			  mcScrollBottom();
-			}
-			function mcScrollBottom() {
-			  const win = document.getElementById('modchat-window');
-			  if (win) setTimeout(()=>{ win.scrollTop=win.scrollHeight; },50);
-			}
-			async function mcDeleteMessage(id) {
-			  await remove(ref(db,'modChat/'+id));
-			  showToast('Message deleted','success');
-			}
-			async function mcSendMessage() {
-			  const input = document.getElementById('mc-input');
-			  const text  = (input.value||'').trim();
-			  if (!text||!currentUser) return;
-			  await set(push(ref(db,'modChat')), {
-			    uid:currentUser.uid,
-			    senderName:currentUser.displayName||currentUser.email||'Admin',
-			    text, sentAt:Date.now()
-			  });
-			  input.value='';
-			  mcInputResize(input);
-			  mcScrollBottom();
-			}
-			function mcInputResize(el) {
-			  el.style.height='auto';
-			  el.style.height=Math.min(el.scrollHeight,100)+'px';
-			}
+						// ─── Mod Chat ─────────────────────────────────────────────────────────────────
+						function mcInit() {
+						  onValue(ref(db,'modChat'), snap => {
+						    allMCMessages = snap.val() || {};
+						    renderMCMessages();
+						    mcCleanExpired();
+						  });
+						}
+						function mcCleanExpired() {
+						  const now = Date.now();
+						  Object.entries(allMCMessages).forEach(([id,msg]) => {
+						    if (!msg) return;
+						    if (now >= (msg.sentAt||0) + MC_EXPIRE_MS) remove(ref(db,'modChat/'+id)).catch(()=>{});
+						  });
+						}
+						function renderMCMessages() {
+						  const win = document.getElementById('modchat-window');
+						  if (!win) return;
+						  Object.values(mcTimers).forEach(t => clearInterval(t));
+						  mcTimers = {};
+						  const msgs = Object.entries(allMCMessages)
+						    .filter(([,m]) => m && m.text)
+						    .sort(([,a],[,b]) => (a.sentAt||0)-(b.sentAt||0));
+						  if (!msgs.length) { win.innerHTML='<div class="chat-system-msg">No messages yet. Start chatting!</div>'; return; }
+						  const now = Date.now();
+						  win.innerHTML = msgs.map(([id,msg]) => {
+						    const isOwn = currentUser && msg.uid===currentUser.uid;
+						    const sent  = msg.sentAt||now;
+						    const pct   = Math.max(0,((sent+MC_EXPIRE_MS-now)/MC_EXPIRE_MS)*100);
+						    return `<div class="chat-msg${isOwn?' own':''}" id="mcmsg-${esc(id)}">
+						      <div class="msg-sender${isOwn?' own-label':''}">${esc(msg.senderName||'Admin')}</div>
+						      <div class="msg-text">${esc(msg.text)}</div>
+						      <div class="msg-meta">
+						        <div class="msg-time">${halifaxDateTime(sent)}</div>
+						        <div class="msg-actions">
+						          ${isOwn?`<button class="msg-btn msg-btn-del" data-id="${esc(id)}">🗑 Delete</button>`:''}
+						        </div>
+						      </div>
+						      <div class="expire-bar"><div class="expire-bar-fill" id="mcbar-${esc(id)}" style="width:${pct}%"></div></div>
+						    </div>`;
+						  }).join('');
+						  win.querySelectorAll('.msg-btn-del').forEach(btn => {
+						    btn.addEventListener('click', () => mcDeleteMessage(btn.dataset.id));
+						  });
+						  msgs.forEach(([id,msg]) => {
+						    const expireAt = (msg.sentAt||now)+MC_EXPIRE_MS;
+						    const iv = setInterval(()=>{
+						      const rem = Math.max(0, expireAt-Date.now());
+						      const bar = document.getElementById('mcbar-'+id);
+						      const el  = document.getElementById('mcmsg-'+id);
+						      if (!el) { clearInterval(iv); return; }
+						      if (bar) bar.style.width = ((rem/MC_EXPIRE_MS)*100)+'%';
+						      if (rem<=0) { clearInterval(iv); remove(ref(db,'modChat/'+id)).catch(()=>{}); }
+						    }, 250);
+						    mcTimers[id] = iv;
+						  });
+						  mcScrollBottom();
+						}
+						function mcScrollBottom() {
+						  const win = document.getElementById('modchat-window');
+						  if (win) setTimeout(()=>{ win.scrollTop=win.scrollHeight; },50);
+						}
+						async function mcDeleteMessage(id) {
+						  await remove(ref(db,'modChat/'+id));
+						  showToast('Message deleted','success');
+						}
+						async function mcSendMessage() {
+						  const input = document.getElementById('mc-input');
+						  const text  = (input.value||'').trim();
+						  if (!text||!currentUser) return;
+						  await set(push(ref(db,'modChat')), {
+						    uid:currentUser.uid,
+						    senderName:currentUser.displayName||currentUser.email||'Admin',
+						    text, sentAt:Date.now()
+						  });
+						  input.value='';
+						  mcInputResize(input);
+						  mcScrollBottom();
+						}
+						function mcInputResize(el) {
+						  el.style.height='auto';
+						  el.style.height=Math.min(el.scrollHeight,100)+'px';
+						}
 		</script>
 	</body>
 </html>
