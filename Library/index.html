@@ -5,10 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>HTML Library - HTMLTools</title>
 		<link rel="icon" type="image/png" href="/logo.png?v=2" />
-		<link
-			href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
-			rel="stylesheet"
-		/>
+		<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
 		<style>
 			:root{--bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--border:#2a2a3a;--accent:#7fff6e;--accent2:#ff6e7f;--accent3:#6ea8ff;--accent4:#ffd86e;--text:#e8e8f0;--muted:#6b6b80;--radius:12px;--theme-a:#7fff6e;--theme-b:#6ea8ff;--theme-grad:linear-gradient(135deg,var(--theme-a),var(--theme-b));--shadow:0 4px 24px rgba(0,0,0,.4)}
 			body.light-mode{--bg:#f0f0f5;--surface:#ffffff;--surface2:#e8e8f0;--border:#d0d0e0;--accent:#2d9e20;--accent2:#d63050;--accent3:#1a6fd4;--accent4:#c47d00;--text:#1a1a2e;--muted:#6b6b90;--shadow:0 4px 24px rgba(0,0,0,.12)}
@@ -56,9 +53,10 @@
 			.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1.25rem}
 			.empty-state{grid-column:1/-1;text-align:center;padding:4rem 2rem;color:var(--muted);font-size:.85rem;line-height:2}
 			.empty-state .big{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--surface2);margin-bottom:.5rem}
-			.book-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.25rem;display:flex;flex-direction:column;gap:.75rem;transition:all .2s ease;position:relative;overflow:hidden;animation:cardIn .3s ease both}
+			/* FIX #3: overflow:visible so fixed tooltip isn't clipped; card visuals preserved via bg element's own border-radius */
+			.book-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.25rem;display:flex;flex-direction:column;gap:.75rem;transition:all .2s ease;position:relative;overflow:visible;animation:cardIn .3s ease both}
 			@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-			.book-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--theme-grad);opacity:0;transition:opacity .2s}
+			.book-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--theme-grad);opacity:0;transition:opacity .2s;border-radius:16px 16px 0 0;z-index:2}
 			.book-card:hover{border-color:rgba(127,255,110,.25);transform:translateY(-2px);box-shadow:var(--shadow)}
 			.book-card:hover::before{opacity:1}
 			.book-card.pinned{border-color:rgba(255,216,110,.35)}
@@ -88,18 +86,16 @@
 			.save-btn:hover,.save-btn.saved{border-color:var(--accent4);color:var(--accent4);background:rgba(255,216,110,.08)}
 			.share-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:.65rem;padding:.3rem .65rem;border-radius:8px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.3rem;font-weight:700}
 			.share-btn:hover{border-color:var(--accent4);color:var(--accent4);background:rgba(255,216,110,.08)}
+			/* FIX #3: Achievement badges — no inline tooltip HTML; use global JS tooltip instead */
 			.user-achievement-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;transition:transform .2s;position:relative;flex-shrink:0;border:2px solid transparent}
 			.user-achievement-badge:hover{transform:scale(1.2)}
-			.achievement-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-size:.65rem;white-space:nowrap;pointer-events:none;z-index:999;opacity:0;transition:opacity .15s;text-align:center;min-width:120px;box-shadow:var(--shadow)}
-			.achievement-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--border)}
-			.user-achievement-badge:hover .achievement-tooltip{opacity:1}
-			.achievement-tooltip strong{display:block;color:var(--theme-a);margin-bottom:.15rem}
-			.achievement-tooltip span{color:var(--muted);font-size:.6rem}
 			.game-achievement-badges{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.25rem}
 			.game-ach-badge{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-size:13px;cursor:pointer;position:relative;transition:transform .15s;border:1.5px solid transparent}
 			.game-ach-badge:hover{transform:scale(1.15)}
-			.game-ach-badge .achievement-tooltip{bottom:calc(100% + 6px)}
-			.game-ach-badge:hover .achievement-tooltip{opacity:1}
+			/* Global fixed tooltip (FIX #3) */
+			#global-ach-tooltip{position:fixed;z-index:99999;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-size:.65rem;pointer-events:none;opacity:0;transition:opacity .15s;text-align:center;min-width:120px;box-shadow:0 8px 32px rgba(0,0,0,.6);font-family:'Space Mono',monospace;color:var(--text);white-space:nowrap}
+			#global-ach-tooltip strong{display:block;color:var(--theme-a);margin-bottom:.15rem;font-size:.68rem}
+			#global-ach-tooltip span{color:var(--muted);font-size:.6rem}
 			.ach-popup{position:fixed;bottom:5rem;right:2rem;z-index:9998;background:var(--surface);border:2px solid var(--accent4);border-radius:16px;padding:1rem 1.25rem;display:flex;align-items:center;gap:.75rem;transform:translateX(120%);opacity:0;transition:all .4s cubic-bezier(.34,1.56,.64,1);max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 			.ach-popup.show{transform:translateX(0);opacity:1}
 			.ach-popup-icon{font-size:1.8rem;flex-shrink:0}
@@ -369,267 +365,90 @@
 		</style>
 	</head>
 	<body>
+		<!-- GLOBAL ACHIEVEMENT TOOLTIP (FIX #3) -->
+		<div id="global-ach-tooltip"><strong></strong><span></span></div>
+
 		<!-- BAN SCREEN -->
 		<div id="ban-screen">
 			<div class="ban-icon">⛔</div>
 			<div class="ban-title">You've Been Banned</div>
 			<div class="ban-divider"></div>
-			<div class="ban-sub">
-				Your account has been suspended by an administrator.
-				<br />
-				You no longer have access to the HTML Library.
-				<br />
-				<br />
-				Contact the site owner if you believe this is a mistake.
-			</div>
-			<div
-				style="font-size:.75rem;color:#2a2a3a;margin-top:3rem"
-				id="ban-account-email"
-			></div>
+			<div class="ban-sub">Your account has been suspended by an administrator.<br />You no longer have access to the HTML Library.<br /><br />Contact the site owner if you believe this is a mistake.</div>
+			<div style="font-size:.75rem;color:#2a2a3a;margin-top:3rem" id="ban-account-email"></div>
 		</div>
 
 		<!-- LOGIN GATE -->
 		<div id="login-gate">
 			<div class="login-gate-inner">
 				<div style="font-size:2.5rem;margin-bottom:1rem">📚</div>
-				<div class="login-gate-title">
-					HTML
-					<span>Library</span>
-				</div>
+				<div class="login-gate-title">HTML <span>Library</span></div>
 				<div class="login-gate-sub">Sign in to access the library</div>
 				<div class="login-gate-tabs">
-					<button
-						class="lg-tab active"
-						id="lg-tab-login"
-						onclick="lgSwitchTab('login')"
-					>
-						SIGN IN
-					</button>
-					<button
-						class="lg-tab"
-						id="lg-tab-register"
-						onclick="lgSwitchTab('register')"
-					>
-						REGISTER
-					</button>
+					<button class="lg-tab active" id="lg-tab-login" onclick="lgSwitchTab('login')">SIGN IN</button>
+					<button class="lg-tab" id="lg-tab-register" onclick="lgSwitchTab('register')">REGISTER</button>
 				</div>
-				<div
-					id="lg-locked-login"
-					style="display:none;background:rgba(255,110,127,.08);border:1px solid rgba(255,110,127,.25);border-radius:10px;padding:.85rem;text-align:center;font-size:.75rem;color:var(--accent2)"
-				>
-					🔒 Login is currently disabled by the administrator.
-				</div>
-				<div
-					id="lg-locked-signup"
-					style="display:none;background:rgba(255,110,127,.08);border:1px solid rgba(255,110,127,.25);border-radius:10px;padding:.85rem;text-align:center;font-size:.75rem;color:var(--accent2)"
-				>
-					🔒 New registrations are currently closed.
-				</div>
+				<div id="lg-locked-login" style="display:none;background:rgba(255,110,127,.08);border:1px solid rgba(255,110,127,.25);border-radius:10px;padding:.85rem;text-align:center;font-size:.75rem;color:var(--accent2)">🔒 Login is currently disabled by the administrator.</div>
+				<div id="lg-locked-signup" style="display:none;background:rgba(255,110,127,.08);border:1px solid rgba(255,110,127,.25);border-radius:10px;padding:.85rem;text-align:center;font-size:.75rem;color:var(--accent2)">🔒 New registrations are currently closed.</div>
 				<div class="lg-form" id="lg-form">
-					<div
-						class="lg-form-group"
-						id="lg-name-group"
-						style="display:none"
-					>
+					<div class="lg-form-group" id="lg-name-group" style="display:none">
 						<label>Display Name</label>
-						<input
-							type="text"
-							id="lg-name"
-							placeholder="Your name"
-							autocomplete="name"
-						/>
+						<input type="text" id="lg-name" placeholder="Your name" autocomplete="name" />
 					</div>
 					<div class="lg-form-group">
 						<label>Email</label>
-						<input
-							type="email"
-							id="lg-email"
-							placeholder="you@example.com"
-							autocomplete="email"
-							onkeydown="if(event.key==='Enter')lgSubmit()"
-						/>
+						<input type="email" id="lg-email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')lgSubmit()" />
 					</div>
 					<div class="lg-form-group">
 						<label>Password</label>
-						<input
-							type="password"
-							id="lg-password"
-							placeholder="••••••••"
-							autocomplete="current-password"
-							onkeydown="if(event.key==='Enter')lgSubmit()"
-						/>
-						<a
-							href="https://htmltools.me/ForgotPassword"
-							class="forgot-link"
-							id="lg-forgot-link"
-							target="_blank"
-							rel="noopener"
-						>
-							Forgot password?
-						</a>
+						<input type="password" id="lg-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')lgSubmit()" />
+						<a href="https://htmltools.me/ForgotPassword" class="forgot-link" id="lg-forgot-link" target="_blank" rel="noopener">Forgot password?</a>
 					</div>
-					<button
-						class="lg-submit-btn"
-						id="lg-submit"
-						onclick="lgSubmit()"
-					>
-						SIGN IN
-					</button>
-					<div
-						id="lg-error"
-						style="display:none;font-size:.72rem;color:var(--accent2);text-align:center;margin-top:.5rem;padding:.5rem;border-radius:6px;background:rgba(255,110,127,.08)"
-					></div>
+					<button class="lg-submit-btn" id="lg-submit" onclick="lgSubmit()">SIGN IN</button>
+					<div id="lg-error" style="display:none;font-size:.72rem;color:var(--accent2);text-align:center;margin-top:.5rem;padding:.5rem;border-radius:6px;background:rgba(255,110,127,.08)"></div>
 				</div>
 			</div>
 		</div>
 
 		<!-- HEADER -->
 		<header>
-			<div class="logo">
-				HTML
-				<span>Library</span>
-			</div>
+			<div class="logo">HTML <span>Library</span></div>
 			<div class="header-right">
 				<div id="user-display" style="display:none">
 					<span class="user-dot"></span>
-					<span
-						id="username-label"
-						style="cursor:pointer"
-						onclick="openProfile()"
-					></span>
+					<span id="username-label" style="cursor:pointer" onclick="openProfile()"></span>
 					<span id="user-ach-badge" style="display:none"></span>
-					<span
-						id="owner-badge"
-						class="badge-owner"
-						style="display:none"
-					>
-						OWNER
-					</span>
-					<span
-						id="admin-badge"
-						class="badge-admin"
-						style="display:none"
-					>
-						ADMIN
-					</span>
+					<span id="owner-badge" class="badge-owner" style="display:none">OWNER</span>
+					<span id="admin-badge" class="badge-admin" style="display:none">ADMIN</span>
 				</div>
-				<button
-					class="notif-btn"
-					id="notif-bell"
-					onclick="toggleNotifPanel()"
-					style="display:none"
-					title="Notifications"
-				>
-					🔔
-					<span class="notif-badge" id="notif-badge"></span>
-				</button>
-				<button
-					class="notif-btn"
-					onclick="openLeaderboard()"
-					title="Leaderboard"
-					style="font-size:.85rem"
-				>
-					🏆
-				</button>
-				<a
-					href="https://htmltools.nekoweb.org/Create-Tutorial.html"
-					target="_blank"
-					rel="noopener"
-					class="notif-btn"
-					title="Tutorial"
-					style="font-size:.85rem;text-decoration:none;display:flex;align-items:center;justify-content:center"
-				>
-					📖
-				</a>
-				<button
-					class="notif-btn"
-					id="saved-btn"
-					onclick="openSaved()"
-					title="Saved Books"
-					style="display:none;font-size:.85rem"
-				>
-					🔖
-				</button>
-				<button
-					class="notif-btn"
-					id="settings-btn"
-					onclick="openSettings()"
-					title="Settings"
-					style="display:none;font-size:.85rem"
-				>
-					⚙️
-				</button>
-				<button
-					class="notif-btn"
-					onclick="toggleLightMode()"
-					title="Toggle Light/Dark Mode"
-					id="theme-toggle-btn"
-					style="font-size:.85rem"
-				>
-					🌙
-				</button>
-				<a
-					href="https://htmltools.nekoweb.org/Create-Admin.html"
-					target="_blank"
-					rel="noopener"
-					id="admin-panel-btn"
-					class="btn btn-admin"
-					style="display:none;text-decoration:none"
-				>
-					⚙ Admin
-				</a>
-				<button
-					class="btn btn-ghost"
-					id="auth-btn"
-					onclick="openAuth()"
-				>
-					Sign In
-				</button>
-				<button
-					class="btn btn-primary"
-					id="upload-btn"
-					onclick="openUpload()"
-					style="display:none"
-				>
-					+ Upload
-				</button>
+				<button class="notif-btn" id="notif-bell" onclick="toggleNotifPanel()" style="display:none" title="Notifications">🔔<span class="notif-badge" id="notif-badge"></span></button>
+				<button class="notif-btn" onclick="openLeaderboard()" title="Leaderboard" style="font-size:.85rem">🏆</button>
+				<a href="https://htmltools.nekoweb.org/Create-Tutorial.html" target="_blank" rel="noopener" class="notif-btn" title="Tutorial" style="font-size:.85rem;text-decoration:none;display:flex;align-items:center;justify-content:center">📖</a>
+				<button class="notif-btn" id="saved-btn" onclick="openSaved()" title="Saved Books" style="display:none;font-size:.85rem">🔖</button>
+				<button class="notif-btn" id="settings-btn" onclick="openSettings()" title="Settings" style="display:none;font-size:.85rem">⚙️</button>
+				<button class="notif-btn" onclick="toggleLightMode()" title="Toggle Light/Dark Mode" id="theme-toggle-btn" style="font-size:.85rem">🌙</button>
+				<a href="https://htmltools.nekoweb.org/Create-Admin.html" target="_blank" rel="noopener" id="admin-panel-btn" class="btn btn-admin" style="display:none;text-decoration:none">⚙ Admin</a>
+				<button class="btn btn-ghost" id="auth-btn" onclick="openAuth()">Sign In</button>
+				<button class="btn btn-primary" id="upload-btn" onclick="openUpload()" style="display:none">+ Upload</button>
 			</div>
 		</header>
 
 		<div id="announce-banner">
 			<span class="announce-badge">📢 ADMIN</span>
 			<span id="announce-text"></span>
-			<button id="announce-dismiss" onclick="dismissAnnouncement()">
-				✕
-			</button>
+			<button id="announce-dismiss" onclick="dismissAnnouncement()">✕</button>
 		</div>
 		<div id="mobile-mode-banner">
-			<div class="mobile-banner-text">
-				<span>📱</span>
-				<span id="mobile-banner-label">
-					Showing mobile-friendly games
-				</span>
-			</div>
-			<button
-				class="mobile-toggle-btn"
-				id="mobile-toggle-btn"
-				onclick="toggleMobileMode()"
-			>
-				💻 Switch to Computer Mode
-			</button>
+			<div class="mobile-banner-text"><span>📱</span><span id="mobile-banner-label">Showing mobile-friendly games</span></div>
+			<button class="mobile-toggle-btn" id="mobile-toggle-btn" onclick="toggleMobileMode()">💻 Switch to Computer Mode</button>
 		</div>
 
 		<!-- NOTIF PANEL -->
 		<div id="notif-panel">
 			<div class="notif-panel-header">
 				<span class="notif-panel-title">🔔 Notifications</span>
-				<button class="notif-clear-btn" onclick="clearAllNotifs()">
-					CLEAR ALL
-				</button>
+				<button class="notif-clear-btn" onclick="clearAllNotifs()">CLEAR ALL</button>
 			</div>
-			<div class="notif-list" id="notif-list">
-				<div class="notif-empty">No notifications yet</div>
-			</div>
+			<div class="notif-list" id="notif-list"><div class="notif-empty">No notifications yet</div></div>
 		</div>
 
 		<!-- MAIN -->
@@ -637,113 +456,32 @@
 			<div id="pin-banner">
 				<div class="pin-banner-title">📌 Pinned Books</div>
 				<div class="pin-grid" id="pin-grid"></div>
-				<div
-					style="border-top:1px solid var(--border);margin-top:1.5rem;margin-bottom:.5rem"
-				></div>
+				<div style="border-top:1px solid var(--border);margin-top:1.5rem;margin-bottom:.5rem"></div>
 			</div>
 			<div class="toolbar">
 				<div class="search-wrap">
 					<span class="search-icon">⌕</span>
-					<input
-						type="text"
-						id="search-input"
-						placeholder="Search books..."
-						oninput="filterBooks()"
-					/>
+					<input type="text" id="search-input" placeholder="Search books..." oninput="filterBooks()" />
 				</div>
 				<div class="filters">
-					<button
-						class="filter-btn active"
-						data-filter="popular"
-						onclick="setFilter('popular',this)"
-					>
-						🔥 POPULAR
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="newest"
-						onclick="setFilter('newest',this)"
-					>
-						NEWEST
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="liked"
-						onclick="setFilter('liked',this)"
-					>
-						MOST LIKED
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="views"
-						onclick="setFilter('views',this)"
-					>
-						MOST VIEWED
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="playtime"
-						onclick="setFilter('playtime',this)"
-					>
-						MOST PLAYED
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="commented"
-						onclick="setFilter('commented',this)"
-					>
-						MOST COMMENTS
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="az"
-						onclick="setFilter('az',this)"
-					>
-						A–Z
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="saved"
-						onclick="setFilter('saved',this)"
-					>
-						SAVED
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="mine"
-						onclick="setFilter('mine',this)"
-					>
-						MY BOOKS
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="mobile"
-						onclick="setFilter('mobile',this)"
-					>
-						📱 MOBILE
-					</button>
-					<button
-						class="filter-btn"
-						data-filter="computer"
-						onclick="setFilter('computer',this)"
-					>
-						💻 COMPUTER
-					</button>
+					<button class="filter-btn active" data-filter="popular" onclick="setFilter('popular',this)">🔥 POPULAR</button>
+					<button class="filter-btn" data-filter="newest" onclick="setFilter('newest',this)">NEWEST</button>
+					<button class="filter-btn" data-filter="liked" onclick="setFilter('liked',this)">MOST LIKED</button>
+					<button class="filter-btn" data-filter="views" onclick="setFilter('views',this)">MOST VIEWED</button>
+					<button class="filter-btn" data-filter="playtime" onclick="setFilter('playtime',this)">MOST PLAYED</button>
+					<button class="filter-btn" data-filter="commented" onclick="setFilter('commented',this)">MOST COMMENTS</button>
+					<button class="filter-btn" data-filter="az" onclick="setFilter('az',this)">A–Z</button>
+					<button class="filter-btn" data-filter="saved" onclick="setFilter('saved',this)">SAVED</button>
+					<button class="filter-btn" data-filter="mine" onclick="setFilter('mine',this)">MY BOOKS</button>
+					<button class="filter-btn" data-filter="mobile" onclick="setFilter('mobile',this)">📱 MOBILE</button>
+					<button class="filter-btn" data-filter="computer" onclick="setFilter('computer',this)">💻 COMPUTER</button>
 				</div>
 			</div>
-			<div class="grid" id="books-grid">
-				<div class="loading">
-					<span class="spin">⟳</span>
-					Loading library...
-				</div>
-			</div>
+			<div class="grid" id="books-grid"><div class="loading"><span class="spin">⟳</span> Loading library...</div></div>
 		</main>
 
 		<!-- CHAT FAB -->
-		<button id="chat-fab" onclick="toggleChat()" title="Community Chat">
-			💬
-			<span class="chat-fab-badge" id="chat-fab-badge"></span>
-		</button>
+		<button id="chat-fab" onclick="toggleChat()" title="Community Chat">💬<span class="chat-fab-badge" id="chat-fab-badge"></span></button>
 
 		<!-- ACH POPUP -->
 		<div class="ach-popup" id="ach-popup">
@@ -761,68 +499,24 @@
 				<div class="chat-header-left">
 					<span class="chat-online-dot"></span>
 					<div class="chat-header-title">💬 Community Chat</div>
-					<span
-						id="chat-user-count"
-						style="font-size:.65rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:.15rem .5rem;border-radius:20px"
-					></span>
+					<span id="chat-user-count" style="font-size:.65rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:.15rem .5rem;border-radius:20px"></span>
 				</div>
-				<button class="chat-close" onclick="toggleChat()">
-					✕ Close
-				</button>
+				<button class="chat-close" onclick="toggleChat()">✕ Close</button>
 			</div>
 			<div class="chat-body">
-				<div class="chat-messages" id="chat-messages">
-					<div class="chat-empty">
-						<span class="big">💬</span>
-						No messages yet. Say hi! 👋
-					</div>
-				</div>
-				<div
-					class="chat-input-area"
-					id="chat-input-area"
-					style="display:none"
-				>
+				<div class="chat-messages" id="chat-messages"><div class="chat-empty"><span class="big">💬</span>No messages yet. Say hi! 👋</div></div>
+				<div class="chat-input-area" id="chat-input-area" style="display:none">
 					<div class="chat-autodel-row">
-						<input
-							type="checkbox"
-							id="chat-autodel-check"
-							class="chat-autodel-check"
-						/>
-						<label
-							for="chat-autodel-check"
-							class="chat-autodel-label"
-							id="chat-autodel-label"
-						>
-							Auto-delete after 30s
-						</label>
+						<input type="checkbox" id="chat-autodel-check" class="chat-autodel-check" />
+						<label for="chat-autodel-check" class="chat-autodel-label" id="chat-autodel-label">Auto-delete after 30s</label>
 					</div>
 					<div class="chat-input-row">
-						<input
-							type="text"
-							class="chat-input"
-							id="chat-input"
-							placeholder="Say something..."
-							maxlength="400"
-							onkeydown="if(event.key==='Enter')sendChatMsg()"
-						/>
-						<button class="chat-send-btn" onclick="sendChatMsg()">
-							SEND ↵
-						</button>
+						<input type="text" class="chat-input" id="chat-input" placeholder="Say something..." maxlength="400" onkeydown="if(event.key==='Enter')sendChatMsg()" />
+						<button class="chat-send-btn" onclick="sendChatMsg()">SEND ↵</button>
 					</div>
 				</div>
-				<div
-					class="chat-login-notice"
-					id="chat-login-notice"
-					style="display:none"
-				>
-					<a
-						href="#"
-						onclick="toggleChat();openAuth();return false;"
-						style="color:var(--accent3);text-decoration:none"
-					>
-						Sign in
-					</a>
-					to join the chat
+				<div class="chat-login-notice" id="chat-login-notice" style="display:none">
+					<a href="#" onclick="toggleChat();openAuth();return false;" style="color:var(--accent3);text-decoration:none">Sign in</a> to join the chat
 				</div>
 			</div>
 		</div>
@@ -830,149 +524,53 @@
 		<!-- SETTINGS MODAL -->
 		<div class="overlay" id="settings-overlay">
 			<div class="modal" style="max-width:540px">
-				<div class="modal-title">
-					⚙️ Settings
-					<button
-						class="close-btn"
-						onclick="closeOverlay('settings-overlay')"
-					>
-						✕
-					</button>
-				</div>
+				<div class="modal-title">⚙️ Settings <button class="close-btn" onclick="closeOverlay('settings-overlay')">✕</button></div>
 				<div class="settings-section">
 					<div class="settings-section-title">👤 Profile</div>
-					<div class="form-group">
-						<label>Display Name</label>
-						<input
-							type="text"
-							id="settings-username"
-							placeholder="Your display name"
-						/>
-					</div>
-					<button
-						class="btn btn-primary"
-						onclick="saveUsername()"
-						style="width:100%"
-					>
-						Save Username
-					</button>
+					<div class="form-group"><label>Display Name</label><input type="text" id="settings-username" placeholder="Your display name" /></div>
+					<button class="btn btn-primary" onclick="saveUsername()" style="width:100%">Save Username</button>
 				</div>
 				<div class="settings-section">
-					<div class="settings-section-title">
-						🏅 Achievement Badge
-					</div>
-					<div
-						style="font-size:.7rem;color:var(--muted);margin-bottom:.75rem"
-					>
-						Choose which achievement to display next to your name.
-					</div>
-					<div class="ach-selector-grid" id="ach-selector-grid">
-						<div style="color:var(--muted);font-size:.75rem">
-							Sign in to see achievements
-						</div>
-					</div>
+					<div class="settings-section-title">🏅 Achievement Badge</div>
+					<div style="font-size:.7rem;color:var(--muted);margin-bottom:.75rem">Choose which achievement to display next to your name.</div>
+					<div class="ach-selector-grid" id="ach-selector-grid"><div style="color:var(--muted);font-size:.75rem">Sign in to see achievements</div></div>
 					<div style="margin-top:.75rem;display:flex;gap:.5rem">
-						<button
-							class="btn btn-primary"
-							onclick="saveAchievementDisplay()"
-							style="flex:1"
-						>
-							Save Badge
-						</button>
-						<button
-							class="btn btn-ghost"
-							onclick="clearAchievementDisplay()"
-							style="flex:1"
-						>
-							Clear Badge
-						</button>
+						<button class="btn btn-primary" onclick="saveAchievementDisplay()" style="flex:1">Save Badge</button>
+						<button class="btn btn-ghost" onclick="clearAchievementDisplay()" style="flex:1">Clear Badge</button>
 					</div>
 				</div>
 				<div class="settings-section">
 					<div class="settings-section-title">💬 Chat</div>
 					<div class="checkbox-row">
-						<input
-							type="checkbox"
-							id="settings-hide-chat-game"
-							onchange="saveHideChatDuringGame(this.checked)"
-						/>
-						<label for="settings-hide-chat-game">
-							Hide chat button while playing a game
-						</label>
+						<input type="checkbox" id="settings-hide-chat-game" onchange="saveHideChatDuringGame(this.checked)" />
+						<label for="settings-hide-chat-game">Hide chat button while playing a game</label>
 					</div>
 				</div>
 				<div class="settings-section">
 					<div class="settings-section-title">🎨 Color Theme</div>
-					<div
-						style="font-size:.7rem;color:var(--muted);margin-bottom:.75rem"
-					>
-						Choose 2 colors — they'll be used as a gradient across
-						the whole UI.
-					</div>
+					<div style="font-size:.7rem;color:var(--muted);margin-bottom:.75rem">Choose 2 colors — they'll be used as a gradient across the whole UI.</div>
 					<div class="color-picker-row">
-						<div class="color-pick-group">
-							<label>Color A</label>
-							<input
-								type="color"
-								class="color-swatch-input"
-								id="theme-color-a"
-								value="#7fff6e"
-								oninput="updateThemePreview()"
-							/>
-						</div>
-						<div class="color-pick-group">
-							<label>Color B</label>
-							<input
-								type="color"
-								class="color-swatch-input"
-								id="theme-color-b"
-								value="#6ea8ff"
-								oninput="updateThemePreview()"
-							/>
-						</div>
-						<div class="theme-preview" id="theme-preview-box">
-							HTML Library
-						</div>
+						<div class="color-pick-group"><label>Color A</label><input type="color" class="color-swatch-input" id="theme-color-a" value="#7fff6e" oninput="updateThemePreview()" /></div>
+						<div class="color-pick-group"><label>Color B</label><input type="color" class="color-swatch-input" id="theme-color-b" value="#6ea8ff" oninput="updateThemePreview()" /></div>
+						<div class="theme-preview" id="theme-preview-box">HTML Library</div>
 					</div>
-					<div
-						style="font-size:.65rem;color:var(--muted);margin-top:.75rem;font-weight:700;letter-spacing:.08em"
-					>
-						PRESETS
-					</div>
+					<div style="font-size:.65rem;color:var(--muted);margin-top:.75rem;font-weight:700;letter-spacing:.08em">PRESETS</div>
 					<div class="preset-colors" id="preset-colors"></div>
 					<div style="display:flex;gap:.5rem;margin-top:1rem">
-						<button
-							class="btn btn-primary"
-							onclick="applyTheme()"
-							style="flex:1"
-						>
-							Apply Theme
-						</button>
-						<button
-							class="btn btn-ghost"
-							onclick="resetTheme()"
-							style="flex:1"
-						>
-							Reset Default
-						</button>
+						<button class="btn btn-primary" onclick="applyTheme()" style="flex:1">Apply Theme</button>
+						<button class="btn btn-ghost" onclick="resetTheme()" style="flex:1">Reset Default</button>
 					</div>
 				</div>
 				<div class="settings-section">
 					<div class="settings-section-title">🌙 Appearance</div>
 					<div class="checkbox-row">
-						<input
-							type="checkbox"
-							id="settings-light-mode"
-							onchange="setLightMode(this.checked)"
-						/>
+						<input type="checkbox" id="settings-light-mode" onchange="setLightMode(this.checked)" />
 						<label for="settings-light-mode">Light Mode</label>
 					</div>
 				</div>
 				<div class="settings-section">
 					<div class="settings-section-title">🚪 Account</div>
-					<button class="settings-signout-btn" onclick="signOut()">
-						⏻ Sign Out
-					</button>
+					<button class="settings-signout-btn" onclick="signOut()">⏻ Sign Out</button>
 				</div>
 			</div>
 		</div>
@@ -980,190 +578,49 @@
 		<!-- AUTH MODAL -->
 		<div class="overlay" id="auth-overlay">
 			<div class="modal">
-				<div class="modal-title">
-					Account
-					<button
-						class="close-btn"
-						onclick="closeOverlay('auth-overlay')"
-					>
-						✕
-					</button>
-				</div>
+				<div class="modal-title">Account <button class="close-btn" onclick="closeOverlay('auth-overlay')">✕</button></div>
 				<div class="auth-tabs">
-					<button
-						class="auth-tab active"
-						id="tab-login"
-						onclick="switchTab('login')"
-					>
-						SIGN IN
-					</button>
-					<button
-						class="auth-tab"
-						id="tab-register"
-						onclick="switchTab('register')"
-					>
-						REGISTER
-					</button>
+					<button class="auth-tab active" id="tab-login" onclick="switchTab('login')">SIGN IN</button>
+					<button class="auth-tab" id="tab-register" onclick="switchTab('register')">REGISTER</button>
 				</div>
-				<div class="form-group">
-					<label>Email</label>
-					<input
-						type="email"
-						id="auth-email"
-						placeholder="you@example.com"
-						autocomplete="email"
-					/>
-				</div>
-				<div
-					class="form-group"
-					id="auth-name-group"
-					style="display:none"
-				>
-					<label>Display Name</label>
-					<input
-						type="text"
-						id="auth-name"
-						placeholder="Your name"
-						autocomplete="name"
-					/>
-				</div>
+				<div class="form-group"><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" /></div>
+				<div class="form-group" id="auth-name-group" style="display:none"><label>Display Name</label><input type="text" id="auth-name" placeholder="Your name" autocomplete="name" /></div>
 				<div class="form-group">
 					<label>Password</label>
-					<input
-						type="password"
-						id="auth-password"
-						placeholder="••••••••"
-						autocomplete="current-password"
-						onkeydown="if(event.key==='Enter')submitAuth()"
-					/>
-					<a
-						href="https://htmltools.me/ForgotPassword"
-						class="forgot-link"
-						id="auth-forgot-link"
-						target="_blank"
-						rel="noopener"
-					>
-						Forgot password?
-					</a>
+					<input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitAuth()" />
+					<a href="https://htmltools.me/ForgotPassword" class="forgot-link" id="auth-forgot-link" target="_blank" rel="noopener">Forgot password?</a>
 				</div>
-				<div
-					id="auth-error"
-					style="display:none;font-size:.72rem;color:var(--accent2);margin-bottom:.75rem;padding:.5rem;border-radius:6px;background:rgba(255,110,127,.08)"
-				></div>
-				<div class="form-actions">
-					<button
-						class="btn btn-primary"
-						id="auth-submit-btn"
-						onclick="submitAuth()"
-					>
-						SIGN IN
-					</button>
-				</div>
+				<div id="auth-error" style="display:none;font-size:.72rem;color:var(--accent2);margin-bottom:.75rem;padding:.5rem;border-radius:6px;background:rgba(255,110,127,.08)"></div>
+				<div class="form-actions"><button class="btn btn-primary" id="auth-submit-btn" onclick="submitAuth()">SIGN IN</button></div>
 			</div>
 		</div>
 
 		<!-- UPLOAD/EDIT MODAL -->
 		<div class="overlay" id="upload-overlay">
 			<div class="modal">
-				<div class="modal-title">
-					<span id="upload-modal-title">Upload a Book</span>
-					<button
-						class="close-btn"
-						onclick="closeOverlay('upload-overlay')"
-					>
-						✕
-					</button>
-				</div>
-				<div class="form-group">
-					<label>Title</label>
-					<input
-						type="text"
-						id="book-title-input"
-						placeholder="Give your book a name..."
-					/>
-				</div>
-				<div class="form-group">
-					<label>HTML Code</label>
-					<textarea
-						id="book-code-input"
-						placeholder="Paste your HTML here..."
-					></textarea>
-				</div>
-				<div class="form-group">
-					<label>Description (optional)</label>
-					<input
-						type="text"
-						id="book-desc-input"
-						placeholder="Short description..."
-					/>
-				</div>
+				<div class="modal-title"><span id="upload-modal-title">Upload a Book</span><button class="close-btn" onclick="closeOverlay('upload-overlay')">✕</button></div>
+				<div class="form-group"><label>Title</label><input type="text" id="book-title-input" placeholder="Give your book a name..." /></div>
+				<div class="form-group"><label>HTML Code</label><textarea id="book-code-input" placeholder="Paste your HTML here..."></textarea></div>
+				<div class="form-group"><label>Description (optional)</label><input type="text" id="book-desc-input" placeholder="Short description..." /></div>
 				<div class="form-group">
 					<label>Game Images (optional)</label>
 					<div class="img-upload-row">
 						<div>
-							<div
-								style="font-size:.6rem;color:var(--muted);margin-bottom:.35rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase"
-							>
-								Game Logo / Icon
-							</div>
+							<div style="font-size:.6rem;color:var(--muted);margin-bottom:.35rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Game Logo / Icon</div>
 							<div class="img-upload-area" id="logo-upload-area">
-								<button
-									type="button"
-									class="remove-img"
-									id="logo-remove-btn"
-								>
-									✕
-								</button>
-								<input
-									type="file"
-									id="logo-file-input"
-									accept="image/*"
-								/>
-								<div class="upload-label">
-									📷 Click to upload logo
-									<br />
-									<span style="font-size:.6rem">
-										PNG, JPG, GIF — shown as game icon
-									</span>
-								</div>
-								<img
-									id="logo-preview"
-									class="upload-preview"
-									alt=""
-								/>
+								<button type="button" class="remove-img" id="logo-remove-btn">✕</button>
+								<input type="file" id="logo-file-input" accept="image/*" />
+								<div class="upload-label">📷 Click to upload logo<br /><span style="font-size:.6rem">PNG, JPG, GIF — shown as game icon</span></div>
+								<img id="logo-preview" class="upload-preview" alt="" />
 							</div>
 						</div>
 						<div>
-							<div
-								style="font-size:.6rem;color:var(--muted);margin-bottom:.35rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase"
-							>
-								Card Background
-							</div>
+							<div style="font-size:.6rem;color:var(--muted);margin-bottom:.35rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Card Background</div>
 							<div class="img-upload-area" id="bg-upload-area">
-								<button
-									type="button"
-									class="remove-img"
-									id="bg-remove-btn"
-								>
-									✕
-								</button>
-								<input
-									type="file"
-									id="bg-file-input"
-									accept="image/*"
-								/>
-								<div class="upload-label">
-									🖼 Click to upload background
-									<br />
-									<span style="font-size:.6rem">
-										Shows behind the card content
-									</span>
-								</div>
-								<img
-									id="bg-preview"
-									class="upload-preview"
-									alt=""
-								/>
+								<button type="button" class="remove-img" id="bg-remove-btn">✕</button>
+								<input type="file" id="bg-file-input" accept="image/*" />
+								<div class="upload-label">🖼 Click to upload background<br /><span style="font-size:.6rem">Shows behind the card content</span></div>
+								<img id="bg-preview" class="upload-preview" alt="" />
 							</div>
 						</div>
 					</div>
@@ -1171,54 +628,17 @@
 				<div class="form-group">
 					<label>Platform</label>
 					<div class="platform-selector" id="platform-selector">
-						<button
-							type="button"
-							class="platform-opt selected-both"
-							data-platform="both"
-							onclick="selectPlatform('both')"
-						>
-							🌐 Both
-						</button>
-						<button
-							type="button"
-							class="platform-opt"
-							data-platform="mobile"
-							onclick="selectPlatform('mobile')"
-						>
-							📱 Mobile
-						</button>
-						<button
-							type="button"
-							class="platform-opt"
-							data-platform="computer"
-							onclick="selectPlatform('computer')"
-						>
-							💻 Computer
-						</button>
+						<button type="button" class="platform-opt selected-both" data-platform="both" onclick="selectPlatform('both')">🌐 Both</button>
+						<button type="button" class="platform-opt" data-platform="mobile" onclick="selectPlatform('mobile')">📱 Mobile</button>
+						<button type="button" class="platform-opt" data-platform="computer" onclick="selectPlatform('computer')">💻 Computer</button>
 					</div>
 				</div>
 				<div class="form-group">
-					<div class="checkbox-row">
-						<input type="checkbox" id="allow-view-code" checked />
-						<label for="allow-view-code">
-							Allow others to view &amp; copy the source code
-						</label>
-					</div>
+					<div class="checkbox-row"><input type="checkbox" id="allow-view-code" checked /><label for="allow-view-code">Allow others to view &amp; copy the source code</label></div>
 				</div>
 				<div class="form-actions">
-					<button
-						class="btn btn-ghost"
-						onclick="closeOverlay('upload-overlay')"
-					>
-						Cancel
-					</button>
-					<button
-						class="btn btn-primary"
-						id="upload-submit-btn"
-						onclick="submitBook()"
-					>
-						PUBLISH
-					</button>
+					<button class="btn btn-ghost" onclick="closeOverlay('upload-overlay')">Cancel</button>
+					<button class="btn btn-primary" id="upload-submit-btn" onclick="submitBook()">PUBLISH</button>
 				</div>
 			</div>
 		</div>
@@ -1229,82 +649,27 @@
 				<div class="modal-title">
 					<span id="code-modal-title">Source Code</span>
 					<div style="display:flex;gap:.5rem;align-items:center">
-						<button
-							class="btn btn-ghost btn-sm"
-							onclick="copyCode()"
-						>
-							⎘ Copy
-						</button>
-						<button
-							class="btn btn-ghost btn-sm"
-							onclick="downloadCode()"
-						>
-							⬇ Download
-						</button>
-						<button
-							class="close-btn"
-							onclick="closeOverlay('code-overlay')"
-						>
-							✕
-						</button>
+						<button class="btn btn-ghost btn-sm" onclick="copyCode()">⎘ Copy</button>
+						<button class="btn btn-ghost btn-sm" onclick="downloadCode()">⬇ Download</button>
+						<button class="close-btn" onclick="closeOverlay('code-overlay')">✕</button>
 					</div>
 				</div>
-				<pre
-					id="code-display"
-					style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem;overflow:auto;max-height:60vh;font-size:.72rem;line-height:1.6;color:var(--accent3);white-space:pre-wrap;word-break:break-all"
-				></pre>
+				<pre id="code-display" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem;overflow:auto;max-height:60vh;font-size:.72rem;line-height:1.6;color:var(--accent3);white-space:pre-wrap;word-break:break-all"></pre>
 			</div>
 		</div>
 
 		<!-- COMMENTS MODAL -->
 		<div class="overlay" id="comments-overlay">
 			<div class="modal" style="max-width:600px">
-				<div class="modal-title">
-					<span id="comments-modal-title">💬 Comments</span>
-					<button
-						class="close-btn"
-						onclick="closeOverlay('comments-overlay')"
-					>
-						✕
-					</button>
-				</div>
+				<div class="modal-title"><span id="comments-modal-title">💬 Comments</span><button class="close-btn" onclick="closeOverlay('comments-overlay')">✕</button></div>
 				<div class="comments-section">
-					<div class="comments-list" id="comments-list">
-						<div class="no-comments">
-							No comments yet. Be the first!
-						</div>
+					<div class="comments-list" id="comments-list"><div class="no-comments">No comments yet. Be the first!</div></div>
+					<div id="comment-login-notice" style="display:none;font-size:.75rem;color:var(--muted);text-align:center;padding:.75rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.75rem">
+						<a href="#" onclick="openAuth();return false;" style="color:var(--accent3);text-decoration:none">Sign in</a> to leave a comment
 					</div>
-					<div
-						id="comment-login-notice"
-						style="display:none;font-size:.75rem;color:var(--muted);text-align:center;padding:.75rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.75rem"
-					>
-						<a
-							href="#"
-							onclick="openAuth();return false;"
-							style="color:var(--accent3);text-decoration:none"
-						>
-							Sign in
-						</a>
-						to leave a comment
-					</div>
-					<div
-						class="comment-input-row"
-						id="comment-input-row"
-						style="display:none"
-					>
-						<input
-							type="text"
-							id="comment-text-input"
-							placeholder="Write a comment..."
-							maxlength="500"
-							onkeydown="if(event.key==='Enter')submitComment()"
-						/>
-						<button
-							class="btn btn-primary btn-sm"
-							onclick="submitComment()"
-						>
-							POST
-						</button>
+					<div class="comment-input-row" id="comment-input-row" style="display:none">
+						<input type="text" id="comment-text-input" placeholder="Write a comment..." maxlength="500" onkeydown="if(event.key==='Enter')submitComment()" />
+						<button class="btn btn-primary btn-sm" onclick="submitComment()">POST</button>
 					</div>
 				</div>
 			</div>
@@ -1313,15 +678,7 @@
 		<!-- PROFILE MODAL -->
 		<div class="overlay" id="profile-overlay">
 			<div class="modal">
-				<div class="modal-title">
-					<span>👤 My Profile</span>
-					<button
-						class="close-btn"
-						onclick="closeOverlay('profile-overlay')"
-					>
-						✕
-					</button>
-				</div>
+				<div class="modal-title"><span>👤 My Profile</span><button class="close-btn" onclick="closeOverlay('profile-overlay')">✕</button></div>
 				<div id="profile-content"></div>
 			</div>
 		</div>
@@ -1329,40 +686,11 @@
 		<!-- LEADERBOARD MODAL -->
 		<div class="overlay" id="leaderboard-overlay">
 			<div class="modal" style="max-width:520px">
-				<div class="modal-title">
-					🏆 Leaderboard
-					<button
-						class="close-btn"
-						onclick="closeOverlay('leaderboard-overlay')"
-					>
-						✕
-					</button>
-				</div>
-				<div
-					id="leaderboard-tabs"
-					style="display:flex;gap:0;margin-bottom:1.25rem;border:1px solid var(--border);border-radius:10px;overflow:hidden"
-				>
-					<button
-						class="auth-tab active"
-						id="lb-tab-likes"
-						onclick="switchLbTab('likes',this)"
-					>
-						MOST LIKED
-					</button>
-					<button
-						class="auth-tab"
-						id="lb-tab-views"
-						onclick="switchLbTab('views',this)"
-					>
-						MOST VIEWED
-					</button>
-					<button
-						class="auth-tab"
-						id="lb-tab-time"
-						onclick="switchLbTab('time',this)"
-					>
-						MOST PLAYED
-					</button>
+				<div class="modal-title">🏆 Leaderboard <button class="close-btn" onclick="closeOverlay('leaderboard-overlay')">✕</button></div>
+				<div id="leaderboard-tabs" style="display:flex;gap:0;margin-bottom:1.25rem;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+					<button class="auth-tab active" id="lb-tab-likes" onclick="switchLbTab('likes',this)">MOST LIKED</button>
+					<button class="auth-tab" id="lb-tab-views" onclick="switchLbTab('views',this)">MOST VIEWED</button>
+					<button class="auth-tab" id="lb-tab-time" onclick="switchLbTab('time',this)">MOST PLAYED</button>
 				</div>
 				<div id="leaderboard-list"></div>
 			</div>
@@ -1371,15 +699,7 @@
 		<!-- BOOK STATS MODAL -->
 		<div class="overlay" id="bookstats-overlay">
 			<div class="modal" style="max-width:440px">
-				<div class="modal-title">
-					<span id="bookstats-title">Book Stats</span>
-					<button
-						class="close-btn"
-						onclick="closeOverlay('bookstats-overlay')"
-					>
-						✕
-					</button>
-				</div>
+				<div class="modal-title"><span id="bookstats-title">Book Stats</span><button class="close-btn" onclick="closeOverlay('bookstats-overlay')">✕</button></div>
 				<div id="bookstats-content"></div>
 			</div>
 		</div>
@@ -1387,51 +707,23 @@
 		<!-- BOOK INSPECTOR MODAL -->
 		<div class="overlay" id="inspector-overlay">
 			<div class="modal" style="max-width:520px">
-				<div class="modal-title">
-					<span id="inspector-title">🔍 Book Inspector</span>
-					<button
-						class="close-btn"
-						onclick="closeOverlay('inspector-overlay')"
-					>
-						✕
-					</button>
-				</div>
-				<div id="inspector-content">
-					<div class="no-comments">Loading player data...</div>
-				</div>
+				<div class="modal-title"><span id="inspector-title">🔍 Book Inspector</span><button class="close-btn" onclick="closeOverlay('inspector-overlay')">✕</button></div>
+				<div id="inspector-content"><div class="no-comments">Loading player data...</div></div>
 			</div>
 		</div>
 
 		<!-- SAVED BOOKS MODAL -->
 		<div class="overlay" id="saved-overlay">
 			<div class="modal" style="max-width:600px">
-				<div class="modal-title">
-					🔖 Saved Books
-					<button
-						class="close-btn"
-						onclick="closeOverlay('saved-overlay')"
-					>
-						✕
-					</button>
-				</div>
-				<div id="saved-content">
-					<div class="no-comments">No saved books yet.</div>
-				</div>
+				<div class="modal-title">🔖 Saved Books <button class="close-btn" onclick="closeOverlay('saved-overlay')">✕</button></div>
+				<div id="saved-content"><div class="no-comments">No saved books yet.</div></div>
 			</div>
 		</div>
 
 		<!-- ACHIEVEMENTS MODAL -->
 		<div class="overlay" id="achievements-overlay">
 			<div class="modal" style="max-width:600px">
-				<div class="modal-title">
-					🏅 Achievements
-					<button
-						class="close-btn"
-						onclick="closeOverlay('achievements-overlay')"
-					>
-						✕
-					</button>
-				</div>
+				<div class="modal-title">🏅 Achievements <button class="close-btn" onclick="closeOverlay('achievements-overlay')">✕</button></div>
 				<div id="achievements-content"></div>
 			</div>
 		</div>
@@ -1441,30 +733,12 @@
 			<div id="runner-bar">
 				<span style="color:var(--theme-a);font-size:1rem">▶</span>
 				<span id="runner-title">Running</span>
-				<span
-					id="runner-live-time"
-					style="font-size:.7rem;color:var(--accent4);font-family:'Space Mono',monospace;min-width:60px;text-align:right"
-				>
-					0s
-				</span>
-				<span id="runner-hint" style="margin-left:auto">
-					Shift+S or Esc to stop
-				</span>
-				<button
-					id="fullscreen-btn"
-					onclick="toggleFullscreen()"
-					title="Fullscreen"
-				>
-					⛶
-				</button>
-				<button class="btn btn-danger btn-sm" onclick="stopRunner()">
-					⏹ STOP
-				</button>
+				<span id="runner-live-time" style="font-size:.7rem;color:var(--accent4);font-family:'Space Mono',monospace;min-width:60px;text-align:right">0s</span>
+				<span id="runner-hint" style="margin-left:auto">Shift+S or Esc to stop</span>
+				<button id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
+				<button class="btn btn-danger btn-sm" onclick="stopRunner()">⏹ STOP</button>
 			</div>
-			<iframe
-				id="runner-frame"
-				sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
-			></iframe>
+			<iframe id="runner-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
 		</div>
 
 		<div id="toast"></div>
@@ -1489,7 +763,6 @@
 			let currentUser=null;
 			let allBooksOld={},allBooksNew={},allBooks={};
 			let allUsers={};
-			// OPTIMIZED: No global allComments — fetched per-book on demand
 			let commentCache={},commentCountCache={};
 			let currentFilter='popular',editingBookId=null,commentingBookId=null;
 			let myNotifs=[],bannedUsers={},maintenanceMode=false,siteAnnouncement='';
@@ -1562,6 +835,39 @@
 			function loadSaved(){if(!currentUser){savedBooks={};return;}try{savedBooks=JSON.parse(localStorage.getItem('saved_'+currentUser.uid)||'{}')}catch(e){savedBooks={};}}
 			function persistSaved(){if(!currentUser)return;localStorage.setItem('saved_'+currentUser.uid,JSON.stringify(savedBooks));}
 
+			// ── FIX #3: GLOBAL TOOLTIP ─────────────────────────────────────────────────────
+			// Replaces per-element absolute tooltips that were clipped by overflow:hidden on .book-card
+			(function setupGlobalTooltip(){
+			  const tt=document.getElementById('global-ach-tooltip');
+			  const strong=tt.querySelector('strong');
+			  const span=tt.querySelector('span');
+			  document.addEventListener('mouseover',e=>{
+			    const el=e.target.closest('[data-tip-name]');
+			    if(!el){tt.style.opacity='0';return;}
+			    strong.textContent=el.dataset.tipName||'';
+			    span.textContent=el.dataset.tipDesc||'';
+			    tt.style.opacity='1';
+			    // Position after making it visible so we can measure it
+			    requestAnimationFrame(()=>{
+			      const r=el.getBoundingClientRect();
+			      const tw=tt.offsetWidth,th=tt.offsetHeight;
+			      let left=r.left+r.width/2-tw/2;
+			      let top=r.top-th-8;
+			      if(left<6)left=6;
+			      if(left+tw>window.innerWidth-6)left=window.innerWidth-tw-6;
+			      if(top<6)top=r.bottom+8;
+			      tt.style.left=left+'px';
+			      tt.style.top=top+'px';
+			    });
+			  });
+			  document.addEventListener('mouseout',e=>{
+			    if(!e.target.closest('[data-tip-name]'))return;
+			    if(e.relatedTarget&&e.relatedTarget.closest('[data-tip-name]'))return;
+			    tt.style.opacity='0';
+			  });
+			  document.addEventListener('scroll',()=>{tt.style.opacity='0';},{passive:true});
+			})();
+
 			// ── LIGHT MODE ────────────────────────────────────────────────────────────────
 			function loadLightMode(){if(localStorage.getItem('htmllib_lightmode')==='1'){document.body.classList.add('light-mode');const btn=document.getElementById('theme-toggle-btn');if(btn)btn.textContent='☀️';const chk=document.getElementById('settings-light-mode');if(chk)chk.checked=true;}}
 			window.setLightMode=function(val){if(val){document.body.classList.add('light-mode');localStorage.setItem('htmllib_lightmode','1');document.getElementById('theme-toggle-btn').textContent='☀️';}else{document.body.classList.remove('light-mode');localStorage.removeItem('htmllib_lightmode');document.getElementById('theme-toggle-btn').textContent='🌙';}const chk=document.getElementById('settings-light-mode');if(chk)chk.checked=val;};
@@ -1627,29 +933,39 @@
 			  });
 			}
 
-			// ── FIREBASE LISTENERS ─────────────────────────────────────────────────────────
-			// OPTIMIZED: Old DB — books node. Strip code field client-side to avoid using it accidentally.
-			// The code is fetched on demand when Play is clicked.
-			onValue(ref(oldDb,'books'),snap=>{
-			  const raw=snap.val()||{};
-			  // Strip code from in-memory objects — we fetch it fresh from /bookCode when needed
-			  allBooksOld={};
-			  Object.entries(raw).forEach(([id,b])=>{if(b){const{code:_,...meta}=b;allBooksOld[id]=meta;}});
-			  mergeBooks();renderBooks();renderPins();setTimeout(checkUserAchievements,500);
-			});
+			// ── FIX #1: LOAD BOOKS WITH get() INSTEAD OF onValue() ───────────────────────
+			// onValue streams ALL book data (including code) every time anything changes → 1GB/day
+			// get() is a one-time read; we re-fetch every 2 minutes for freshness
+			async function fetchOldBooks(){
+			  try{
+			    const snap=await get(ref(oldDb,'books'));
+			    const raw=snap.val()||{};
+			    allBooksOld={};
+			    // Strip code field — only metadata kept in memory; code fetched on demand
+			    Object.entries(raw).forEach(([id,b])=>{if(b){const{code:_,...meta}=b;allBooksOld[id]=meta;}});
+			    mergeBooks();renderBooks();renderPins();setTimeout(checkUserAchievements,500);
+			  }catch(e){console.warn('fetchOldBooks failed',e);}
+			}
+			async function fetchNewBooks(){
+			  try{
+			    const snap=await get(ref(newDb,'books'));
+			    const raw=snap.val()||{};
+			    allBooksNew={};
+			    // Strip code field — stored separately in /bookCode
+			    Object.entries(raw).forEach(([id,b])=>{if(b){const{code:_,...meta}=b;allBooksNew[id]=meta;}});
+			    mergeBooks();renderBooks();renderPins();setTimeout(checkUserAchievements,500);
+			  }catch(e){console.warn('fetchNewBooks failed',e);}
+			}
+			// Initial load
+			fetchOldBooks();
+			fetchNewBooks();
+			// Periodic refresh every 2 minutes (keeps data fresh without streaming gigabytes)
+			setInterval(()=>{fetchOldBooks();fetchNewBooks();},2*60*1000);
 
-			// OPTIMIZED: New DB books — strip code from in-memory metadata
-			onValue(ref(newDb,'books'),snap=>{
-			  const raw=snap.val()||{};
-			  allBooksNew={};
-			  Object.entries(raw).forEach(([id,b])=>{if(b){const{code:_,...meta}=b;allBooksNew[id]=meta;}});
-			  mergeBooks();renderBooks();renderPins();setTimeout(checkUserAchievements,500);
-			});
-
-			// bookMirror — still real-time for likes/views
+			// bookMirror stays real-time — it's only lightweight counters (likes/views), not code
 			onValue(ref(newDb,'bookMirror'),snap=>{bookMirrorData=snap.val()||{};mergeBooks();renderBooks();renderPins();});
 
-			// OPTIMIZED: users — one-time fetch, not streaming
+			// Users — one-time fetch
 			async function loadUsers(){try{const s=await get(ref(newDb,'users'));allUsers=s.val()||{};}catch(e){}}
 			loadUsers();
 
@@ -1671,7 +987,7 @@
 			onValue(ref(newDb,'siteConfig/deletedOldBooks'),snap=>{deletedOldBooks=snap.val()||{};mergeBooks();renderBooks();renderPins();});
 			onValue(ref(newDb,'recentlyDeleted'),snap=>{const d=snap.val()||{};recentlyDeleted=Object.entries(d).map(([id,b])=>({...b,_id:id})).filter(b=>(Date.now()-(b.deletedAt||0))<30*24*3600*1000).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));});
 
-			// OPTIMIZED: Chat — last 50 messages only
+			// Chat — last 50 messages only
 			const chatQuery=query(ref(newDb,'chat'),orderByKey(),limitToLast(50));
 			onValue(chatQuery,snap=>{
 			  const data=snap.val()||{};const prevCount=Object.keys(chatMessages).length;chatMessages=data;
@@ -1683,7 +999,7 @@
 			const _isMobileDevice=()=>(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)||window.innerWidth<=768);
 			let _mobileFilterOn=_isMobileDevice();
 			function initMobileBanner(){document.getElementById('mobile-mode-banner').classList.add('show');updateMobileBanner();}
-			function updateMobileBanner(){const label=document.getElementById('mobile-banner-label'),btn=document.getElementById('mobile-toggle-btn');if(_mobileFilterOn){label.textContent='📱 Showing mobile-friendly games only';btn.textContent='💻 Show all games';btn.classList.remove('computer-mode');}else{label.textContent='💻 Showing all games';btn.textContent='📱 Switch to Mobile Mode';btn.classList.add('computer-mode');}}
+			function updateMobileBanner(){const label=document.getElementById('mobile-banner-label'),btn=document.getElementById('mobile-toggle-btn');if(_mobileFilterOn){label.textContent='📱 Showing mobile-friendly games only';btn.textContent='💻 Show all games';}else{label.textContent='💻 Showing all games';btn.textContent='📱 Switch to Mobile Mode';}}
 			window.toggleMobileMode=function(){_mobileFilterOn=!_mobileFilterOn;updateMobileBanner();renderPins();renderBooks();};
 			initMobileBanner();
 			window.selectPlatform=function(platform){_selectedPlatform=platform;document.querySelectorAll('.platform-opt').forEach(btn=>{btn.className='platform-opt';if(btn.dataset.platform===platform)btn.classList.add(`selected-${platform}`);});};
@@ -1711,7 +1027,6 @@
 			    if(!isOwner(user))checkBanStatus();
 			    const existing=(await get(ref(newDb,`users/${user.uid}`))).val()||{};
 			    await set(ref(newDb,`users/${user.uid}`),{...existing,displayName:user.displayName||'',email:user.email,uid:user.uid,lastSignIn:Date.now(),photoURL:user.photoURL||'',joinedAt:existing.joinedAt||Date.now()});
-			    // Refresh local user cache
 			    allUsers[user.uid]={...existing,displayName:user.displayName||'',email:user.email,uid:user.uid};
 			    logActivity('login',`${user.displayName||user.email} signed in`,user.uid);
 			    await loadUserAchievements(user.uid);
@@ -1812,7 +1127,9 @@
 			window.clearAchievementDisplay=function(){if(!currentUser)return;_selectedDisplayAch=null;localStorage.removeItem('displayAch_'+currentUser.uid);document.querySelectorAll('.ach-selector-item').forEach(el=>el.classList.remove('selected'));updateUserAchievementBadge();showToast('Badge cleared','success');};
 			function updateUserAchievementBadge(){
 			  if(!currentUser)return;const achId=localStorage.getItem('displayAch_'+currentUser.uid);const container=document.getElementById('user-ach-badge');if(!container)return;
-			  if(achId&&userAchievements[achId]){const ach=USER_ACHIEVEMENTS.find(a=>a.id===achId);if(ach){container.style.display='inline-flex';container.innerHTML=`<div class="user-achievement-badge" style="${ach.style}">${ach.icon}<div class="achievement-tooltip"><strong>${escHtml(ach.name)}</strong><span>${escHtml(ach.desc)}</span></div></div>`;}}
+			  if(achId&&userAchievements[achId]){const ach=USER_ACHIEVEMENTS.find(a=>a.id===achId);if(ach){container.style.display='inline-flex';
+			  // Use data-tip attributes for global tooltip
+			  container.innerHTML=`<div class="user-achievement-badge" style="${ach.style}" data-tip-name="${escHtml(ach.name)}" data-tip-desc="${escHtml(ach.desc)}">${ach.icon}</div>`;}}
 			  else{container.style.display='none';container.innerHTML='';}
 			}
 			window.openAchievements=function(){
@@ -1871,9 +1188,13 @@
 			  const logoHtml=book.logoImage?`<div class="book-icon"><img src="${book.logoImage}" alt="logo"/></div>`:`<div class="book-icon">${icon}</div>`
 			  const ownerAchId=allUsers[book.ownerId]&&localStorage.getItem('displayAch_'+book.ownerId);
 			  let ownerAchHtml='';
-			  if(ownerAchId){const ach=USER_ACHIEVEMENTS.find(a=>a.id===ownerAchId);if(ach&&allUsers[book.ownerId]){ownerAchHtml=`<span class="user-achievement-badge" style="${ach.style};width:16px;height:16px;font-size:10px;vertical-align:middle;margin-left:3px" title="${ach.name}: ${ach.desc}">${ach.icon}</span>`;}}
+			  if(ownerAchId){const ach=USER_ACHIEVEMENTS.find(a=>a.id===ownerAchId);if(ach&&allUsers[book.ownerId]){
+			    // FIX #3: use data-tip-name / data-tip-desc instead of inline tooltip HTML
+			    ownerAchHtml=`<span class="user-achievement-badge" style="${ach.style};width:16px;height:16px;font-size:10px;vertical-align:middle;margin-left:3px" data-tip-name="${escHtml(ach.name)}" data-tip-desc="${escHtml(ach.desc)}">${ach.icon}</span>`;
+			  }}
 			  const gameAchs=getBookAchievements(id,book);
-			  const gameAchHtml=gameAchs.length?`<div class="game-achievement-badges">${gameAchs.map(a=>`<div class="game-ach-badge" style="${a.style}">${a.icon}<div class="achievement-tooltip"><strong>${escHtml(a.name)}</strong><span>${escHtml(a.desc)}</span></div></div>`).join('')}</div>`:'';
+			  // FIX #3: game achievement badges use data-tip-* — no inline absolute-positioned tooltip HTML
+			  const gameAchHtml=gameAchs.length?`<div class="game-achievement-badges">${gameAchs.map(a=>`<div class="game-ach-badge" style="${a.style}" data-tip-name="${escHtml(a.name)}" data-tip-desc="${escHtml(a.desc)}">${a.icon}</div>`).join('')}</div>`:'';
 			  let ownerActionsHtml='';
 			  if(canManage){ownerActionsHtml=`<div class="owner-actions"><button class="btn btn-ghost btn-sm" style="flex:1" onclick="editBook('${id}')">✎ Edit</button><button class="btn btn-danger btn-sm" style="flex:1" onclick="deleteBook('${id}')">✕ Delete</button>${isOwnerUser?`<button class="btn btn-ghost btn-sm" title="${isPinned?'Unpin':'Pin'}" onclick="togglePin('${id}')" style="border-color:rgba(255,216,110,.3);color:var(--accent4)">${isPinned?'📌 Unpin':'📌 Pin'}</button><button class="btn btn-ghost btn-sm" title="${isProtected?'Remove protection':'Protect'}" onclick="toggleUndeletable('${id}')" style="border-color:rgba(110,168,255,.3);color:var(--accent3)">${isProtected?'🔓 Unprotect':'🔒 Protect'}</button>`:''}</div>`;}
 			  return`<div class="book-card ${isPinned?'pinned':''} ${isProtected?'undeletable':''}" id="card-${id}">${bgDiv}${isPinned?'<div class="pin-badge">📌 PINNED</div>':''}${isProtected?'<div class="pin-badge" style="top:2rem;background:rgba(110,168,255,.1);border-color:rgba(110,168,255,.3);color:var(--accent3)">🔒 PROTECTED</div>':''}<div class="book-header">${logoHtml}<div style="flex:1;padding-right:${isPinned||isProtected?'4rem':'0'}"><div class="book-title">${escHtml(book.title)}</div>${book.desc?`<div style="font-size:.7rem;color:var(--muted);margin-top:.2rem">${escHtml(book.desc)}</div>`:''}</div></div><div class="book-meta"><span>👤 ${escHtml(book.ownerName||'Unknown')}${ownerAchHtml}</span><span>📅 ${timeAgo(book.createdAt)}</span><span title="Views">👁 ${(book.views||0).toLocaleString()}</span><span title="Total time played">⏱ ${formatMinutes(book.playtimeSeconds||0)}</span>${platformBadge}${book.allowViewCode?'<span class="badge">OPEN SOURCE</span>':''}</div>${gameAchHtml}<div class="book-actions"><button class="like-btn ${liked?'liked':''}" onclick="toggleLike('${id}')">♥ ${likes}</button><button class="comment-btn" onclick="openComments('${id}')">💬 ${cCount}</button>${currentUser?`<button class="save-btn ${isSaved?'saved':''}" onclick="toggleSave('${id}')" title="${isSaved?'Unsave':'Save'}">🔖${isSaved?' Saved':''}</button>`:''}<button class="share-btn" onclick="shareBook('${id}')">🔗</button><button class="share-btn" onclick="openBookStats('${id}')" title="Stats" style="border-color:rgba(192,132,252,.3);color:#a78bfa">📊</button>${canInspect?`<button class="share-btn" onclick="openInspector('${id}')" title="Who played this?" style="border-color:rgba(110,168,255,.3);color:var(--accent3)">🔍</button>`:''}${book.allowViewCode?`<button class="btn btn-ghost btn-sm" onclick="viewCode('${id}')">⎘ Code</button>`:''}<button class="play-btn" onclick="runBook('${id}')">▶ Play</button></div>${ownerActionsHtml}</div>`;
@@ -1881,7 +1202,28 @@
 
 			window.setFilter=function(f,el){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBooks();};
 
-			// ── PLAY — OPTIMIZED: fetch code on demand ────────────────────────────────────
+			// ── FIX #2: FETCH CODE WITH FALLBACK ─────────────────────────────────────────
+			// Problem: Books uploaded before /bookCode separation still have code in books/{id}/code
+			// The original code only checked /bookCode/{id}/code for new DB books → "Error: No code found"
+			// Fix: Try /bookCode first, fall back to /books/{id}/code for backwards compatibility
+			async function fetchCode(book){
+			  let code='';
+			  if(book._db==='new'){
+			    // Primary location: /bookCode/{id}/code (new optimized storage)
+			    try{const s=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(s.exists())return s.val();}
+			    catch(e){console.warn('bookCode fetch failed, trying fallback',e);}
+			    // Fallback: code may still be in /books/{id}/code (books uploaded before the optimization)
+			    try{const s=await get(ref(newDb,'books/'+book._origId+'/code'));if(s.exists())return s.val();}
+			    catch(e){console.warn('books/code fallback also failed',e);}
+			  }else{
+			    // Old DB: code lives in /books/{id}/code
+			    try{const s=await get(ref(oldDb,'books/'+book._origId+'/code'));if(s.exists())return s.val();}
+			    catch(e){console.warn('old book code fetch failed',e);}
+			  }
+			  return code;
+			}
+
+			// ── PLAY ──────────────────────────────────────────────────────────────────────
 			let _runningBookId=null,_playtimeInterval=null,_runnerStartTime=null;
 			window.runBook=async function(id){
 			  const book=allBooks[id];if(!book)return;
@@ -1892,18 +1234,12 @@
 			  document.getElementById('runner-live-time').textContent='0s';
 			  if(localStorage.getItem('htmllib_hide_chat_game')==='1')document.getElementById('chat-fab').classList.add('hidden-during-game');
 
-			  // OPTIMIZED: Fetch code on demand from /bookCode (new DB) or fall back to book.code (old DB)
-			  let code=book.code||'';
-			  if(book._db==='new'){
-			    try{const snap=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(snap.exists())code=snap.val();}
-			    catch(e){console.warn('bookCode fetch failed',e);}
-			  }else{
-			    // Old DB books still have code in their node (read from oldDb)
-			    try{const snap=await get(ref(oldDb,'books/'+book._origId+'/code'));if(snap.exists())code=snap.val();}
-			    catch(e){console.warn('old book code fetch failed',e);}
-			  }
+			  const code=await fetchCode(book);
 
-			  if(!code){document.getElementById('runner-frame').srcdoc='<body style="background:#111;color:#f88;font-family:monospace;padding:2rem">Error: No code found.</body>';return;}
+			  if(!code){
+			    document.getElementById('runner-frame').srcdoc='<body style="background:#111;color:#f88;font-family:monospace;padding:2rem;text-align:center"><h2>⚠️ No Code Found</h2><p style="margin-top:1rem;color:#888">The author may need to re-save this book to migrate it.</p></body>';
+			    return;
+			  }
 
 			  _runningBookId=id;_runnerStartTime=Date.now();
 			  document.getElementById('runner-frame').srcdoc=code;
@@ -1950,7 +1286,7 @@
 			  setTimeout(checkUserAchievements,500);renderBooks();
 			};
 
-			// ── COMMENTS — OPTIMIZED: fetch per-book on demand ────────────────────────────
+			// ── COMMENTS ─────────────────────────────────────────────────────────────────
 			window.openComments=async function(id){
 			  const book=allBooks[id];if(!book)return;commentingBookId=id;
 			  document.getElementById('comments-modal-title').textContent=`💬 ${escHtml(book.title)}`;
@@ -2070,7 +1406,7 @@
 
 			// ── BOOK STATS ────────────────────────────────────────────────────────────────
 			window.openBookStats=function(id){
-			  const book=allBooks[id];if(!book)return;const cCount=commentCount(id);const codeSize=0;
+			  const book=allBooks[id];if(!book)return;const cCount=commentCount(id);
 			  document.getElementById('bookstats-title').textContent=`📊 ${escHtml(book.title)}`;
 			  const gameAchs=getBookAchievements(id,book);
 			  const achSection=gameAchs.length?`<div style="margin-top:.75rem;padding:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px"><div style="font-size:.6rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem">Game Achievements</div><div style="display:flex;flex-wrap:wrap;gap:.35rem">${gameAchs.map(a=>`<div style="${a.style};padding:.25rem .6rem;border-radius:6px;border:1.5px solid;font-size:.7rem;display:flex;align-items:center;gap:.3rem">${a.icon} ${escHtml(a.name)}</div>`).join('')}</div></div>`:'';
@@ -2078,21 +1414,19 @@
 			  openOverlay('bookstats-overlay');
 			};
 
-			// ── VIEW CODE — OPTIMIZED: fetch on demand ────────────────────────────────────
+			// ── VIEW CODE — also uses fetchCode helper (FIX #2) ──────────────────────────
 			window.viewCode=async function(id){
 			  const book=allBooks[id];if(!book)return;_viewingCodeBookId=id;
 			  document.getElementById('code-modal-title').textContent=book.title+' — Source';
 			  document.getElementById('code-display').textContent='Loading...';
 			  openOverlay('code-overlay');
-			  let code='';
-			  if(book._db==='new'){try{const s=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
-			  else{try{const s=await get(ref(oldDb,'books/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
+			  const code=await fetchCode(book);
 			  document.getElementById('code-display').textContent=code||'// No code found';
 			};
 			window.copyCode=function(){navigator.clipboard.writeText(document.getElementById('code-display').textContent).then(()=>showToast('Copied!','success'));};
 			window.downloadCode=function(){const code=document.getElementById('code-display').textContent;const bookTitle=_viewingCodeBookId?(allBooks[_viewingCodeBookId]?.title||'book'):'book';const blob=new Blob([code],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=bookTitle.replace(/[^a-z0-9]/gi,'_')+'.html';a.click();showToast('Downloaded!','success');};
 
-			// ── UPLOAD/EDIT — OPTIMIZED: code stored in /bookCode separately ──────────────
+			// ── UPLOAD/EDIT — also uses fetchCode helper (FIX #2) ────────────────────────
 			function resetUploadImages(){
 			  _uploadLogoB64=null;_uploadBgB64=null;
 			  ['logo','bg'].forEach(type=>{
@@ -2114,10 +1448,8 @@
 			  editingBookId=id;document.getElementById('upload-modal-title').textContent='Edit Book';document.getElementById('upload-submit-btn').textContent='SAVE CHANGES';
 			  document.getElementById('book-title-input').value=book.title;document.getElementById('book-desc-input').value=book.desc||'';document.getElementById('allow-view-code').checked=!!book.allowViewCode;
 			  _isSubmitting=false;resetUploadImages();
-			  // Fetch code on demand for edit modal
-			  let code='';
-			  if(book._db==='new'){try{const s=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
-			  else{try{const s=await get(ref(oldDb,'books/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
+			  // FIX #2: use shared fetchCode helper so old books also load correctly in edit mode
+			  const code=await fetchCode(book);
 			  document.getElementById('book-code-input').value=code;
 			  if(book.logoImage){_uploadLogoB64=book.logoImage;const p=document.getElementById('logo-preview');p.src=book.logoImage;p.style.display='block';document.getElementById('logo-upload-area').classList.add('has-image');const l=document.querySelector('#logo-upload-area .upload-label');if(l)l.style.display='none';}
 			  if(book.bgImage){_uploadBgB64=book.bgImage;const p=document.getElementById('bg-preview');p.src=book.bgImage;p.style.display='block';document.getElementById('bg-upload-area').classList.add('has-image');const l=document.querySelector('#bg-upload-area .upload-label');if(l)l.style.display='none';}
@@ -2134,7 +1466,6 @@
 			  if(!code){showToast('Please add HTML code','error');_isSubmitting=false;return;}
 			  const btn=document.getElementById('upload-submit-btn');btn.textContent='Saving...';btn.disabled=true;
 			  try{
-			    // Metadata only — NO code in this object
 			    const metaData={title,desc,allowViewCode,platform,updatedAt:Date.now()};
 			    if(_uploadLogoB64!==undefined)metaData.logoImage=_uploadLogoB64||null;
 			    if(_uploadBgB64!==undefined)metaData.bgImage=_uploadBgB64||null;
@@ -2143,7 +1474,6 @@
 			      if(currentBook&&currentBook.undeletable&&!isOwner(currentUser)){showToast('🔒 This book is protected.','error');btn.textContent='SAVE CHANGES';btn.disabled=false;_isSubmitting=false;return;}
 			      if(currentBook._db==='new'){
 			        await update(ref(newDb,'books/'+currentBook._origId),metaData);
-			        // Store code separately
 			        await set(ref(newDb,'bookCode/'+currentBook._origId+'/code'),code);
 			        showToast('Book updated!','success');
 			      }else{
@@ -2157,13 +1487,14 @@
 			    }else{
 			      const newRef=push(ref(newDb,'books'));const newId=newRef.key;
 			      await set(newRef,{...metaData,ownerId:currentUser.uid,ownerName:currentUser.displayName||currentUser.email,createdAt:Date.now(),likes:0});
-			      // Store code separately in /bookCode
 			      await set(ref(newDb,'bookCode/'+newId+'/code'),code);
 			      logActivity('upload',`${currentUser.displayName||currentUser.email} published "${title}"`,currentUser.uid);
 			      showToast('Book published! 🎉','success');
 			      setTimeout(checkUserAchievements,1000);
 			    }
 			    closeOverlay('upload-overlay');
+			    // Refresh books after upload/edit
+			    setTimeout(()=>{fetchNewBooks();fetchOldBooks();},500);
 			  }catch(e){showToast('Error: '+e.message,'error');}
 			  btn.textContent=editingBookId?'SAVE CHANGES':'PUBLISH';btn.disabled=false;_isSubmitting=false;
 			};
@@ -2191,6 +1522,7 @@
 			  if(pinnedBooks[id]){try{await remove(ref(newDb,'siteConfig/pinnedBooks/'+id));}catch(e){}}
 			  logActivity('delete',(currentUser.displayName||currentUser.email)+' deleted "'+book.title+'"',currentUser.uid);
 			  showToast('Book deleted','success');
+			  setTimeout(()=>{fetchNewBooks();fetchOldBooks();},300);
 			};
 
 			// ── LEADERBOARD ───────────────────────────────────────────────────────────────
