@@ -7,7 +7,7 @@
 			content="width=device-width,initial-scale=1.0,maximum-scale=1.0"
 		/>
 		<title>Matthew Admin Panel</title>
-<link rel="icon" type="image/png" href="/Adminlogo.png" />
+		<link rel="icon" type="image/png" href="/Adminlogo.png" />
 		<link
 			rel="stylesheet"
 			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -1074,7 +1074,7 @@
 						</div>
 					</div>
 
-					<!-- ════ MORE TABS ════ (with working preview) -->
+					<!-- ════ MORE TABS ════ -->
 					<div class="section" id="sec-moretabs">
 						<div class="card">
 							<div class="card-header">
@@ -1141,7 +1141,6 @@
 										></div>
 									</div>
 								</div>
-								<!-- Live Preview: functional clickable links that actually redirect -->
 								<div
 									class="card"
 									style="margin-top:16px;border-color:var(--accent2);"
@@ -1343,7 +1342,9 @@
 				</div>
 			</div>
 		</div>
+
 		<div id="toast"></div>
+
 		<div class="modal-overlay" id="userModal">
 			<div class="modal">
 				<div class="modal-header">
@@ -1365,183 +1366,440 @@
 			import { getDatabase, ref, set, get, remove, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 			import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-			const OWNER_EMAIL = 'matthewbozhe@gmail.com';
-			const firebaseConfig = {
-			  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
-			  authDomain: "htmltools-library.firebaseapp.com",
-			  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
-			  projectId: "htmltools-library",
-			  storageBucket: "htmltools-library.firebasestorage.app",
-			  messagingSenderId: "973699554480",
-			  appId: "1:973699554480:web:33ed9d341fc48ed8092f75"
+			// ══════════════════════════════════════════════════════════
+			// AUTH Firebase — htmltools-library (auth + READ users)
+			// ══════════════════════════════════════════════════════════
+			const authFirebaseConfig = {
+				apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+				authDomain: "htmltools-library.firebaseapp.com",
+				databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
+				projectId: "htmltools-library",
+				storageBucket: "htmltools-library.firebasestorage.app",
+				messagingSenderId: "973699554480",
+				appId: "1:973699554480:web:7543f6caa2ed6742092f75"
 			};
-			const app = initializeApp(firebaseConfig);
-			const db = getDatabase(app);
-			const auth = getAuth(app);
+
+			// ══════════════════════════════════════════════════════════
+			// DATA Firebase — htmltools-main (all admin data storage)
+			// ══════════════════════════════════════════════════════════
+			const dataFirebaseConfig = {
+				apiKey: "AIzaSyCAtRRv7hxrBKxeJdh4VsL7j0jh5kf2X1U",
+				authDomain: "htmltools-main.firebaseapp.com",
+				projectId: "htmltools-main",
+				storageBucket: "htmltools-main.firebasestorage.app",
+				messagingSenderId: "692809314189",
+				appId: "1:692809314189:web:c386a54b41af7c867657c4"
+			};
+
+			const authApp = initializeApp(authFirebaseConfig, "authApp");
+			const dataApp = initializeApp(dataFirebaseConfig, "dataApp");
+
+			const auth = getAuth(authApp);
+
+			// ── KEY FIX: dbAuth reads users from htmltools-library (read-only)
+			//            db handles all admin writes to htmltools-main
+			const dbAuth = getDatabase(authApp);  // <- reads users from here
+			const db     = getDatabase(dataApp);  // <- all admin writes go here
+
+			const OWNER_EMAIL = 'matthewbozhe@gmail.com';
 			let currentUser = null;
 			let allUsersCache = {};
 			let moreTabsData = [];
 
-			function isOwner(u){ return u && u.email && u.email.toLowerCase() === OWNER_EMAIL.toLowerCase(); }
+			function isOwner(u) { return u && u.email && u.email.toLowerCase() === OWNER_EMAIL.toLowerCase(); }
 
+			// ── AUTH ──
 			window.doAuthLogin = async function() {
-			  const email = document.getElementById('auth-email').value.trim();
-			  const pass = document.getElementById('auth-pass').value;
-			  const errEl = document.getElementById('auth-err');
-			  errEl.style.display = 'none';
-			  if (!email || !pass) { errEl.textContent = 'Fill in all fields'; errEl.style.display='block'; return; }
-			  try { await signInWithEmailAndPassword(auth, email, pass); }
-			  catch(e) { errEl.textContent = e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim(); errEl.style.display='block'; }
+				const email = document.getElementById('auth-email').value.trim();
+				const pass = document.getElementById('auth-pass').value;
+				const errEl = document.getElementById('auth-err');
+				errEl.style.display = 'none';
+				if (!email || !pass) { errEl.textContent = 'Fill in all fields'; errEl.style.display = 'block'; return; }
+				try { await signInWithEmailAndPassword(auth, email, pass); }
+				catch(e) { errEl.textContent = e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim(); errEl.style.display = 'block'; }
 			};
+
 			window.doSignOut = async function() { await fbSignOut(auth); };
 
 			onAuthStateChanged(auth, async user => {
-			  currentUser = user;
-			  if (user && isOwner(user)) {
-			    document.getElementById('auth-gate').classList.add('hidden');
-			    document.getElementById('appWrap').style.display='flex';
-			    initAdmin();
-			  } else if (user && !isOwner(user)) {
-			    const adminSnap = await get(ref(db, `siteConfig/matthewAdmins/${user.uid}`));
-			    if (adminSnap.exists() && adminSnap.val()) {
-			      document.getElementById('auth-gate').classList.add('hidden');
-			      document.getElementById('appWrap').style.display='flex';
-			      initAdmin(adminSnap.val());
-			    } else {
-			      const errEl = document.getElementById('auth-err');
-			      errEl.textContent = 'Access denied. Owner or granted admins only.';
-			      errEl.style.display = 'block';
-			      await fbSignOut(auth);
-			    }
-			  } else {
-			    document.getElementById('auth-gate').classList.remove('hidden');
-			    document.getElementById('appWrap').style.display='none';
-			  }
+				currentUser = user;
+				if (user && isOwner(user)) {
+					document.getElementById('auth-gate').classList.add('hidden');
+					document.getElementById('appWrap').style.display = 'flex';
+					initAdmin();
+				} else if (user && !isOwner(user)) {
+					// Admin access check still lives in htmltools-main
+					const adminSnap = await get(ref(db, `siteConfig/matthewAdmins/${user.uid}`));
+					if (adminSnap.exists() && adminSnap.val()) {
+						document.getElementById('auth-gate').classList.add('hidden');
+						document.getElementById('appWrap').style.display = 'flex';
+						initAdmin(adminSnap.val());
+					} else {
+						const errEl = document.getElementById('auth-err');
+						errEl.textContent = 'Access denied. Owner or granted admins only.';
+						errEl.style.display = 'block';
+						await fbSignOut(auth);
+					}
+				} else {
+					document.getElementById('auth-gate').classList.remove('hidden');
+					document.getElementById('appWrap').style.display = 'none';
+				}
 			});
 
+			// ── INIT ──
 			async function initAdmin() {
-			  loadDashboard(); loadUsers(); loadActivity(); loadBanned(); loadAdmins();
-			  loadMoreTabsFromDB(); loadSiteSettings(); loadNotifHistory(); loadAnnounceHistory();
-			  buildIconGrid();
+				loadDashboard();
+				loadUsers();
+				loadActivity();
+				loadBanned();
+				loadAdmins();
+				loadMoreTabsFromDB();
+				loadSiteSettings();
+				loadNotifHistory();
+				loadAnnounceHistory();
+				buildIconGrid();
 			}
+
+			// ── UTILITIES ──
 			setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+
 			window.refreshCurrentSection = function() {
-			  const active = document.querySelector('.section.active');
-			  if (!active) return;
-			  const sec = active.id.replace('sec-','');
-			  if (sec==='dashboard') loadDashboard();
-			  else if (sec==='activity') loadActivity();
-			  else if (sec==='users') loadUsers();
-			  else if (sec==='bans') loadBanned();
-			  else if (sec==='admins') loadAdmins();
-			  else if (sec==='notifications') loadNotifHistory();
-			  toast('Refreshed','info');
+				const active = document.querySelector('.section.active');
+				if (!active) return;
+				const sec = active.id.replace('sec-', '');
+				if (sec === 'dashboard') loadDashboard();
+				else if (sec === 'activity') loadActivity();
+				else if (sec === 'users') loadUsers();
+				else if (sec === 'bans') loadBanned();
+				else if (sec === 'admins') loadAdmins();
+				else if (sec === 'notifications') loadNotifHistory();
+				toast('Refreshed', 'info');
 			};
+
 			window.navTo = function(sec, el) {
-			  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-			  document.querySelectorAll('.sb-link').forEach(l=>l.classList.remove('active'));
-			  const target = document.getElementById('sec-'+sec);
-			  if (target) target.classList.add('active');
-			  if (el) el.classList.add('active');
-			  const titles = {dashboard:'Dashboard',activity:'Activity Log',users:'All Users',bans:'Bans',admins:'Admin Access',announce:'Announcement',notifications:'Notifications',moretabs:'More Tabs',sitesettings:'Site Settings',maintenance:'Maintenance'};
-			  document.getElementById('topbarTitle').textContent = titles[sec] || sec;
-			  closeMobSidebar();
+				document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+				document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
+				const target = document.getElementById('sec-' + sec);
+				if (target) target.classList.add('active');
+				if (el) el.classList.add('active');
+				const titles = { dashboard:'Dashboard', activity:'Activity Log', users:'All Users', bans:'Bans', admins:'Admin Access', announce:'Announcement', notifications:'Notifications', moretabs:'More Tabs', sitesettings:'Site Settings', maintenance:'Maintenance' };
+				document.getElementById('topbarTitle').textContent = titles[sec] || sec;
+				closeMobSidebar();
 			};
-			window.toggleSidebar = function() { const sb = document.getElementById('sidebar'); sb.classList.toggle('collapsed'); document.getElementById('sbChevron').style.transform = sb.classList.contains('collapsed') ? 'rotate(180deg)' : ''; };
+
+			window.toggleSidebar = function() {
+				const sb = document.getElementById('sidebar');
+				sb.classList.toggle('collapsed');
+				document.getElementById('sbChevron').style.transform = sb.classList.contains('collapsed') ? 'rotate(180deg)' : '';
+			};
 			window.openMobSidebar = function() { document.getElementById('sidebar').classList.add('mobile-open'); document.getElementById('mobOverlay').classList.add('show'); };
 			window.closeMobSidebar = function() { document.getElementById('sidebar').classList.remove('mobile-open'); document.getElementById('mobOverlay').classList.remove('show'); };
 			window.closeModal = function(id) { document.getElementById(id).classList.remove('active'); };
-			window.toast = function(msg, type='info') { const el = document.createElement('div'); el.className = `toast-item ${type}`; const icons = {success:'✅',error:'❌',info:'ℹ️'}; el.innerHTML = `<span>${icons[type]||'📌'}</span><span>${msg}</span>`; document.getElementById('toast').appendChild(el); setTimeout(() => el.remove(), 3500); };
-			function esc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-			function relTime(ts){ const d=Date.now()-ts; if(d<60000)return'Just now'; if(d<3600000)return Math.floor(d/60000)+'m ago'; if(d<86400000)return Math.floor(d/3600000)+'h ago'; return new Date(ts).toLocaleDateString(); }
-			window.copyToClip = function(text) { navigator.clipboard?.writeText(text).catch(()=>{ const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove(); }); };
-			window.dlBlob = function(data, name, mime) { const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;a.click(); };
+			window.toast = function(msg, type = 'info') {
+				const el = document.createElement('div');
+				el.className = `toast-item ${type}`;
+				const icons = { success:'✅', error:'❌', info:'ℹ️' };
+				el.innerHTML = `<span>${icons[type] || '📌'}</span><span>${msg}</span>`;
+				document.getElementById('toast').appendChild(el);
+				setTimeout(() => el.remove(), 3500);
+			};
+			function esc(t) { return String(t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+			function relTime(ts) { const d = Date.now() - ts; if(d < 60000) return 'Just now'; if(d < 3600000) return Math.floor(d/60000)+'m ago'; if(d < 86400000) return Math.floor(d/3600000)+'h ago'; return new Date(ts).toLocaleDateString(); }
+			window.copyToClip = function(text) { navigator.clipboard?.writeText(text).catch(() => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }); };
+			window.dlBlob = function(data, name, mime) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], {type:mime})); a.download = name; a.click(); };
 
-			// Dashboard, Users, Activity, Bans, Admins, Notifications, Announce, Settings, Maintenance (same as original, omitted for brevity but functional)
-			// (All core management functions preserved, only removed the tools sections and added preview redirect)
-			async function loadDashboard() { /* same as original but shortened for brevity */ const usersSnap=await get(ref(db,'users')); const users=usersSnap.val()||{}; const userArr=Object.values(users); document.getElementById('stat-users').textContent=userArr.length; const bannedSnap=await get(ref(db,'siteConfig/matthewBanned')); const banned=bannedSnap.val()||{}; document.getElementById('stat-banned').textContent=Object.keys(banned).length; const now=Date.now(); document.getElementById('stat-online').textContent=userArr.filter(u=>u.lastSignIn&&(now-u.lastSignIn)<15*60*1000).length; const actSnap=await get(ref(db,'activityLog')); const acts=actSnap.val()||{}; const today=new Date().toDateString(); document.getElementById('stat-logins').textContent=Object.values(acts).filter(a=>a.type==='login'&&new Date(a.ts).toDateString()===today).length; allUsersCache=users; const counts=[0,0,0,0,0,0,0]; Object.values(acts).forEach(a=>{if(a.ts&&a.type==='login'){const d=new Date(a.ts).getDay();counts[(d+6)%7]++;}}); const max=Math.max(...counts,1); const colors=['#4da6ff','#7b5cff','#28c96a','#f0b030','#e83050','#ff7040','#4da6ff']; const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; document.getElementById('chartBars').innerHTML=counts.map((c,i)=>`<div class="chart-bar" style="height:${Math.max(4,(c/max)*85)}%;background:${colors[i]};" title="${days[i]}: ${c} logins"></div>`).join(''); const actArr=Object.entries(acts).sort((a,b)=>b[1].ts-a[1].ts).slice(0,20); document.getElementById('recentActivity').innerHTML=actArr.map(([,a])=>`<div class="log-item"><div class="log-dot ${a.type==='login'?'login':a.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(a.message||a.type)}</div><div class="log-time">${relTime(a.ts)}</div></div></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No activity</div>'; }
-			window.loadUsers=async function(){const snap=await get(ref(db,'users'));allUsersCache=snap.val()||{};renderUsersTable(Object.values(allUsersCache));};
-			window.filterUsers=function(){const q=document.getElementById('userSearch').value.toLowerCase();renderUsersTable(Object.values(allUsersCache).filter(u=>(u.email||'').toLowerCase().includes(q)||(u.displayName||'').toLowerCase().includes(q)));};
-			function renderUsersTable(users){const tb=document.getElementById('usersTable');if(!users.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted);">No users found</td></tr>';return;}tb.innerHTML=users.map(u=>`<tr><td><div class="user-info"><div class="user-avatar" style="background:hsl(${Array.from(u.uid||'').reduce((a,c)=>a+c.charCodeAt(0),0)%360},60%,50%)">${(u.displayName||u.email||'?')[0].toUpperCase()}</div><span style="font-weight:600;">${esc(u.displayName||'—')}</span></div></td><td style="font-family:var(--mono);font-size:11px;">${esc(u.email||'')}</td><td style="font-size:11px;color:var(--muted);">${u.joinedAt?new Date(u.joinedAt).toLocaleDateString():'—'}</td><td style="font-size:11px;color:var(--muted);">${u.lastSignIn?relTime(u.lastSignIn):'—'}</td><td><span class="badge badge-green">Active</span></td><td><div style="display:flex;gap:4px;"><button class="btn btn-sm" onclick="viewUser('${u.uid}')"><i class="fas fa-eye"></i></button><button class="btn btn-sm btn-danger" onclick="quickBan('${u.uid}')"><i class="fas fa-ban"></i></button><button class="btn btn-sm btn-warning" onclick="document.getElementById('forceOutUid').value='${u.uid}';navTo('bans',document.querySelector('[data-sec=bans]'))"><i class="fas fa-sign-out-alt"></i></button></div></td></tr>`).join('');}
-			window.viewUser=function(uid){const u=allUsersCache[uid];if(!u)return;document.getElementById('userModalTitle').textContent=u.displayName||u.email;document.getElementById('userModalBody').innerHTML=`<div style="display:flex;flex-direction:column;gap:8px;font-size:13px;"><div><strong>UID:</strong> ${esc(u.uid)}</div><div><strong>Email:</strong> ${esc(u.email||'—')}</div><div><strong>Name:</strong> ${esc(u.displayName||'—')}</div><div><strong>Joined:</strong> ${u.joinedAt?new Date(u.joinedAt).toLocaleString():'—'}</div><div><strong>Last Sign In:</strong> ${u.lastSignIn?new Date(u.lastSignIn).toLocaleString():'—'}</div></div>`;document.getElementById('userModalFooter').innerHTML=`<button class="btn" onclick="copyToClip('${u.uid}');toast('UID copied!','success')"><i class="fas fa-copy"></i> Copy UID</button><button class="btn btn-danger" onclick="quickBan('${u.uid}');closeModal('userModal')"><i class="fas fa-ban"></i> Ban</button>`;document.getElementById('userModal').classList.add('active');};
-			window.quickBan=function(uid){document.getElementById('banUidInput').value=uid;navTo('bans',document.querySelector('[data-sec=bans]'));};
-			window.loadActivity=async function(){const snap=await get(ref(db,'activityLog'));const acts=snap.val()||{};const arr=Object.entries(acts).sort((a,b)=>b[1].ts-a[1].ts);document.getElementById('actBadge').textContent=arr.length;document.getElementById('actBadge').style.display=arr.length?'inline-flex':'none';document.getElementById('activityList').innerHTML=arr.slice(0,100).map(([k,a])=>`<div class="log-item"><div class="log-dot ${a.type==='login'?'login':a.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(a.message||a.type)}</div><div class="log-time">${a.ts?new Date(a.ts).toLocaleString():'—'} &bull; UID: ${esc(a.uid||'—')}</div></div><button class="btn btn-sm" onclick="removeActivityItem('${k}')"><i class="fas fa-times"></i></button></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);">No activity</div>';};
-			window.removeActivityItem=async function(key){await remove(ref(db,`activityLog/${key}`));loadActivity();};
-			window.clearActivityLog=async function(){if(!confirm('Clear all activity log?'))return;await set(ref(db,'activityLog'),null);loadActivity();toast('Activity log cleared','success');};
-			window.banUser=async function(){const uid=document.getElementById('banUidInput').value.trim();const reason=document.getElementById('banReasonInput').value.trim();if(!uid){toast('Enter a UID','error');return;}await set(ref(db,`siteConfig/matthewBanned/${uid}`),{banned:true,reason:reason||'No reason given',bannedAt:Date.now(),bannedBy:currentUser.email});await set(ref(db,`forceSignout/${uid}`),true);toast('User banned and force signed out','success');loadBanned();document.getElementById('banUidInput').value='';document.getElementById('banReasonInput').value='';};
-			window.loadBanned=async function(){const snap=await get(ref(db,'siteConfig/matthewBanned'));const banned=snap.val()||{};const list=document.getElementById('bannedList');const entries=Object.entries(banned).filter(([,v])=>v&&v.banned);if(!entries.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No banned users</div>';return;}list.innerHTML=entries.map(([uid,b])=>`<div class="admin-item"><div class="admin-item-icon" style="background:var(--red);color:#fff;">🚫</div><div class="admin-item-info"><div class="admin-item-email">${esc(uid)}</div><div class="admin-item-role">${esc(b.reason||'No reason')} — ${b.bannedAt?new Date(b.bannedAt).toLocaleDateString():'—'}</div></div><button class="btn btn-sm btn-success" onclick="unbanUser('${uid}')"><i class="fas fa-undo"></i> Unban</button></div>`).join('');};
-			window.unbanUser=async function(uid){await remove(ref(db,`siteConfig/matthewBanned/${uid}`));toast('User unbanned','success');loadBanned();};
-			window.forceSignOut=async function(){const uid=document.getElementById('forceOutUid').value.trim();if(!uid){toast('Enter a UID','error');return;}await set(ref(db,`forceSignout/${uid}`),true);toast('Force sign out sent','success');};
-			window.grantAdmin=async function(){if(!isOwner(currentUser)){toast('Only the owner can grant admin access','error');return;}const email=document.getElementById('grantAdminEmail').value.trim();const level=document.getElementById('grantAdminLevel').value;if(!email){toast('Enter an email','error');return;}const usersSnap=await get(ref(db,'users'));const users=usersSnap.val()||{};const match=Object.entries(users).find(([,u])=>u.email&&u.email.toLowerCase()===email.toLowerCase());if(!match){toast('User not found — they must have logged in at least once','error');return;}const [uid]=match;await set(ref(db,`siteConfig/matthewAdmins/${uid}`),{email,level,grantedAt:Date.now(),grantedBy:currentUser.email});toast(`Admin access granted to ${email}`,'success');loadAdmins();};
-			window.loadAdmins=async function(){const snap=await get(ref(db,'siteConfig/matthewAdmins'));const admins=snap.val()||{};const list=document.getElementById('adminsList');const entries=Object.entries(admins);if(!entries.length){list.innerHTML='<div style="color:var(--muted);font-size:12px;">No admins granted yet</div>';return;}list.innerHTML=entries.map(([uid,a])=>`<div class="admin-item"><div class="admin-item-icon">👑</div><div class="admin-item-info"><div class="admin-item-email">${esc(a.email||uid)}</div><div class="admin-item-role">${esc(a.level||'admin')} — granted ${a.grantedAt?new Date(a.grantedAt).toLocaleDateString():'—'}</div></div><button class="btn btn-sm btn-danger" onclick="revokeAdmin('${uid}')"><i class="fas fa-times"></i> Revoke</button></div>`).join('');};
-			window.revokeAdmin=async function(uid){if(!isOwner(currentUser)){toast('Only the owner can revoke admin','error');return;}if(!confirm('Revoke admin access?'))return;await remove(ref(db,`siteConfig/matthewAdmins/${uid}`));toast('Admin access revoked','success');loadAdmins();};
-			window.setAnnouncement=async function(){const text=document.getElementById('announceText').value.trim();if(!text){toast('Enter a message','error');return;}const data={text,postedBy:currentUser.displayName||currentUser.email,ts:Date.now()};await set(ref(db,'siteConfig/matthewAnnouncement'),data);await set(push(ref(db,'announceHistory')),data);toast('Announcement broadcast!','success');loadAnnounceHistory();};
-			window.clearAnnouncement=async function(){await set(ref(db,'siteConfig/matthewAnnouncement'),null);toast('Announcement cleared','success');};
-			document.getElementById('announceText')?.addEventListener('input',function(){document.getElementById('announcePreview').innerHTML=`<strong style="color:var(--yellow);">${esc(currentUser?.displayName||'Admin')}:</strong> ${esc(this.value||'Preview will appear here')}`;});
-			async function loadAnnounceHistory(){const snap=await get(ref(db,'announceHistory'));const hist=snap.val()||{};const entries=Object.entries(hist).sort((a,b)=>b[1].ts-a[1].ts).slice(0,10);document.getElementById('announceHistory').innerHTML=entries.map(([,h])=>`<div class="log-item"><div class="log-dot info"></div><div class="log-body"><div class="log-msg">${esc(h.text||'')}</div><div class="log-time">${esc(h.postedBy||'—')} &bull; ${relTime(h.ts)}</div></div><button class="btn btn-sm" onclick="document.getElementById('announceText').value='${esc(h.text||'')}';document.getElementById('announceText').dispatchEvent(new Event('input'))">Reuse</button></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No history</div>';}
-			let _notifTarget='broadcast',_notifType='system';
-			window.setNotifTarget=function(t,el){_notifTarget=t;el.closest('.pill-tabs').querySelectorAll('.pill-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');document.getElementById('notifUserGroup').style.display=t==='user'?'block':'none';};
-			window.setNotifType=function(t,el){_notifType=t;el.closest('.notif-type-row').querySelectorAll('.notif-type-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');};
-			window.sendNotification=async function(){const icon=document.getElementById('notifIcon').value.trim()||'📢';const title=document.getElementById('notifTitle').value.trim();const message=document.getElementById('notifMessage').value.trim();if(!title||!message){toast('Fill in title and message','error');return;}const notif={icon,type:_notifType,title,message,ts:Date.now(),sentBy:currentUser.email};if(_notifTarget==='broadcast'){await set(push(ref(db,'broadcastNotifs')),notif);toast('Broadcast notification sent!','success');}else{const uid=document.getElementById('notifUserUid').value.trim();if(!uid){toast('Enter user UID','error');return;}await set(push(ref(db,`userNotifs/${uid}`)),notif);toast('Notification sent to user!','success');}await set(push(ref(db,'notifHistory')),{...(_notifTarget==='broadcast'?{target:'broadcast'}:{target:'user',uid:document.getElementById('notifUserUid').value.trim()}),...notif});document.getElementById('notifTitle').value='';document.getElementById('notifMessage').value='';loadNotifHistory();};
-			async function loadNotifHistory(){const snap=await get(ref(db,'notifHistory'));const hist=snap.val()||{};const entries=Object.entries(hist).sort((a,b)=>b[1].ts-a[1].ts).slice(0,30);document.getElementById('notifHistory').innerHTML=entries.map(([,n])=>`<div class="log-item"><div class="log-dot ${n.type==='alert'?'warn':n.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(n.icon)} <strong>${esc(n.title)}</strong>: ${esc(n.message||'')}</div><div class="log-time">${n.target==='broadcast'?'📢 Broadcast':('👤 '+esc(n.uid||''))} &bull; ${relTime(n.ts)}</div></div></div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications sent yet</div>';}
-			window.setSiteConfig=async function(key,val){await set(ref(db,`siteConfig/${key}`),val);toast(`${key} → ${val}`,'success');};
-			window.toggleMaintenanceMode=async function(on){if(on){const msg=document.getElementById('maintenanceMsg')?.value||'Maintenance in progress';await setMaintenance(msg);}else{await clearMaintenance();}};
-			window.setMaintenance=async function(msgParam){const msg=msgParam||document.getElementById('maintenanceMsg').value.trim()||'Under maintenance';await set(ref(db,'siteConfig/matthewAnnouncement'),{text:'🔧 '+msg,postedBy:'System',ts:Date.now()});toast('Maintenance banner set','success');};
-			window.clearMaintenance=async function(){await set(ref(db,'siteConfig/matthewAnnouncement'),null);toast('Maintenance banner cleared','success');};
-			async function loadSiteSettings(){const[loginS,signupS]=await Promise.all([get(ref(db,'siteConfig/matthewLoginDisabled')),get(ref(db,'siteConfig/matthewSignupDisabled'))]);document.getElementById('toggleLogin').checked=loginS.val()||false;document.getElementById('toggleSignup').checked=signupS.val()||false;}
-			window.exportUsers=async function(){const snap=await get(ref(db,'users'));dlBlob(JSON.stringify(snap.val()||{},null,2),'users.json','application/json');toast('Users exported','success');};
-			window.exportDB=async function(){const snap=await get(ref(db,'activityLog'));dlBlob(JSON.stringify(snap.val()||{},null,2),'activity.json','application/json');toast('Activity log exported','success');};
-			window.massForceSignOut=async function(){if(!confirm('Force sign out ALL users except yourself?'))return;const snap=await get(ref(db,'users'));const users=snap.val()||{};const promises=Object.keys(users).filter(uid=>uid!==currentUser.uid).map(uid=>set(ref(db,`forceSignout/${uid}`),true));await Promise.all(promises);toast(`Force sign out sent to ${promises.length} users`,'success');};
+			// ── DASHBOARD ──
+			// Users come from dbAuth (htmltools-library), bans/activity from db (htmltools-main)
+			async function loadDashboard() {
+				const [usersSnap, bannedSnap, actSnap] = await Promise.all([
+					get(ref(dbAuth, 'users')),   // <- READ from htmltools-library
+					get(ref(db, 'siteConfig/matthewBanned')),
+					get(ref(db, 'activityLog'))
+				]);
 
-			// More Tabs with working redirect preview
-			async function loadMoreTabsFromDB(){
-			  const snap=await get(ref(db,'siteConfig/moreTabs'));
-			  moreTabsData=snap.val()||[
-			    {label:'MatTube',icon:'fab fa-youtube',url:'https://htmltools.nekoweb.org/MatTube.html'},
-			    {label:'AI Chat',icon:'fas fa-robot',url:'https://htmltools.nekoweb.org/ai.html'},
-			    {label:'Upload Worldwide',icon:'fas fa-globe-americas',url:'https://htmltools.nekoweb.org/Create.html'},
-			    {label:'Make a Website',icon:'fas fa-hammer',url:'https://htmltools.nekoweb.org/Makeawebsite.html'},
-			    {label:'Geometry Dash',icon:'fas fa-circle-notch',url:'https://htmltools.nekoweb.org/Geometry-Dash.html'},
-			    {label:'HTMeet',icon:'fas fa-video',url:'https://htmltools.nekoweb.org/Meet.html'},
-			    {label:'Remove Background',icon:'fas fa-eraser',url:'https://htmltools.nekoweb.org/Removebg.html'},
-			  ];
-			  renderMoreTabs();
-			  renderLivePreview();
+				const users = usersSnap.val() || {};
+				const userArr = Object.values(users);
+				document.getElementById('stat-users').textContent = userArr.length;
+
+				const banned = bannedSnap.val() || {};
+				document.getElementById('stat-banned').textContent = Object.keys(banned).length;
+
+				const now = Date.now();
+				document.getElementById('stat-online').textContent = userArr.filter(u => u.lastSignIn && (now - u.lastSignIn) < 15 * 60 * 1000).length;
+
+				const acts = actSnap.val() || {};
+				const today = new Date().toDateString();
+				document.getElementById('stat-logins').textContent = Object.values(acts).filter(a => a.type === 'login' && new Date(a.ts).toDateString() === today).length;
+
+				allUsersCache = users;
+
+				const counts = [0,0,0,0,0,0,0];
+				Object.values(acts).forEach(a => { if(a.ts && a.type === 'login') { const d = new Date(a.ts).getDay(); counts[(d+6)%7]++; }});
+				const max = Math.max(...counts, 1);
+				const colors = ['#4da6ff','#7b5cff','#28c96a','#f0b030','#e83050','#ff7040','#4da6ff'];
+				const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+				document.getElementById('chartBars').innerHTML = counts.map((c,i) => `<div class="chart-bar" style="height:${Math.max(4,(c/max)*85)}%;background:${colors[i]};" title="${days[i]}: ${c} logins"></div>`).join('');
+
+				const actArr = Object.entries(acts).sort((a,b) => b[1].ts - a[1].ts).slice(0,20);
+				document.getElementById('recentActivity').innerHTML = actArr.map(([,a]) => `<div class="log-item"><div class="log-dot ${a.type==='login'?'login':a.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(a.message||a.type)}</div><div class="log-time">${relTime(a.ts)}</div></div></div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No activity</div>';
 			}
-			function renderMoreTabs(){
-			  const list=document.getElementById('moreTabsList');
-			  if(!moreTabsData.length){list.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px;">No tabs yet. Click Add.</div>';return;}
-			  list.innerHTML=moreTabsData.map((t,i)=>`
-			    <div class="tab-item-edit">
-			      <div class="tab-preview-icon">${t.svgIcon?`<span style="font-size:20px">${t.svgIcon}</span>`:`<i class="${t.icon||'fas fa-link'}" style="color:var(--yellow)"></i>`}</div>
-			      <div class="tab-edit-fields">
-			        <input class="form-input" placeholder="Label" value="${esc(t.label||'')}" oninput="moreTabsData[${i}].label=this.value; renderLivePreview()"/>
-			        <input class="form-input" placeholder="FA Icon class (e.g. fab fa-youtube)" value="${esc(t.icon||'')}" oninput="moreTabsData[${i}].icon=this.value; renderMoreTabs(); renderLivePreview()"/>
-			        <input class="form-input" placeholder="Emoji icon (overrides FA class)" value="${esc(t.svgIcon||'')}" oninput="moreTabsData[${i}].svgIcon=this.value; renderMoreTabs(); renderLivePreview()"/>
-			        <input class="form-input" placeholder="URL" value="${esc(t.url||'')}" oninput="moreTabsData[${i}].url=this.value; renderLivePreview()"/>
-			      </div>
-			      <div class="tab-actions">
-			        <button class="btn btn-icon" onclick="moveTab(${i},-1)"><i class="fas fa-arrow-up"></i></button>
-			        <button class="btn btn-icon" onclick="moveTab(${i},1)"><i class="fas fa-arrow-down"></i></button>
-			        <button class="btn btn-icon btn-danger" onclick="deleteTab(${i})"><i class="fas fa-trash"></i></button>
-			        <button class="btn btn-icon btn-primary" onclick="openTabUrl('${esc(t.url)}')" title="Test link"><i class="fas fa-external-link-alt"></i></button>
-			      </div>
-			    </div>`).join('');
+
+			// ── USERS ── reads from dbAuth (htmltools-library) — READ ONLY
+			window.loadUsers = async function() {
+				const snap = await get(ref(dbAuth, 'users'));  // <- KEY FIX
+				allUsersCache = snap.val() || {};
+				renderUsersTable(Object.values(allUsersCache));
+			};
+			window.filterUsers = function() {
+				const q = document.getElementById('userSearch').value.toLowerCase();
+				renderUsersTable(Object.values(allUsersCache).filter(u => (u.email||'').toLowerCase().includes(q) || (u.displayName||'').toLowerCase().includes(q)));
+			};
+			function renderUsersTable(users) {
+				const tb = document.getElementById('usersTable');
+				if (!users.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted);">No users found</td></tr>'; return; }
+				tb.innerHTML = users.map(u => `<tr>
+					<td><div class="user-info"><div class="user-avatar" style="background:hsl(${Array.from(u.uid||'').reduce((a,c)=>a+c.charCodeAt(0),0)%360},60%,50%)">${(u.displayName||u.email||'?')[0].toUpperCase()}</div><span style="font-weight:600;">${esc(u.displayName||'—')}</span></div></td>
+					<td style="font-family:var(--mono);font-size:11px;">${esc(u.email||'')}</td>
+					<td style="font-size:11px;color:var(--muted);">${u.joinedAt?new Date(u.joinedAt).toLocaleDateString():'—'}</td>
+					<td style="font-size:11px;color:var(--muted);">${u.lastSignIn?relTime(u.lastSignIn):'—'}</td>
+					<td><span class="badge badge-green">Active</span></td>
+					<td><div style="display:flex;gap:4px;">
+						<button class="btn btn-sm" onclick="viewUser('${u.uid}')"><i class="fas fa-eye"></i></button>
+						<button class="btn btn-sm btn-danger" onclick="quickBan('${u.uid}')"><i class="fas fa-ban"></i></button>
+						<button class="btn btn-sm btn-warning" onclick="document.getElementById('forceOutUid').value='${u.uid}';navTo('bans',document.querySelector('[data-sec=bans]'))"><i class="fas fa-sign-out-alt"></i></button>
+					</div></td>
+				</tr>`).join('');
 			}
-			function renderLivePreview(){
-			  const previewDiv=document.getElementById('liveTabPreview');
-			  if(!previewDiv)return;
-			  if(!moreTabsData.length){previewDiv.innerHTML='<div style="color:var(--muted);">No tabs configured</div>';return;}
-			  previewDiv.innerHTML=moreTabsData.map(t=>`<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer" class="preview-tab-item"><span style="font-size:20px;">${t.svgIcon?t.svgIcon:`<i class="${t.icon||'fas fa-link'}"></i>`}</span><span>${esc(t.label||'Unnamed')}</span><i class="fas fa-arrow-right" style="font-size:10px;"></i></a>`).join('');
+			window.viewUser = function(uid) {
+				const u = allUsersCache[uid];
+				if (!u) return;
+				document.getElementById('userModalTitle').textContent = u.displayName || u.email;
+				document.getElementById('userModalBody').innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;font-size:13px;"><div><strong>UID:</strong> ${esc(u.uid)}</div><div><strong>Email:</strong> ${esc(u.email||'—')}</div><div><strong>Name:</strong> ${esc(u.displayName||'—')}</div><div><strong>Joined:</strong> ${u.joinedAt?new Date(u.joinedAt).toLocaleString():'—'}</div><div><strong>Last Sign In:</strong> ${u.lastSignIn?new Date(u.lastSignIn).toLocaleString():'—'}</div></div>`;
+				document.getElementById('userModalFooter').innerHTML = `<button class="btn" onclick="copyToClip('${u.uid}');toast('UID copied!','success')"><i class="fas fa-copy"></i> Copy UID</button><button class="btn btn-danger" onclick="quickBan('${u.uid}');closeModal('userModal')"><i class="fas fa-ban"></i> Ban</button>`;
+				document.getElementById('userModal').classList.add('active');
+			};
+			window.quickBan = function(uid) { document.getElementById('banUidInput').value = uid; navTo('bans', document.querySelector('[data-sec=bans]')); };
+
+			// ── ACTIVITY ── (reads/writes DATA db — htmltools-main)
+			window.loadActivity = async function() {
+				const snap = await get(ref(db, 'activityLog'));
+				const acts = snap.val() || {};
+				const arr = Object.entries(acts).sort((a,b) => b[1].ts - a[1].ts);
+				document.getElementById('actBadge').textContent = arr.length;
+				document.getElementById('actBadge').style.display = arr.length ? 'inline-flex' : 'none';
+				document.getElementById('activityList').innerHTML = arr.slice(0,100).map(([k,a]) => `<div class="log-item"><div class="log-dot ${a.type==='login'?'login':a.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(a.message||a.type)}</div><div class="log-time">${a.ts?new Date(a.ts).toLocaleString():'—'} &bull; UID: ${esc(a.uid||'—')}</div></div><button class="btn btn-sm" onclick="removeActivityItem('${k}')"><i class="fas fa-times"></i></button></div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted);">No activity</div>';
+			};
+			window.removeActivityItem = async function(key) { await remove(ref(db, `activityLog/${key}`)); loadActivity(); };
+			window.clearActivityLog = async function() { if (!confirm('Clear all activity log?')) return; await set(ref(db, 'activityLog'), null); loadActivity(); toast('Activity log cleared', 'success'); };
+
+			// ── BANS ── (writes to DATA db — htmltools-main)
+			window.banUser = async function() {
+				const uid = document.getElementById('banUidInput').value.trim();
+				const reason = document.getElementById('banReasonInput').value.trim();
+				if (!uid) { toast('Enter a UID', 'error'); return; }
+				await set(ref(db, `siteConfig/matthewBanned/${uid}`), { banned:true, reason:reason||'No reason given', bannedAt:Date.now(), bannedBy:currentUser.email });
+				await set(ref(db, `forceSignout/${uid}`), true);
+				toast('User banned and force signed out', 'success');
+				loadBanned();
+				document.getElementById('banUidInput').value = '';
+				document.getElementById('banReasonInput').value = '';
+			};
+			window.loadBanned = async function() {
+				const snap = await get(ref(db, 'siteConfig/matthewBanned'));
+				const banned = snap.val() || {};
+				const list = document.getElementById('bannedList');
+				const entries = Object.entries(banned).filter(([,v]) => v && v.banned);
+				if (!entries.length) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No banned users</div>'; return; }
+				list.innerHTML = entries.map(([uid,b]) => `<div class="admin-item"><div class="admin-item-icon" style="background:var(--red);color:#fff;">🚫</div><div class="admin-item-info"><div class="admin-item-email">${esc(uid)}</div><div class="admin-item-role">${esc(b.reason||'No reason')} — ${b.bannedAt?new Date(b.bannedAt).toLocaleDateString():'—'}</div></div><button class="btn btn-sm btn-success" onclick="unbanUser('${uid}')"><i class="fas fa-undo"></i> Unban</button></div>`).join('');
+			};
+			window.unbanUser = async function(uid) { await remove(ref(db, `siteConfig/matthewBanned/${uid}`)); toast('User unbanned', 'success'); loadBanned(); };
+			window.forceSignOut = async function() {
+				const uid = document.getElementById('forceOutUid').value.trim();
+				if (!uid) { toast('Enter a UID', 'error'); return; }
+				await set(ref(db, `forceSignout/${uid}`), true);
+				toast('Force sign out sent', 'success');
+			};
+
+			// ── ADMINS ──
+			// Grant admin: looks up user email from dbAuth (read-only), writes grant to db
+			window.grantAdmin = async function() {
+				if (!isOwner(currentUser)) { toast('Only the owner can grant admin access', 'error'); return; }
+				const email = document.getElementById('grantAdminEmail').value.trim();
+				const level = document.getElementById('grantAdminLevel').value;
+				if (!email) { toast('Enter an email', 'error'); return; }
+				// Read users from htmltools-library to find UID by email
+				const usersSnap = await get(ref(dbAuth, 'users'));  // <- KEY FIX
+				const users = usersSnap.val() || {};
+				const match = Object.entries(users).find(([,u]) => u.email && u.email.toLowerCase() === email.toLowerCase());
+				if (!match) { toast('User not found — they must have logged in at least once', 'error'); return; }
+				const [uid] = match;
+				await set(ref(db, `siteConfig/matthewAdmins/${uid}`), { email, level, grantedAt:Date.now(), grantedBy:currentUser.email });
+				toast(`Admin access granted to ${email}`, 'success');
+				loadAdmins();
+			};
+			window.loadAdmins = async function() {
+				const snap = await get(ref(db, 'siteConfig/matthewAdmins'));
+				const admins = snap.val() || {};
+				const list = document.getElementById('adminsList');
+				const entries = Object.entries(admins);
+				if (!entries.length) { list.innerHTML = '<div style="color:var(--muted);font-size:12px;">No admins granted yet</div>'; return; }
+				list.innerHTML = entries.map(([uid,a]) => `<div class="admin-item"><div class="admin-item-icon">👑</div><div class="admin-item-info"><div class="admin-item-email">${esc(a.email||uid)}</div><div class="admin-item-role">${esc(a.level||'admin')} — granted ${a.grantedAt?new Date(a.grantedAt).toLocaleDateString():'—'}</div></div><button class="btn btn-sm btn-danger" onclick="revokeAdmin('${uid}')"><i class="fas fa-times"></i> Revoke</button></div>`).join('');
+			};
+			window.revokeAdmin = async function(uid) {
+				if (!isOwner(currentUser)) { toast('Only the owner can revoke admin', 'error'); return; }
+				if (!confirm('Revoke admin access?')) return;
+				await remove(ref(db, `siteConfig/matthewAdmins/${uid}`));
+				toast('Admin access revoked', 'success');
+				loadAdmins();
+			};
+
+			// ── ANNOUNCEMENTS ── (writes to DATA db)
+			window.setAnnouncement = async function() {
+				const text = document.getElementById('announceText').value.trim();
+				if (!text) { toast('Enter a message', 'error'); return; }
+				const data = { text, postedBy:currentUser.displayName||currentUser.email, ts:Date.now() };
+				await set(ref(db, 'siteConfig/matthewAnnouncement'), data);
+				await set(push(ref(db, 'announceHistory')), data);
+				toast('Announcement broadcast!', 'success');
+				loadAnnounceHistory();
+			};
+			window.clearAnnouncement = async function() { await set(ref(db, 'siteConfig/matthewAnnouncement'), null); toast('Announcement cleared', 'success'); };
+			document.getElementById('announceText')?.addEventListener('input', function() {
+				document.getElementById('announcePreview').innerHTML = `<strong style="color:var(--yellow);">${esc(currentUser?.displayName||'Admin')}:</strong> ${esc(this.value||'Preview will appear here')}`;
+			});
+			async function loadAnnounceHistory() {
+				const snap = await get(ref(db, 'announceHistory'));
+				const hist = snap.val() || {};
+				const entries = Object.entries(hist).sort((a,b) => b[1].ts - a[1].ts).slice(0,10);
+				document.getElementById('announceHistory').innerHTML = entries.map(([,h]) => `<div class="log-item"><div class="log-dot info"></div><div class="log-body"><div class="log-msg">${esc(h.text||'')}</div><div class="log-time">${esc(h.postedBy||'—')} &bull; ${relTime(h.ts)}</div></div><button class="btn btn-sm" onclick="document.getElementById('announceText').value='${esc(h.text||'')}';document.getElementById('announceText').dispatchEvent(new Event('input'))">Reuse</button></div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No history</div>';
 			}
-			window.openTabUrl=function(url){if(url&&url!=='https://')window.open(url,'_blank');else toast('Invalid URL','error');};
-			window.addMoreTab=function(){moreTabsData.push({label:'New Tab',icon:'fas fa-link',url:'https://'});renderMoreTabs();renderLivePreview();};
-			window.deleteTab=function(i){moreTabsData.splice(i,1);renderMoreTabs();renderLivePreview();};
-			window.moveTab=function(i,dir){const j=i+dir;if(j<0||j>=moreTabsData.length)return;[moreTabsData[i],moreTabsData[j]]=[moreTabsData[j],moreTabsData[i]];renderMoreTabs();renderLivePreview();};
-			window.saveMoreTabs=async function(){await set(ref(db,'siteConfig/moreTabs'),moreTabsData);toast('More Tabs saved!','success');};
-			window.toggleIconLib=function(){const b=document.getElementById('iconLibBody');const ch=document.getElementById('iconLibChev');if(b.style.display==='none'){b.style.display='block';ch.className='fas fa-chevron-up';}else{b.style.display='none';ch.className='fas fa-chevron-down';}};
-			const PRESET_ICONS=[{name:'YouTube',emoji:'📺'},{name:'Discord',emoji:'💬'},{name:'GitHub',emoji:'🐙'},{name:'Twitter',emoji:'🐦'},{name:'Instagram',emoji:'📸'},{name:'TikTok',emoji:'🎵'},{name:'Twitch',emoji:'🎮'},{name:'Reddit',emoji:'🤖'},{name:'Spotify',emoji:'🎧'},{name:'Netflix',emoji:'🎬'},{name:'Google',emoji:'🔍'},{name:'Gmail',emoji:'📧'},{name:'Drive',emoji:'☁️'},{name:'Maps',emoji:'🗺️'},{name:'Camera',emoji:'📷'},{name:'Music',emoji:'🎶'},{name:'Game',emoji:'🕹️'},{name:'Robot',emoji:'🤖'},{name:'Code',emoji:'💻'},{name:'Chat',emoji:'💭'},{name:'Video',emoji:'🎥'},{name:'Star',emoji:'⭐'},{name:'Heart',emoji:'❤️'},{name:'Fire',emoji:'🔥'},{name:'Globe',emoji:'🌍'},{name:'Upload',emoji:'📤'},{name:'Download',emoji:'📥'},{name:'Brush',emoji:'🎨'},{name:'Hammer',emoji:'🔨'},{name:'Wrench',emoji:'🔧'},{name:'Magic',emoji:'✨'},{name:'Bolt',emoji:'⚡'},{name:'Shield',emoji:'🛡️'},{name:'Crown',emoji:'👑'},{name:'Trophy',emoji:'🏆'},{name:'Book',emoji:'📚'},{name:'Flask',emoji:'🧪'},{name:'Atom',emoji:'⚛️'},{name:'Infinity',emoji:'♾️'},{name:'Link',emoji:'🔗'},{name:'Eraser',emoji:'🧹'},{name:'Scissors',emoji:'✂️'},{name:'Pin',emoji:'📌'},{name:'Clock',emoji:'⏰'},{name:'Calendar',emoji:'📅'},{name:'Search',emoji:'🔎'},{name:'Settings',emoji:'⚙️'},{name:'Key',emoji:'🔑'},{name:'Gem',emoji:'💎'},{name:'Rocket',emoji:'🚀'}];
-			function buildIconGrid(){document.getElementById('iconGrid').innerHTML=PRESET_ICONS.map(ic=>`<div class="icon-option" onclick="copyToClip('${ic.emoji}');toast('Copied ${ic.emoji}','success')" title="${ic.name}"><span style="font-size:20px">${ic.emoji}</span><span>${ic.name}</span></div>`).join('');}
+
+			// ── NOTIFICATIONS ── (writes to DATA db)
+			let _notifTarget = 'broadcast', _notifType = 'system';
+			window.setNotifTarget = function(t, el) {
+				_notifTarget = t;
+				el.closest('.pill-tabs').querySelectorAll('.pill-tab').forEach(b => b.classList.remove('active'));
+				el.classList.add('active');
+				document.getElementById('notifUserGroup').style.display = t === 'user' ? 'block' : 'none';
+			};
+			window.setNotifType = function(t, el) {
+				_notifType = t;
+				el.closest('.notif-type-row').querySelectorAll('.notif-type-btn').forEach(b => b.classList.remove('active'));
+				el.classList.add('active');
+			};
+			window.sendNotification = async function() {
+				const icon = document.getElementById('notifIcon').value.trim() || '📢';
+				const title = document.getElementById('notifTitle').value.trim();
+				const message = document.getElementById('notifMessage').value.trim();
+				if (!title || !message) { toast('Fill in title and message', 'error'); return; }
+				const notif = { icon, type:_notifType, title, message, ts:Date.now(), sentBy:currentUser.email };
+				if (_notifTarget === 'broadcast') {
+					await set(push(ref(db, 'broadcastNotifs')), notif);
+					toast('Broadcast notification sent!', 'success');
+				} else {
+					const uid = document.getElementById('notifUserUid').value.trim();
+					if (!uid) { toast('Enter user UID', 'error'); return; }
+					await set(push(ref(db, `userNotifs/${uid}`)), notif);
+					toast('Notification sent to user!', 'success');
+				}
+				const histEntry = { ...(_notifTarget==='broadcast' ? {target:'broadcast'} : {target:'user', uid:document.getElementById('notifUserUid').value.trim()}), ...notif };
+				await set(push(ref(db, 'notifHistory')), histEntry);
+				document.getElementById('notifTitle').value = '';
+				document.getElementById('notifMessage').value = '';
+				loadNotifHistory();
+			};
+			async function loadNotifHistory() {
+				const snap = await get(ref(db, 'notifHistory'));
+				const hist = snap.val() || {};
+				const entries = Object.entries(hist).sort((a,b) => b[1].ts - a[1].ts).slice(0,30);
+				document.getElementById('notifHistory').innerHTML = entries.map(([,n]) => `<div class="log-item"><div class="log-dot ${n.type==='alert'?'warn':n.type==='admin'?'admin':'info'}"></div><div class="log-body"><div class="log-msg">${esc(n.icon)} <strong>${esc(n.title)}</strong>: ${esc(n.message||'')}</div><div class="log-time">${n.target==='broadcast'?'📢 Broadcast':('👤 '+esc(n.uid||''))} &bull; ${relTime(n.ts)}</div></div></div>`).join('') || '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No notifications sent yet</div>';
+			}
+
+			// ── SITE SETTINGS ── (writes to DATA db)
+			window.setSiteConfig = async function(key, val) { await set(ref(db, `siteConfig/${key}`), val); toast(`${key} → ${val}`, 'success'); };
+			window.toggleMaintenanceMode = async function(on) { if (on) { const msg = document.getElementById('maintenanceMsg')?.value || 'Maintenance in progress'; await setMaintenance(msg); } else { await clearMaintenance(); } };
+			window.setMaintenance = async function(msgParam) { const msg = msgParam || document.getElementById('maintenanceMsg').value.trim() || 'Under maintenance'; await set(ref(db, 'siteConfig/matthewAnnouncement'), { text:'🔧 '+msg, postedBy:'System', ts:Date.now() }); toast('Maintenance banner set', 'success'); };
+			window.clearMaintenance = async function() { await set(ref(db, 'siteConfig/matthewAnnouncement'), null); toast('Maintenance banner cleared', 'success'); };
+			async function loadSiteSettings() {
+				const [loginS, signupS] = await Promise.all([
+					get(ref(db, 'siteConfig/matthewLoginDisabled')),
+					get(ref(db, 'siteConfig/matthewSignupDisabled'))
+				]);
+				document.getElementById('toggleLogin').checked = loginS.val() || false;
+				document.getElementById('toggleSignup').checked = signupS.val() || false;
+			}
+
+			// ── EXPORT ── (reads users from dbAuth, activity from db)
+			window.exportUsers = async function() {
+				const snap = await get(ref(dbAuth, 'users'));  // <- KEY FIX: export from library
+				dlBlob(JSON.stringify(snap.val()||{}, null, 2), 'users.json', 'application/json');
+				toast('Users exported', 'success');
+			};
+			window.exportDB = async function() { const snap = await get(ref(db, 'activityLog')); dlBlob(JSON.stringify(snap.val()||{}, null, 2), 'activity.json', 'application/json'); toast('Activity log exported', 'success'); };
+			window.massForceSignOut = async function() {
+				if (!confirm('Force sign out ALL users except yourself?')) return;
+				// Read user list from htmltools-library, write forceSignout flags to htmltools-main
+				const snap = await get(ref(dbAuth, 'users'));  // <- KEY FIX
+				const users = snap.val() || {};
+				const promises = Object.keys(users).filter(uid => uid !== currentUser.uid).map(uid => set(ref(db, `forceSignout/${uid}`), true));
+				await Promise.all(promises);
+				toast(`Force sign out sent to ${promises.length} users`, 'success');
+			};
+
+			// ── MORE TABS ── (reads/writes DATA db — htmltools-main)
+			async function loadMoreTabsFromDB() {
+				const snap = await get(ref(db, 'siteConfig/moreTabs'));
+				moreTabsData = snap.val() || [
+					{label:'MatTube', icon:'fab fa-youtube', url:'https://htmltools.nekoweb.org/MatTube.html'},
+					{label:'AI Chat', icon:'fas fa-robot', url:'https://htmltools.nekoweb.org/ai.html'},
+					{label:'Upload Worldwide', icon:'fas fa-globe-americas', url:'https://htmltools.nekoweb.org/Create.html'},
+					{label:'Make a Website', icon:'fas fa-hammer', url:'https://htmltools.nekoweb.org/Makeawebsite.html'},
+					{label:'Geometry Dash', icon:'fas fa-circle-notch', url:'https://htmltools.nekoweb.org/Geometry-Dash.html'},
+					{label:'HTMeet', icon:'fas fa-video', url:'https://htmltools.nekoweb.org/Meet.html'},
+					{label:'Remove Background', icon:'fas fa-eraser', url:'https://htmltools.nekoweb.org/Removebg.html'},
+				];
+				renderMoreTabs();
+				renderLivePreview();
+			}
+			function renderMoreTabs() {
+				const list = document.getElementById('moreTabsList');
+				if (!moreTabsData.length) { list.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px;">No tabs yet. Click Add.</div>'; return; }
+				list.innerHTML = moreTabsData.map((t,i) => `
+					<div class="tab-item-edit">
+						<div class="tab-preview-icon">${t.svgIcon ? `<span style="font-size:20px">${t.svgIcon}</span>` : `<i class="${t.icon||'fas fa-link'}" style="color:var(--yellow)"></i>`}</div>
+						<div class="tab-edit-fields">
+							<input class="form-input" placeholder="Label" value="${esc(t.label||'')}" oninput="moreTabsData[${i}].label=this.value; renderLivePreview()"/>
+							<input class="form-input" placeholder="FA Icon class (e.g. fab fa-youtube)" value="${esc(t.icon||'')}" oninput="moreTabsData[${i}].icon=this.value; renderMoreTabs(); renderLivePreview()"/>
+							<input class="form-input" placeholder="Emoji icon (overrides FA class)" value="${esc(t.svgIcon||'')}" oninput="moreTabsData[${i}].svgIcon=this.value; renderMoreTabs(); renderLivePreview()"/>
+							<input class="form-input" placeholder="URL" value="${esc(t.url||'')}" oninput="moreTabsData[${i}].url=this.value; renderLivePreview()"/>
+						</div>
+						<div class="tab-actions">
+							<button class="btn btn-icon" onclick="moveTab(${i},-1)"><i class="fas fa-arrow-up"></i></button>
+							<button class="btn btn-icon" onclick="moveTab(${i},1)"><i class="fas fa-arrow-down"></i></button>
+							<button class="btn btn-icon btn-danger" onclick="deleteTab(${i})"><i class="fas fa-trash"></i></button>
+							<button class="btn btn-icon btn-primary" onclick="openTabUrl('${esc(t.url)}')" title="Test link"><i class="fas fa-external-link-alt"></i></button>
+						</div>
+					</div>`).join('');
+			}
+			window.renderLivePreview = function() {
+				const previewDiv = document.getElementById('liveTabPreview');
+				if (!previewDiv) return;
+				if (!moreTabsData.length) { previewDiv.innerHTML = '<div style="color:var(--muted);">No tabs configured</div>'; return; }
+				previewDiv.innerHTML = moreTabsData.map(t => `<a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer" class="preview-tab-item"><span style="font-size:20px;">${t.svgIcon ? t.svgIcon : `<i class="${t.icon||'fas fa-link'}"></i>`}</span><span>${esc(t.label||'Unnamed')}</span><i class="fas fa-arrow-right" style="font-size:10px;"></i></a>`).join('');
+			};
+			window.openTabUrl = function(url) { if (url && url !== 'https://') window.open(url, '_blank'); else toast('Invalid URL', 'error'); };
+			window.addMoreTab = function() { moreTabsData.push({label:'New Tab', icon:'fas fa-link', url:'https://'}); renderMoreTabs(); renderLivePreview(); };
+			window.deleteTab = function(i) { moreTabsData.splice(i,1); renderMoreTabs(); renderLivePreview(); };
+			window.moveTab = function(i, dir) { const j = i+dir; if(j<0||j>=moreTabsData.length) return; [moreTabsData[i],moreTabsData[j]]=[moreTabsData[j],moreTabsData[i]]; renderMoreTabs(); renderLivePreview(); };
+			window.saveMoreTabs = async function() { await set(ref(db, 'siteConfig/moreTabs'), moreTabsData); toast('More Tabs saved!', 'success'); };
+			window.toggleIconLib = function() {
+				const b = document.getElementById('iconLibBody');
+				const ch = document.getElementById('iconLibChev');
+				if (b.style.display === 'none') { b.style.display = 'block'; ch.className = 'fas fa-chevron-up'; }
+				else { b.style.display = 'none'; ch.className = 'fas fa-chevron-down'; }
+			};
+			const PRESET_ICONS = [{name:'YouTube',emoji:'📺'},{name:'Discord',emoji:'💬'},{name:'GitHub',emoji:'🐙'},{name:'Twitter',emoji:'🐦'},{name:'Instagram',emoji:'📸'},{name:'TikTok',emoji:'🎵'},{name:'Twitch',emoji:'🎮'},{name:'Reddit',emoji:'🤖'},{name:'Spotify',emoji:'🎧'},{name:'Netflix',emoji:'🎬'},{name:'Google',emoji:'🔍'},{name:'Gmail',emoji:'📧'},{name:'Drive',emoji:'☁️'},{name:'Maps',emoji:'🗺️'},{name:'Camera',emoji:'📷'},{name:'Music',emoji:'🎶'},{name:'Game',emoji:'🕹️'},{name:'Robot',emoji:'🤖'},{name:'Code',emoji:'💻'},{name:'Chat',emoji:'💭'},{name:'Video',emoji:'🎥'},{name:'Star',emoji:'⭐'},{name:'Heart',emoji:'❤️'},{name:'Fire',emoji:'🔥'},{name:'Globe',emoji:'🌍'},{name:'Upload',emoji:'📤'},{name:'Download',emoji:'📥'},{name:'Brush',emoji:'🎨'},{name:'Hammer',emoji:'🔨'},{name:'Wrench',emoji:'🔧'},{name:'Magic',emoji:'✨'},{name:'Bolt',emoji:'⚡'},{name:'Shield',emoji:'🛡️'},{name:'Crown',emoji:'👑'},{name:'Trophy',emoji:'🏆'},{name:'Book',emoji:'📚'},{name:'Flask',emoji:'🧪'},{name:'Atom',emoji:'⚛️'},{name:'Infinity',emoji:'♾️'},{name:'Link',emoji:'🔗'},{name:'Eraser',emoji:'🧹'},{name:'Scissors',emoji:'✂️'},{name:'Pin',emoji:'📌'},{name:'Clock',emoji:'⏰'},{name:'Calendar',emoji:'📅'},{name:'Search',emoji:'🔎'},{name:'Settings',emoji:'⚙️'},{name:'Key',emoji:'🔑'},{name:'Gem',emoji:'💎'},{name:'Rocket',emoji:'🚀'}];
+			function buildIconGrid() { document.getElementById('iconGrid').innerHTML = PRESET_ICONS.map(ic => `<div class="icon-option" onclick="copyToClip('${ic.emoji}');toast('Copied ${ic.emoji}','success')" title="${ic.name}"><span style="font-size:20px">${ic.emoji}</span><span>${ic.name}</span></div>`).join(''); }
 		</script>
 	</body>
 </html>
