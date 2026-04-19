@@ -845,11 +845,53 @@
 			  Object.entries(allBooksNew).forEach(([id,b])=>{if(b&&b.title)allBooks['new_'+id]={...b,_db:'new',_origId:id};});
 			}
 
-			// ── LOAD BOOKS — ONE-TIME FETCH (no streaming) ────────────────────────────────
-			// ⚡ BANDWIDTH WIN: onValue streams data on EVERY change from ALL clients.
-			//    get() fetches once. For a library that rarely changes mid-session, this
-			//    cuts book-node downloads by ~95%.
+			// ── LOAD BOOKS — ONE-TIME FETCH + LOCAL CACHE ─────────────────────────────────
+			// ⚡ BANDWIDTH WIN:
+			//   1. localStorage cache (TTL 10 min) — repeat visits skip Firebase entirely.
+			//   2. Counters are applied AFTER mergeBooks (prior version applied them before,
+			//      when allBooks was empty, silently dropping every override).
+			//   3. Cache is invalidated explicitly on upload/edit/delete/pin/protect actions
+			//      so users still see fresh data when things actually change.
+			const BOOKS_CACHE_KEY='htmllib_books_cache_v1';
+			const BOOKS_CACHE_TTL=10*60*1000; // 10 minutes
+			window.invalidateBooksCache=function(){try{localStorage.removeItem(BOOKS_CACHE_KEY);}catch(e){}};
+
+			function _applyCounters(counters){
+			  Object.entries(counters||{}).forEach(([cid,cv])=>{
+			    if(!cv||!allBooks[cid])return;
+			    if(cv.likes!=null)allBooks[cid].likes=cv.likes;
+			    if(cv.likedBy!=null)allBooks[cid].likedBy=cv.likedBy;
+			    if(cv.views!=null)allBooks[cid].views=cv.views;
+			    if(cv.playtimeSeconds!=null)allBooks[cid].playtimeSeconds=cv.playtimeSeconds;
+			    if(cv.ownerLiked!=null)allBooks[cid].ownerLiked=cv.ownerLiked;
+			    if(cv.ownerPlayed!=null)allBooks[cid].ownerPlayed=cv.ownerPlayed;
+			  });
+			}
+
 			async function loadBooks(){
+			  // ── Try cache first ────────────────────────────────────────────────────────
+			  try{
+			    const raw=localStorage.getItem(BOOKS_CACHE_KEY);
+			    if(raw){
+			      const cached=JSON.parse(raw);
+			      if(cached&&cached.t&&(Date.now()-cached.t)<BOOKS_CACHE_TTL){
+			        allBooksOld=cached.old||{};
+			        allBooksNew=cached.new||{};
+			        deletedOldBooks=cached.deleted||{};
+			        mergeBooks();
+			        _applyCounters(cached.counters||{});
+			        commentCountCache=cached.cc||{};
+			        _booksLoaded=true;
+			        renderBooks();
+			        renderPins();
+			        setTimeout(checkUserAchievements,500);
+			        // Kick off a background comment-count refresh only (tiny payload)
+			        loadCommentCounts();
+			        return;
+			      }
+			    }
+			  }catch(e){/* cache read failed — fall through to network */}
+
 			  try{
 			    // Fetch both DBs in parallel
 			    const [oldSnap,newSnap,mirrorSnap,deletedSnap]=await Promise.all([
@@ -861,36 +903,37 @@
 
 			    deletedOldBooks=deletedSnap.val()||{};
 
-			    // Strip code from old DB books
+			    // Strip code from old DB books (client-side — does NOT save bandwidth, but
+			    // keeps memory/cache small)
 			    const rawOld=oldSnap.val()||{};
 			    allBooksOld={};
 			    Object.entries(rawOld).forEach(([id,b])=>{if(b){const{code:_,...meta}=b;allBooksOld[id]=meta;}});
 
-			    // Strip code from new DB books  
+			    // Strip code from new DB books
 			    const rawNew=newSnap.val()||{};
 			    allBooksNew={};
 			    Object.entries(rawNew).forEach(([id,b])=>{if(b){const{code:_,...meta}=b;allBooksNew[id]=meta;}});
 
-			    // Apply lightweight counter overrides (likes/views stored separately)
-			    // This is the replacement for bookMirror — only numbers, no likedBy bloat
 			    const counters=mirrorSnap.val()||{};
-			    Object.entries(counters).forEach(([cid,cv])=>{
-			      if(!cv)return;
-			      // cid format: "old_ORIGID" or "new_ORIGID"
-			      if(allBooks[cid]){
-			        if(cv.likes!=null)allBooks[cid].likes=cv.likes;
-			        if(cv.likedBy!=null)allBooks[cid].likedBy=cv.likedBy;
-			        if(cv.views!=null)allBooks[cid].views=cv.views;
-			        if(cv.playtimeSeconds!=null)allBooks[cid].playtimeSeconds=cv.playtimeSeconds;
-			        if(cv.ownerLiked!=null)allBooks[cid].ownerLiked=cv.ownerLiked;
-			        if(cv.ownerPlayed!=null)allBooks[cid].ownerPlayed=cv.ownerPlayed;
-			      }
-			    });
 
 			    mergeBooks();
+			    // ⚠️ FIX: apply counters AFTER mergeBooks, not before (bug in prior version)
+			    _applyCounters(counters);
 
 			    // Load comment counts (shallow — just counts, not full comment text)
-			    loadCommentCounts();
+			    await loadCommentCounts();
+
+			    // ── Save to localStorage so next load skips Firebase entirely ──────────
+			    try{
+			      localStorage.setItem(BOOKS_CACHE_KEY,JSON.stringify({
+			        t:Date.now(),
+			        old:allBooksOld,
+			        new:allBooksNew,
+			        counters,
+			        deleted:deletedOldBooks,
+			        cc:commentCountCache
+			      }));
+			    }catch(e){/* quota exceeded — non-fatal */}
 
 			    _booksLoaded=true;
 			    renderBooks();
@@ -1188,10 +1231,23 @@
 			  if(localStorage.getItem('htmllib_hide_chat_game')==='1')document.getElementById('chat-fab').classList.add('hidden-during-game');
 
 			  // Fetch code on demand — never stored in memory
+			  // ⚡ Try split-code path first, fall back to legacy inline path.
+			  //    This fixes "No code found" for books uploaded before the bookCode split.
 			  let code='';
 			  if(book._db==='new'){
 			    try{const snap=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(snap.exists())code=snap.val();}
 			    catch(e){console.warn('bookCode fetch failed',e);}
+			    if(!code){
+			      try{const snap=await get(ref(newDb,'books/'+book._origId+'/code'));if(snap.exists())code=snap.val();}
+			      catch(e){console.warn('inline new book code fetch failed',e);}
+			      // Auto-migrate: move legacy inline code into bookCode so we never re-download it
+			      if(code){
+			        try{
+			          await set(ref(newDb,'bookCode/'+book._origId+'/code'),code);
+			          await update(ref(newDb,'books/'+book._origId),{code:null});
+			        }catch(e){console.warn('auto-migrate code failed',e);}
+			      }
+			    }
 			  }else{
 			    try{const snap=await get(ref(oldDb,'books/'+book._origId+'/code'));if(snap.exists())code=snap.val();}
 			    catch(e){console.warn('old book code fetch failed',e);}
@@ -1394,12 +1450,13 @@
 			  if(!isOwner(currentUser))return;
 			  if(pinnedBooks[id]){await remove(ref(newDb,`siteConfig/pinnedBooks/${id}`));showToast('Book unpinned','success');}
 			  else{const pc=Object.keys(pinnedBooks).filter(k=>pinnedBooks[k]).length;if(pc>=3){showToast('Max 3 books can be pinned','error');return;}await set(ref(newDb,`siteConfig/pinnedBooks/${id}`),true);logActivity('pin',`Owner pinned "${allBooks[id]?.title}"`,currentUser.uid);showToast('Book pinned! 📌','success');}
+			  invalidateBooksCache();
 			};
 
 			// ── UNDELETABLE ───────────────────────────────────────────────────────────────
 			window.toggleUndeletable=async function(id){
 			  if(!isOwner(currentUser)){showToast('Only the owner can protect books','error');return;}const book=allBooks[id];if(!book)return;
-			  if(book._db==='new'){await update(ref(newDb,'books/'+book._origId),{undeletable:!book.undeletable});showToast(book.undeletable?'Protection removed':'Book is now protected 🔒','success');}
+			  if(book._db==='new'){await update(ref(newDb,'books/'+book._origId),{undeletable:!book.undeletable});invalidateBooksCache();showToast(book.undeletable?'Protection removed':'Book is now protected 🔒','success');}
 			  else{showToast('Cannot protect legacy books (read-only database)','error');}
 			};
 
@@ -1444,7 +1501,10 @@
 			  document.getElementById('code-display').textContent='Loading...';
 			  openOverlay('code-overlay');
 			  let code='';
-			  if(book._db==='new'){try{const s=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
+			  if(book._db==='new'){
+			    try{const s=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}
+			    if(!code){try{const s=await get(ref(newDb,'books/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
+			  }
 			  else{try{const s=await get(ref(oldDb,'books/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
 			  document.getElementById('code-display').textContent=code||'// No code found';
 			};
@@ -1474,7 +1534,10 @@
 			  document.getElementById('book-title-input').value=book.title;document.getElementById('book-desc-input').value=book.desc||'';document.getElementById('allow-view-code').checked=!!book.allowViewCode;
 			  _isSubmitting=false;resetUploadImages();
 			  let code='';
-			  if(book._db==='new'){try{const s=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
+			  if(book._db==='new'){
+			    try{const s=await get(ref(newDb,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}
+			    if(!code){try{const s=await get(ref(newDb,'books/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
+			  }
 			  else{try{const s=await get(ref(oldDb,'books/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}}
 			  document.getElementById('book-code-input').value=code;
 			  if(book.logoImage){_uploadLogoB64=book.logoImage;const p=document.getElementById('logo-preview');p.src=book.logoImage;p.style.display='block';document.getElementById('logo-upload-area').classList.add('has-image');const l=document.querySelector('#logo-upload-area .upload-label');if(l)l.style.display='none';}
@@ -1523,6 +1586,7 @@
 			      showToast('Book published! 🎉','success');
 			      setTimeout(checkUserAchievements,1000);
 			    }
+			    invalidateBooksCache();
 			    closeOverlay('upload-overlay');
 			    renderBooks();renderPins();
 			  }catch(e){showToast('Error: '+e.message,'error');}
@@ -1535,6 +1599,7 @@
 			  if(book.undeletable&&!isOwner(currentUser)){showToast('🔒 This book is protected.','error');return;}
 			  if(currentUser.uid!==book.ownerId&&!isAdmin(currentUser)){showToast('Permission denied','error');return;}
 			  if(!confirm('Delete "'+book.title+'"? This cannot be undone.'))return;
+			  invalidateBooksCache();
 			  const{_db:_d,_origId:_oi,...cleanBook}=book;
 			  try{await set(push(ref(newDb,'recentlyDeleted')),{...cleanBook,originalId:id,deletedAt:Date.now(),deletedBy:currentUser.email||''});}catch(e){}
 			  try{
