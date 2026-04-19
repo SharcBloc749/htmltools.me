@@ -766,9 +766,9 @@
 
 			// ── FIREBASE SETUP ────────────────────────────────────────────────────────────
 			// OLD Firebase: used for AUTHENTICATION ONLY
-			const oldFirebaseConfig={apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",databaseURL:"https://htmltools-library-default-rtdb.firebaseio.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"};
+			const oldFirebaseConfig={apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"};
 			const oldApp=initializeApp(oldFirebaseConfig,'old');
-			// auth lives on oldApp — authentication only
+			// auth lives on oldApp — authentication only (no databaseURL needed)
 			const auth=getAuth(oldApp);
 
 			// NEW Firebase: used for ALL data (books, users, comments, chat, etc.)
@@ -898,13 +898,13 @@
 			};
 
 			// ── FIREBASE LISTENERS — ALL FROM newDb ──────────────────────────────────────
-			// Books — read from new DB only (old DB is disabled)
+			// Books — read from new DB only
 			onValue(ref(db,'books'),snap=>{
 			  const raw=snap.val()||{};
 			  allBooks={};
 			  Object.entries(raw).forEach(([id,b])=>{
 			    if(b&&b.title){
-			      // Strip code from in-memory metadata; fetched on demand from /bookCode
+			      // Strip code from in-memory metadata; fetched on demand via fetchBookCode()
 			      const{code:_,...meta}=b;
 			      allBooks[id]={...meta,_origId:id};
 			    }
@@ -1142,7 +1142,15 @@
 
 			window.setFilter=function(f,el){currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBooks();};
 
-			// ── PLAY — fetch code on demand from /bookCode ────────────────────────────────
+			// ── FETCH CODE HELPER — tries /bookCode first, falls back to /books ──────────
+			// This handles both new books (code in /bookCode) and legacy books (code in /books)
+			async function fetchBookCode(origId){
+			  try{const s=await get(ref(db,'bookCode/'+origId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
+			  try{const s=await get(ref(db,'books/'+origId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
+			  return '';
+			}
+
+			// ── PLAY ──────────────────────────────────────────────────────────────────────
 			let _runningBookId=null,_playtimeInterval=null,_runnerStartTime=null;
 			window.runBook=async function(id){
 			  const book=allBooks[id];if(!book)return;
@@ -1153,12 +1161,7 @@
 			  document.getElementById('runner-live-time').textContent='0s';
 			  if(localStorage.getItem('htmllib_hide_chat_game')==='1')document.getElementById('chat-fab').classList.add('hidden-during-game');
 
-			  // Fetch code on demand from /bookCode in new DB
-			  let code='';
-			  try{
-			    const snap=await get(ref(db,'bookCode/'+book._origId+'/code'));
-			    if(snap.exists())code=snap.val();
-			  }catch(e){console.warn('bookCode fetch failed',e);}
+			  const code=await fetchBookCode(book._origId);
 
 			  if(!code){document.getElementById('runner-frame').srcdoc='<body style="background:#111;color:#f88;font-family:monospace;padding:2rem">Error: No code found.</body>';return;}
 
@@ -1341,8 +1344,7 @@
 			  document.getElementById('code-modal-title').textContent=book.title+' — Source';
 			  document.getElementById('code-display').textContent='Loading...';
 			  openOverlay('code-overlay');
-			  let code='';
-			  try{const s=await get(ref(db,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}
+			  const code=await fetchBookCode(book._origId);
 			  document.getElementById('code-display').textContent=code||'// No code found';
 			};
 			window.copyCode=function(){navigator.clipboard.writeText(document.getElementById('code-display').textContent).then(()=>showToast('Copied!','success'));};
@@ -1370,9 +1372,7 @@
 			  editingBookId=id;document.getElementById('upload-modal-title').textContent='Edit Book';document.getElementById('upload-submit-btn').textContent='SAVE CHANGES';
 			  document.getElementById('book-title-input').value=book.title;document.getElementById('book-desc-input').value=book.desc||'';document.getElementById('allow-view-code').checked=!!book.allowViewCode;
 			  _isSubmitting=false;resetUploadImages();
-			  // Fetch code on demand from new DB
-			  let code='';
-			  try{const s=await get(ref(db,'bookCode/'+book._origId+'/code'));if(s.exists())code=s.val();}catch(e){}
+			  const code=await fetchBookCode(book._origId);
 			  document.getElementById('book-code-input').value=code;
 			  if(book.logoImage){_uploadLogoB64=book.logoImage;const p=document.getElementById('logo-preview');p.src=book.logoImage;p.style.display='block';document.getElementById('logo-upload-area').classList.add('has-image');const l=document.querySelector('#logo-upload-area .upload-label');if(l)l.style.display='none';}
 			  if(book.bgImage){_uploadBgB64=book.bgImage;const p=document.getElementById('bg-preview');p.src=book.bgImage;p.style.display='block';document.getElementById('bg-upload-area').classList.add('has-image');const l=document.querySelector('#bg-upload-area .upload-label');if(l)l.style.display='none';}
