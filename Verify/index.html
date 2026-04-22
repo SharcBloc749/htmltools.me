@@ -1,1 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify Email — HTMLTools</title>
+<link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f; --surface: #141416; --surface2: #1a1a1e;
+    --border: #2a2a32; --accent: #7c6aff; --accent2: #ff6a9b;
+    --text: #e8e8f0; --text2: #8888a0; --text3: #555568;
+    --green: #4ade80; --red: #f87171;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--font-mono); min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 40% 40%, #1a1040 0%, var(--bg) 65%);
+  }
 
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 52px 48px; width: 440px; max-width: 95vw;
+    text-align: center;
+    animation: rise 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ── Icon area ── */
+  .icon-wrap {
+    position: relative; width: 88px; height: 88px;
+    margin: 0 auto 28px; display: flex; align-items: center; justify-content: center;
+  }
+  .icon-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1.5px solid var(--border);
+    animation: spin-slow 8s linear infinite;
+  }
+  .icon-ring::before {
+    content: ''; position: absolute; top: -3px; left: 50%;
+    transform: translateX(-50%);
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+  }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+  .icon-glow {
+    position: absolute; inset: -16px; border-radius: 50%;
+    background: radial-gradient(circle, #7c6aff1a 0%, transparent 70%);
+    animation: breathe 2.5s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50%       { opacity: 1;   transform: scale(1.1); }
+  }
+
+  .icon-emoji {
+    font-size: 40px; position: relative; z-index: 1;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .icon-emoji.success { animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .icon-emoji.error   { animation: shake 0.4s ease both; }
+  @keyframes pop   { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+  /* ── Text ── */
+  .title {
+    font-family: var(--font-display); font-size: 22px; font-weight: 800;
+    margin-bottom: 10px; color: var(--text);
+    transition: color 0.3s;
+  }
+  .subtitle {
+    font-size: 12px; color: var(--text2); line-height: 1.8;
+    margin-bottom: 28px; min-height: 40px;
+  }
+
+  /* ── Progress bar ── */
+  .progress-wrap {
+    height: 3px; background: var(--surface2); border-radius: 2px;
+    margin-bottom: 28px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px; width: 0%;
+    transition: width 0.4s ease;
+  }
+  .progress-fill.indeterminate {
+    width: 40% !important;
+    animation: indeterminate 1.2s ease-in-out infinite;
+  }
+  @keyframes indeterminate {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
+  .progress-fill.done  { width: 100% !important; animation: none; }
+  .progress-fill.error { width: 100% !important; animation: none; background: var(--red); }
+
+  /* ── Status badge ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px; border-radius: 20px; font-size: 11px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border); color: var(--text3);
+    background: var(--surface2);
+    transition: all 0.3s;
+  }
+  .badge.checking { border-color: #7c6aff44; color: var(--accent); }
+  .badge.success  { border-color: #4ade8044; color: var(--green); background: #4ade8011; }
+  .badge.error    { border-color: #f8717144; color: var(--red);   background: #f8717111; }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge-dot.pulse { animation: pulse-dot 1.2s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Button ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 28px; border: none; border-radius: 10px;
+    font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; text-decoration: none;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s;
+  }
+  .btn.visible { opacity: 1; transform: translateY(0); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #6b5ce7; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+
+  .actions { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+  /* ── Logo ── */
+  .logo {
+    font-family: var(--font-display); font-size: 15px; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 36px; display: block;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <a class="logo" href="https://htmltools.me">htmltools.me</a>
+
+  <div class="icon-wrap">
+    <div class="icon-glow"></div>
+    <div class="icon-ring"></div>
+    <div class="icon-emoji" id="icon">📬</div>
+  </div>
+
+  <div class="title" id="title">Verifying your email…</div>
+  <div class="subtitle" id="subtitle">Please wait while we confirm your email address.</div>
+
+  <div class="progress-wrap">
+    <div class="progress-fill indeterminate" id="progress"></div>
+  </div>
+
+  <div class="badge checking" id="badge">
+    <div class="badge-dot pulse"></div>
+    <span id="badge-text">Checking link…</span>
+  </div>
+
+  <div class="actions" id="actions"></div>
+</div>
+
+<script>
+  const WORKER_URL = 'https://email.htmltools.me'; // your worker URL
+  const DASHBOARD_URL = 'https://htmltools.me/SiteLaunch';
+
+  const icon     = document.getElementById('icon');
+  const title    = document.getElementById('title');
+  const subtitle = document.getElementById('subtitle');
+  const progress = document.getElementById('progress');
+  const badge    = document.getElementById('badge');
+  const badgeText= document.getElementById('badge-text');
+  const actions  = document.getElementById('actions');
+
+  function setSuccess(email) {
+    icon.textContent = '✅';
+    icon.classList.add('success');
+    title.textContent = 'Email verified!';
+    subtitle.innerHTML = `Your email <strong style="color:var(--accent)">${email}</strong> has been verified.<br>You can now access your dashboard.`;
+    progress.classList.remove('indeterminate');
+    progress.classList.add('done');
+    badge.className = 'badge success';
+    badgeText.textContent = 'Verification complete';
+    document.querySelector('.badge-dot').classList.remove('pulse');
+
+    // Redirect countdown
+    let secs = 3;
+    const btn = addBtn(`Continuing in ${secs}s →`, DASHBOARD_URL, 'btn-primary');
+    const iv = setInterval(() => {
+      secs--;
+      if (secs <= 0) { clearInterval(iv); window.location.href = DASHBOARD_URL; }
+      else btn.textContent = `Continuing in ${secs}s →`;
+    }, 1000);
+  }
+
+  function setError(msg, showResend = false) {
+    icon.textContent = '❌';
+    icon.classList.add('error');
+    title.textContent = 'Verification failed';
+    subtitle.textContent = msg;
+    progress.classList.remove('indeterminate');
+    progress.classList.add('error');
+    badge.className = 'badge error';
+    badgeText.textContent = 'Link invalid';
+    document.querySelector('.badge-dot').classList.remove('pulse');
+
+    addBtn('Go to dashboard', DASHBOARD_URL, 'btn-ghost');
+    if (showResend) addBtn('Sign in to resend', DASHBOARD_URL + '?resend=1', 'btn-primary');
+  }
+
+  function addBtn(text, href, cls) {
+    const a = document.createElement('a');
+    a.href = href; a.className = `btn ${cls}`; a.textContent = text;
+    actions.appendChild(a);
+    // Trigger animation next frame
+    requestAnimationFrame(() => requestAnimationFrame(() => a.classList.add('visible')));
+    return a;
+  }
+
+  async function verify() {
+    const params = new URLSearchParams(window.location.search);
+    const token  = params.get('t');
+    const uid    = params.get('u');
+
+    if (!token || !uid) {
+      setError('This link is missing required information. Please check your email and try again.', true);
+      return;
+    }
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'verify_token', token, uid })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSuccess(data.email);
+      } else {
+        const friendly = {
+          'Link already used': 'This verification link has already been used. If you\'re having trouble signing in, go to your dashboard.',
+          'Link expired':      'This link expired after 24 hours. Sign in and request a new verification email.',
+          'Invalid token':     'This link is invalid or has been tampered with. Please request a new one.',
+          'Invalid link':      'This link is invalid. Please request a new verification email.',
+        };
+        setError(friendly[data.error] || 'Something went wrong. Please try again.', true);
+      }
+    } catch(e) {
+      setError('Could not connect to the server. Check your internet connection and try again.', true);
+    }
+  }
+
+  verify();
+</script>
+</body>
+</html>
