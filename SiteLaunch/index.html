@@ -21,23 +21,12 @@
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
   import {
     getAuth, onAuthStateChanged, signOut,
-    createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    sendEmailVerification, reload
+    createUserWithEmailAndPassword, signInWithEmailAndPassword
   } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
   import { getDatabase, ref, set, get, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-  // ── Auth project (htmltools-library) — has custom noreply@htmltools.me email ──
-  const authConfig = {
-    apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
-    authDomain: "htmltools-library.firebaseapp.com",
-    projectId: "htmltools-library",
-    storageBucket: "htmltools-library.firebasestorage.app",
-    messagingSenderId: "973699554480",
-    appId: "1:973699554480:web:7543f6caa2ed6742092f75"
-  };
-
-  // ── Database project (htmltools-website-hoster) — stores files ──
-  const dbConfig = {
+  // ── Single project for everything ──
+  const firebaseConfig = {
     apiKey: "AIzaSyDJR71PzrgQans3qOc0N1mI2vD4wFg1iV4",
     authDomain: "htmltools-website-hoster.firebaseapp.com",
     databaseURL: "https://htmltools-website-hoster-default-rtdb.firebaseio.com",
@@ -47,31 +36,27 @@
     appId: "1:234189976540:web:4fa38db41cf745ada91519"
   };
 
-  const authApp = initializeApp(authConfig, 'auth');
-  const dbApp  = initializeApp(dbConfig,  'db');
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getDatabase(app);
 
-  const auth = getAuth(authApp);
-  const db   = getDatabase(dbApp);
-
-  window._fb = {
-    auth, db,
-    signOut, onAuthStateChanged,
-    createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    sendEmailVerification, reload,
-    ref, set, get, remove
-  };
+  window._fb = { auth, db, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, ref, set, get, remove };
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      await reload(user); // refresh emailVerified status
-      if (!user.emailVerified) {
-        showVerifyEmail(user.email);
-        return;
-      }
       try {
-        const snap = await get(ref(db, `users/${user.uid}`));
-        if (snap.exists()) {
-          showDashboard(snap.val().username);
+        // Check our own verified flag (set by Cloudflare Worker after link click)
+        const [verifiedSnap, userSnap] = await Promise.all([
+          get(ref(db, `userVerified/${user.uid}`)),
+          get(ref(db, `users/${user.uid}`))
+        ]);
+        const isVerified = verifiedSnap.exists() && verifiedSnap.val().verified === true;
+        if (!isVerified) {
+          showVerifyEmail(user.email);
+          return;
+        }
+        if (userSnap.exists()) {
+          showDashboard(userSnap.val().username);
         } else {
           showUsernameSetup();
         }
@@ -590,13 +575,22 @@
     }, 1000);
   }
 
+  async function sendVerificationEmail(uid, email) {
+    const res = await fetch('https://email.htmltools.me', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'send_verification', uid, email })
+    });
+    return res.ok;
+  }
+
   async function resendVerification() {
-    const { auth, sendEmailVerification } = window._fb;
-    const user = auth.currentUser;
+    const user = window._fb.auth.currentUser;
     if (!user) return;
     try {
-      await sendEmailVerification(user);
-      toast('✓ Verification email resent!');
+      const ok = await sendVerificationEmail(user.uid, user.email);
+      if (ok) toast('✓ Verification email resent!');
+      else toast('Failed to resend — try again.', 'error');
       startResendTimer(60);
     } catch(e) {
       toast('Failed to resend: ' + e.message, 'error');
@@ -604,7 +598,7 @@
   }
 
   async function checkVerified() {
-    const { auth, reload, db, ref, get } = window._fb;
+    const { auth, db, ref, get } = window._fb;
     const user = auth.currentUser;
     if (!user) return;
 
@@ -614,17 +608,19 @@
     bar.classList.add('active');
 
     try {
-      await reload(user);
-      if (user.emailVerified) {
-        bar.classList.remove('active');
+      const [verifiedSnap, userSnap] = await Promise.all([
+        get(ref(db, `userVerified/${user.uid}`)),
+        get(ref(db, `users/${user.uid}`))
+      ]);
+      const isVerified = verifiedSnap.exists() && verifiedSnap.val().verified === true;
+      bar.classList.remove('active');
+      if (isVerified) {
         toast('✓ Email verified! Welcome aboard.');
-        const snap = await get(ref(db, `users/${user.uid}`));
-        if (snap.exists()) showDashboard(snap.val().username);
+        if (userSnap.exists()) showDashboard(userSnap.val().username);
         else showUsernameSetup();
       } else {
-        bar.classList.remove('active');
         btn.disabled = false; btn.textContent = '✓ I\'ve verified my email';
-        toast('Email not verified yet — check your inbox.', 'error');
+        toast('Not verified yet — click the link in your email.', 'error');
       }
     } catch(e) {
       bar.classList.remove('active');
@@ -667,26 +663,43 @@
   }
   function updatePreview() { document.getElementById('username-preview').textContent=`${document.getElementById('username-input').value||'username'}.htmltools.me`; }
 
+  // ── Friendly error messages ──
+  function friendlyError(code) {
+    const map = {
+      'auth/email-already-in-use':    'An account with this email already exists. Try signing in instead.',
+      'auth/invalid-email':           'That doesn\'t look like a valid email address.',
+      'auth/weak-password':           'Password must be at least 6 characters.',
+      'auth/user-not-found':          'No account found with this email.',
+      'auth/wrong-password':          'Incorrect password. Try again.',
+      'auth/invalid-credential':      'Incorrect email or password. Try again.',
+      'auth/too-many-requests':       'Too many attempts. Please wait a moment and try again.',
+      'auth/network-request-failed':  'Network error. Check your connection and try again.',
+      'auth/user-disabled':           'This account has been disabled. Contact support.',
+      'auth/popup-closed-by-user':    'Sign-in popup was closed before completing.',
+    };
+    return map[code] || 'Something went wrong. Please try again.';
+  }
+
   // ── Auth ──
   async function doLogin() {
     const { auth, signInWithEmailAndPassword } = window._fb;
     hideError('login-error'); setLoading('login-btn', true);
     try {
       await signInWithEmailAndPassword(auth, document.getElementById('login-email').value, document.getElementById('login-password').value);
-    } catch(e) { showError('login-error', e.message); setLoading('login-btn', false); }
+    } catch(e) { showError('login-error', friendlyError(e.code)); setLoading('login-btn', false); }
   }
 
   async function doSignup() {
-    const { auth, createUserWithEmailAndPassword, sendEmailVerification } = window._fb;
+    const { auth, createUserWithEmailAndPassword } = window._fb;
     hideError('signup-error'); setLoading('signup-btn', true);
     try {
       const cred = await createUserWithEmailAndPassword(auth,
         document.getElementById('signup-email').value,
         document.getElementById('signup-password').value);
-      // Send verification email right after account creation
-      await sendEmailVerification(cred.user);
+      // Send verification email via Cloudflare Worker (noreply@htmltools.me)
+      await sendVerificationEmail(cred.user.uid, cred.user.email);
       showVerifyEmail(cred.user.email);
-    } catch(e) { showError('signup-error', e.message); setLoading('signup-btn', false); }
+    } catch(e) { showError('signup-error', friendlyError(e.code)); setLoading('signup-btn', false); }
   }
 
   async function doSignOut() { await window._fb.signOut(window._fb.auth); }
