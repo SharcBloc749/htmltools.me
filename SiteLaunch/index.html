@@ -21,18 +21,15 @@
   import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
   import { getDatabase, ref, set, get, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-  // =============================================
-  // 🔧 REPLACE WITH YOUR FIREBASE CONFIG BELOW
-  // =============================================
   const firebaseConfig = {
-  apiKey: "AIzaSyDJR71PzrgQans3qOc0N1mI2vD4wFg1iV4",
-  authDomain: "htmltools-website-hoster.firebaseapp.com",
-  databaseURL: "https://htmltools-website-hoster-default-rtdb.firebaseio.com",
-  projectId: "htmltools-website-hoster",
-  storageBucket: "htmltools-website-hoster.firebasestorage.app",
-  messagingSenderId: "234189976540",
-  appId: "1:234189976540:web:4fa38db41cf745ada91519"
-};
+    apiKey: "AIzaSyDJR71PzrgQans3qOc0N1mI2vD4wFg1iV4",
+    authDomain: "htmltools-website-hoster.firebaseapp.com",
+    databaseURL: "https://htmltools-website-hoster-default-rtdb.firebaseio.com",
+    projectId: "htmltools-website-hoster",
+    storageBucket: "htmltools-website-hoster.firebasestorage.app",
+    messagingSenderId: "234189976540",
+    appId: "1:234189976540:web:4fa38db41cf745ada91519"
+  };
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -42,12 +39,16 @@
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      const snap = await get(ref(db, `users/${user.uid}`));
-      if (snap.exists()) {
-        window._currentUser = { ...user, username: snap.val().username };
-        showDashboard(snap.val().username);
-      } else {
-        showUsernameSetup();
+      try {
+        const snap = await get(ref(db, `users/${user.uid}`));
+        if (snap.exists()) {
+          showDashboard(snap.val().username);
+        } else {
+          showUsernameSetup();
+        }
+      } catch(e) {
+        console.error('Auth state error:', e);
+        showError('login-error', e.message);
       }
     } else {
       showAuth();
@@ -83,7 +84,7 @@
   .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
   .btn-ghost:hover { background: var(--surface2); color: var(--text); }
   .btn-sm { padding: 6px 12px; font-size: 11px; }
-  .auth-error { color: var(--red); font-size: 11px; margin-top: 12px; display: none; }
+  .auth-error { color: var(--red); font-size: 11px; margin-top: 12px; display: none; background: #f8717122; padding: 8px 12px; border-radius: 6px; border: 1px solid #f8717144; }
 
   #username-screen { display: none; align-items: center; justify-content: center; min-height: 100vh; background: radial-gradient(ellipse at 70% 50%, #1a1040 0%, var(--bg) 60%); }
   #dashboard { display: none; min-height: 100vh; }
@@ -140,23 +141,27 @@
   .upload-zone { border: 1px dashed var(--border); border-radius: 8px; padding: 12px; text-align: center; font-size: 11px; color: var(--text3); cursor: pointer; transition: all 0.2s; display: block; }
   .upload-zone:hover { border-color: var(--accent); color: var(--accent); background: #7c6aff11; }
   .upload-zone input { display: none; }
-  .storage-bar { height: 3px; background: var(--surface3); border-radius: 2px; margin-top: 6px; }
+  .storage-bar { height: 4px; background: var(--surface3); border-radius: 2px; margin-top: 6px; }
   .storage-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
-  .storage-fill.warn { background: var(--red); }
+  .storage-fill.warn { background: #fbbf24; }
+  .storage-fill.danger { background: var(--red); }
 
   .modal-backdrop { position: fixed; inset: 0; background: #00000088; backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 1000; display: none; }
   .modal-backdrop.open { display: flex; }
   .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 380px; max-width: 95vw; }
   .modal h3 { font-family: var(--font-display); font-size: 16px; margin-bottom: 16px; }
   .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+  .modal-error { color: var(--red); font-size: 11px; margin-top: 8px; display: none; }
 
-  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 12px; color: var(--text); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; }
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 12px; color: var(--text); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; max-width: 320px; }
   #toast.show { transform: translateY(0); opacity: 1; }
   #toast.success { border-color: var(--green); color: var(--green); }
   #toast.error { border-color: var(--red); color: var(--red); }
   .stats-bar { display: flex; gap: 16px; padding: 8px 16px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); flex-shrink: 0; }
   .stat { display: flex; align-items: center; gap: 4px; }
   .stat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -170,15 +175,15 @@
       <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
     </div>
     <div id="login-form">
-      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"></div>
-      <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
-      <button class="btn btn-primary" onclick="doLogin()">Sign In →</button>
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Sign In →</button>
       <div class="auth-error" id="login-error"></div>
     </div>
     <div id="signup-form" style="display:none">
-      <div class="form-group"><label>Email</label><input type="email" id="signup-email" placeholder="you@example.com"></div>
-      <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="min 6 characters"></div>
-      <button class="btn btn-primary" onclick="doSignup()">Create Account →</button>
+      <div class="form-group"><label>Email</label><input type="email" id="signup-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doSignup()"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="min 6 characters" onkeydown="if(event.key==='Enter')doSignup()"></div>
+      <button class="btn btn-primary" id="signup-btn" onclick="doSignup()">Create Account →</button>
       <div class="auth-error" id="signup-error"></div>
     </div>
   </div>
@@ -190,12 +195,12 @@
     <div class="auth-tagline">// this becomes your subdomain</div>
     <div class="form-group" style="margin-top:24px">
       <label>Username</label>
-      <input type="text" id="username-input" placeholder="snake-game" oninput="updatePreview()">
+      <input type="text" id="username-input" placeholder="snake-game" oninput="updatePreview()" onkeydown="if(event.key==='Enter')saveUsername()">
     </div>
     <div style="font-size:11px;color:var(--text2);margin-bottom:20px">
       Your site: <span id="username-preview" style="color:var(--accent)">username.htmltools.me</span>
     </div>
-    <button class="btn btn-primary" onclick="saveUsername()">Claim Subdomain →</button>
+    <button class="btn btn-primary" id="username-btn" onclick="saveUsername()">Claim Subdomain →</button>
     <div class="auth-error" id="username-error"></div>
   </div>
 </div>
@@ -227,7 +232,7 @@
         </label>
         <div style="margin-top:8px">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
-            <span>Storage</span><span id="storage-text">0 KB / 1 GB</span>
+            <span>Storage</span><span id="storage-text">0 KB / 100 MB</span>
           </div>
           <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
         </div>
@@ -246,7 +251,7 @@
           <div class="editor-toolbar">
             <div class="editor-filename">editing: <span id="current-filename">—</span></div>
             <div class="editor-buttons">
-              <button class="btn btn-ghost btn-sm" onclick="saveFile()">💾 Save</button>
+              <button class="btn btn-ghost btn-sm" id="save-btn" onclick="saveFile()">💾 Save</button>
               <button class="btn btn-ghost btn-sm" onclick="previewFile()">👁 Preview</button>
             </div>
           </div>
@@ -265,17 +270,19 @@
   </div>
 </div>
 
+<!-- MODALS -->
 <div class="modal-backdrop" id="new-file-modal">
   <div class="modal">
     <h3>New File</h3>
     <div class="form-group">
-      <label>File path</label>
-      <input type="text" id="new-file-name" placeholder="index.html or folder/page.html">
+      <label>File name</label>
+      <input type="text" id="new-file-name" placeholder="page.html or folder/page.html" onkeydown="if(event.key==='Enter')createNewFile()">
     </div>
-    <div style="font-size:11px;color:var(--text2)">Use <code style="color:var(--accent)">folder/file.html</code> to create files in folders</div>
+    <div style="font-size:11px;color:var(--text2)">Use <code style="color:var(--accent)">folder/file.html</code> for files inside folders</div>
+    <div class="modal-error" id="new-file-error"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModals()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="createNewFile()" style="width:auto">Create</button>
+      <button class="btn btn-primary btn-sm" id="create-file-btn" onclick="createNewFile()" style="width:auto">Create</button>
     </div>
   </div>
 </div>
@@ -285,11 +292,13 @@
     <h3>New Folder</h3>
     <div class="form-group">
       <label>Folder name</label>
-      <input type="text" id="new-folder-name" placeholder="my-folder">
+      <input type="text" id="new-folder-name" placeholder="my-folder" onkeydown="if(event.key==='Enter')createNewFolder()">
     </div>
+    <div style="font-size:11px;color:var(--text2)">Creates the folder with an <code style="color:var(--accent)">index.html</code> inside</div>
+    <div class="modal-error" id="new-folder-error"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModals()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="createNewFolder()" style="width:auto">Create</button>
+      <button class="btn btn-primary btn-sm" id="create-folder-btn" onclick="createNewFolder()" style="width:auto">Create</button>
     </div>
   </div>
 </div>
@@ -297,12 +306,34 @@
 <div id="toast"></div>
 
 <script>
+  // ── Constants ──
+  const MAX_STORAGE = 100 * 1024 * 1024; // 100 MB
+
+  // ── Key encoding ──
+  // Firebase Realtime DB does NOT allow: . $ # [ ] /
+  // We encode dots as |d|, slashes as |s|, and pipes as |p|
+  function encodeKey(path) {
+    return path
+      .replace(/\|/g, '|p|')
+      .replace(/\./g, '|d|')
+      .replace(/\//g, '|s|');
+  }
+
+  function decodeKey(key) {
+    return key
+      .replace(/\|d\|/g, '.')
+      .replace(/\|s\|/g, '/')
+      .replace(/\|p\|/g, '|');
+  }
+
+  // ── State ──
   let editor = null;
   let openTabs = [];
   let activeTab = null;
   let currentUsername = null;
-  let allFiles = {};
+  let allFiles = {}; // { "real/path.html": { content, type, size } }
 
+  // ── UI helpers ──
   function showAuth() {
     document.getElementById('auth-screen').style.display = 'flex';
     document.getElementById('username-screen').style.display = 'none';
@@ -323,135 +354,303 @@
     document.getElementById('user-avatar').textContent = username[0].toUpperCase();
     loadFiles();
   }
+
   function toast(msg, type = 'success') {
     const el = document.getElementById('toast');
-    el.textContent = msg; el.className = `show ${type}`;
-    setTimeout(() => el.className = '', 3000);
+    el.textContent = msg;
+    el.className = `show ${type}`;
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => el.className = '', 3500);
   }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function hideError(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.style.opacity = loading ? '0.6' : '1';
+  }
+
   function switchTab(tab) {
     document.querySelectorAll('.auth-tab').forEach((t, i) =>
-      t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='signup'&&i===1)));
-    document.getElementById('login-form').style.display = tab==='login'?'block':'none';
-    document.getElementById('signup-form').style.display = tab==='signup'?'block':'none';
+      t.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'signup' && i === 1)));
+    document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none';
   }
+
   function updatePreview() {
     const val = document.getElementById('username-input').value || 'username';
     document.getElementById('username-preview').textContent = `${val}.htmltools.me`;
   }
 
+  // ── Auth ──
   async function doLogin() {
     const { auth, signInWithEmailAndPassword } = window._fb;
+    hideError('login-error');
+    setLoading('login-btn', true);
     try {
-      await signInWithEmailAndPassword(auth, document.getElementById('login-email').value, document.getElementById('login-password').value);
-    } catch(e) { showError('login-error', e.message); }
+      await signInWithEmailAndPassword(auth,
+        document.getElementById('login-email').value,
+        document.getElementById('login-password').value);
+    } catch(e) {
+      showError('login-error', e.message);
+      setLoading('login-btn', false);
+    }
   }
+
   async function doSignup() {
     const { auth, createUserWithEmailAndPassword } = window._fb;
+    hideError('signup-error');
+    setLoading('signup-btn', true);
     try {
-      await createUserWithEmailAndPassword(auth, document.getElementById('signup-email').value, document.getElementById('signup-password').value);
-    } catch(e) { showError('signup-error', e.message); }
-  }
-  function showError(id, msg) {
-    const el = document.getElementById(id);
-    el.textContent = msg; el.style.display = 'block';
+      await createUserWithEmailAndPassword(auth,
+        document.getElementById('signup-email').value,
+        document.getElementById('signup-password').value);
+    } catch(e) {
+      showError('signup-error', e.message);
+      setLoading('signup-btn', false);
+    }
   }
 
   async function saveUsername() {
     const { auth, db, ref, set, get } = window._fb;
-    const username = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
-    if (!username || username.length < 2) { showError('username-error','Min 2 characters'); return; }
-    const snap = await get(ref(db, `usernames/${username}`));
-    if (snap.exists()) { showError('username-error','Username already taken!'); return; }
+    hideError('username-error');
+    const raw = document.getElementById('username-input').value.trim().toLowerCase();
+    const username = raw.replace(/[^a-z0-9-]/g, '');
+
+    if (!username || username.length < 2) {
+      showError('username-error', 'Username must be at least 2 characters'); return;
+    }
+    if (username.length > 32) {
+      showError('username-error', 'Username must be 32 characters or less'); return;
+    }
+
+    setLoading('username-btn', true);
+
     try {
+      // Check if taken
+      const snap = await get(ref(db, `usernames/${username}`));
+      if (snap.exists()) {
+        showError('username-error', 'Username already taken! Try another.');
+        setLoading('username-btn', false);
+        return;
+      }
+
       const user = auth.currentUser;
       await set(ref(db, `users/${user.uid}`), { username, email: user.email, createdAt: Date.now() });
       await set(ref(db, `usernames/${username}`), { uid: user.uid });
-      const html = `<!DOCTYPE html>\n<html>\n<head>\n  <title>${username}'s site</title>\n  <style>body{font-family:sans-serif;max-width:600px;margin:80px auto;padding:0 20px}h1{color:#7c6aff}</style>\n</head>\n<body>\n  <h1>Welcome to ${username}.htmltools.me!</h1>\n  <p>Edit this file in your dashboard to get started.</p>\n</body>\n</html>`;
-      await set(ref(db, `sites/${username}/files/index.html`), { content: html, type: 'text/html', size: html.length, updatedAt: Date.now() });
+
+      // Auto-create index.html and not_found.html
+      await saveFileToDb(username, 'index.html', defaultIndexHtml(username), 'text/html');
+      await saveFileToDb(username, 'not_found.html', defaultNotFoundHtml(username), 'text/html');
+
       showDashboard(username);
-    } catch(e) { showError('username-error', e.message); }
+    } catch(e) {
+      console.error('saveUsername error:', e);
+      showError('username-error', e.message);
+      setLoading('username-btn', false);
+    }
   }
 
   async function doSignOut() {
     await window._fb.signOut(window._fb.auth);
   }
 
-  async function loadFiles() {
-    const { db, ref, get } = window._fb;
-    const snap = await get(ref(db, `sites/${currentUsername}/files`));
-    allFiles = {};
-    if (snap.exists()) flattenFiles(snap.val(), '', allFiles);
-    renderFileTree();
-    updateStorage();
+  // ── Default file templates ──
+  function defaultIndexHtml(username) {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${username}'s site</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0d0d0f; color: #e8e8f0; text-align: center; }
+    .box { max-width: 500px; padding: 40px 20px; }
+    h1 { font-size: 2rem; margin-bottom: 12px; color: #7c6aff; }
+    p { color: #8888a0; line-height: 1.6; }
+    a { color: #7c6aff; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>👋 Welcome to ${username}.htmltools.me!</h1>
+    <p>Edit this file in your <a href="https://htmltools.me/dashboard">dashboard</a> to get started.</p>
+  </div>
+</body>
+</html>`;
   }
 
-  function flattenFiles(obj, prefix, result) {
-    for (const key of Object.keys(obj)) {
-      const val = obj[key];
-      const path = prefix ? `${prefix}/${key}` : key;
-      if (val && typeof val === 'object' && val.content !== undefined) {
-        result[path] = val;
-      } else if (val && typeof val === 'object') {
-        flattenFiles(val, path, result);
+  function defaultNotFoundHtml(username) {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — Not Found</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0d0d0f; color: #e8e8f0; text-align: center; }
+    .box { max-width: 480px; padding: 40px 20px; }
+    .code { font-size: 6rem; font-weight: 900; color: #7c6aff; opacity: 0.3; line-height: 1; }
+    h1 { font-size: 1.4rem; margin: 12px 0 8px; }
+    p { color: #8888a0; margin-bottom: 24px; }
+    a { color: #7c6aff; text-decoration: none; border: 1px solid #7c6aff44; padding: 8px 20px; border-radius: 8px; font-size: 13px; }
+    a:hover { background: #7c6aff22; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="code">404</div>
+    <h1>Page not found</h1>
+    <p>This page doesn't exist on <strong>${username}.htmltools.me</strong></p>
+    <a href="/">← Go home</a>
+  </div>
+</body>
+</html>`;
+  }
+
+  // ── Core DB save/read ──
+  async function saveFileToDb(username, filePath, content, type) {
+    const { db, ref, set } = window._fb;
+    const key = encodeKey(filePath);
+    const size = new Blob([content]).size;
+    await set(ref(db, `sites/${username}/files/${key}`), {
+      content,
+      type: type || getContentType(filePath),
+      size,
+      path: filePath, // store original path too
+      updatedAt: Date.now()
+    });
+    return size;
+  }
+
+  // ── Load files ──
+  async function loadFiles() {
+    const { db, ref, get } = window._fb;
+    try {
+      const snap = await get(ref(db, `sites/${currentUsername}/files`));
+      allFiles = {};
+      if (snap.exists()) {
+        const data = snap.val();
+        for (const [encodedKey, val] of Object.entries(data)) {
+          if (val && typeof val === 'object' && val.content !== undefined) {
+            // Use stored path if available, otherwise decode the key
+            const realPath = val.path || decodeKey(encodedKey);
+            allFiles[realPath] = val;
+          }
+        }
       }
+      renderFileTree();
+      updateStorage();
+    } catch(e) {
+      console.error('loadFiles error:', e);
+      toast('Failed to load files: ' + e.message, 'error');
     }
   }
 
   function renderFileTree() {
     const tree = document.getElementById('file-tree');
-    const paths = Object.keys(allFiles);
-    document.getElementById('file-count').textContent = `${paths.length} file${paths.length!==1?'s':''}`;
-    if (!paths.length) { tree.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;padding:24px 8px">No files yet</div>'; return; }
+    const paths = Object.keys(allFiles).sort();
+    document.getElementById('file-count').textContent = `${paths.length} file${paths.length !== 1 ? 's' : ''}`;
 
-    const folders = {}, rootFiles = [];
+    if (!paths.length) {
+      tree.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;padding:24px 8px">No files yet</div>';
+      return;
+    }
+
+    const folders = {};
+    const rootFiles = [];
+
     for (const path of paths) {
       const parts = path.split('/');
-      if (parts.length === 1) rootFiles.push(path);
-      else { const f = parts[0]; if (!folders[f]) folders[f]=[]; folders[f].push(path); }
+      if (parts.length === 1) {
+        rootFiles.push(path);
+      } else {
+        const folder = parts[0];
+        if (!folders[folder]) folders[folder] = [];
+        folders[folder].push(path);
+      }
     }
 
     let html = '';
     for (const p of rootFiles) html += fileItemHTML(p);
-    for (const folder of Object.keys(folders)) {
-      const id = 'fd_' + folder.replace(/\W/g,'_');
-      html += `<div class="tree-item" onclick="toggleFolder('${id}')"><span>📁</span><span class="name">${folder}</span></div>
+    for (const folder of Object.keys(folders).sort()) {
+      const id = 'fd_' + btoa(folder).replace(/[^a-z0-9]/gi, '_');
+      html += `<div class="tree-item" onclick="toggleFolder('${id}')">
+        <span>📁</span><span class="name">${folder}/</span>
+      </div>
       <div class="tree-children" id="${id}">`;
-      for (const p of folders[folder]) html += fileItemHTML(p);
+      for (const p of folders[folder]) html += fileItemHTML(p, true);
       html += '</div>';
     }
     tree.innerHTML = html;
   }
 
-  function fileItemHTML(path) {
+  function fileItemHTML(path, indented = false) {
     const name = path.split('/').pop();
-    const icon = path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)?'🖼':path.endsWith('.css')?'🎨':path.endsWith('.js')?'⚡':'📄';
-    return `<div class="tree-item" onclick="openFile('${path}')" data-path="${path}">
-      <span>${icon}</span><span class="name">${name}</span>
-      <div class="actions"><button class="tree-action" onclick="event.stopPropagation();deleteFile('${path}')">✕</button></div>
+    const icon = path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i) ? '🖼' :
+                 path.endsWith('.css') ? '🎨' :
+                 path.endsWith('.js') ? '⚡' :
+                 path.endsWith('.html') ? '📄' : '📝';
+    const safePath = path.replace(/'/g, "\\'");
+    return `<div class="tree-item" onclick="openFile('${safePath}')" data-path="${path}">
+      <span>${icon}</span>
+      <span class="name">${name}</span>
+      <div class="actions">
+        <button class="tree-action" onclick="event.stopPropagation();deleteFile('${safePath}')">✕</button>
+      </div>
     </div>`;
   }
 
   function toggleFolder(id) {
     const el = document.getElementById(id);
-    if (el) el.style.display = el.style.display==='none'?'block':'none';
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
   }
 
   function updateStorage() {
     let total = 0;
-    for (const f of Object.values(allFiles)) total += (f.size||0);
-    const kb = (total/1024).toFixed(1), mb = (total/1024/1024).toFixed(2);
-    const pct = Math.min((total/(1*1024*1024*1024))*100,100).toFixed(2);
-    document.getElementById('storage-text').textContent = total>1048576?`${mb} MB / 1 GB`:`${kb} KB / 1 GB`;
+    for (const f of Object.values(allFiles)) total += (f.size || 0);
+    const kb = (total / 1024).toFixed(1);
+    const mb = (total / 1024 / 1024).toFixed(2);
+    const pct = Math.min((total / MAX_STORAGE) * 100, 100).toFixed(1);
+    document.getElementById('storage-text').textContent =
+      total > 1048576 ? `${mb} MB / 100 MB` : `${kb} KB / 100 MB`;
     const fill = document.getElementById('storage-fill');
-    fill.style.width = pct+'%';
-    fill.classList.toggle('warn', parseFloat(pct)>80);
+    fill.style.width = pct + '%';
+    fill.className = 'storage-fill' + (parseFloat(pct) > 90 ? ' danger' : parseFloat(pct) > 70 ? ' warn' : '');
   }
 
+  function getTotalStorage() {
+    let total = 0;
+    for (const f of Object.values(allFiles)) total += (f.size || 0);
+    return total;
+  }
+
+  // ── Editor ──
   function initEditor() {
     if (editor) return;
     editor = CodeMirror(document.getElementById('editor-wrapper'), {
-      mode: 'htmlmixed', theme: 'material-darker', lineNumbers: true,
-      autoCloseTags: true, matchBrackets: true, indentUnit: 2, tabSize: 2, lineWrapping: true,
+      mode: 'htmlmixed',
+      theme: 'material-darker',
+      lineNumbers: true,
+      autoCloseTags: true,
+      matchBrackets: true,
+      indentUnit: 2,
+      tabSize: 2,
+      lineWrapping: true,
       extraKeys: { 'Ctrl-S': saveFile, 'Cmd-S': saveFile }
     });
   }
@@ -462,151 +661,238 @@
     if (ti) ti.classList.add('active');
 
     const file = allFiles[path];
-    if (!file) return;
-    const isImage = path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i);
+    if (!file) { toast('File not found', 'error'); return; }
 
+    const isImage = path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i);
     document.getElementById('empty-state').style.display = 'none';
-    document.getElementById('editor-container').style.display = isImage?'none':'flex';
-    document.getElementById('image-preview').style.display = isImage?'flex':'none';
+    document.getElementById('editor-container').style.display = isImage ? 'none' : 'flex';
+    document.getElementById('image-preview').style.display = isImage ? 'flex' : 'none';
 
     if (isImage) {
       document.getElementById('preview-img').src = file.content;
-      document.getElementById('image-info').textContent = `${path} — ${(file.size/1024).toFixed(1)} KB`;
-      activeTab = path; renderTabs(); return;
+      document.getElementById('image-info').textContent = `${path} — ${(file.size / 1024).toFixed(1)} KB`;
+      activeTab = path;
+      addTab(path);
+      return;
     }
 
-    let tab = openTabs.find(t=>t.path===path);
-    if (!tab) { tab = { path, content: file.content||'', dirty: false }; openTabs.push(tab); }
+    addTab(path);
     activeTab = path;
     initEditor();
-    editor.setValue(tab.content);
-    editor.setOption('mode', path.endsWith('.css')?'css':path.endsWith('.js')?'javascript':'htmlmixed');
+    editor.setValue(file.content || '');
+    editor.setOption('mode',
+      path.endsWith('.css') ? 'css' :
+      path.endsWith('.js') ? 'javascript' : 'htmlmixed');
+    editor.off('change');
     editor.on('change', () => {
-      const t = openTabs.find(t=>t.path===activeTab);
-      if (t && !t.dirty) { t.dirty=true; renderTabs(); }
+      const t = openTabs.find(t => t.path === activeTab);
+      if (t && !t.dirty) { t.dirty = true; renderTabs(); }
     });
     document.getElementById('current-filename').textContent = path;
     renderTabs();
-    setTimeout(() => editor.refresh(), 10);
+    setTimeout(() => editor.refresh(), 20);
+  }
+
+  function addTab(path) {
+    if (!openTabs.find(t => t.path === path)) {
+      openTabs.push({ path, dirty: false });
+    }
+    activeTab = path;
+    renderTabs();
   }
 
   function renderTabs() {
     document.getElementById('editor-tabs').innerHTML = openTabs.map(t =>
-      `<div class="editor-tab ${t.path===activeTab?'active':''}" onclick="openFile('${t.path}')">
-        ${t.path.split('/').pop()}${t.dirty?' •':''}
-        <span class="close" onclick="event.stopPropagation();closeTab('${t.path}')">×</span>
+      `<div class="editor-tab ${t.path === activeTab ? 'active' : ''}" onclick="openFile('${t.path.replace(/'/g,"\\'")}')">
+        ${t.path.split('/').pop()}${t.dirty ? ' •' : ''}
+        <span class="close" onclick="event.stopPropagation();closeTab('${t.path.replace(/'/g,"\\'")}')">×</span>
       </div>`).join('');
   }
 
   function closeTab(path) {
-    openTabs = openTabs.filter(t=>t.path!==path);
-    if (activeTab===path) {
-      activeTab = openTabs.length?openTabs[openTabs.length-1].path:null;
+    openTabs = openTabs.filter(t => t.path !== path);
+    if (activeTab === path) {
+      activeTab = openTabs.length ? openTabs[openTabs.length - 1].path : null;
       if (activeTab) openFile(activeTab);
       else {
-        document.getElementById('empty-state').style.display='flex';
-        document.getElementById('editor-container').style.display='none';
-        document.getElementById('image-preview').style.display='none';
+        document.getElementById('empty-state').style.display = 'flex';
+        document.getElementById('editor-container').style.display = 'none';
+        document.getElementById('image-preview').style.display = 'none';
       }
     }
     renderTabs();
   }
 
+  // ── Save ──
   async function saveFile() {
-    if (!activeTab||!editor) return;
-    const { db, ref, set } = window._fb;
+    if (!activeTab || !editor) return;
     const content = editor.getValue();
+    setLoading('save-btn', true);
     try {
-      await set(ref(db, `sites/${currentUsername}/files/${activeTab}`), {
-        content, type: getContentType(activeTab), size: new Blob([content]).size, updatedAt: Date.now()
-      });
-      allFiles[activeTab] = { ...allFiles[activeTab], content, size: new Blob([content]).size };
-      const tab = openTabs.find(t=>t.path===activeTab);
-      if (tab) { tab.content=content; tab.dirty=false; }
-      renderTabs(); updateStorage();
+      const size = await saveFileToDb(currentUsername, activeTab, content, getContentType(activeTab));
+      allFiles[activeTab] = { ...allFiles[activeTab], content, size };
+      const tab = openTabs.find(t => t.path === activeTab);
+      if (tab) { tab.dirty = false; }
+      renderTabs();
+      updateStorage();
       toast('✓ Saved!');
-    } catch(e) { toast('Save failed: '+e.message,'error'); }
+    } catch(e) {
+      console.error('Save error:', e);
+      toast('Save failed: ' + e.message, 'error');
+    }
+    setLoading('save-btn', false);
   }
 
   function getContentType(path) {
-    return path.endsWith('.css')?'text/css':path.endsWith('.js')?'application/javascript':'text/html';
+    if (path.endsWith('.css')) return 'text/css';
+    if (path.endsWith('.js')) return 'application/javascript';
+    if (path.endsWith('.json')) return 'application/json';
+    return 'text/html';
   }
 
   function previewFile() {
-    if (activeTab) window.open(`https://${currentUsername}.htmltools.me/${activeTab}`,'_blank');
+    if (activeTab) window.open(`https://${currentUsername}.htmltools.me/${activeTab}`, '_blank');
   }
 
+  // ── Delete ──
   async function deleteFile(path) {
-    if (!confirm(`Delete ${path}?`)) return;
+    if (!confirm(`Delete "${path}"? This cannot be undone.`)) return;
     const { db, ref, remove } = window._fb;
     try {
-      await remove(ref(db, `sites/${currentUsername}/files/${path}`));
-      delete allFiles[path]; closeTab(path); renderFileTree(); updateStorage();
+      const key = encodeKey(path);
+      await remove(ref(db, `sites/${currentUsername}/files/${key}`));
+      delete allFiles[path];
+      closeTab(path);
+      renderFileTree();
+      updateStorage();
       toast('File deleted');
-    } catch(e) { toast('Delete failed','error'); }
-  }
-
-  async function handleUpload(event) {
-    const { db, ref, set } = window._fb;
-    const files = Array.from(event.target.files);
-    for (const file of files) {
-      let content;
-      if (file.type.startsWith('image/')) {
-        content = await new Promise((res,rej) => {
-          const r = new FileReader();
-          r.onload = ()=>res(r.result); r.onerror=rej; r.readAsDataURL(file);
-        });
-      } else { content = await file.text(); }
-      await set(ref(db, `sites/${currentUsername}/files/${file.name}`), {
-        content, type: file.type||getContentType(file.name), size: file.size, updatedAt: Date.now()
-      });
-      allFiles[file.name] = { content, type: file.type, size: file.size };
+    } catch(e) {
+      console.error('Delete error:', e);
+      toast('Delete failed: ' + e.message, 'error');
     }
-    renderFileTree(); updateStorage();
-    toast(`✓ Uploaded ${files.length} file(s)`);
-    event.target.value='';
   }
 
+  // ── Upload ──
+  async function handleUpload(event) {
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
+
+    // Check storage
+    const currentUsed = getTotalStorage();
+    let willAdd = 0;
+    for (const f of files) willAdd += f.size;
+    if (currentUsed + willAdd > MAX_STORAGE) {
+      toast(`Not enough storage! You have ${((MAX_STORAGE - currentUsed)/1024/1024).toFixed(1)} MB left.`, 'error');
+      event.target.value = '';
+      return;
+    }
+
+    toast('Uploading...');
+    let uploaded = 0;
+    for (const file of files) {
+      try {
+        let content;
+        if (file.type.startsWith('image/')) {
+          content = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+        } else {
+          content = await file.text();
+        }
+        await saveFileToDb(currentUsername, file.name, content, file.type || getContentType(file.name));
+        allFiles[file.name] = { content, type: file.type, size: file.size, path: file.name };
+        uploaded++;
+      } catch(e) {
+        console.error('Upload error for', file.name, e);
+        toast(`Failed to upload ${file.name}: ${e.message}`, 'error');
+      }
+    }
+
+    renderFileTree();
+    updateStorage();
+    if (uploaded > 0) toast(`✓ Uploaded ${uploaded} file${uploaded !== 1 ? 's' : ''}`);
+    event.target.value = '';
+  }
+
+  // ── New file ──
   function openNewFileModal() {
+    document.getElementById('new-file-name').value = '';
+    hideError('new-file-error');
     document.getElementById('new-file-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('new-file-name').focus(),100);
+    setTimeout(() => document.getElementById('new-file-name').focus(), 100);
   }
+
   function openNewFolderModal() {
+    document.getElementById('new-folder-name').value = '';
+    hideError('new-folder-error');
     document.getElementById('new-folder-modal').classList.add('open');
-    setTimeout(()=>document.getElementById('new-folder-name').focus(),100);
+    setTimeout(() => document.getElementById('new-folder-name').focus(), 100);
   }
+
   function closeModals() {
-    document.querySelectorAll('.modal-backdrop').forEach(m=>m.classList.remove('open'));
+    document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
   }
 
   async function createNewFile() {
-    const { db, ref, set } = window._fb;
+    hideError('new-file-error');
     const name = document.getElementById('new-file-name').value.trim();
-    if (!name) return;
-    const content = name.endsWith('.html')?`<!DOCTYPE html>\n<html>\n<head><title>New Page</title></head>\n<body>\n  <h1>New Page</h1>\n</body>\n</html>`:'';
-    await set(ref(db, `sites/${currentUsername}/files/${name}`), { content, type: getContentType(name), size: content.length, updatedAt: Date.now() });
-    allFiles[name] = { content, type: getContentType(name), size: content.length };
-    renderFileTree(); updateStorage(); closeModals(); openFile(name);
-    toast(`✓ Created ${name}`);
+    if (!name) { showError('new-file-error', 'Please enter a file name'); return; }
+    if (!name.includes('.')) { showError('new-file-error', 'File must have an extension (e.g. .html)'); return; }
+
+    setLoading('create-file-btn', true);
+    try {
+      const content = name.endsWith('.html')
+        ? `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>New Page</title>\n</head>\n<body>\n  <h1>New Page</h1>\n</body>\n</html>`
+        : name.endsWith('.css') ? `/* ${name} */\n`
+        : name.endsWith('.js') ? `// ${name}\n`
+        : '';
+
+      await saveFileToDb(currentUsername, name, content, getContentType(name));
+      allFiles[name] = { content, type: getContentType(name), size: new Blob([content]).size, path: name };
+      renderFileTree();
+      updateStorage();
+      closeModals();
+      openFile(name);
+      toast(`✓ Created ${name}`);
+    } catch(e) {
+      console.error('Create file error:', e);
+      showError('new-file-error', e.message);
+    }
+    setLoading('create-file-btn', false);
   }
 
   async function createNewFolder() {
-    const { db, ref, set } = window._fb;
-    const name = document.getElementById('new-folder-name').value.trim();
-    if (!name) return;
-    const path = `${name}/index.html`;
-    const content = `<!DOCTYPE html>\n<html>\n<head><title>${name}</title></head>\n<body>\n  <h1>${name}</h1>\n</body>\n</html>`;
-    await set(ref(db, `sites/${currentUsername}/files/${path}`), { content, type: 'text/html', size: content.length, updatedAt: Date.now() });
-    allFiles[path] = { content, type: 'text/html', size: content.length };
-    renderFileTree(); updateStorage(); closeModals();
-    toast(`✓ Created folder ${name}/`);
+    hideError('new-folder-error');
+    const name = document.getElementById('new-folder-name').value.trim().replace(/[^a-z0-9-_]/gi, '-');
+    if (!name) { showError('new-folder-error', 'Please enter a folder name'); return; }
+
+    setLoading('create-folder-btn', true);
+    try {
+      const path = `${name}/index.html`;
+      const content = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  <h1>${name}</h1>\n</body>\n</html>`;
+      await saveFileToDb(currentUsername, path, content, 'text/html');
+      allFiles[path] = { content, type: 'text/html', size: new Blob([content]).size, path };
+      renderFileTree();
+      updateStorage();
+      closeModals();
+      openFile(path);
+      toast(`✓ Created folder ${name}/`);
+    } catch(e) {
+      console.error('Create folder error:', e);
+      showError('new-folder-error', e.message);
+    }
+    setLoading('create-folder-btn', false);
   }
 
+  // ── Events ──
   document.querySelectorAll('.modal-backdrop').forEach(el =>
-    el.addEventListener('click', e => { if(e.target===el) closeModals(); }));
+    el.addEventListener('click', e => { if (e.target === el) closeModals(); }));
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey||e.metaKey)&&e.key==='s') { e.preventDefault(); saveFile(); }
-    if (e.key==='Escape') closeModals();
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveFile(); }
+    if (e.key === 'Escape') closeModals();
   });
 </script>
 </body>
