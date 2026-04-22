@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sitelaunch - HTMLTools</title>
-  <link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+<link rel="icon" type="image/png" href="/logo3.png?v=2"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
@@ -25,7 +25,6 @@
   } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
   import { getDatabase, ref, set, get, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-  // ── Single project for everything ──
   const firebaseConfig = {
     apiKey: "AIzaSyDJR71PzrgQans3qOc0N1mI2vD4wFg1iV4",
     authDomain: "htmltools-website-hoster.firebaseapp.com",
@@ -45,16 +44,7 @@
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       try {
-        // Check our own verified flag (set by Cloudflare Worker after link click)
-        const [verifiedSnap, userSnap] = await Promise.all([
-          get(ref(db, `userVerified/${user.uid}`)),
-          get(ref(db, `users/${user.uid}`))
-        ]);
-        const isVerified = verifiedSnap.exists() && verifiedSnap.val().verified === true;
-        if (!isVerified) {
-          showVerifyEmail(user.email);
-          return;
-        }
+        const userSnap = await get(ref(db, `users/${user.uid}`));
         if (userSnap.exists()) {
           showDashboard(userSnap.val().username);
         } else {
@@ -101,105 +91,6 @@
   .btn-danger { background: transparent; color: var(--red); border: 1px solid #f8717133; font-size: 11px; padding: 6px 12px; }
   .btn-danger:hover { background: #f8717111; }
   .auth-error { color: var(--red); font-size: 11px; margin-top: 12px; display: none; background: #f8717122; padding: 8px 12px; border-radius: 6px; border: 1px solid #f8717144; }
-
-  /* ── VERIFY EMAIL SCREEN ── */
-  #verify-screen {
-    display: none; align-items: center; justify-content: center; min-height: 100vh;
-    background: radial-gradient(ellipse at 60% 40%, #0d1a2e 0%, var(--bg) 65%);
-  }
-  .verify-box {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 48px; width: 440px; max-width: 95vw; text-align: center;
-    animation: fadeUp 0.4s cubic-bezier(0.34,1.2,0.64,1) both;
-  }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  /* Animated envelope */
-  .envelope-wrap {
-    position: relative; width: 80px; height: 80px;
-    margin: 0 auto 28px; display: flex; align-items: center; justify-content: center;
-  }
-  .envelope-glow {
-    position: absolute; inset: -12px; border-radius: 50%;
-    background: radial-gradient(circle, #7c6aff22 0%, transparent 70%);
-    animation: pulse-glow 2.5s ease-in-out infinite;
-  }
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.5; transform: scale(1); }
-    50%       { opacity: 1;   transform: scale(1.15); }
-  }
-  .envelope-icon {
-    font-size: 44px; position: relative; z-index: 1;
-    animation: float 3s ease-in-out infinite;
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-6px); }
-  }
-
-  .verify-title {
-    font-family: var(--font-display); font-size: 22px; font-weight: 800;
-    margin-bottom: 10px; color: var(--text);
-  }
-  .verify-subtitle {
-    font-size: 12px; color: var(--text2); line-height: 1.7; margin-bottom: 8px;
-  }
-  .verify-email-badge {
-    display: inline-block; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 20px; padding: 5px 14px; font-size: 12px; color: var(--accent);
-    margin-bottom: 28px;
-  }
-
-  /* Progress dots */
-  .verify-steps {
-    display: flex; align-items: center; justify-content: center;
-    gap: 0; margin-bottom: 28px;
-  }
-  .vstep {
-    display: flex; flex-direction: column; align-items: center; gap: 6px;
-    font-size: 10px; color: var(--text3);
-  }
-  .vstep-dot {
-    width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border);
-    display: flex; align-items: center; justify-content: center; font-size: 11px;
-    background: var(--surface2);
-  }
-  .vstep.done .vstep-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .vstep.active .vstep-dot {
-    border-color: var(--accent); color: var(--accent); background: transparent;
-    box-shadow: 0 0 0 3px #7c6aff22;
-    animation: step-pulse 1.5s ease-in-out infinite;
-  }
-  @keyframes step-pulse {
-    0%, 100% { box-shadow: 0 0 0 3px #7c6aff22; }
-    50%       { box-shadow: 0 0 0 6px #7c6aff11; }
-  }
-  .vstep-line { width: 40px; height: 1px; background: var(--border); margin-bottom: 20px; flex-shrink: 0; }
-  .vstep-line.done { background: var(--accent); }
-
-  .verify-actions { display: flex; flex-direction: column; gap: 10px; }
-  .verify-actions .btn { width: 100%; justify-content: center; }
-
-  .resend-timer { font-size: 10px; color: var(--text3); margin-top: 4px; min-height: 16px; }
-  .verify-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
-
-  /* checking state */
-  .checking-bar {
-    height: 2px; background: var(--surface3); border-radius: 1px;
-    margin-top: 16px; overflow: hidden; display: none;
-  }
-  .checking-bar.active { display: block; }
-  .checking-fill {
-    height: 100%; width: 30%; background: var(--accent);
-    border-radius: 1px; animation: slide 1.2s ease-in-out infinite;
-  }
-  @keyframes slide {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(400%); }
-  }
 
   /* USERNAME */
   #username-screen { display: none; align-items: center; justify-content: center; min-height: 100vh; background: radial-gradient(ellipse at 70% 50%, #1a1040 0%, var(--bg) 60%); }
@@ -312,56 +203,6 @@
       <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="min 6 characters" onkeydown="if(event.key==='Enter')doSignup()"></div>
       <button class="btn btn-primary" id="signup-btn" onclick="doSignup()">Create Account →</button>
       <div class="auth-error" id="signup-error"></div>
-    </div>
-  </div>
-</div>
-
-<!-- VERIFY EMAIL -->
-<div id="verify-screen">
-  <div class="verify-box">
-    <div class="envelope-wrap">
-      <div class="envelope-glow"></div>
-      <div class="envelope-icon">📬</div>
-    </div>
-
-    <div class="verify-title">Check your inbox</div>
-    <div class="verify-subtitle">We sent a verification link to</div>
-    <div class="verify-email-badge" id="verify-email-badge">you@example.com</div>
-
-    <!-- Steps -->
-    <div class="verify-steps">
-      <div class="vstep done">
-        <div class="vstep-dot">✓</div>
-        <span>Account</span>
-      </div>
-      <div class="vstep-line done"></div>
-      <div class="vstep active">
-        <div class="vstep-dot">✉</div>
-        <span>Verify</span>
-      </div>
-      <div class="vstep-line"></div>
-      <div class="vstep">
-        <div class="vstep-dot">3</div>
-        <span>Done</span>
-      </div>
-    </div>
-
-    <div class="verify-actions">
-      <button class="btn btn-primary" id="check-verified-btn" onclick="checkVerified()">
-        ✓ I've verified my email
-      </button>
-      <div class="checking-bar" id="checking-bar"><div class="checking-fill"></div></div>
-
-      <hr class="verify-divider">
-
-      <button class="btn btn-ghost btn-sm" id="resend-btn" onclick="resendVerification()">
-        Resend email
-      </button>
-      <div class="resend-timer" id="resend-timer"></div>
-
-      <button class="btn btn-danger" onclick="doSignOut()">
-        Sign out
-      </button>
     </div>
   </div>
 </div>
@@ -512,40 +353,26 @@
   const MAX_STORAGE = 100 * 1024 * 1024;
   const DASHBOARD_BASE = 'https://htmltools.me/SiteLaunch';
 
-  // ── Key encoding ──
   function encodeKey(path) { return path.replace(/\|/g,'|p|').replace(/\./g,'|d|').replace(/\//g,'|s|'); }
   function decodeKey(key)  { return key.replace(/\|d\|/g,'.').replace(/\|s\|/g,'/').replace(/\|p\|/g,'|'); }
 
-  // ── State ──
   let editor = null, openTabs = [], activeTab = null, currentUsername = null, allFiles = {}, renamingPath = null;
 
-  // ── Screen helpers ──
   function showAuth() {
-    document.getElementById('auth-screen').style.display   = 'flex';
-    document.getElementById('verify-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display    = 'flex';
     document.getElementById('username-screen').style.display = 'none';
-    document.getElementById('dashboard').style.display     = 'none';
-  }
-  function showVerifyEmail(email) {
-    document.getElementById('auth-screen').style.display   = 'none';
-    document.getElementById('verify-screen').style.display = 'flex';
-    document.getElementById('username-screen').style.display = 'none';
-    document.getElementById('dashboard').style.display     = 'none';
-    document.getElementById('verify-email-badge').textContent = email;
-    startResendTimer(60);
+    document.getElementById('dashboard').style.display      = 'none';
   }
   function showUsernameSetup() {
-    document.getElementById('auth-screen').style.display   = 'none';
-    document.getElementById('verify-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display    = 'none';
     document.getElementById('username-screen').style.display = 'flex';
-    document.getElementById('dashboard').style.display     = 'none';
+    document.getElementById('dashboard').style.display      = 'none';
   }
   async function showDashboard(username) {
     currentUsername = username;
-    document.getElementById('auth-screen').style.display   = 'none';
-    document.getElementById('verify-screen').style.display = 'none';
+    document.getElementById('auth-screen').style.display    = 'none';
     document.getElementById('username-screen').style.display = 'none';
-    document.getElementById('dashboard').style.display     = 'block';
+    document.getElementById('dashboard').style.display      = 'block';
     document.getElementById('site-link').textContent = `${username}.htmltools.me`;
     document.getElementById('site-link').href = `https://${username}.htmltools.me`;
     document.getElementById('user-avatar').textContent = username[0].toUpperCase();
@@ -554,82 +381,6 @@
     if (edit && edit.username === username && allFiles[edit.file]) openFile(edit.file);
   }
 
-  // ── Verify email helpers ──
-  let _resendInterval = null;
-  function startResendTimer(seconds) {
-    const btn = document.getElementById('resend-btn');
-    const timerEl = document.getElementById('resend-timer');
-    btn.disabled = true; btn.style.opacity = '0.5';
-    let left = seconds;
-    timerEl.textContent = `Resend available in ${left}s`;
-    clearInterval(_resendInterval);
-    _resendInterval = setInterval(() => {
-      left--;
-      if (left <= 0) {
-        clearInterval(_resendInterval);
-        btn.disabled = false; btn.style.opacity = '1';
-        timerEl.textContent = '';
-      } else {
-        timerEl.textContent = `Resend available in ${left}s`;
-      }
-    }, 1000);
-  }
-
-  async function sendVerificationEmail(uid, email) {
-    const res = await fetch('https://email.htmltools.me', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'send_verification', uid, email })
-    });
-    return res.ok;
-  }
-
-  async function resendVerification() {
-    const user = window._fb.auth.currentUser;
-    if (!user) return;
-    try {
-      const ok = await sendVerificationEmail(user.uid, user.email);
-      if (ok) toast('✓ Verification email resent!');
-      else toast('Failed to resend — try again.', 'error');
-      startResendTimer(60);
-    } catch(e) {
-      toast('Failed to resend: ' + e.message, 'error');
-    }
-  }
-
-  async function checkVerified() {
-    const { auth, db, ref, get } = window._fb;
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const btn = document.getElementById('check-verified-btn');
-    const bar = document.getElementById('checking-bar');
-    btn.disabled = true; btn.textContent = 'Checking…';
-    bar.classList.add('active');
-
-    try {
-      const [verifiedSnap, userSnap] = await Promise.all([
-        get(ref(db, `userVerified/${user.uid}`)),
-        get(ref(db, `users/${user.uid}`))
-      ]);
-      const isVerified = verifiedSnap.exists() && verifiedSnap.val().verified === true;
-      bar.classList.remove('active');
-      if (isVerified) {
-        toast('✓ Email verified! Welcome aboard.');
-        if (userSnap.exists()) showDashboard(userSnap.val().username);
-        else showUsernameSetup();
-      } else {
-        btn.disabled = false; btn.textContent = '✓ I\'ve verified my email';
-        toast('Not verified yet — click the link in your email.', 'error');
-      }
-    } catch(e) {
-      bar.classList.remove('active');
-      btn.disabled = false; btn.textContent = '✓ I\'ve verified my email';
-      toast('Error: ' + e.message, 'error');
-    }
-  }
-
-  // ── URL routing ──
   function parseEditUrl() {
     const path = window.location.pathname;
     const match = path.match(/\/SiteLaunch\/edit\/([^\/]+)\/(.+)/);
@@ -647,7 +398,6 @@
     document.title = `${filePath} — htmltools.me`;
   }
 
-  // ── Toast ──
   function toast(msg, type='success') {
     const el = document.getElementById('toast');
     el.textContent = msg; el.className = `show ${type}`;
@@ -663,7 +413,6 @@
   }
   function updatePreview() { document.getElementById('username-preview').textContent=`${document.getElementById('username-input').value||'username'}.htmltools.me`; }
 
-  // ── Friendly error messages ──
   function friendlyError(code) {
     const map = {
       'auth/email-already-in-use':    'An account with this email already exists. Try signing in instead.',
@@ -675,12 +424,10 @@
       'auth/too-many-requests':       'Too many attempts. Please wait a moment and try again.',
       'auth/network-request-failed':  'Network error. Check your connection and try again.',
       'auth/user-disabled':           'This account has been disabled. Contact support.',
-      'auth/popup-closed-by-user':    'Sign-in popup was closed before completing.',
     };
     return map[code] || 'Something went wrong. Please try again.';
   }
 
-  // ── Auth ──
   async function doLogin() {
     const { auth, signInWithEmailAndPassword } = window._fb;
     hideError('login-error'); setLoading('login-btn', true);
@@ -693,12 +440,10 @@
     const { auth, createUserWithEmailAndPassword } = window._fb;
     hideError('signup-error'); setLoading('signup-btn', true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth,
+      await createUserWithEmailAndPassword(auth,
         document.getElementById('signup-email').value,
         document.getElementById('signup-password').value);
-      // Send verification email via Cloudflare Worker (noreply@htmltools.me)
-      await sendVerificationEmail(cred.user.uid, cred.user.email);
-      showVerifyEmail(cred.user.email);
+      // onAuthStateChanged will handle the rest
     } catch(e) { showError('signup-error', friendlyError(e.code)); setLoading('signup-btn', false); }
   }
 
@@ -723,11 +468,9 @@
     } catch(e) { showError('username-error', e.message); setLoading('username-btn', false); }
   }
 
-  // ── Templates ──
   function defaultIndexHtml(u) { return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>${u}'s site</title>\n  <style>\n    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0d0d0f; color: #e8e8f0; text-align: center; margin: 0; }\n    h1 { color: #7c6aff; margin-bottom: 12px; }\n    p { color: #8888a0; }\n    a { color: #7c6aff; }\n  </style>\n</head>\n<body>\n  <div>\n    <h1>👋 Welcome to ${u}.htmltools.me!</h1>\n    <p>Edit this file in your <a href="https://htmltools.me/SiteLaunch">dashboard</a>.</p>\n  </div>\n</body>\n</html>`; }
   function defaultNotFoundHtml(u) { return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>404 — Not Found</title>\n  <style>\n    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0d0d0f; color: #e8e8f0; text-align: center; margin: 0; }\n    .code { font-size: 6rem; font-weight: 900; color: #7c6aff; opacity: 0.3; line-height: 1; }\n    h1 { margin: 12px 0 8px; }\n    p { color: #8888a0; margin-bottom: 24px; }\n    a { color: #7c6aff; text-decoration: none; border: 1px solid #7c6aff44; padding: 8px 20px; border-radius: 8px; }\n  </style>\n</head>\n<body>\n  <div>\n    <div class="code">404</div>\n    <h1>Page not found</h1>\n    <p>This page doesn't exist on <strong>${u}.htmltools.me</strong></p>\n    <a href="/">← Go home</a>\n  </div>\n</body>\n</html>`; }
 
-  // ── DB helpers ──
   async function saveFileToDb(username, filePath, content, type) {
     const { db, ref, set } = window._fb;
     const size = new Blob([content]).size;
@@ -739,7 +482,6 @@
     await remove(ref(db, `sites/${username}/files/${encodeKey(filePath)}`));
   }
 
-  // ── Load files ──
   async function loadFiles() {
     const { db, ref, get } = window._fb;
     try {
@@ -757,7 +499,6 @@
     } catch(e) { toast('Failed to load files: ' + e.message, 'error'); }
   }
 
-  // ── File tree ──
   function renderFileTree() {
     const tree = document.getElementById('file-tree');
     const paths = Object.keys(allFiles).sort();
@@ -790,7 +531,6 @@
     fill.className='storage-fill'+(parseFloat(pct)>90?' danger':parseFloat(pct)>70?' warn':'');
   }
 
-  // ── Editor ──
   function initEditor() {
     if (editor) return;
     editor = CodeMirror(document.getElementById('editor-wrapper'), { mode:'htmlmixed', theme:'material-darker', lineNumbers:true, autoCloseTags:true, matchBrackets:true, indentUnit:2, tabSize:2, lineWrapping:true, extraKeys:{'Ctrl-S':saveFile,'Cmd-S':saveFile} });
@@ -822,7 +562,6 @@
     renderTabs();
   }
 
-  // ── Save ──
   async function saveFile() {
     if(!activeTab||!editor) return;
     setLoading('save-btn',true);
@@ -845,14 +584,12 @@
     window.open(url,'_blank');
   }
 
-  // ── Delete ──
   async function deleteFile(path) {
     if(!confirm(`Delete "${path}"? This cannot be undone.`))return;
     try { await removeFileFromDb(currentUsername,path); delete allFiles[path]; closeTab(path); renderFileTree(); updateStorage(); toast('File deleted'); }
     catch(e){ toast('Delete failed: '+e.message,'error'); }
   }
 
-  // ── Rename ──
   function openRenameModal(path) {
     renamingPath=path; hideError('rename-error');
     const name=path.split('/').pop();
@@ -864,7 +601,7 @@
     if(!renamingPath)return; hideError('rename-error');
     const newName=document.getElementById('rename-input').value.trim();
     if(!newName){showError('rename-error','Please enter a name');return;}
-    if(newName.includes('/')){showError('rename-error',"Can't rename to a different folder — use the name only");return;}
+    if(newName.includes('/')){showError('rename-error',"Can't rename to a different folder");return;}
     const parts=renamingPath.split('/'); parts[parts.length-1]=newName; const newPath=parts.join('/');
     if(newPath===renamingPath){closeModals();return;}
     if(allFiles[newPath]){showError('rename-error','A file with that name already exists');return;}
@@ -881,12 +618,11 @@
     setLoading('rename-btn',false);
   }
 
-  // ── Upload ──
   async function handleUpload(event) {
     const files=Array.from(event.target.files); if(!files.length)return;
     let willAdd=0; for(const f of files) willAdd+=f.size;
     let total=0; for(const f of Object.values(allFiles)) total+=(f.size||0);
-    if(total+willAdd>MAX_STORAGE){ toast(`Not enough storage! ${((MAX_STORAGE-total)/1024/1024).toFixed(1)} MB left.`,'error'); event.target.value=''; return; }
+    if(total+willAdd>MAX_STORAGE){ toast(`Not enough storage!`,'error'); event.target.value=''; return; }
     toast('Uploading…'); let uploaded=0;
     for(const file of files) {
       try {
@@ -903,7 +639,6 @@
     event.target.value='';
   }
 
-  // ── New file/folder ──
   function openNewFileModal(){ document.getElementById('new-file-name').value=''; hideError('new-file-error'); document.getElementById('new-file-modal').classList.add('open'); setTimeout(()=>document.getElementById('new-file-name').focus(),100); }
   function openNewFolderModal(){ document.getElementById('new-folder-name').value=''; hideError('new-folder-error'); document.getElementById('new-folder-modal').classList.add('open'); setTimeout(()=>document.getElementById('new-folder-name').focus(),100); }
   function closeModals(){ document.querySelectorAll('.modal-backdrop').forEach(m=>m.classList.remove('open')); renamingPath=null; }
@@ -939,7 +674,6 @@
     setLoading('create-folder-btn',false);
   }
 
-  // ── Events ──
   document.querySelectorAll('.modal-backdrop').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeModals();}));
   document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveFile();} if(e.key==='Escape')closeModals(); });
   window.addEventListener('popstate',()=>{ const edit=parseEditUrl(); if(edit&&edit.username===currentUsername&&allFiles[edit.file])openFile(edit.file); });
