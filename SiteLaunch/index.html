@@ -1,98 +1,613 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Site Unavailable</title>
-		<link rel="icon" type="image/png" href="/logo3.png?v=2" />
-		<style>
-			* {
-			    margin: 0;
-			    padding: 0;
-			    box-sizing: border-box;
-			    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-			}
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>htmltools.me — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
 
-			body {
-			    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-			    height: 100vh;
-			    display: flex;
-			    align-items: center;
-			    justify-content: center;
-			    color: #333;
-			}
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getDatabase, ref, set, get, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-			.container {
-			    text-align: center;
-			    padding: 3rem;
-			    background: rgba(255, 255, 255, 0.8);
-			    backdrop-filter: blur(10px);
-			    border-radius: 20px;
-			    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-			    max-width: 500px;
-			    width: 90%;
-			}
+  // =============================================
+  // 🔧 REPLACE WITH YOUR FIREBASE CONFIG BELOW
+  // =============================================
+  const firebaseConfig = {
+  apiKey: "AIzaSyDJR71PzrgQans3qOc0N1mI2vD4wFg1iV4",
+  authDomain: "htmltools-website-hoster.firebaseapp.com",
+  databaseURL: "https://htmltools-website-hoster-default-rtdb.firebaseio.com",
+  projectId: "htmltools-website-hoster",
+  storageBucket: "htmltools-website-hoster.firebasestorage.app",
+  messagingSenderId: "234189976540",
+  appId: "1:234189976540:web:4fa38db41cf745ada91519"
+};
 
-			.icon {
-			    font-size: 4rem;
-			    margin-bottom: 1rem;
-			    display: inline-block;
-			}
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
 
-			h1 {
-			    font-size: 1.8rem;
-			    margin-bottom: 1rem;
-			    color: #2c3e50;
-			    font-weight: 600;
-			}
+  window._fb = { auth, db, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, ref, set, get, remove };
 
-			p {
-			    font-size: 1.1rem;
-			    line-height: 1.6;
-			    color: #5a6772;
-			    margin-bottom: 2rem;
-			}
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const snap = await get(ref(db, `users/${user.uid}`));
+      if (snap.exists()) {
+        window._currentUser = { ...user, username: snap.val().username };
+        showDashboard(snap.val().username);
+      } else {
+        showUsernameSetup();
+      }
+    } else {
+      showAuth();
+    }
+  });
+</script>
 
-			.loader {
-			    border: 3px solid #f3f3f3;
-			    border-top: 3px solid #3498db;
-			    border-radius: 50%;
-			    width: 30px;
-			    height: 30px;
-			    animation: spin 2s linear infinite;
-			    margin: 0 auto;
-			}
+<style>
+  :root {
+    --bg: #0d0d0f; --surface: #141416; --surface2: #1a1a1e; --surface3: #222228;
+    --border: #2a2a32; --accent: #7c6aff; --accent2: #ff6a9b;
+    --text: #e8e8f0; --text2: #8888a0; --text3: #555568;
+    --green: #4ade80; --red: #f87171;
+    --font-mono: 'JetBrains Mono', monospace; --font-display: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); min-height: 100vh; }
 
-			@keyframes spin {
-			    0% { transform: rotate(0deg); }
-			    100% { transform: rotate(360deg); }
-			}
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: radial-gradient(ellipse at 30% 50%, #1a1040 0%, var(--bg) 60%); }
+  .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 48px; width: 420px; max-width: 95vw; }
+  .auth-logo { font-family: var(--font-display); font-size: 28px; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .auth-tagline { color: var(--text2); font-size: 12px; margin-bottom: 36px; }
+  .auth-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 4px; margin-bottom: 28px; }
+  .auth-tab { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text2); font-family: var(--font-mono); font-size: 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+  .auth-tab.active { background: var(--surface3); color: var(--text); }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .form-group input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: var(--font-mono); font-size: 13px; outline: none; transition: border-color 0.2s; }
+  .form-group input:focus { border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: none; border-radius: 8px; font-family: var(--font-mono); font-size: 12px; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; justify-content: center; padding: 12px; font-size: 13px; margin-top: 8px; }
+  .btn-primary:hover { background: #6b5ce7; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+  .auth-error { color: var(--red); font-size: 11px; margin-top: 12px; display: none; }
 
-			.status-tag {
-			    display: inline-block;
-			    background: #e1f5fe;
-			    color: #0288d1;
-			    padding: 5px 15px;
-			    border-radius: 50px;
-			    font-size: 0.8rem;
-			    font-weight: bold;
-			    text-transform: uppercase;
-			    letter-spacing: 1px;
-			    margin-top: 1rem;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-			<div class="icon">🛠️</div>
-			<h1>This Website is Currently Unavailable</h1>
-			<p>
-				We’re currently working on an exciting new update to improve
-				your experience. We'll be back online shortly!
-			</p>
+  #username-screen { display: none; align-items: center; justify-content: center; min-height: 100vh; background: radial-gradient(ellipse at 70% 50%, #1a1040 0%, var(--bg) 60%); }
+  #dashboard { display: none; min-height: 100vh; }
 
-			<div class="loader"></div>
-			<div class="status-tag">Maintenance in Progress</div>
-		</div>
-	</body>
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .topbar-logo { font-family: var(--font-display); font-size: 16px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .site-url { font-size: 11px; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; }
+  .site-url a { color: var(--accent); text-decoration: none; }
+  .site-url a:hover { text-decoration: underline; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; cursor: pointer; }
+  .layout { display: flex; height: calc(100vh - 52px); }
+
+  .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .sidebar-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); }
+  .sidebar-actions { display: flex; gap: 6px; }
+  .icon-btn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+  .icon-btn:hover { background: var(--surface2); color: var(--text); }
+  .file-tree { flex: 1; overflow-y: auto; padding: 8px; }
+  .file-tree::-webkit-scrollbar { width: 4px; }
+  .file-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .tree-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text2); transition: all 0.15s; user-select: none; }
+  .tree-item:hover { background: var(--surface2); color: var(--text); }
+  .tree-item.active { background: var(--surface3); color: var(--text); }
+  .tree-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tree-item .actions { display: none; gap: 4px; }
+  .tree-item:hover .actions { display: flex; }
+  .tree-action { font-size: 10px; padding: 2px 5px; border-radius: 4px; border: none; background: var(--surface3); color: var(--text2); cursor: pointer; }
+  .tree-action:hover { color: var(--red); }
+  .tree-children { padding-left: 14px; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .editor-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; min-height: 36px; }
+  .editor-tab { display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 36px; font-size: 11px; color: var(--text2); cursor: pointer; border-right: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; }
+  .editor-tab.active { background: var(--bg); color: var(--text); border-bottom: 2px solid var(--accent); }
+  .editor-tab .close { opacity: 0.4; transition: opacity 0.15s; }
+  .editor-tab:hover .close { opacity: 1; }
+  .editor-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .editor-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .editor-filename { font-size: 11px; color: var(--text2); }
+  .editor-filename span { color: var(--accent); }
+  .editor-buttons { display: flex; gap: 8px; }
+  .CodeMirror { height: 100% !important; font-family: var(--font-mono) !important; font-size: 13px !important; }
+  #editor-wrapper { flex: 1; overflow: hidden; position: relative; }
+  #editor-wrapper .CodeMirror { position: absolute; inset: 0; height: 100% !important; }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text3); gap: 12px; }
+  .empty-state .big-icon { font-size: 48px; opacity: 0.3; }
+  .empty-state p { font-size: 13px; }
+  #image-preview { flex: 1; display: none; align-items: center; justify-content: center; padding: 24px; background: var(--bg); flex-direction: column; gap: 16px; }
+  #image-preview img { max-width: 100%; max-height: calc(100% - 60px); border-radius: 8px; border: 1px solid var(--border); }
+
+  .sidebar-upload { padding: 12px; border-top: 1px solid var(--border); }
+  .upload-zone { border: 1px dashed var(--border); border-radius: 8px; padding: 12px; text-align: center; font-size: 11px; color: var(--text3); cursor: pointer; transition: all 0.2s; display: block; }
+  .upload-zone:hover { border-color: var(--accent); color: var(--accent); background: #7c6aff11; }
+  .upload-zone input { display: none; }
+  .storage-bar { height: 3px; background: var(--surface3); border-radius: 2px; margin-top: 6px; }
+  .storage-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+  .storage-fill.warn { background: var(--red); }
+
+  .modal-backdrop { position: fixed; inset: 0; background: #00000088; backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 1000; display: none; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 380px; max-width: 95vw; }
+  .modal h3 { font-family: var(--font-display); font-size: 16px; margin-bottom: 16px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 12px; color: var(--text); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  .stats-bar { display: flex; gap: 16px; padding: 8px 16px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); flex-shrink: 0; }
+  .stat { display: flex; align-items: center; gap: 4px; }
+  .stat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">htmltools.me</div>
+    <div class="auth-tagline">// your corner of the web</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+    <div id="login-form">
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
+      <button class="btn btn-primary" onclick="doLogin()">Sign In →</button>
+      <div class="auth-error" id="login-error"></div>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="form-group"><label>Email</label><input type="email" id="signup-email" placeholder="you@example.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="min 6 characters"></div>
+      <button class="btn btn-primary" onclick="doSignup()">Create Account →</button>
+      <div class="auth-error" id="signup-error"></div>
+    </div>
+  </div>
+</div>
+
+<div id="username-screen">
+  <div class="auth-box">
+    <div class="auth-logo">Pick your username</div>
+    <div class="auth-tagline">// this becomes your subdomain</div>
+    <div class="form-group" style="margin-top:24px">
+      <label>Username</label>
+      <input type="text" id="username-input" placeholder="snake-game" oninput="updatePreview()">
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:20px">
+      Your site: <span id="username-preview" style="color:var(--accent)">username.htmltools.me</span>
+    </div>
+    <button class="btn btn-primary" onclick="saveUsername()">Claim Subdomain →</button>
+    <div class="auth-error" id="username-error"></div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-logo">htmltools.me</div>
+    <div class="topbar-right">
+      <div class="site-url">🌐 <a id="site-link" href="#" target="_blank">username.htmltools.me</a></div>
+      <div class="avatar" id="user-avatar" title="Sign out" onclick="doSignOut()">?</div>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Files</span>
+        <div class="sidebar-actions">
+          <button class="icon-btn" title="New file" onclick="openNewFileModal()">+</button>
+          <button class="icon-btn" title="New folder" onclick="openNewFolderModal()">📁</button>
+        </div>
+      </div>
+      <div class="file-tree" id="file-tree">
+        <div style="font-size:11px;color:var(--text3);text-align:center;padding:24px 8px">Loading...</div>
+      </div>
+      <div class="sidebar-upload">
+        <label class="upload-zone">
+          <input type="file" id="upload-input" multiple accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.txt,.json" onchange="handleUpload(event)">
+          ↑ Upload files
+        </label>
+        <div style="margin-top:8px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:4px">
+            <span>Storage</span><span id="storage-text">0 KB / 1 GB</span>
+          </div>
+          <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="editor-tabs" id="editor-tabs"></div>
+      <div class="editor-area">
+        <div class="empty-state" id="empty-state">
+          <div class="big-icon">📄</div>
+          <p>Select or create a file to start editing</p>
+          <button class="btn btn-ghost btn-sm" onclick="openNewFileModal()">+ New file</button>
+        </div>
+        <div style="display:none;flex-direction:column;flex:1;overflow:hidden" id="editor-container">
+          <div class="editor-toolbar">
+            <div class="editor-filename">editing: <span id="current-filename">—</span></div>
+            <div class="editor-buttons">
+              <button class="btn btn-ghost btn-sm" onclick="saveFile()">💾 Save</button>
+              <button class="btn btn-ghost btn-sm" onclick="previewFile()">👁 Preview</button>
+            </div>
+          </div>
+          <div id="editor-wrapper"></div>
+        </div>
+        <div id="image-preview">
+          <img id="preview-img" src="" alt="preview">
+          <div style="font-size:11px;color:var(--text3)" id="image-info"></div>
+        </div>
+      </div>
+      <div class="stats-bar">
+        <div class="stat"><div class="stat-dot"></div> Online</div>
+        <div class="stat" id="file-count">0 files</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="new-file-modal">
+  <div class="modal">
+    <h3>New File</h3>
+    <div class="form-group">
+      <label>File path</label>
+      <input type="text" id="new-file-name" placeholder="index.html or folder/page.html">
+    </div>
+    <div style="font-size:11px;color:var(--text2)">Use <code style="color:var(--accent)">folder/file.html</code> to create files in folders</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="createNewFile()" style="width:auto">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="new-folder-modal">
+  <div class="modal">
+    <h3>New Folder</h3>
+    <div class="form-group">
+      <label>Folder name</label>
+      <input type="text" id="new-folder-name" placeholder="my-folder">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="createNewFolder()" style="width:auto">Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let editor = null;
+  let openTabs = [];
+  let activeTab = null;
+  let currentUsername = null;
+  let allFiles = {};
+
+  function showAuth() {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('username-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'none';
+  }
+  function showUsernameSetup() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('username-screen').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+  }
+  function showDashboard(username) {
+    currentUsername = username;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('username-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('site-link').textContent = `${username}.htmltools.me`;
+    document.getElementById('site-link').href = `https://${username}.htmltools.me`;
+    document.getElementById('user-avatar').textContent = username[0].toUpperCase();
+    loadFiles();
+  }
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = `show ${type}`;
+    setTimeout(() => el.className = '', 3000);
+  }
+  function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach((t, i) =>
+      t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='signup'&&i===1)));
+    document.getElementById('login-form').style.display = tab==='login'?'block':'none';
+    document.getElementById('signup-form').style.display = tab==='signup'?'block':'none';
+  }
+  function updatePreview() {
+    const val = document.getElementById('username-input').value || 'username';
+    document.getElementById('username-preview').textContent = `${val}.htmltools.me`;
+  }
+
+  async function doLogin() {
+    const { auth, signInWithEmailAndPassword } = window._fb;
+    try {
+      await signInWithEmailAndPassword(auth, document.getElementById('login-email').value, document.getElementById('login-password').value);
+    } catch(e) { showError('login-error', e.message); }
+  }
+  async function doSignup() {
+    const { auth, createUserWithEmailAndPassword } = window._fb;
+    try {
+      await createUserWithEmailAndPassword(auth, document.getElementById('signup-email').value, document.getElementById('signup-password').value);
+    } catch(e) { showError('signup-error', e.message); }
+  }
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg; el.style.display = 'block';
+  }
+
+  async function saveUsername() {
+    const { auth, db, ref, set, get } = window._fb;
+    const username = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
+    if (!username || username.length < 2) { showError('username-error','Min 2 characters'); return; }
+    const snap = await get(ref(db, `usernames/${username}`));
+    if (snap.exists()) { showError('username-error','Username already taken!'); return; }
+    try {
+      const user = auth.currentUser;
+      await set(ref(db, `users/${user.uid}`), { username, email: user.email, createdAt: Date.now() });
+      await set(ref(db, `usernames/${username}`), { uid: user.uid });
+      const html = `<!DOCTYPE html>\n<html>\n<head>\n  <title>${username}'s site</title>\n  <style>body{font-family:sans-serif;max-width:600px;margin:80px auto;padding:0 20px}h1{color:#7c6aff}</style>\n</head>\n<body>\n  <h1>Welcome to ${username}.htmltools.me!</h1>\n  <p>Edit this file in your dashboard to get started.</p>\n</body>\n</html>`;
+      await set(ref(db, `sites/${username}/files/index.html`), { content: html, type: 'text/html', size: html.length, updatedAt: Date.now() });
+      showDashboard(username);
+    } catch(e) { showError('username-error', e.message); }
+  }
+
+  async function doSignOut() {
+    await window._fb.signOut(window._fb.auth);
+  }
+
+  async function loadFiles() {
+    const { db, ref, get } = window._fb;
+    const snap = await get(ref(db, `sites/${currentUsername}/files`));
+    allFiles = {};
+    if (snap.exists()) flattenFiles(snap.val(), '', allFiles);
+    renderFileTree();
+    updateStorage();
+  }
+
+  function flattenFiles(obj, prefix, result) {
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      const path = prefix ? `${prefix}/${key}` : key;
+      if (val && typeof val === 'object' && val.content !== undefined) {
+        result[path] = val;
+      } else if (val && typeof val === 'object') {
+        flattenFiles(val, path, result);
+      }
+    }
+  }
+
+  function renderFileTree() {
+    const tree = document.getElementById('file-tree');
+    const paths = Object.keys(allFiles);
+    document.getElementById('file-count').textContent = `${paths.length} file${paths.length!==1?'s':''}`;
+    if (!paths.length) { tree.innerHTML = '<div style="font-size:11px;color:var(--text3);text-align:center;padding:24px 8px">No files yet</div>'; return; }
+
+    const folders = {}, rootFiles = [];
+    for (const path of paths) {
+      const parts = path.split('/');
+      if (parts.length === 1) rootFiles.push(path);
+      else { const f = parts[0]; if (!folders[f]) folders[f]=[]; folders[f].push(path); }
+    }
+
+    let html = '';
+    for (const p of rootFiles) html += fileItemHTML(p);
+    for (const folder of Object.keys(folders)) {
+      const id = 'fd_' + folder.replace(/\W/g,'_');
+      html += `<div class="tree-item" onclick="toggleFolder('${id}')"><span>📁</span><span class="name">${folder}</span></div>
+      <div class="tree-children" id="${id}">`;
+      for (const p of folders[folder]) html += fileItemHTML(p);
+      html += '</div>';
+    }
+    tree.innerHTML = html;
+  }
+
+  function fileItemHTML(path) {
+    const name = path.split('/').pop();
+    const icon = path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)?'🖼':path.endsWith('.css')?'🎨':path.endsWith('.js')?'⚡':'📄';
+    return `<div class="tree-item" onclick="openFile('${path}')" data-path="${path}">
+      <span>${icon}</span><span class="name">${name}</span>
+      <div class="actions"><button class="tree-action" onclick="event.stopPropagation();deleteFile('${path}')">✕</button></div>
+    </div>`;
+  }
+
+  function toggleFolder(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display==='none'?'block':'none';
+  }
+
+  function updateStorage() {
+    let total = 0;
+    for (const f of Object.values(allFiles)) total += (f.size||0);
+    const kb = (total/1024).toFixed(1), mb = (total/1024/1024).toFixed(2);
+    const pct = Math.min((total/(1*1024*1024*1024))*100,100).toFixed(2);
+    document.getElementById('storage-text').textContent = total>1048576?`${mb} MB / 1 GB`:`${kb} KB / 1 GB`;
+    const fill = document.getElementById('storage-fill');
+    fill.style.width = pct+'%';
+    fill.classList.toggle('warn', parseFloat(pct)>80);
+  }
+
+  function initEditor() {
+    if (editor) return;
+    editor = CodeMirror(document.getElementById('editor-wrapper'), {
+      mode: 'htmlmixed', theme: 'material-darker', lineNumbers: true,
+      autoCloseTags: true, matchBrackets: true, indentUnit: 2, tabSize: 2, lineWrapping: true,
+      extraKeys: { 'Ctrl-S': saveFile, 'Cmd-S': saveFile }
+    });
+  }
+
+  async function openFile(path) {
+    document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
+    const ti = document.querySelector(`[data-path="${path}"]`);
+    if (ti) ti.classList.add('active');
+
+    const file = allFiles[path];
+    if (!file) return;
+    const isImage = path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i);
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('editor-container').style.display = isImage?'none':'flex';
+    document.getElementById('image-preview').style.display = isImage?'flex':'none';
+
+    if (isImage) {
+      document.getElementById('preview-img').src = file.content;
+      document.getElementById('image-info').textContent = `${path} — ${(file.size/1024).toFixed(1)} KB`;
+      activeTab = path; renderTabs(); return;
+    }
+
+    let tab = openTabs.find(t=>t.path===path);
+    if (!tab) { tab = { path, content: file.content||'', dirty: false }; openTabs.push(tab); }
+    activeTab = path;
+    initEditor();
+    editor.setValue(tab.content);
+    editor.setOption('mode', path.endsWith('.css')?'css':path.endsWith('.js')?'javascript':'htmlmixed');
+    editor.on('change', () => {
+      const t = openTabs.find(t=>t.path===activeTab);
+      if (t && !t.dirty) { t.dirty=true; renderTabs(); }
+    });
+    document.getElementById('current-filename').textContent = path;
+    renderTabs();
+    setTimeout(() => editor.refresh(), 10);
+  }
+
+  function renderTabs() {
+    document.getElementById('editor-tabs').innerHTML = openTabs.map(t =>
+      `<div class="editor-tab ${t.path===activeTab?'active':''}" onclick="openFile('${t.path}')">
+        ${t.path.split('/').pop()}${t.dirty?' •':''}
+        <span class="close" onclick="event.stopPropagation();closeTab('${t.path}')">×</span>
+      </div>`).join('');
+  }
+
+  function closeTab(path) {
+    openTabs = openTabs.filter(t=>t.path!==path);
+    if (activeTab===path) {
+      activeTab = openTabs.length?openTabs[openTabs.length-1].path:null;
+      if (activeTab) openFile(activeTab);
+      else {
+        document.getElementById('empty-state').style.display='flex';
+        document.getElementById('editor-container').style.display='none';
+        document.getElementById('image-preview').style.display='none';
+      }
+    }
+    renderTabs();
+  }
+
+  async function saveFile() {
+    if (!activeTab||!editor) return;
+    const { db, ref, set } = window._fb;
+    const content = editor.getValue();
+    try {
+      await set(ref(db, `sites/${currentUsername}/files/${activeTab}`), {
+        content, type: getContentType(activeTab), size: new Blob([content]).size, updatedAt: Date.now()
+      });
+      allFiles[activeTab] = { ...allFiles[activeTab], content, size: new Blob([content]).size };
+      const tab = openTabs.find(t=>t.path===activeTab);
+      if (tab) { tab.content=content; tab.dirty=false; }
+      renderTabs(); updateStorage();
+      toast('✓ Saved!');
+    } catch(e) { toast('Save failed: '+e.message,'error'); }
+  }
+
+  function getContentType(path) {
+    return path.endsWith('.css')?'text/css':path.endsWith('.js')?'application/javascript':'text/html';
+  }
+
+  function previewFile() {
+    if (activeTab) window.open(`https://${currentUsername}.htmltools.me/${activeTab}`,'_blank');
+  }
+
+  async function deleteFile(path) {
+    if (!confirm(`Delete ${path}?`)) return;
+    const { db, ref, remove } = window._fb;
+    try {
+      await remove(ref(db, `sites/${currentUsername}/files/${path}`));
+      delete allFiles[path]; closeTab(path); renderFileTree(); updateStorage();
+      toast('File deleted');
+    } catch(e) { toast('Delete failed','error'); }
+  }
+
+  async function handleUpload(event) {
+    const { db, ref, set } = window._fb;
+    const files = Array.from(event.target.files);
+    for (const file of files) {
+      let content;
+      if (file.type.startsWith('image/')) {
+        content = await new Promise((res,rej) => {
+          const r = new FileReader();
+          r.onload = ()=>res(r.result); r.onerror=rej; r.readAsDataURL(file);
+        });
+      } else { content = await file.text(); }
+      await set(ref(db, `sites/${currentUsername}/files/${file.name}`), {
+        content, type: file.type||getContentType(file.name), size: file.size, updatedAt: Date.now()
+      });
+      allFiles[file.name] = { content, type: file.type, size: file.size };
+    }
+    renderFileTree(); updateStorage();
+    toast(`✓ Uploaded ${files.length} file(s)`);
+    event.target.value='';
+  }
+
+  function openNewFileModal() {
+    document.getElementById('new-file-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('new-file-name').focus(),100);
+  }
+  function openNewFolderModal() {
+    document.getElementById('new-folder-modal').classList.add('open');
+    setTimeout(()=>document.getElementById('new-folder-name').focus(),100);
+  }
+  function closeModals() {
+    document.querySelectorAll('.modal-backdrop').forEach(m=>m.classList.remove('open'));
+  }
+
+  async function createNewFile() {
+    const { db, ref, set } = window._fb;
+    const name = document.getElementById('new-file-name').value.trim();
+    if (!name) return;
+    const content = name.endsWith('.html')?`<!DOCTYPE html>\n<html>\n<head><title>New Page</title></head>\n<body>\n  <h1>New Page</h1>\n</body>\n</html>`:'';
+    await set(ref(db, `sites/${currentUsername}/files/${name}`), { content, type: getContentType(name), size: content.length, updatedAt: Date.now() });
+    allFiles[name] = { content, type: getContentType(name), size: content.length };
+    renderFileTree(); updateStorage(); closeModals(); openFile(name);
+    toast(`✓ Created ${name}`);
+  }
+
+  async function createNewFolder() {
+    const { db, ref, set } = window._fb;
+    const name = document.getElementById('new-folder-name').value.trim();
+    if (!name) return;
+    const path = `${name}/index.html`;
+    const content = `<!DOCTYPE html>\n<html>\n<head><title>${name}</title></head>\n<body>\n  <h1>${name}</h1>\n</body>\n</html>`;
+    await set(ref(db, `sites/${currentUsername}/files/${path}`), { content, type: 'text/html', size: content.length, updatedAt: Date.now() });
+    allFiles[path] = { content, type: 'text/html', size: content.length };
+    renderFileTree(); updateStorage(); closeModals();
+    toast(`✓ Created folder ${name}/`);
+  }
+
+  document.querySelectorAll('.modal-backdrop').forEach(el =>
+    el.addEventListener('click', e => { if(e.target===el) closeModals(); }));
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey||e.metaKey)&&e.key==='s') { e.preventDefault(); saveFile(); }
+    if (e.key==='Escape') closeModals();
+  });
+</script>
+</body>
 </html>
