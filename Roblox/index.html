@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Play — World Client</title>
+
+  <!-- Three.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Firebase v9 compat build -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a14;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+
+    /* Full-viewport canvas */
+    canvas { display: block; }
+
+    /* ── HUD ─────────────────────────────────────────────── */
+    #hud {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 20px;
+      background: linear-gradient(to bottom, rgba(0,0,0,.55), transparent);
+      pointer-events: none; z-index: 10;
+    }
+    #hud-title { font-size: 16px; font-weight: 700; color: #a78bfa; letter-spacing: 2px; }
+    #hud-coords { font-size: 12px; font-family: monospace; color: #88aaff; }
+
+    /* ── Loading Screen ──────────────────────────────────── */
+    #loading {
+      position: fixed; inset: 0;
+      background: #0a0a14;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      z-index: 1000;
+    }
+    #loading h2 { color: #a78bfa; font-size: 22px; }
+    #loading p  { color: #666688; font-size: 13px; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #2a2a40;
+      border-top-color: #7c3aed;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Controls Help ───────────────────────────────────── */
+    #controls-help {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.6); border: 1px solid #2a2a3d;
+      padding: 8px 20px; border-radius: 20px;
+      font-size: 12px; color: #8888aa; pointer-events: none;
+    }
+
+    /* ── Player count badge ──────────────────────────────── */
+    #player-badge {
+      position: fixed; top: 50px; right: 16px;
+      background: rgba(0,0,0,.6); border: 1px solid #2a2a3d;
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 12px; color: #88aaff; pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading">
+  <div class="spinner"></div>
+  <h2>🌍 Loading World…</h2>
+  <p id="load-msg">Connecting to Firebase…</p>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="hud-title">🎮 PLAY</div>
+  <div id="hud-coords">X: 0  Y: 0  Z: 0</div>
+</div>
+
+<div id="player-badge">👥 Players: 1</div>
+
+<div id="controls-help">WASD — Move &nbsp;|&nbsp; SPACE — Jump &nbsp;|&nbsp; Mouse — Look</div>
+
+<canvas id="three-canvas"></canvas>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// FIREBASE SETUP
+// ═══════════════════════════════════════════════════════════
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC6gaduhIo2GVmjLiAyZ_Pm7G5ZtxgKu6k",
+  authDomain: "chatting-app-db4af.firebaseapp.com",
+  databaseURL: "https://chatting-app-db4af-default-rtdb.firebaseio.com",
+  projectId: "chatting-app-db4af",
+  storageBucket: "chatting-app-db4af.firebasestorage.app",
+  messagingSenderId: "587183235148",
+  appId: "1:587183235148:web:01a23bc6432b44a36b54e9"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Generate a unique ID for THIS player session
+const MY_PLAYER_ID = 'player_' + Math.random().toString(36).slice(2, 9);
+
+// ═══════════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════
+
+const canvas   = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a14);
+scene.fog = new THREE.FogExp2(0x0a0a14, 0.018);
+
+const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 500);
+
+// --- Lights ---
+scene.add(new THREE.AmbientLight(0x9090b0, 0.6));
+const sun = new THREE.DirectionalLight(0xffeedd, 1.2);
+sun.position.set(20, 40, 15);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 120;
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40;  sun.shadow.camera.bottom = -40;
+scene.add(sun);
+
+// Soft fill light from opposite direction
+const fill = new THREE.DirectionalLight(0x4466aa, 0.3);
+fill.position.set(-10, 10, -10);
+scene.add(fill);
+
+// --- Grid + Ground ---
+const grid = new THREE.GridHelper(200, 100, 0x1e1e30, 0x151525);
+scene.add(grid);
+
+const groundMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.MeshStandardMaterial({ color: 0x0d0d1a, roughness: 0.95 })
+);
+groundMesh.rotation.x = -Math.PI / 2;
+groundMesh.receiveShadow = true;
+scene.add(groundMesh);
+
+// ═══════════════════════════════════════════════════════════
+// WORLD GEOMETRY — loaded from Firebase
+// ═══════════════════════════════════════════════════════════
+
+// All loaded world blocks land here for collision testing
+let worldBlocks = [];
+
+/**
+ * Reads /places/main_world from Firebase, then rebuilds the
+ * Three.js scene from the stored part data.
+ */
+function setLoadMsg(msg) {
+  document.getElementById('load-msg').textContent = msg;
+}
+
+async function loadWorld() {
+  setLoadMsg('Fetching world data…');
+  try {
+    const snap = await db.ref('/places/main_world').get();
+    if (!snap.exists()) {
+      setLoadMsg('No world published yet — open studio.html to create one!');
+      setTimeout(() => document.getElementById('loading').style.display = 'none', 2500);
+      return;
+    }
+
+    const partsData = snap.val(); // Array of part objects
+    setLoadMsg(`Building ${partsData.length} parts…`);
+
+    partsData.forEach(part => {
+      // Reconstruct geometry
+      let geo;
+      if (part.type === 'box')      geo = new THREE.BoxGeometry(1, 1, 1);
+      if (part.type === 'sphere')   geo = new THREE.SphereGeometry(0.6, 20, 14);
+      if (part.type === 'cylinder') geo = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 20);
+      if (!geo) return; // unknown type guard
+
+      const mat  = new THREE.MeshStandardMaterial({
+        color:     part.color || '#ffffff',
+        roughness: 0.55,
+        metalness: 0.05,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+
+      // Restore transform from saved data
+      mesh.position.set(part.position.x, part.position.y, part.position.z);
+      mesh.rotation.set(part.rotation.x, part.rotation.y, part.rotation.z);
+      mesh.scale.set   (part.scale.x,    part.scale.y,    part.scale.z);
+      mesh.castShadow    = true;
+      mesh.receiveShadow = true;
+
+      scene.add(mesh);
+      worldBlocks.push(mesh); // used for collision
+    });
+
+    setLoadMsg('Ready! Click to start.');
+    setTimeout(() => document.getElementById('loading').style.display = 'none', 800);
+  } catch (err) {
+    console.error('Load error:', err);
+    setLoadMsg('❌ Failed to load world. Check console.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLAYER CONTROLLER
+// ═══════════════════════════════════════════════════════════
+
+// Player represented as a capsule-like box in world space
+const PLAYER_HEIGHT = 1.8;
+const PLAYER_RADIUS = 0.4;
+const PLAYER_SPEED  = 5.0;
+const GRAVITY       = -18;
+const JUMP_FORCE    = 7;
+
+// Player state
+let playerPos = new THREE.Vector3(0, PLAYER_HEIGHT, 0);
+let playerVel = new THREE.Vector3(0, 0, 0);
+let onGround  = false;
+let yaw       = 0;   // horizontal camera rotation (radians)
+let pitch     = 0;   // vertical camera tilt
+
+// Visual avatar (simple rounded box)
+const avatarMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(PLAYER_RADIUS * 2, PLAYER_HEIGHT, PLAYER_RADIUS * 2),
+  new THREE.MeshStandardMaterial({ color: 0x7c3aed, roughness: 0.5 })
+);
+avatarMesh.castShadow = true;
+scene.add(avatarMesh);
+
+// Input tracking
+const keys = {};
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup',   e => keys[e.code] = false);
+
+// Pointer lock for mouse-look
+canvas.addEventListener('click', () => canvas.requestPointerLock());
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement === canvas) {
+    document.addEventListener('mousemove', onMouseMove);
+  } else {
+    document.removeEventListener('mousemove', onMouseMove);
+  }
+});
+
+function onMouseMove(e) {
+  yaw   -= e.movementX * 0.002;
+  pitch -= e.movementY * 0.002;
+  pitch  = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+}
+
+// ── Collision helpers ─────────────────────────────────────
+
+/**
+ * Returns the topmost Y surface among all world blocks
+ * that overlap with the player's XZ footprint.
+ * Returns 0 (ground level) if none.
+ */
+function getGroundHeight(x, z) {
+  let highest = 0; // ground plane is at y=0
+
+  for (const block of worldBlocks) {
+    // Compute block AABB (axis-aligned bounding box) in world space
+    const bb = new THREE.Box3().setFromObject(block);
+
+    // Check if player's XZ position is inside block's XZ extent (with margin)
+    const margin = PLAYER_RADIUS;
+    if (x > bb.min.x - margin && x < bb.max.x + margin &&
+        z > bb.min.z - margin && z < bb.max.z + margin) {
+      // Player is over this block — can stand on top of it
+      if (bb.max.y > highest) highest = bb.max.y;
+    }
+  }
+  return highest;
+}
+
+/**
+ * Resolves XZ collisions — stops the player from walking
+ * through block sides.
+ */
+function resolveXZCollision(newPos) {
+  for (const block of worldBlocks) {
+    const bb = new THREE.Box3().setFromObject(block);
+    const bboxExpandedY = bb.clone();
+    // Only collide with blocks the player body overlaps vertically
+    bboxExpandedY.min.y -= PLAYER_HEIGHT;
+
+    if (newPos.y > bb.max.y + 0.05 || newPos.y + PLAYER_HEIGHT < bb.min.y) continue;
+
+    const inX = newPos.x > bb.min.x - PLAYER_RADIUS && newPos.x < bb.max.x + PLAYER_RADIUS;
+    const inZ = newPos.z > bb.min.z - PLAYER_RADIUS && newPos.z < bb.max.z + PLAYER_RADIUS;
+
+    if (inX && inZ) {
+      // Push player out on the axis with smallest overlap
+      const overlapLeft  = newPos.x - (bb.min.x - PLAYER_RADIUS);
+      const overlapRight = (bb.max.x + PLAYER_RADIUS) - newPos.x;
+      const overlapFront = newPos.z - (bb.min.z - PLAYER_RADIUS);
+      const overlapBack  = (bb.max.z + PLAYER_RADIUS) - newPos.z;
+      const minOverlap   = Math.min(overlapLeft, overlapRight, overlapFront, overlapBack);
+
+      if (minOverlap === overlapLeft)  { newPos.x = bb.min.x - PLAYER_RADIUS; playerVel.x = 0; }
+      if (minOverlap === overlapRight) { newPos.x = bb.max.x + PLAYER_RADIUS; playerVel.x = 0; }
+      if (minOverlap === overlapFront) { newPos.z = bb.min.z - PLAYER_RADIUS; playerVel.z = 0; }
+      if (minOverlap === overlapBack)  { newPos.z = bb.max.z + PLAYER_RADIUS; playerVel.z = 0; }
+    }
+  }
+}
+
+// ── Physics + movement update ─────────────────────────────
+
+const clock = new THREE.Clock();
+
+function updatePlayer(dt) {
+  // Build movement direction from WASD relative to yaw
+  const moveDir = new THREE.Vector3();
+  if (keys['KeyW']) moveDir.z -= 1;
+  if (keys['KeyS']) moveDir.z += 1;
+  if (keys['KeyA']) moveDir.x -= 1;
+  if (keys['KeyD']) moveDir.x += 1;
+
+  if (moveDir.lengthSq() > 0) moveDir.normalize();
+
+  // Rotate movement by player's yaw
+  const rotated = moveDir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+  playerVel.x = rotated.x * PLAYER_SPEED;
+  playerVel.z = rotated.z * PLAYER_SPEED;
+
+  // Gravity
+  playerVel.y += GRAVITY * dt;
+
+  // Jump
+  if ((keys['Space'] || keys['ArrowUp']) && onGround) {
+    playerVel.y = JUMP_FORCE;
+    onGround = false;
+  }
+
+  // Integrate position
+  const newPos = playerPos.clone().addScaledVector(playerVel, dt);
+
+  // XZ collision
+  resolveXZCollision(newPos);
+
+  // Y collision — snap to surface
+  const groundY = getGroundHeight(newPos.x, newPos.z);
+  if (newPos.y <= groundY) {
+    newPos.y  = groundY;
+    playerVel.y = 0;
+    onGround = true;
+  } else {
+    onGround = false;
+  }
+
+  playerPos.copy(newPos);
+
+  // Sync avatar mesh
+  avatarMesh.position.set(playerPos.x, playerPos.y + PLAYER_HEIGHT / 2, playerPos.z);
+
+  // Third-person camera — follow behind and above player
+  const camDist  = 8;
+  const camHeight = 3;
+  const camOffset = new THREE.Vector3(
+    Math.sin(yaw) * camDist,
+    camHeight,
+    Math.cos(yaw) * camDist
+  );
+  camera.position.copy(playerPos).add(camOffset).add(new THREE.Vector3(0, 1.5, 0));
+
+  // Look at player's head with pitch
+  const lookTarget = playerPos.clone().add(new THREE.Vector3(0, PLAYER_HEIGHT * 0.8, 0));
+  const lookDir    = lookTarget.clone().sub(camera.position).normalize();
+  camera.quaternion.setFromEuler(
+    new THREE.Euler(Math.asin(-lookDir.y), yaw + Math.PI, 0, 'YXZ')
+  );
+
+  // Update HUD coords
+  document.getElementById('hud-coords').textContent =
+    `X: ${playerPos.x.toFixed(1)}  Y: ${playerPos.y.toFixed(1)}  Z: ${playerPos.z.toFixed(1)}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MULTIPLAYER — write & read player positions
+// ═══════════════════════════════════════════════════════════
+
+// Map of other player IDs → their avatar meshes
+const otherPlayers = {};
+
+/** Remove our player node when page closes */
+window.addEventListener('beforeunload', () => {
+  db.ref(`/players/${MY_PLAYER_ID}`).remove();
+});
+
+/**
+ * Writes our position to Firebase every ~100ms.
+ * Other clients will see this via their onValue listener below.
+ */
+let lastPushTime = 0;
+function pushMyPosition(dt) {
+  lastPushTime += dt;
+  if (lastPushTime < 0.1) return; // throttle to 10Hz
+  lastPushTime = 0;
+
+  db.ref(`/players/${MY_PLAYER_ID}`).set({
+    x: parseFloat(playerPos.x.toFixed(2)),
+    y: parseFloat(playerPos.y.toFixed(2)),
+    z: parseFloat(playerPos.z.toFixed(2)),
+    ts: Date.now(),
+  });
+}
+
+/**
+ * Listen for all other players' position updates and
+ * render them as simple colored blocks in the scene.
+ */
+function startMultiplayerListener() {
+  db.ref('/players').on('value', snap => {
+    const allPlayers = snap.val() || {};
+    const playerBadge = document.getElementById('player-badge');
+    let count = 0;
+
+    // Add or update meshes for each remote player
+    for (const [id, data] of Object.entries(allPlayers)) {
+      if (id === MY_PLAYER_ID) continue; // skip ourselves
+      count++;
+
+      if (!otherPlayers[id]) {
+        // First time seeing this player — create an avatar
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(0.8, PLAYER_HEIGHT, 0.8),
+          new THREE.MeshStandardMaterial({ color: 0xff6644 }) // orange = other players
+        );
+        mesh.castShadow = true;
+        scene.add(mesh);
+        otherPlayers[id] = mesh;
+      }
+
+      // Update position (lerp for smoothness)
+      const target = new THREE.Vector3(data.x, data.y + PLAYER_HEIGHT / 2, data.z);
+      otherPlayers[id].position.lerp(target, 0.2);
+    }
+
+    // Remove meshes for players who left
+    for (const id of Object.keys(otherPlayers)) {
+      if (!allPlayers[id]) {
+        scene.remove(otherPlayers[id]);
+        delete otherPlayers[id];
+      }
+    }
+
+    playerBadge.textContent = `👥 Players: ${count + 1}`; // +1 for ourselves
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESIZE + RENDER LOOP
+// ═══════════════════════════════════════════════════════════
+
+function resize() {
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05); // cap at 50ms to avoid spiral of death
+
+  updatePlayer(dt);
+  pushMyPosition(dt);
+
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOOT SEQUENCE
+// ═══════════════════════════════════════════════════════════
+
+(async () => {
+  await loadWorld();          // 1. Load published world from Firebase
+  startMultiplayerListener(); // 2. Start listening for other players
+  clock.start();              // 3. Start the physics clock
+  animate();                  // 4. Start render loop
+})();
+</script>
+</body>
+</html>
