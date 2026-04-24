@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Studio — World Editor</title>
+
+  <!-- Three.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Firebase v9 (compat build — works like v8 globally) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    /* ── Reset & Base ───────────────────────────────────── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0d0d14;
+      color: #e0e0f0;
+      overflow: hidden;
+    }
+
+    /* ── Top Bar ────────────────────────────────────────── */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 48px;
+      background: #13131f;
+      border-bottom: 1px solid #2a2a3d;
+      display: flex; align-items: center; gap: 12px; padding: 0 16px;
+      z-index: 100;
+    }
+    #topbar h1 { font-size: 15px; font-weight: 700; color: #a78bfa; letter-spacing: 1px; margin-right: 8px; }
+
+    .btn {
+      padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .8; }
+    .btn-ghost { background: #1e1e30; color: #c0c0e0; border: 1px solid #2a2a3d; }
+    .btn-primary { background: #7c3aed; color: #fff; }
+    .btn-danger { background: #991b1b; color: #fff; }
+    .btn-success { background: #065f46; color: #6ee7b7; border: 1px solid #059669; }
+
+    /* ── Left Panel ─────────────────────────────────────── */
+    #panel-left {
+      position: fixed; top: 48px; left: 0; bottom: 0; width: 220px;
+      background: #13131f;
+      border-right: 1px solid #2a2a3d;
+      padding: 16px 12px; overflow-y: auto; z-index: 50;
+    }
+    .section-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      color: #666688; letter-spacing: 1.5px; margin-bottom: 10px;
+    }
+    .part-btn {
+      display: block; width: 100%; text-align: left;
+      background: #1a1a2e; border: 1px solid #2a2a3d; color: #c0c0e0;
+      padding: 9px 12px; border-radius: 7px; margin-bottom: 7px;
+      cursor: pointer; font-size: 13px; transition: background .15s, border-color .15s;
+    }
+    .part-btn:hover { background: #23233a; border-color: #7c3aed; }
+    .part-btn span { float: right; font-size: 16px; }
+
+    /* ── Right Panel (Properties) ───────────────────────── */
+    #panel-right {
+      position: fixed; top: 48px; right: 0; bottom: 0; width: 220px;
+      background: #13131f;
+      border-left: 1px solid #2a2a3d;
+      padding: 16px 12px; z-index: 50;
+    }
+    .prop-row { margin-bottom: 14px; }
+    .prop-label { font-size: 11px; color: #888899; margin-bottom: 5px; display: block; }
+    input[type="color"] {
+      width: 100%; height: 32px; border-radius: 6px; border: 1px solid #2a2a3d;
+      background: #1a1a2e; cursor: pointer; padding: 2px;
+    }
+    input[type="range"] {
+      width: 100%; accent-color: #7c3aed;
+    }
+    .val-display { font-size: 11px; color: #7c3aed; margin-left: 6px; }
+
+    /* ── Canvas ─────────────────────────────────────────── */
+    #canvas-wrap {
+      position: fixed;
+      top: 48px; left: 220px; right: 220px; bottom: 0;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* ── Status Bar ─────────────────────────────────────── */
+    #status {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      background: #1a1a2e; border: 1px solid #2a2a3d;
+      padding: 7px 18px; border-radius: 20px; font-size: 12px; color: #a0a0c0;
+      z-index: 200; pointer-events: none;
+      transition: opacity .4s;
+    }
+
+    /* ── Selection highlight ─────────────────────────────── */
+    .selected-outline { outline: 2px solid #a78bfa; }
+  </style>
+</head>
+<body>
+
+<!-- ── TOP BAR ──────────────────────────────────────────── -->
+<div id="topbar">
+  <h1>🎮 STUDIO</h1>
+  <button class="btn btn-ghost" onclick="spawnPart('box')">+ Block <span>🟦</span></button>
+  <button class="btn btn-ghost" onclick="spawnPart('sphere')">+ Sphere <span>🔵</span></button>
+  <button class="btn btn-ghost" onclick="spawnPart('cylinder')">+ Cylinder <span>🟤</span></button>
+  <div style="flex:1"></div>
+  <button class="btn btn-danger" onclick="deleteSelected()">🗑 Delete</button>
+  <button class="btn btn-danger" onclick="clearAll()">🧹 Clear All</button>
+  <button class="btn btn-success" onclick="publishWorld()">🚀 Publish</button>
+</div>
+
+<!-- ── LEFT PANEL ───────────────────────────────────────── -->
+<div id="panel-left">
+  <div class="section-title">Parts</div>
+  <button class="part-btn" onclick="spawnPart('box')">Block <span>🟦</span></button>
+  <button class="part-btn" onclick="spawnPart('sphere')">Sphere <span>🔵</span></button>
+  <button class="part-btn" onclick="spawnPart('cylinder')">Cylinder <span>🟤</span></button>
+
+  <div class="section-title" style="margin-top:20px">Scene (Objects)</div>
+  <div id="scene-list" style="font-size:12px; color:#666688;">No parts yet.</div>
+</div>
+
+<!-- ── RIGHT PANEL ──────────────────────────────────────── -->
+<div id="panel-right">
+  <div class="section-title">Properties</div>
+  <div id="no-selection" style="font-size:12px; color:#555577;">
+    Click a part to select it.
+  </div>
+  <div id="props" style="display:none">
+    <div class="prop-row">
+      <label class="prop-label">Color</label>
+      <input type="color" id="prop-color" value="#6366f1" oninput="applyColor(this.value)"/>
+    </div>
+    <div class="prop-row">
+      <label class="prop-label">Scale X <span class="val-display" id="val-sx">1</span></label>
+      <input type="range" id="prop-sx" min="0.2" max="8" step="0.1" value="1" oninput="applyScale()"/>
+    </div>
+    <div class="prop-row">
+      <label class="prop-label">Scale Y <span class="val-display" id="val-sy">1</span></label>
+      <input type="range" id="prop-sy" min="0.2" max="8" step="0.1" value="1" oninput="applyScale()"/>
+    </div>
+    <div class="prop-row">
+      <label class="prop-label">Scale Z <span class="val-display" id="val-sz">1</span></label>
+      <input type="range" id="prop-sz" min="0.2" max="8" step="0.1" value="1" oninput="applyScale()"/>
+    </div>
+    <div class="prop-row">
+      <label class="prop-label">Position</label>
+      <div id="prop-pos" style="font-size:11px; color:#7c3aed; font-family:monospace;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 3D CANVAS ─────────────────────────────────────────── -->
+<div id="canvas-wrap">
+  <canvas id="three-canvas"></canvas>
+</div>
+
+<!-- ── STATUS MESSAGE ───────────────────────────────────── -->
+<div id="status">Click canvas to start building • Orbit: Right-click drag</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// FIREBASE SETUP
+// ═══════════════════════════════════════════════════════════
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC6gaduhIo2GVmjLiAyZ_Pm7G5ZtxgKu6k",
+  authDomain: "chatting-app-db4af.firebaseapp.com",
+  databaseURL: "https://chatting-app-db4af-default-rtdb.firebaseio.com",
+  projectId: "chatting-app-db4af",
+  storageBucket: "chatting-app-db4af.firebasestorage.app",
+  messagingSenderId: "587183235148",
+  appId: "1:587183235148:web:01a23bc6432b44a36b54e9"
+};
+
+// Initialize Firebase (compat SDK)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ═══════════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════
+
+const canvas  = document.getElementById('three-canvas');
+const wrap    = document.getElementById('canvas-wrap');
+
+// --- Renderer ---
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// --- Scene ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x10101a);
+scene.fog = new THREE.FogExp2(0x10101a, 0.02);
+
+// --- Camera (perspective, orbitable) ---
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+camera.position.set(10, 10, 14);
+camera.lookAt(0, 0, 0);
+
+// --- Lights ---
+const ambient = new THREE.AmbientLight(0x9090b0, 0.5);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(0xfff0d0, 1.2);
+sun.position.set(15, 25, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 100;
+sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30;   sun.shadow.camera.bottom = -30;
+scene.add(sun);
+
+// --- Grid ---
+const grid = new THREE.GridHelper(60, 60, 0x2a2a40, 0x1e1e30);
+scene.add(grid);
+
+// --- Ground plane (for raycasting / part placement) ---
+const groundGeo  = new THREE.PlaneGeometry(200, 200);
+const groundMat  = new THREE.MeshStandardMaterial({ color: 0x14141f, roughness: 1 });
+const ground     = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+ground.name = '__ground__';
+scene.add(ground);
+
+// ═══════════════════════════════════════════════════════════
+// ORBIT CAMERA (simple manual implementation)
+// ═══════════════════════════════════════════════════════════
+
+let orbitState = { active: false, lastX: 0, lastY: 0 };
+let spherical  = { r: 22, phi: Math.PI / 4, theta: Math.PI / 4 };
+
+function sphericalToCart() {
+  return {
+    x: spherical.r * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+    y: spherical.r * Math.cos(spherical.phi),
+    z: spherical.r * Math.sin(spherical.phi) * Math.cos(spherical.theta),
+  };
+}
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 2) { orbitState.active = true; orbitState.lastX = e.clientX; orbitState.lastY = e.clientY; }
+});
+window.addEventListener('mouseup', e => { if (e.button === 2) orbitState.active = false; });
+window.addEventListener('mousemove', e => {
+  if (!orbitState.active) return;
+  const dx = e.clientX - orbitState.lastX;
+  const dy = e.clientY - orbitState.lastY;
+  spherical.theta -= dx * 0.005;
+  spherical.phi    = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, spherical.phi + dy * 0.005));
+  orbitState.lastX = e.clientX;
+  orbitState.lastY = e.clientY;
+});
+canvas.addEventListener('wheel', e => {
+  spherical.r = Math.max(3, Math.min(80, spherical.r + e.deltaY * 0.03));
+});
+
+// ═══════════════════════════════════════════════════════════
+// PART MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+
+let parts          = [];      // array of THREE.Mesh objects we own
+let selectedPart   = null;    // currently selected mesh
+let partIdCounter  = 0;
+
+/**
+ * Creates and adds a new part to the scene.
+ * @param {'box'|'sphere'|'cylinder'} type
+ */
+function spawnPart(type) {
+  // Build geometry based on type
+  let geo;
+  if (type === 'box')      geo = new THREE.BoxGeometry(1, 1, 1);
+  if (type === 'sphere')   geo = new THREE.SphereGeometry(0.6, 24, 16);
+  if (type === 'cylinder') geo = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 24);
+
+  // Random pastel color
+  const color = new THREE.Color().setHSL(Math.random(), 0.6, 0.55);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.1 });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow    = true;
+  mesh.receiveShadow = true;
+
+  // Random spawn position above ground
+  mesh.position.set(
+    (Math.random() - 0.5) * 10,
+    1,
+    (Math.random() - 0.5) * 10
+  );
+
+  // Metadata stored directly on the mesh
+  mesh.userData = {
+    id:   partIdCounter++,
+    type: type,
+  };
+
+  scene.add(mesh);
+  parts.push(mesh);
+  selectPart(mesh);
+  updateSceneList();
+  setStatus(`Spawned ${type}`);
+}
+
+/** Selects a part and shows its properties in the right panel. */
+function selectPart(mesh) {
+  // Deselect previous
+  if (selectedPart) {
+    selectedPart.material.emissive.set(0x000000);
+  }
+  selectedPart = mesh;
+
+  if (!mesh) {
+    document.getElementById('props').style.display = 'none';
+    document.getElementById('no-selection').style.display = 'block';
+    return;
+  }
+
+  // Highlight with emissive glow
+  mesh.material.emissive.set(0x4444aa);
+
+  // Populate UI
+  document.getElementById('props').style.display = 'block';
+  document.getElementById('no-selection').style.display = 'none';
+
+  const hex = '#' + mesh.material.color.getHexString();
+  document.getElementById('prop-color').value = hex;
+
+  document.getElementById('prop-sx').value = mesh.scale.x;
+  document.getElementById('prop-sy').value = mesh.scale.y;
+  document.getElementById('prop-sz').value = mesh.scale.z;
+  document.getElementById('val-sx').textContent = mesh.scale.x.toFixed(1);
+  document.getElementById('val-sy').textContent = mesh.scale.y.toFixed(1);
+  document.getElementById('val-sz').textContent = mesh.scale.z.toFixed(1);
+
+  updatePosDisplay();
+}
+
+/** Updates position readout in properties panel */
+function updatePosDisplay() {
+  if (!selectedPart) return;
+  const p = selectedPart.position;
+  document.getElementById('prop-pos').textContent =
+    `X: ${p.x.toFixed(2)}  Y: ${p.y.toFixed(2)}  Z: ${p.z.toFixed(2)}`;
+}
+
+/** Apply color change from color picker */
+function applyColor(hex) {
+  if (!selectedPart) return;
+  selectedPart.material.color.set(hex);
+}
+
+/** Apply scale changes from sliders */
+function applyScale() {
+  if (!selectedPart) return;
+  const sx = parseFloat(document.getElementById('prop-sx').value);
+  const sy = parseFloat(document.getElementById('prop-sy').value);
+  const sz = parseFloat(document.getElementById('prop-sz').value);
+  selectedPart.scale.set(sx, sy, sz);
+  document.getElementById('val-sx').textContent = sx.toFixed(1);
+  document.getElementById('val-sy').textContent = sy.toFixed(1);
+  document.getElementById('val-sz').textContent = sz.toFixed(1);
+}
+
+/** Delete the currently selected part */
+function deleteSelected() {
+  if (!selectedPart) { setStatus('No part selected.'); return; }
+  scene.remove(selectedPart);
+  parts = parts.filter(p => p !== selectedPart);
+  selectedPart = null;
+  selectPart(null);
+  updateSceneList();
+  setStatus('Part deleted.');
+}
+
+/** Clear every user-placed part */
+function clearAll() {
+  parts.forEach(p => scene.remove(p));
+  parts = [];
+  selectedPart = null;
+  selectPart(null);
+  updateSceneList();
+  setStatus('Scene cleared.');
+}
+
+/** Rebuilds the left-panel scene list */
+function updateSceneList() {
+  const list = document.getElementById('scene-list');
+  if (parts.length === 0) { list.textContent = 'No parts yet.'; return; }
+  list.innerHTML = parts.map(p =>
+    `<div style="padding:4px 0; cursor:pointer; color:#a0a0c0; border-bottom:1px solid #1e1e30;"
+          onclick="selectPart(window._partById(${p.userData.id}))">
+      ${p.userData.type} #${p.userData.id}
+    </div>`
+  ).join('');
+}
+// Helper to find a part by id from inline onclick
+window._partById = id => parts.find(p => p.userData.id === id);
+
+// ═══════════════════════════════════════════════════════════
+// RAYCASTER — click-to-select
+// ═══════════════════════════════════════════════════════════
+
+const raycaster  = new THREE.Raycaster();
+const mousePick  = new THREE.Vector2();
+
+canvas.addEventListener('click', e => {
+  if (orbitState.active) return;   // don't select while orbiting
+
+  const rect = canvas.getBoundingClientRect();
+  mousePick.x =  ((e.clientX - rect.left)  / rect.width)  * 2 - 1;
+  mousePick.y = -((e.clientY - rect.top)   / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mousePick, camera);
+
+  // Only test against user-placed parts
+  const hits = raycaster.intersectObjects(parts);
+  if (hits.length > 0) {
+    selectPart(hits[0].object);
+  } else {
+    // Clicked empty ground → deselect
+    selectPart(null);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// DRAG TO MOVE SELECTED PART (left-click drag)
+// ═══════════════════════════════════════════════════════════
+
+let isDragging = false;
+let dragOffset = new THREE.Vector3();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0 || !selectedPart) return;
+
+  const rect = canvas.getBoundingClientRect();
+  mousePick.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mousePick.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mousePick, camera);
+
+  const hits = raycaster.intersectObjects(parts);
+  if (hits.length > 0 && hits[0].object === selectedPart) {
+    isDragging = true;
+    // Store drag offset so part doesn't snap to cursor centre
+    const intersect = new THREE.Vector3();
+    raycaster.ray.intersectPlane(
+      new THREE.Plane(new THREE.Vector3(0, 1, 0), -selectedPart.position.y),
+      intersect
+    );
+    dragOffset.copy(selectedPart.position).sub(intersect);
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!isDragging || !selectedPart) return;
+
+  const rect = canvas.getBoundingClientRect();
+  mousePick.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mousePick.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mousePick, camera);
+
+  const target = new THREE.Vector3();
+  raycaster.ray.intersectPlane(
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), -selectedPart.position.y),
+    target
+  );
+  if (target) {
+    selectedPart.position.x = target.x + dragOffset.x;
+    selectedPart.position.z = target.z + dragOffset.z;
+    updatePosDisplay();
+  }
+});
+
+window.addEventListener('mouseup', e => { if (e.button === 0) isDragging = false; });
+
+// ═══════════════════════════════════════════════════════════
+// PUBLISH TO FIREBASE
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Serializes every part in the scene to a JSON array and
+ * writes it to /places/main_world in Firebase Realtime DB.
+ */
+async function publishWorld() {
+  if (parts.length === 0) {
+    setStatus('Nothing to publish — add some parts first!');
+    return;
+  }
+  setStatus('Publishing…');
+
+  // Build a clean, serializable array of part data
+  const worldData = parts.map(mesh => ({
+    type:     mesh.userData.type,
+    color:    '#' + mesh.material.color.getHexString(),
+    position: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+    rotation: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z },
+    scale:    { x: mesh.scale.x,    y: mesh.scale.y,    z: mesh.scale.z    },
+  }));
+
+  try {
+    // Write (overwrite) the /places/main_world node
+    await db.ref('/places/main_world').set(worldData);
+    setStatus(`✅ Published ${worldData.length} parts to Firebase!`);
+  } catch (err) {
+    console.error('Firebase write error:', err);
+    setStatus('❌ Publish failed — check console.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESIZE + RENDER LOOP
+// ═══════════════════════════════════════════════════════════
+
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Update camera from spherical coordinates
+  const pos = sphericalToCart();
+  camera.position.set(pos.x, pos.y, pos.z);
+  camera.lookAt(0, 1, 0);
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// ═══════════════════════════════════════════════════════════
+// STATUS HELPER
+// ═══════════════════════════════════════════════════════════
+
+let statusTimer;
+function setStatus(msg) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => el.style.opacity = '0', 3500);
+}
+</script>
+</body>
+</html>
