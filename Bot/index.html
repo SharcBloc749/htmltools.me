@@ -1,545 +1,1220 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>HTMLTools Mail</title>
-        <link rel="icon" type="image/png" href="/logo3.png?v=2" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0a0c12; color: #dce6f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTMLTools Mail</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-        #gate { width: 100%; max-width: 360px; background: #0d1016; border: 1px solid #1a2333; border-radius: 18px; padding: 2rem; text-align: center; }
-        #gate.hidden { display: none; }
-        .gate-logo { font-size: 2rem; margin-bottom: .75rem; }
-        .gate-title { font-size: 1.3rem; font-weight: 800; margin-bottom: .25rem; }
-        .gate-title span { color: #4da6ff; }
-        .gate-sub { font-size: .72rem; color: #506070; margin-bottom: 1.25rem; }
-        .g-input { width: 100%; padding: .75rem 1rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; color: #dce6f5; font-size: .9rem; outline: none; margin-bottom: .6rem; transition: border-color .2s; font-family: inherit; }
-        .g-input:focus { border-color: #4da6ff; }
-        .g-btn { width: 100%; padding: .85rem; background: #4da6ff; border: none; border-radius: 10px; color: #fff; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
-        .g-btn:hover { opacity: .88; }
-        .g-err { display: none; margin-top: .6rem; font-size: .7rem; color: #f04060; background: rgba(240,64,96,.08); border-radius: 6px; padding: .4rem; }
+:root {
+  --bg: #f6f8fc;
+  --sidebar-bg: #f6f8fc;
+  --surface: #fff;
+  --border: #e0e0e0;
+  --text-primary: #202124;
+  --text-secondary: #5f6368;
+  --text-light: #80868b;
+  --accent: #1a73e8;
+  --accent-hover: #1557b0;
+  --red: #d93025;
+  --compose-btn: #c2e7ff;
+  --compose-text: #001d35;
+  --hover: #f2f6fc;
+  --selected: #d3e3fd;
+  --selected-bg: #e8f0fe;
+  --chip-bg: #e8f0fe;
+  --shadow: 0 1px 2px rgba(60,64,67,.3),0 1px 3px 1px rgba(60,64,67,.15);
+  --shadow-md: 0 2px 6px 2px rgba(60,64,67,.15),0 1px 2px rgba(60,64,67,.3);
+  --shadow-lg: 0 4px 8px 3px rgba(60,64,67,.15),0 1px 3px rgba(60,64,67,.3);
+  --sidebar-active-bg: #d3e3fd;
+  --sidebar-active-text: #041e49;
+  --unread-bg: #fff;
+  --read-bg: #f2f6fc;
+  --tag-inbox: #e8f0fe;
+  --scrollbar: #dadce0;
+}
 
-        #app { display: none; width: 100%; max-width: 680px; flex-direction: column; gap: 0; }
-        #app.show { display: flex; }
+body {
+  font-family: 'Google Sans', 'Roboto', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-        .app-header { background: #0d1016; border: 1px solid #1a2333; border-radius: 14px 14px 0 0; padding: .9rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
-        .app-header-left { display: flex; align-items: center; gap: .75rem; font-weight: 700; font-size: .95rem; }
-        .app-header-left > span { color: #4da6ff; }
-        .header-tabs { display: flex; gap: .4rem; }
-        .header-tab { padding: .35rem .75rem; background: transparent; border: 1px solid #1a2333; border-radius: 6px; color: #506070; font-size: .72rem; font-weight: 600; cursor: pointer; transition: all .15s; font-family: inherit; }
-        .header-tab.active { background: rgba(77,166,255,.12); border-color: #4da6ff; color: #4da6ff; }
-        .app-header-right { display: flex; align-items: center; gap: .5rem; font-size: .7rem; color: #506070; }
-        .online-dot { width: 7px; height: 7px; border-radius: 50%; background: #30d97a; }
-        .signout { background: transparent; border: 1px solid rgba(240,64,96,.3); color: #f04060; font-size: .65rem; padding: .3rem .6rem; border-radius: 6px; cursor: pointer; font-family: inherit; }
-        .signout:hover { background: rgba(240,64,96,.1); }
+/* ── TOP BAR ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  height: 64px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+}
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 220px;
+  flex-shrink: 0;
+}
+.topbar-logo img { height: 40px; }
+.topbar-logo-text {
+  font-size: 22px;
+  color: #5f6368;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+}
+.topbar-logo-text span { color: var(--text-primary); }
+.search-wrap {
+  flex: 1;
+  max-width: 720px;
+  position: relative;
+}
+.search-bar {
+  width: 100%;
+  height: 48px;
+  background: #eaf1fb;
+  border: none;
+  border-radius: 24px;
+  padding: 0 56px 0 56px;
+  font-size: 16px;
+  font-family: 'Google Sans', sans-serif;
+  color: var(--text-primary);
+  outline: none;
+  transition: background .15s, box-shadow .15s;
+}
+.search-bar:focus { background: var(--surface); box-shadow: var(--shadow); }
+.search-icon {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 18px;
+  pointer-events: none;
+}
+.search-filter {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 18px;
+  transition: background .15s;
+}
+.icon-btn:hover { background: rgba(32,33,36,.08); }
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+.avatar-menu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 16px;
+  min-width: 280px;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 200;
+  text-align: center;
+}
+.avatar-menu.open { display: flex; }
+.avatar-menu-big {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: white;
+  font-size: 24px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0 4px;
+}
+.avatar-menu-name { font-size: 16px; font-weight: 500; }
+.avatar-menu-email { font-size: 14px; color: var(--text-secondary); }
+.signout-btn {
+  margin-top: 8px;
+  padding: 8px 24px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 14px;
+  font-family: 'Google Sans';
+  color: var(--text-primary);
+  background: transparent;
+  cursor: pointer;
+}
+.signout-btn:hover { background: var(--hover); }
 
-        .app-body { background: #0d1016; border: 1px solid #1a2333; border-top: none; border-radius: 0 0 14px 14px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+/* ── LAYOUT ── */
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
 
-        .panel { display: none; flex-direction: column; gap: 1rem; }
-        .panel.active { display: flex; }
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+  background: var(--sidebar-bg);
+}
+.compose-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 16px 16px;
+  padding: 18px 24px;
+  background: var(--compose-btn);
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Google Sans';
+  color: var(--compose-text);
+  box-shadow: var(--shadow);
+  transition: box-shadow .15s, background .15s;
+  width: calc(100% - 32px);
+}
+.compose-btn:hover { box-shadow: var(--shadow-md); background: #b3d9f7; }
+.compose-btn i { font-size: 22px; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 16px 4px 16px;
+  height: 32px;
+  border-radius: 0 16px 16px 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: background .1s;
+  margin-right: 16px;
+  position: relative;
+  user-select: none;
+}
+.nav-item:hover { background: rgba(32,33,36,.08); }
+.nav-item.active { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); }
+.nav-item i { font-size: 18px; width: 20px; text-align: center; color: inherit; }
+.nav-item .count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+}
+.nav-section { padding: 8px 16px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; color: var(--text-secondary); margin-top: 8px; }
+.nav-divider { border: none; border-top: 1px solid var(--border); margin: 4px 16px; }
 
-        .field { display: flex; flex-direction: column; gap: .35rem; }
-        .field label { font-size: .62rem; color: #506070; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
-        .field input, .field textarea, .field select { padding: .7rem .9rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .88rem; font-family: inherit; outline: none; transition: border-color .2s; width: 100%; }
-        .field input:focus, .field textarea:focus, .field select:focus { border-color: #4da6ff; }
-        .field textarea { resize: vertical; min-height: 140px; line-height: 1.6; }
-        .field select option { background: #0d1016; }
+/* ── EMAIL LIST ── */
+.email-list-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+  background: var(--surface);
+}
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  height: 52px;
+  flex-shrink: 0;
+}
+.list-toolbar-select { display: flex; align-items: center; gap: 0; }
+.checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--text-secondary);
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.list-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.page-info { font-size: 13px; color: var(--text-secondary); padding: 0 12px; }
 
-        .custom-from-wrap { display: none; flex-direction: column; gap: .35rem; margin-top: .4rem; }
-        .custom-from-wrap.show { display: flex; }
-        .custom-from-row { display: flex; align-items: center; gap: .5rem; }
-        .custom-from-row input { flex: 1; padding: .7rem .9rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .88rem; font-family: inherit; outline: none; transition: border-color .2s; }
-        .custom-from-row input:focus { border-color: #4da6ff; }
-        .custom-from-row span { color: #506070; font-size: .85rem; white-space: nowrap; }
+.email-row {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 52px;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: box-shadow .1s, background .1s;
+  position: relative;
+  background: var(--unread-bg);
+}
+.email-row:hover { box-shadow: var(--shadow); z-index: 1; background: #f2f6fc; }
+.email-row.read { background: var(--read-bg); }
+.email-row.read .email-from { font-weight: 400; }
+.email-row.read .email-subject { font-weight: 400; }
+.email-row.selected { background: var(--selected-bg); }
+.email-row-check { width: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.email-star { font-size: 16px; color: #dadce0; cursor: pointer; }
+.email-star.starred { color: #f4b400; }
+.email-from { width: 180px; flex-shrink: 0; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
+.email-preview { flex: 1; font-size: 14px; display: flex; gap: 6px; min-width: 0; }
+.email-subject { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); flex-shrink: 0; max-width: 280px; }
+.email-snippet { color: var(--text-secondary); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email-snippet::before { content: ' - '; }
+.email-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.email-time { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+.email-actions { display: none; align-items: center; gap: 4px; }
+.email-row:hover .email-time { display: none; }
+.email-row:hover .email-actions { display: flex; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.tag-inbox { background: var(--tag-inbox); color: #1a73e8; }
+.no-emails { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 12px; color: var(--text-secondary); padding: 40px; text-align: center; }
+.no-emails i { font-size: 80px; color: var(--border); }
+.no-emails h3 { font-size: 22px; font-weight: 400; color: var(--text-secondary); }
+.email-scroll { flex: 1; overflow-y: auto; }
 
-        .type-tabs { display: flex; background: #080a0f; border: 1px solid #1a2333; border-radius: 8px; overflow: hidden; }
-        .type-tab { flex: 1; padding: .6rem; background: transparent; border: none; color: #506070; font-size: .75rem; font-weight: 700; cursor: pointer; transition: all .15s; font-family: inherit; }
-        .type-tab.active { background: rgba(77,166,255,.12); color: #4da6ff; }
+/* ── EMAIL DETAIL ── */
+.email-detail-pane {
+  width: 45%;
+  max-width: 680px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+}
+.email-detail-pane.hidden { display: none; }
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  height: 52px;
+  flex-shrink: 0;
+}
+.detail-scroll { flex: 1; overflow-y: auto; padding: 24px; }
+.detail-subject { font-size: 22px; font-weight: 400; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+.detail-subject-star { font-size: 20px; color: #dadce0; cursor: pointer; }
+.detail-msg-card { border: 1px solid var(--border); border-radius: 8px; padding: 0; overflow: hidden; }
+.detail-msg-header { padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.detail-msg-header:hover { background: #fafafa; }
+.detail-sender-avatar { width: 40px; height: 40px; border-radius: 50%; background: #1a73e8; color: white; font-size: 16px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.detail-sender-info { flex: 1; min-width: 0; }
+.detail-sender-name { font-size: 14px; font-weight: 500; }
+.detail-sender-addr { font-size: 12px; color: var(--text-secondary); }
+.detail-msg-time { font-size: 12px; color: var(--text-secondary); white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.detail-msg-body { padding: 16px 16px 24px 68px; font-size: 14px; line-height: 1.7; color: var(--text-primary); border-top: 1px solid var(--border); }
+.detail-reply { margin-top: 24px; border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; align-items: flex-start; gap: 12px; cursor: pointer; color: var(--text-secondary); font-size: 14px; }
+.detail-reply:hover { box-shadow: var(--shadow); }
 
-        .toolbar { display: flex; gap: .4rem; flex-wrap: wrap; }
-        .tb { padding: .4rem .75rem; background: #080a0f; border: 1px solid #1a2333; border-radius: 6px; color: #506070; font-size: .72rem; cursor: pointer; transition: all .15s; font-family: inherit; display: flex; align-items: center; gap: .3rem; }
-        .tb:hover { border-color: #4da6ff; color: #4da6ff; }
+/* ── COMPOSE MODAL ── */
+.compose-modal {
+  position: fixed;
+  bottom: 0;
+  right: 24px;
+  width: 520px;
+  background: var(--surface);
+  border-radius: 8px 8px 0 0;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  max-height: 540px;
+  transition: max-height .2s;
+}
+.compose-modal.minimized { max-height: 48px; }
+.compose-modal.fullscreen { position: fixed; inset: 40px 40px 0; width: auto; right: 40px; max-height: none; border-radius: 8px 8px 0 0; }
+.compose-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: #404040;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.compose-header-title { color: white; font-size: 14px; font-weight: 500; flex: 1; }
+.compose-header-actions { display: flex; gap: 8px; }
+.compose-hbtn { background: transparent; border: none; cursor: pointer; color: rgba(255,255,255,.8); font-size: 16px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.compose-hbtn:hover { background: rgba(255,255,255,.15); }
+.compose-fields { padding: 0; border-bottom: 1px solid var(--border); }
+.compose-field-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  min-height: 40px;
+}
+.compose-field-row:last-child { border-bottom: none; }
+.compose-field-label { font-size: 13px; color: var(--text-secondary); width: 40px; flex-shrink: 0; }
+.compose-field-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: 'Google Sans', sans-serif;
+  color: var(--text-primary);
+  padding: 8px 0;
+  background: transparent;
+}
+.compose-from-select {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: 'Google Sans', sans-serif;
+  color: var(--text-primary);
+  background: transparent;
+  cursor: pointer;
+  padding: 8px 0;
+}
+.compose-from-select option { background: white; }
+.compose-body {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: 'Google Sans', sans-serif;
+  color: var(--text-primary);
+  padding: 12px 16px;
+  resize: none;
+  overflow-y: auto;
+  min-height: 200px;
+  background: transparent;
+  line-height: 1.6;
+}
+.compose-footer {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.compose-send-btn {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Google Sans';
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+  margin-right: 4px;
+}
+.compose-send-btn:hover { background: var(--accent-hover); box-shadow: var(--shadow); }
+.compose-send-btn:disabled { opacity: .6; cursor: not-allowed; }
+.compose-tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .1s;
+}
+.compose-tool-btn:hover { background: rgba(32,33,36,.08); }
+.compose-status { font-size: 12px; padding: 4px 12px; border-radius: 4px; margin-left: 8px; display: none; }
+.compose-status.ok { display: block; color: #188038; }
+.compose-status.err { display: block; color: var(--red); }
+.compose-img-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 16px 0; }
+.compose-img-chip { background: #e8f0fe; border-radius: 4px; padding: 3px 8px; font-size: 12px; display: flex; align-items: center; gap: 6px; color: var(--accent); }
+.compose-img-chip .rm { cursor: pointer; color: #80868b; }
+.type-toggle { display: flex; gap: 4px; padding: 4px 16px 8px; }
+.type-toggle-btn { padding: 4px 12px; border-radius: 16px; border: 1px solid var(--border); font-size: 12px; font-family: 'Google Sans'; cursor: pointer; background: transparent; color: var(--text-secondary); transition: all .1s; }
+.type-toggle-btn.active { background: var(--selected-bg); border-color: var(--accent); color: var(--accent); font-weight: 500; }
 
-        .img-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
-        .img-chip { background: #111722; border: 1px solid #1a2333; border-radius: 6px; padding: .3rem .6rem; font-size: .7rem; display: flex; align-items: center; gap: .4rem; }
-        .img-chip img { width: 20px; height: 20px; border-radius: 3px; object-fit: cover; }
-        .img-chip-remove { color: #f04060; cursor: pointer; }
+/* ── LOGIN ── */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.login-overlay.hidden { display: none; }
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 40px;
+  width: 400px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.login-logo { font-size: 48px; margin-bottom: 16px; }
+.login-title { font-size: 24px; font-weight: 400; color: var(--text-primary); margin-bottom: 8px; }
+.login-sub { font-size: 16px; color: var(--text-secondary); margin-bottom: 32px; }
+.login-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 16px;
+  font-family: 'Google Sans';
+  color: var(--text-primary);
+  outline: none;
+  margin-bottom: 16px;
+  transition: border-color .15s;
+}
+.login-input:focus { border-color: var(--accent); }
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-family: 'Google Sans';
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+}
+.login-btn:hover { background: var(--accent-hover); }
+.login-err { margin-top: 12px; font-size: 13px; color: var(--red); display: none; }
 
-        #preview-wrap { display: none; flex-direction: column; gap: .35rem; }
-        #preview-wrap.show { display: flex; }
-        #preview-wrap label { font-size: .62rem; color: #506070; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
-        #preview-frame { width: 100%; min-height: 160px; border: 1px solid #1a2333; border-radius: 8px; background: #fff; }
+/* ── ACCESS PANEL ── */
+.access-panel { padding: 24px; overflow-y: auto; flex: 1; }
+.access-panel h2 { font-size: 20px; font-weight: 400; margin-bottom: 20px; }
+.access-form { background: var(--hover); border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
+.access-input { padding: 10px 14px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; font-family: 'Google Sans'; outline: none; transition: border-color .15s; }
+.access-input:focus { border-color: var(--accent); }
+.access-add-btn { align-self: flex-start; padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 20px; font-size: 14px; font-family: 'Google Sans'; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.access-add-btn:hover { background: var(--accent-hover); }
+.access-user-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+.access-user-info h4 { font-size: 14px; font-weight: 500; }
+.access-user-info p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.access-user-actions { display: flex; gap: 8px; }
+.access-edit-btn { padding: 6px 14px; border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 16px; font-size: 13px; cursor: pointer; font-family: 'Google Sans'; }
+.access-revoke-btn { padding: 6px 14px; border: 1px solid var(--red); color: var(--red); background: transparent; border-radius: 16px; font-size: 13px; cursor: pointer; font-family: 'Google Sans'; }
+.access-status { font-size: 13px; margin-top: 8px; display: none; }
+.access-status.ok { display: block; color: #188038; }
+.access-status.err { display: block; color: var(--red); }
 
-        .send-row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
-        .send-btn { padding: .8rem 1.75rem; background: #4da6ff; border: none; border-radius: 10px; color: #fff; font-size: .88rem; font-weight: 700; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: .5rem; font-family: inherit; }
-        .send-btn:hover { opacity: .88; transform: translateY(-1px); }
-        .send-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-        .preview-btn { padding: .8rem 1.25rem; background: #111722; border: 1px solid #1a2333; border-radius: 10px; color: #506070; font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s; font-family: inherit; display: none; }
-        .preview-btn:hover { border-color: #4da6ff; color: #4da6ff; }
-        .status { display: none; font-size: .75rem; padding: .45rem .8rem; border-radius: 6px; }
-        .status.ok { display: block; background: rgba(48,217,122,.1); color: #30d97a; }
-        .status.err { display: block; background: rgba(240,64,96,.08); color: #f04060; }
-
-        .section-title { font-size: .8rem; font-weight: 700; color: #dce6f5; }
-        .section-title span { color: #4da6ff; }
-        .access-card { background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; padding: 1rem; }
-        .access-user-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
-        .access-user-email { font-size: .8rem; font-weight: 600; }
-        .access-user-senders { font-size: .65rem; color: #506070; margin-top: .2rem; }
-        .access-actions { display: flex; gap: .4rem; }
-        .access-btn { padding: .35rem .7rem; border-radius: 6px; font-size: .7rem; font-weight: 600; cursor: pointer; border: 1px solid; font-family: inherit; transition: all .15s; }
-        .access-btn.edit { border-color: #4da6ff; color: #4da6ff; background: transparent; }
-        .access-btn.edit:hover { background: rgba(77,166,255,.1); }
-        .access-btn.revoke { border-color: #f04060; color: #f04060; background: transparent; }
-        .access-btn.revoke:hover { background: rgba(240,64,96,.1); }
-        .add-access-form { background: #080a0f; border: 1px solid #1a2333; border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: .75rem; }
-        .add-access-form input { padding: .65rem .9rem; background: #0d1016; border: 1px solid #1a2333; border-radius: 8px; color: #dce6f5; font-size: .85rem; font-family: inherit; outline: none; transition: border-color .2s; width: 100%; }
-        .add-access-form input:focus { border-color: #4da6ff; }
-        .hint { font-size: .65rem; color: #506070; }
-        .add-btn { padding: .7rem 1.25rem; background: #30d97a; border: none; border-radius: 8px; color: #fff; font-size: .8rem; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: .4rem; align-self: flex-start; }
-        .add-btn:hover { opacity: .88; }
-        .empty-access { font-size: .78rem; color: #506070; text-align: center; padding: 1.5rem; }
-
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #1a2333; border-radius: 2px; }
-    </style>
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+</style>
 </head>
 <body>
 
-<div id="gate">
-    <div class="gate-logo">✉️</div>
-    <div class="gate-title">HTML<span>Tools</span> Mail</div>
-    <div class="gate-sub">Sign in to access the mail tool.</div>
-    <input type="email" id="g-email" class="g-input" placeholder="your@email.com" />
-    <input type="password" id="g-pass" class="g-input" placeholder="••••••••" />
-    <button class="g-btn" id="login-btn">Sign In</button>
-    <div class="g-err" id="g-err"></div>
+<!-- LOGIN -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">✉️</div>
+    <div class="login-title">Sign in</div>
+    <div class="login-sub">to continue to HTMLTools Mail</div>
+    <input type="email" class="login-input" id="l-email" placeholder="Email address" />
+    <input type="password" class="login-input" id="l-pass" placeholder="Password" />
+    <button class="login-btn" id="l-btn">Next</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
 </div>
 
-<div id="app">
-    <div class="app-header">
-        <div class="app-header-left">
-            ✉️ HTML<span>Tools</span> Mail
-            <div class="header-tabs">
-                <button class="header-tab active" id="tab-compose" onclick="switchPanel('compose')">Compose</button>
-                <button class="header-tab" id="tab-access" onclick="switchPanel('access')" style="display:none">Access</button>
-            </div>
-        </div>
-        <div class="app-header-right">
-            <span class="online-dot"></span>
-            <span id="user-label"></span>
-            <button class="signout" id="signout-btn">Sign Out</button>
-        </div>
+<!-- APP -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <span style="font-size:28px;">✉️</span>
+    <span class="topbar-logo-text">HTML<span>Tools</span> Mail</span>
+  </div>
+  <div class="search-wrap">
+    <i class="fas fa-search search-icon"></i>
+    <input class="search-bar" type="text" placeholder="Search mail" id="search-input" />
+    <i class="fas fa-sliders search-filter"></i>
+  </div>
+  <div class="topbar-actions">
+    <button class="icon-btn" title="Settings"><i class="fas fa-cog"></i></button>
+    <button class="icon-btn" title="Google apps"><i class="fas fa-th"></i></button>
+    <div class="avatar" id="avatar-btn">U
+      <div class="avatar-menu" id="avatar-menu">
+        <div class="avatar-menu-big" id="avatar-big">U</div>
+        <div class="avatar-menu-name" id="avatar-name">User</div>
+        <div class="avatar-menu-email" id="avatar-email">user@email.com</div>
+        <button class="signout-btn" id="signout-btn">Sign out</button>
+      </div>
     </div>
-    <div class="app-body">
+  </div>
+</div>
 
-        <!-- COMPOSE -->
-        <div class="panel active" id="panel-compose">
-            <div class="field">
-                <label>From</label>
-                <select id="from-select" onchange="onFromChange()">
-                    <option value="noreply@htmltools.me">noreply@htmltools.me</option>
-                    <option value="matthew@htmltools.me">matthew@htmltools.me</option>
-                    <option value="kovan@htmltools.me">kovan@htmltools.me</option>
-                    <option value="custom">✏️ Type custom address...</option>
-                </select>
-                <div class="custom-from-wrap" id="custom-from-wrap">
-                    <div class="custom-from-row">
-                        <input type="text" id="custom-from-input" placeholder="username" />
-                        <span>@htmltools.me</span>
-                    </div>
-                    <div class="hint">Only addresses you have access to will work.</div>
-                </div>
-            </div>
-            <div class="field">
-                <label>To</label>
-                <input type="email" id="to" placeholder="recipient@example.com" />
-            </div>
-            <div class="field">
-                <label>Subject</label>
-                <input type="text" id="subject" placeholder="Email subject..." />
-            </div>
-            <div class="field">
-                <label>Type</label>
-                <div class="type-tabs">
-                    <button class="type-tab active" id="tab-normal" onclick="setType('normal')">✏️ Normal</button>
-                    <button class="type-tab" id="tab-html" onclick="setType('html')">🧩 HTML</button>
-                </div>
-            </div>
-            <div class="toolbar" id="normal-toolbar">
-                <button class="tb" onclick="insertLink()"><i class="fas fa-link"></i> Insert Link</button>
-                <button class="tb" onclick="document.getElementById('img-input').click()"><i class="fas fa-image"></i> Attach Image</button>
-                <input type="file" id="img-input" accept="image/*" multiple style="display:none" onchange="handleImages(event)" />
-            </div>
-            <div class="img-chips" id="img-chips"></div>
-            <div class="field">
-                <label id="body-label">Message</label>
-                <textarea id="body" placeholder="Write your message here... URLs become clickable automatically."></textarea>
-            </div>
-            <div id="preview-wrap">
-                <label>Preview</label>
-                <iframe id="preview-frame" sandbox="allow-same-origin"></iframe>
-            </div>
-            <div class="send-row">
-                <button class="send-btn" id="send-btn" onclick="sendEmail()"><i class="fas fa-paper-plane"></i> Send</button>
-                <button class="preview-btn" id="preview-btn" onclick="togglePreview()"><i class="fas fa-eye"></i> Preview</button>
-                <div class="status" id="status"></div>
-            </div>
-        </div>
-
-        <!-- ACCESS MANAGER -->
-        <div class="panel" id="panel-access">
-            <div class="section-title">👥 Access Manager <span>— Super Admin Only</span></div>
-            <div class="add-access-form">
-                <div style="font-size:.75rem;font-weight:700;color:#dce6f5;">Grant Access to User</div>
-                <input type="email" id="new-user-email" placeholder="User's email (e.g. friend@gmail.com)" />
-                <input type="text" id="new-user-senders" placeholder="Allowed senders: noreply,matthew,kovan (comma separated)" />
-                <div class="hint">Just the username part before @htmltools.me — e.g. <strong>noreply,matthew</strong></div>
-                <button class="add-btn" id="grant-btn"><i class="fas fa-plus"></i> Grant Access</button>
-                <div class="status" id="access-status"></div>
-            </div>
-            <div style="font-size:.75rem;font-weight:700;color:#dce6f5;">Users with Access</div>
-            <div id="access-list"><div class="empty-access">No users have been granted access yet.</div></div>
-        </div>
-
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <button class="compose-btn" id="compose-btn">
+      <i class="fas fa-pen"></i> Compose
+    </button>
+    <div class="nav-item active" data-nav="inbox" onclick="setNav('inbox')">
+      <i class="fas fa-inbox"></i> Inbox <span class="count" id="nav-inbox-count"></span>
     </div>
+    <div class="nav-item" data-nav="starred" onclick="setNav('starred')">
+      <i class="fas fa-star"></i> Starred
+    </div>
+    <div class="nav-item" data-nav="sent" onclick="setNav('sent')">
+      <i class="fas fa-paper-plane"></i> Sent
+    </div>
+    <div class="nav-item" data-nav="drafts" onclick="setNav('drafts')">
+      <i class="fas fa-file-alt"></i> Drafts
+    </div>
+    <hr class="nav-divider">
+    <div class="nav-item" id="access-nav" style="display:none" onclick="setNav('access')">
+      <i class="fas fa-users-cog"></i> Access Manager
+    </div>
+    <div class="nav-item" onclick="setNav('spam')">
+      <i class="fas fa-ban"></i> Spam
+    </div>
+    <div class="nav-item" onclick="setNav('trash')">
+      <i class="fas fa-trash"></i> Trash
+    </div>
+  </div>
+
+  <!-- MAIN PANE -->
+  <div id="main-pane" style="flex:1;display:flex;overflow:hidden;flex-direction:column;">
+
+    <!-- INBOX VIEW -->
+    <div id="view-inbox" style="display:flex;flex:1;overflow:hidden;">
+      <div class="email-list-pane" id="email-list-pane">
+        <div class="list-toolbar">
+          <div class="list-toolbar-select">
+            <div class="checkbox"></div>
+            <button class="icon-btn" style="width:28px;height:28px;font-size:12px;"><i class="fas fa-caret-down"></i></button>
+          </div>
+          <div class="list-toolbar-actions">
+            <button class="icon-btn" title="Refresh" onclick="loadInbox()"><i class="fas fa-sync-alt"></i></button>
+            <button class="icon-btn" title="More"><i class="fas fa-ellipsis-v"></i></button>
+          </div>
+          <span class="page-info" id="page-info"></span>
+        </div>
+        <div class="email-scroll" id="email-scroll">
+          <div class="no-emails" id="no-emails">
+            <i class="fas fa-inbox"></i>
+            <h3>Your inbox is empty</h3>
+            <p>Emails sent to your address will appear here automatically.</p>
+          </div>
+        </div>
+      </div>
+      <div class="email-detail-pane hidden" id="email-detail-pane">
+        <div class="detail-toolbar">
+          <button class="icon-btn" onclick="closeDetail()" title="Back"><i class="fas fa-arrow-left"></i></button>
+          <button class="icon-btn" title="Archive"><i class="fas fa-archive"></i></button>
+          <button class="icon-btn" title="Spam"><i class="fas fa-ban"></i></button>
+          <button class="icon-btn" title="Delete"><i class="fas fa-trash"></i></button>
+          <div style="margin-left:auto;display:flex;gap:4px;">
+            <button class="icon-btn" title="More"><i class="fas fa-ellipsis-v"></i></button>
+          </div>
+        </div>
+        <div class="detail-scroll" id="detail-scroll"></div>
+      </div>
+    </div>
+
+    <!-- SENT VIEW -->
+    <div id="view-sent" style="display:none;flex:1;overflow-y:auto;">
+      <div style="padding:24px;">
+        <h2 style="font-size:20px;font-weight:400;margin-bottom:16px;color:var(--text-secondary);">Sent Mail</h2>
+        <div id="sent-list"></div>
+      </div>
+    </div>
+
+    <!-- ACCESS VIEW -->
+    <div id="view-access" style="display:none;flex:1;overflow-y:auto;">
+      <div class="access-panel">
+        <h2>Access Manager <span style="color:var(--accent);font-size:14px;font-weight:400;">— Super Admin Only</span></h2>
+        <div class="access-form">
+          <div style="font-size:14px;font-weight:500;">Grant Access to a User</div>
+          <input class="access-input" type="email" id="new-user-email" placeholder="User email (e.g. friend@gmail.com)" />
+          <input class="access-input" type="text" id="new-user-senders" placeholder="Allowed senders: noreply,matthew,kovan (comma-separated)" />
+          <div style="font-size:12px;color:var(--text-secondary);">Just the username before @htmltools.me</div>
+          <button class="access-add-btn" id="grant-btn"><i class="fas fa-plus"></i> Grant Access</button>
+          <div class="access-status" id="access-status"></div>
+        </div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:12px;">Users with Access</div>
+        <div id="access-list"><div style="color:var(--text-secondary);font-size:14px;">No users have been granted access yet.</div></div>
+      </div>
+    </div>
+
+    <!-- GENERIC EMPTY VIEWS -->
+    <div id="view-starred" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-secondary);">
+      <i class="fas fa-star" style="font-size:80px;color:var(--border);"></i>
+      <h3 style="font-size:22px;font-weight:400;">No starred messages</h3>
+    </div>
+    <div id="view-drafts" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-secondary);">
+      <i class="fas fa-file-alt" style="font-size:80px;color:var(--border);"></i>
+      <h3 style="font-size:22px;font-weight:400;">No drafts</h3>
+    </div>
+    <div id="view-spam" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-secondary);">
+      <i class="fas fa-ban" style="font-size:80px;color:var(--border);"></i>
+      <h3 style="font-size:22px;font-weight:400;">No spam here</h3>
+    </div>
+    <div id="view-trash" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text-secondary);">
+      <i class="fas fa-trash" style="font-size:80px;color:var(--border);"></i>
+      <h3 style="font-size:22px;font-weight:400;">Trash is empty</h3>
+    </div>
+  </div>
+</div>
+
+<!-- COMPOSE MODAL -->
+<div class="compose-modal" id="compose-modal" style="display:none;">
+  <div class="compose-header" id="compose-header">
+    <span class="compose-header-title">New Message</span>
+    <div class="compose-header-actions">
+      <button class="compose-hbtn" id="minimize-btn" title="Minimize"><i class="fas fa-minus"></i></button>
+      <button class="compose-hbtn" id="fullscreen-btn" title="Full screen"><i class="fas fa-expand-alt"></i></button>
+      <button class="compose-hbtn" id="close-compose-btn" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+  </div>
+  <div id="compose-body-wrap" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+    <div class="compose-fields">
+      <div class="compose-field-row">
+        <span class="compose-field-label">From</span>
+        <select class="compose-from-select" id="c-from"></select>
+      </div>
+      <div class="compose-field-row">
+        <span class="compose-field-label">To</span>
+        <input class="compose-field-input" type="email" id="c-to" placeholder="" />
+      </div>
+      <div class="compose-field-row">
+        <span class="compose-field-label">Subject</span>
+        <input class="compose-field-input" type="text" id="c-subject" placeholder="" />
+      </div>
+    </div>
+    <div class="type-toggle">
+      <button class="type-toggle-btn active" id="type-normal" onclick="setEmailType('normal')">✏️ Plain Text</button>
+      <button class="type-toggle-btn" id="type-html" onclick="setEmailType('html')">🧩 HTML</button>
+    </div>
+    <div class="compose-img-chips" id="c-img-chips"></div>
+    <textarea class="compose-body" id="c-body" placeholder=""></textarea>
+    <div class="compose-footer">
+      <button class="compose-send-btn" id="c-send-btn" onclick="sendEmail()">Send</button>
+      <button class="compose-tool-btn" title="Formatting"><i class="fas fa-font"></i></button>
+      <button class="compose-tool-btn" title="Attach files" onclick="document.getElementById('c-img-input').click()"><i class="fas fa-paperclip"></i></button>
+      <input type="file" id="c-img-input" accept="image/*" multiple style="display:none" onchange="handleImages(event)" />
+      <button class="compose-tool-btn" title="Insert link" onclick="insertLink()"><i class="fas fa-link"></i></button>
+      <button class="compose-tool-btn" title="Emoji"><i class="far fa-smile"></i></button>
+      <div class="compose-tool-btn" style="margin-left:auto;">
+        <button class="compose-tool-btn" title="More options"><i class="fas fa-ellipsis-v"></i></button>
+        <button class="compose-tool-btn" title="Delete draft" onclick="closeCompose()" style="color:var(--text-secondary);"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>
+    <div class="compose-status" id="c-status"></div>
+  </div>
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    const SUPER_ADMIN = 'matthewbozhe@gmail.com';
-    const WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
+const SUPER_ADMIN = 'matthewbozhe@gmail.com';
+const WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
-        authDomain: "htmltools-library.firebaseapp.com",
-        databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
-        projectId: "htmltools-library",
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
+  authDomain: "htmltools-library.firebaseapp.com",
+  databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
+  projectId: "htmltools-library",
+};
 
-    // ✅ Fix: single app instance shared by auth and db
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getDatabase(fbApp);
 
-    // ── Compose state ──
-    let emailType = 'normal';
-    let images = [];
-    let previewOpen = false;
+// ── STATE ──
+let currentUser = null;
+let emailType = 'normal';
+let images = [];
+let sentEmails = [];
+let inboxEmails = [];
+let isMinimized = false;
+let isFullscreen = false;
+let currentNav = 'inbox';
+let currentDetail = null;
 
-    // ── Login ──
-    document.getElementById('login-btn').addEventListener('click', async () => {
-        const email = document.getElementById('g-email').value.trim();
-        const pass = document.getElementById('g-pass').value;
-        const err = document.getElementById('g-err');
-        err.style.display = 'none';
-        if (!email || !pass) { err.textContent = 'Please fill in both fields.'; err.style.display = 'block'; return; }
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-        } catch(e) {
-            err.textContent = '⛔ ' + e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();
-            err.style.display = 'block';
-        }
+// ── LOGIN ──
+document.getElementById('l-btn').addEventListener('click', doLogin);
+document.getElementById('l-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const err = document.getElementById('l-err');
+  err.style.display = 'none';
+  if (!email || !pass) { showErr('Please fill in both fields.'); return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) {
+    showErr(e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim());
+  }
+}
+function showErr(msg) {
+  const err = document.getElementById('l-err');
+  err.textContent = msg;
+  err.style.display = 'block';
+}
+
+document.getElementById('signout-btn').addEventListener('click', () => signOut(auth));
+
+// ── AUTH STATE ──
+onAuthStateChanged(auth, async user => {
+  if (!user) {
+    document.getElementById('login-overlay').classList.remove('hidden');
+    currentUser = null;
+    return;
+  }
+  const email = user.email.toLowerCase();
+  if (email === SUPER_ADMIN.toLowerCase()) {
+    currentUser = user;
+    showApp(user, null);
+    document.getElementById('access-nav').style.display = 'flex';
+    listenAccessList();
+    loadInbox();
+  } else {
+    const snap = await get(ref(db, `mailAccess/${email.replace(/\./g, '_')}`));
+    if (snap.exists()) {
+      currentUser = user;
+      showApp(user, snap.val().senders);
+      onValue(ref(db, `mailAccess/${email.replace(/\./g, '_')}`), s => {
+        if (!s.exists()) { signOut(auth); alert('Your access has been revoked.'); }
+        else updateFromSelect(s.val().senders);
+      });
+      loadInbox();
+    } else {
+      await signOut(auth);
+      showErr('You do not have access to this tool.');
+    }
+  }
+});
+
+function showApp(user, senders) {
+  document.getElementById('login-overlay').classList.add('hidden');
+  const initial = user.email[0].toUpperCase();
+  document.getElementById('avatar-btn').childNodes[0].textContent = initial;
+  document.getElementById('avatar-big').textContent = initial;
+  document.getElementById('avatar-name').textContent = user.email.split('@')[0];
+  document.getElementById('avatar-email').textContent = user.email;
+  if (senders) updateFromSelect(senders);
+  else {
+    // super admin gets all
+    updateFromSelect(['noreply', 'matthew', 'kovan']);
+  }
+}
+
+function updateFromSelect(senders) {
+  const sel = document.getElementById('c-from');
+  sel.innerHTML = '';
+  senders.forEach(s => {
+    const opt = new Option(s + '@htmltools.me', s + '@htmltools.me');
+    sel.add(opt);
+  });
+}
+
+// ── AVATAR MENU ──
+document.getElementById('avatar-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('avatar-menu').classList.toggle('open');
+});
+document.addEventListener('click', () => document.getElementById('avatar-menu').classList.remove('open'));
+
+// ── NAV ──
+window.setNav = function(name) {
+  currentNav = name;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-nav="${name}"]`)?.classList.add('active');
+  // hide all views
+  ['inbox','sent','access','starred','drafts','spam','trash'].forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (el) { el.style.display = 'none'; if (el.style.flex) el.style.flex = ''; }
+  });
+  const view = document.getElementById('view-' + name);
+  if (view) {
+    view.style.display = 'flex';
+    view.style.flex = '1';
+  }
+  if (name === 'sent') renderSent();
+  closeDetail();
+};
+
+// ── INBOX LOAD ──
+window.loadInbox = async function() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'get_inbox', email: currentUser.email })
     });
+    if (!res.ok) throw new Error('No inbox endpoint');
+    const data = await res.json();
+    if (data.emails) {
+      inboxEmails = data.emails;
+      renderInbox();
+    }
+  } catch(e) {
+    // Inbox endpoint not available - show placeholder
+    renderInbox();
+  }
+};
 
-    document.getElementById('g-pass').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') document.getElementById('login-btn').click();
+function renderInbox() {
+  const scroll = document.getElementById('email-scroll');
+  const noEmails = document.getElementById('no-emails');
+  if (!inboxEmails.length) {
+    noEmails.style.display = 'flex';
+    document.getElementById('page-info').textContent = '';
+    return;
+  }
+  noEmails.style.display = 'none';
+  document.getElementById('page-info').textContent = `1–${inboxEmails.length} of ${inboxEmails.length}`;
+  const rows = inboxEmails.map((email, i) => {
+    const row = document.createElement('div');
+    row.className = 'email-row' + (email.read ? ' read' : '');
+    row.innerHTML = `
+      <div class="email-row-check">
+        <div class="checkbox"></div>
+        <span class="email-star${email.starred ? ' starred' : ''}" data-i="${i}"><i class="fas fa-star"></i></span>
+      </div>
+      <div class="email-from">${email.from || 'Unknown'}</div>
+      <div class="email-preview">
+        <span class="email-subject">${email.subject || '(no subject)'}</span>
+        <span class="email-snippet">${email.snippet || ''}</span>
+      </div>
+      <div class="email-meta">
+        <div class="email-time">${formatTime(email.date)}</div>
+        <div class="email-actions">
+          <button class="icon-btn" title="Archive" style="width:32px;height:32px;font-size:14px;"><i class="fas fa-archive"></i></button>
+          <button class="icon-btn" title="Delete" style="width:32px;height:32px;font-size:14px;"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`;
+    row.addEventListener('click', () => openDetail(email, i));
+    row.querySelector('.email-star').addEventListener('click', e => { e.stopPropagation(); toggleStar(i); });
+    return row;
+  });
+  // Clear and re-add
+  Array.from(scroll.children).forEach(c => { if (c !== noEmails) c.remove(); });
+  rows.forEach(r => scroll.appendChild(r));
+}
+
+function toggleStar(i) {
+  inboxEmails[i].starred = !inboxEmails[i].starred;
+  renderInbox();
+}
+
+function openDetail(email, i) {
+  inboxEmails[i].read = true;
+  renderInbox();
+  currentDetail = email;
+  const pane = document.getElementById('email-detail-pane');
+  const scroll = document.getElementById('detail-scroll');
+  pane.classList.remove('hidden');
+  const senderInitial = (email.from || 'U')[0].toUpperCase();
+  scroll.innerHTML = `
+    <div class="detail-subject">
+      ${email.subject || '(no subject)'}
+      <span class="detail-subject-star"><i class="fas fa-star" style="color:#dadce0"></i></span>
+    </div>
+    <div class="detail-msg-card">
+      <div class="detail-msg-header">
+        <div class="detail-sender-avatar">${senderInitial}</div>
+        <div class="detail-sender-info">
+          <div class="detail-sender-name">${email.from || 'Unknown'}</div>
+          <div class="detail-sender-addr">to me</div>
+        </div>
+        <div class="detail-msg-time">${formatTime(email.date)} <button class="icon-btn" style="width:32px;height:32px;font-size:14px;"><i class="fas fa-reply"></i></button><button class="icon-btn" style="width:32px;height:32px;font-size:14px;"><i class="fas fa-ellipsis-v"></i></button></div>
+      </div>
+      <div class="detail-msg-body">${email.html || email.body || ''}</div>
+    </div>
+    <div class="detail-reply" onclick="openReply('${email.from}', '${email.subject}')">
+      <div class="detail-sender-avatar" style="width:32px;height:32px;font-size:13px;flex-shrink:0;">${(currentUser?.email||'U')[0].toUpperCase()}</div>
+      <span>Reply to ${email.from || 'sender'}...</span>
+    </div>`;
+}
+
+window.openReply = function(to, subject) {
+  openCompose();
+  document.getElementById('c-to').value = to;
+  document.getElementById('c-subject').value = subject?.startsWith('Re:') ? subject : 'Re: ' + subject;
+};
+
+window.closeDetail = function() {
+  document.getElementById('email-detail-pane').classList.add('hidden');
+  currentDetail = null;
+};
+
+// ── SENT ──
+function renderSent() {
+  const list = document.getElementById('sent-list');
+  if (!sentEmails.length) {
+    list.innerHTML = '<div style="color:var(--text-secondary);font-size:14px;">No sent emails yet.</div>';
+    return;
+  }
+  list.innerHTML = sentEmails.map(e => `
+    <div class="email-row" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:4px;">
+      <div class="email-row-check"><div class="checkbox"></div><span class="email-star"><i class="fas fa-star"></i></span></div>
+      <div class="email-from">To: ${e.to}</div>
+      <div class="email-preview"><span class="email-subject">${e.subject}</span></div>
+      <div class="email-meta"><div class="email-time">${formatTime(e.date)}</div></div>
+    </div>`).join('');
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (isNaN(d)) return dateStr;
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+// ── COMPOSE ──
+document.getElementById('compose-btn').addEventListener('click', openCompose);
+document.getElementById('close-compose-btn').addEventListener('click', closeCompose);
+document.getElementById('minimize-btn').addEventListener('click', toggleMinimize);
+document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
+document.getElementById('compose-header').addEventListener('click', e => {
+  if (e.target === document.getElementById('compose-header') || e.target.closest('.compose-header-title')) {
+    if (isMinimized) toggleMinimize();
+  }
+});
+
+function openCompose() {
+  const modal = document.getElementById('compose-modal');
+  modal.style.display = 'flex';
+  modal.style.flexDirection = 'column';
+  isMinimized = false;
+  isFullscreen = false;
+  modal.classList.remove('minimized','fullscreen');
+  document.getElementById('c-status').className = 'compose-status';
+}
+window.closeCompose = function() { document.getElementById('compose-modal').style.display = 'none'; };
+
+function toggleMinimize() {
+  isMinimized = !isMinimized;
+  document.getElementById('compose-modal').classList.toggle('minimized', isMinimized);
+  document.getElementById('compose-body-wrap').style.display = isMinimized ? 'none' : 'flex';
+}
+function toggleFullscreen() {
+  isFullscreen = !isFullscreen;
+  document.getElementById('compose-modal').classList.toggle('fullscreen', isFullscreen);
+  document.getElementById('fullscreen-btn').innerHTML = isFullscreen ? '<i class="fas fa-compress-alt"></i>' : '<i class="fas fa-expand-alt"></i>';
+}
+
+window.setEmailType = function(type) {
+  emailType = type;
+  document.getElementById('type-normal').classList.toggle('active', type === 'normal');
+  document.getElementById('type-html').classList.toggle('active', type === 'html');
+  document.getElementById('c-body').placeholder = type === 'html' ? '<h1>Hello!</h1>\n<p>Your message...</p>' : '';
+};
+
+window.insertLink = function() {
+  const url = prompt('URL:');
+  if (!url) return;
+  const text = prompt('Link text:') || url;
+  const ta = document.getElementById('c-body');
+  const pos = ta.selectionStart;
+  ta.value = ta.value.slice(0, pos) + `[${text}](${url})` + ta.value.slice(pos);
+};
+
+window.handleImages = function(e) {
+  Array.from(e.target.files).forEach(file => {
+    const r = new FileReader();
+    r.onload = ev => { images.push({ name: file.name, data: ev.target.result }); renderChips(); };
+    r.readAsDataURL(file);
+  });
+  e.target.value = '';
+};
+
+function renderChips() {
+  const c = document.getElementById('c-img-chips');
+  c.innerHTML = '';
+  images.forEach((img, i) => {
+    const d = document.createElement('div');
+    d.className = 'compose-img-chip';
+    d.innerHTML = `<span>${img.name}</span><span class="rm" data-i="${i}">✕</span>`;
+    d.querySelector('.rm').addEventListener('click', () => { images.splice(i, 1); renderChips(); });
+    c.appendChild(d);
+  });
+}
+
+function buildHtml() {
+  if (emailType === 'html') return document.getElementById('c-body').value;
+  let text = document.getElementById('c-body').value;
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" style="color:#1a73e8;">$1</a>');
+  text = text.replace(/(^|[^"'=])(https?:\/\/[^\s<>"]+)/g, '$1<a href="$2" style="color:#1a73e8;">$2</a>');
+  text = text.replace(/\n/g, '<br>');
+  let html = `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#202124;max-width:600px;">${text}`;
+  images.forEach(img => { html += `<br><img src="${img.data}" style="max-width:100%;border-radius:8px;margin-top:12px;display:block;">`; });
+  return html + '</div>';
+}
+
+window.sendEmail = async function() {
+  const from = document.getElementById('c-from').value;
+  const to = document.getElementById('c-to').value.trim();
+  const subject = document.getElementById('c-subject').value.trim();
+  const body = document.getElementById('c-body').value.trim();
+  const btn = document.getElementById('c-send-btn');
+  const status = document.getElementById('c-status');
+
+  if (!to) { status.textContent = 'Please enter a recipient.'; status.className = 'compose-status err'; return; }
+  if (!subject) { status.textContent = 'Please enter a subject.'; status.className = 'compose-status err'; return; }
+  if (!body) { status.textContent = 'Please write a message.'; status.className = 'compose-status err'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  status.className = 'compose-status';
+
+  try {
+    const res = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'send_email', from, to, subject, html: buildHtml() })
     });
+    const data = await res.json();
+    if (data.success) {
+      sentEmails.unshift({ from, to, subject, date: new Date().toISOString() });
+      document.getElementById('c-to').value = '';
+      document.getElementById('c-subject').value = '';
+      document.getElementById('c-body').value = '';
+      images = [];
+      renderChips();
+      // Show brief success then close
+      status.textContent = '✓ Sent';
+      status.className = 'compose-status ok';
+      setTimeout(closeCompose, 1200);
+    } else {
+      status.textContent = data.error || JSON.stringify(data.data);
+      status.className = 'compose-status err';
+    }
+  } catch(e) {
+    status.textContent = e.message;
+    status.className = 'compose-status err';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Send';
+};
 
-    // ── Sign out ──
-    document.getElementById('signout-btn').addEventListener('click', async () => {
-        await signOut(auth);
+// ── ACCESS MANAGER ──
+function listenAccessList() {
+  onValue(ref(db, 'mailAccess'), snap => {
+    const data = snap.val() || {};
+    const list = document.getElementById('access-list');
+    const entries = Object.entries(data);
+    if (!entries.length) { list.innerHTML = '<div style="color:var(--text-secondary);font-size:14px;">No users have been granted access yet.</div>'; return; }
+    list.innerHTML = '';
+    entries.forEach(([key, val]) => {
+      const card = document.createElement('div');
+      card.className = 'access-user-card';
+      card.innerHTML = `
+        <div class="access-user-info">
+          <h4>${val.email}</h4>
+          <p>Can send from: ${val.senders.map(s => s + '@htmltools.me').join(', ')}</p>
+        </div>
+        <div class="access-user-actions">
+          <button class="access-edit-btn" data-key="${key}" data-email="${val.email}" data-senders="${val.senders.join(',')}">Edit</button>
+          <button class="access-revoke-btn" data-key="${key}" data-email="${val.email}">Revoke</button>
+        </div>`;
+      list.appendChild(card);
     });
+    list.querySelectorAll('.access-edit-btn').forEach(btn => btn.addEventListener('click', () => {
+      document.getElementById('new-user-email').value = btn.dataset.email;
+      document.getElementById('new-user-senders').value = btn.dataset.senders;
+      remove(ref(db, `mailAccess/${btn.dataset.key}`));
+    }));
+    list.querySelectorAll('.access-revoke-btn').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm(`Revoke access for ${btn.dataset.email}?`)) return;
+      await remove(ref(db, `mailAccess/${btn.dataset.key}`));
+    }));
+  });
+}
 
-    // ── Auth state ──
-    onAuthStateChanged(auth, async user => {
-        if (!user) {
-            document.getElementById('gate').classList.remove('hidden');
-            document.getElementById('app').classList.remove('show');
-            return;
-        }
-        const email = user.email.toLowerCase();
-        if (email === SUPER_ADMIN.toLowerCase()) {
-            showApp(user, null);
-            document.getElementById('tab-access').style.display = 'block';
-            listenAccessList();
-        } else {
-            const snap = await get(ref(db, `mailAccess/${email.replace(/\./g, '_')}`));
-            if (snap.exists()) {
-                const data = snap.val();
-                showApp(user, data.senders);
-                onValue(ref(db, `mailAccess/${email.replace(/\./g, '_')}`), s => {
-                    if (!s.exists()) {
-                        signOut(auth);
-                        alert('Your access has been revoked.');
-                    } else {
-                        updateFromSelect(s.val().senders);
-                    }
-                });
-            } else {
-                await signOut(auth);
-                const err = document.getElementById('g-err');
-                err.textContent = '⛔ You do not have access to this tool.';
-                err.style.display = 'block';
-            }
-        }
-    });
+document.getElementById('grant-btn').addEventListener('click', async () => {
+  const email = document.getElementById('new-user-email').value.trim().toLowerCase();
+  const sendersRaw = document.getElementById('new-user-senders').value.trim();
+  const st = document.getElementById('access-status');
+  if (!email || !sendersRaw) { st.textContent = 'Fill in both fields.'; st.className = 'access-status err'; return; }
+  const senders = sendersRaw.split(',').map(s => s.trim().toLowerCase().replace('@htmltools.me', '')).filter(Boolean);
+  try {
+    await set(ref(db, `mailAccess/${email.replace(/\./g,'_')}`), { email, senders });
+    document.getElementById('new-user-email').value = '';
+    document.getElementById('new-user-senders').value = '';
+    st.textContent = '✓ Access granted!';
+    st.className = 'access-status ok';
+  } catch(e) { st.textContent = e.message; st.className = 'access-status err'; }
+});
 
-    function showApp(user, senders) {
-        document.getElementById('gate').classList.add('hidden');
-        document.getElementById('app').classList.add('show');
-        document.getElementById('user-label').textContent = user.email;
-        if (senders) updateFromSelect(senders);
-    }
-
-    function updateFromSelect(senders) {
-        const sel = document.getElementById('from-select');
-        while (sel.options.length > 0) sel.remove(0);
-        senders.forEach(s => {
-            const opt = new Option(s + '@htmltools.me', s + '@htmltools.me');
-            sel.add(opt);
-        });
-    }
-
-    function listenAccessList() {
-        onValue(ref(db, 'mailAccess'), snap => {
-            const data = snap.val() || {};
-            const list = document.getElementById('access-list');
-            const entries = Object.entries(data);
-            if (!entries.length) {
-                list.innerHTML = '<div class="empty-access">No users have been granted access yet.</div>';
-                return;
-            }
-            list.innerHTML = '';
-            entries.forEach(([key, val]) => {
-                const card = document.createElement('div');
-                card.className = 'access-card';
-                card.innerHTML = `
-                    <div class="access-user-row">
-                        <div>
-                            <div class="access-user-email">${val.email}</div>
-                            <div class="access-user-senders">Can send from: ${val.senders.map(s => s + '@htmltools.me').join(', ')}</div>
-                        </div>
-                        <div class="access-actions">
-                            <button class="access-btn edit" data-key="${key}" data-email="${val.email}" data-senders="${val.senders.join(',')}"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="access-btn revoke" data-key="${key}" data-email="${val.email}"><i class="fas fa-times"></i> Revoke</button>
-                        </div>
-                    </div>`;
-                list.appendChild(card);
-            });
-
-            // Attach listeners after rendering
-            list.querySelectorAll('.access-btn.edit').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    editAccess(btn.dataset.key, btn.dataset.email, btn.dataset.senders);
-                });
-            });
-            list.querySelectorAll('.access-btn.revoke').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    revokeAccess(btn.dataset.key, btn.dataset.email);
-                });
-            });
-        });
-    }
-
-    // ── Grant access ──
-    document.getElementById('grant-btn').addEventListener('click', async () => {
-        const email = document.getElementById('new-user-email').value.trim().toLowerCase();
-        const sendersRaw = document.getElementById('new-user-senders').value.trim();
-        if (!email) { showAccessStatus('Please enter a user email.', 'err'); return; }
-        if (!sendersRaw) { showAccessStatus('Please enter at least one sender.', 'err'); return; }
-        const senders = sendersRaw.split(',').map(s => s.trim().toLowerCase().replace('@htmltools.me', '')).filter(Boolean);
-        const key = email.replace(/\./g, '_');
-        try {
-            await set(ref(db, `mailAccess/${key}`), { email, senders });
-            document.getElementById('new-user-email').value = '';
-            document.getElementById('new-user-senders').value = '';
-            showAccessStatus('✅ Access granted!', 'ok');
-        } catch(e) {
-            showAccessStatus('❌ ' + e.message, 'err');
-        }
-    });
-
-    function editAccess(key, email, sendersStr) {
-        document.getElementById('new-user-email').value = email;
-        document.getElementById('new-user-senders').value = sendersStr;
-        remove(ref(db, `mailAccess/${key}`));
-        document.getElementById('new-user-email').focus();
-        showAccessStatus('✏️ Editing — update and click Grant Access.', 'ok');
-    }
-
-    async function revokeAccess(key, email) {
-        if (!confirm(`Revoke access for ${email}? They will be kicked out immediately.`)) return;
-        try {
-            await remove(ref(db, `mailAccess/${key}`));
-            showAccessStatus(`✅ Revoked for ${email}.`, 'ok');
-        } catch(e) {
-            showAccessStatus('❌ ' + e.message, 'err');
-        }
-    }
-
-    function showAccessStatus(msg, type) {
-        const el = document.getElementById('access-status');
-        el.textContent = msg;
-        el.className = 'status ' + type;
-    }
-
-    // ── Compose logic ──
-    window.onFromChange = function() {
-        const sel = document.getElementById('from-select');
-        const wrap = document.getElementById('custom-from-wrap');
-        wrap.classList.toggle('show', sel.value === 'custom');
-    };
-
-    function getFromAddress() {
-        const sel = document.getElementById('from-select');
-        if (sel.value === 'custom') {
-            const v = document.getElementById('custom-from-input').value.trim().toLowerCase();
-            return v ? v + '@htmltools.me' : null;
-        }
-        return sel.value;
-    }
-
-    window.switchPanel = function(name) {
-        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.header-tab').forEach(t => t.classList.remove('active'));
-        document.getElementById('panel-' + name).classList.add('active');
-        document.getElementById('tab-' + name).classList.add('active');
-    };
-
-    window.setType = function(type) {
-        emailType = type;
-        document.getElementById('tab-normal').classList.toggle('active', type === 'normal');
-        document.getElementById('tab-html').classList.toggle('active', type === 'html');
-        document.getElementById('normal-toolbar').style.display = type === 'normal' ? 'flex' : 'none';
-        document.getElementById('img-chips').style.display = type === 'normal' ? 'flex' : 'none';
-        document.getElementById('preview-btn').style.display = type === 'html' ? 'block' : 'none';
-        document.getElementById('body').placeholder = type === 'html'
-            ? '<h1>Hello!</h1>\n<p>Your message...</p>'
-            : 'Write your message here... URLs become clickable automatically.';
-        document.getElementById('body-label').textContent = type === 'html' ? 'HTML Code' : 'Message';
-        if (type === 'normal') {
-            document.getElementById('preview-wrap').classList.remove('show');
-            previewOpen = false;
-            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview';
-        }
-    };
-
-    window.insertLink = function() {
-        const url = prompt('Enter URL:');
-        if (!url) return;
-        const text = prompt('Link text:') || url;
-        const ta = document.getElementById('body');
-        const pos = ta.selectionStart;
-        ta.value = ta.value.slice(0, pos) + `[${text}](${url})` + ta.value.slice(pos);
-    };
-
-    window.handleImages = function(e) {
-        Array.from(e.target.files).forEach(file => {
-            const r = new FileReader();
-            r.onload = ev => {
-                images.push({ name: file.name, data: ev.target.result });
-                renderChips();
-            };
-            r.readAsDataURL(file);
-        });
-        e.target.value = '';
-    };
-
-    function renderChips() {
-        const c = document.getElementById('img-chips');
-        c.innerHTML = '';
-        images.forEach((img, i) => {
-            const d = document.createElement('div');
-            d.className = 'img-chip';
-            d.innerHTML = `<img src="${img.data}"><span>${img.name}</span><span class="img-chip-remove" data-i="${i}">✕</span>`;
-            c.appendChild(d);
-        });
-        c.querySelectorAll('.img-chip-remove').forEach(btn => {
-            btn.addEventListener('click', () => {
-                images.splice(parseInt(btn.dataset.i), 1);
-                renderChips();
-            });
-        });
-    }
-
-    function buildHtml() {
-        if (emailType === 'html') return document.getElementById('body').value;
-        let text = document.getElementById('body').value;
-        text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" style="color:#4da6ff;">$1</a>');
-        text = text.replace(/(^|[^"'=])(https?:\/\/[^\s<>"]+)/g, '$1<a href="$2" style="color:#4da6ff;">$2</a>');
-        text = text.replace(/\n/g, '<br>');
-        let html = `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222;max-width:600px;">${text}`;
-        images.forEach(img => {
-            html += `<br><img src="${img.data}" style="max-width:100%;border-radius:8px;margin-top:12px;display:block;">`;
-        });
-        return html + '</div>';
-    }
-
-    window.togglePreview = function() {
-        previewOpen = !previewOpen;
-        const wrap = document.getElementById('preview-wrap');
-        const frame = document.getElementById('preview-frame');
-        if (previewOpen) {
-            wrap.classList.add('show');
-            const doc = frame.contentDocument || frame.contentWindow.document;
-            doc.open(); doc.write(buildHtml()); doc.close();
-            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
-        } else {
-            wrap.classList.remove('show');
-            document.getElementById('preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview';
-        }
-    };
-
-    window.sendEmail = async function() {
-        const from = getFromAddress();
-        const to = document.getElementById('to').value.trim();
-        const subject = document.getElementById('subject').value.trim();
-        const body = document.getElementById('body').value.trim();
-        const btn = document.getElementById('send-btn');
-
-        if (!from) { showStatus('Please select or enter a sender address.', 'err'); return; }
-        if (!to) { showStatus('Please enter a recipient.', 'err'); return; }
-        if (!subject) { showStatus('Please enter a subject.', 'err'); return; }
-        if (!body) { showStatus('Please write a message.', 'err'); return; }
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-        try {
-            const res = await fetch(WORKER, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'send_email', from, to, subject, html: buildHtml() })
-            });
-            const data = await res.json();
-            if (data.success) {
-                showStatus('✅ Sent from ' + from + '!', 'ok');
-                document.getElementById('to').value = '';
-                document.getElementById('subject').value = '';
-                document.getElementById('body').value = '';
-                images = [];
-                renderChips();
-            } else {
-                showStatus('❌ ' + (data.error || JSON.stringify(data.data)), 'err');
-            }
-        } catch(e) {
-            showStatus('❌ ' + e.message, 'err');
-        }
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
-    };
-
-    function showStatus(msg, type) {
-        const el = document.getElementById('status');
-        el.textContent = msg;
-        el.className = 'status ' + type;
-    }
+// ── SEARCH ──
+document.getElementById('search-input').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('.email-row').forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
 </script>
 </body>
 </html>
