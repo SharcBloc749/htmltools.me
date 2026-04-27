@@ -935,7 +935,8 @@
     <button id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
     <button class="h-btn" style="color:var(--red-hi);border-color:rgba(248,113,113,.25)" onclick="stopRunner()">⏹ Stop</button>
   </div>
-  <iframe id="runner-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+  <!-- iframe now points to sandbox domain; code runs via postMessage -->
+  <iframe id="runner-frame" src="https://htmltools.htmltools.me" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
 </div>
 
 <div id="toast"></div>
@@ -947,6 +948,7 @@
 
   const OWNER_EMAIL='matthewbozhe@gmail.com';
   const PIXABAY_KEY='55568639-11ee54c78ebe27bc5a3db05e3';
+  const SANDBOX_ORIGIN='https://htmltools.htmltools.me';
 
   const oldFirebaseConfig={apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"};
   const oldApp=initializeApp(oldFirebaseConfig,'old');
@@ -975,6 +977,15 @@
   let _lgMode='login';
   let _commentImgB64=null;
   let _chatImgB64=null;
+
+  // --- SANDBOX POSTMESSAGE HELPER ---
+  let _frameReady=false;
+  document.getElementById('runner-frame').addEventListener('load',()=>{_frameReady=true;});
+  function _postToFrame(html){
+    const frame=document.getElementById('runner-frame');
+    const send=()=>frame.contentWindow.postMessage({type:'RUN_HTML',html},SANDBOX_ORIGIN);
+    if(_frameReady)send();else frame.addEventListener('load',send,{once:true});
+  }
 
   // ACHIEVEMENTS
   const USER_ACHIEVEMENTS=[
@@ -1276,7 +1287,6 @@
   function renderBooks(){
     const grid=document.getElementById('books-grid');const search=document.getElementById('search-input').value.toLowerCase();
     const pinnedIds=new Set(Object.keys(pinnedBooks).filter(id=>pinnedBooks[id]));
-
     let entries=Object.entries(allBooks).filter(([id,book])=>{
       if(!book||!book.title)return false;if(pinnedIds.has(id))return false;
       if(search&&!book.title.toLowerCase().includes(search)&&!(book.desc||'').toLowerCase().includes(search))return false;
@@ -1288,7 +1298,6 @@
       if(_mobileFilterOn)return p==='mobile'||p==='both';
       return true;
     });
-
     if(currentFilter==='popular'||currentFilter==='mobile'||currentFilter==='computer')entries.sort((a,b)=>popularityScore(b[1])-popularityScore(a[1]));
     else if(currentFilter==='newest')entries.sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
     else if(currentFilter==='liked')entries.sort((a,b)=>(b[1].likes||0)-(a[1].likes||0));
@@ -1296,7 +1305,6 @@
     else if(currentFilter==='commented')entries.sort((a,b)=>commentCount(b[0])-commentCount(a[0]));
     else if(currentFilter==='views')entries.sort((a,b)=>(b[1].views||0)-(a[1].views||0));
     else if(currentFilter==='playtime')entries.sort((a,b)=>(b[1].playtimeSeconds||0)-(a[1].playtimeSeconds||0));
-
     if(!entries.length){let msg='The library is empty. Be the first to upload!';if(currentFilter==='mine')msg="You haven't uploaded any games yet.";else if(currentFilter==='saved')msg="You haven't saved any games yet.";else if(search)msg='No games match your search.';else if(_mobileFilterOn)msg='No mobile-friendly games yet.';grid.innerHTML=`<div class="empty-state"><div class="big">📚</div><p>${msg}</p></div>`;return;}
     grid.innerHTML=entries.map(([id,book])=>buildCardHtml(id,book,false)).join('');
   }
@@ -1339,18 +1347,19 @@
   }
 
   let _runningBookId=null,_playtimeInterval=null,_runnerStartTime=null;
+
   window.runBook=async function(id){
     const book=allBooks[id];if(!book)return;
     stopRunnerSilent();
     document.getElementById('runner-title').textContent=book.title;
-    document.getElementById('runner-frame').srcdoc='<body style="background:#0a0a14;color:#333;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-size:13px">Loading...</body>';
+    _postToFrame('<body style="background:#0a0a14;color:#333;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-size:13px">Loading...</body>');
     document.getElementById('runner-overlay').classList.add('open');
     document.getElementById('runner-live-time').textContent='0s';
     if(localStorage.getItem('htmllib_hide_chat_game')==='1')document.getElementById('chat-fab').classList.add('hidden-during-game');
     const code=await fetchBookCode(book._origId);
-    if(!code){document.getElementById('runner-frame').srcdoc='<body style="background:#0a0a14;color:#f88;font-family:monospace;padding:2rem">Error: No code found.</body>';return;}
+    if(!code){_postToFrame('<body style="background:#0a0a14;color:#f88;font-family:monospace;padding:2rem">Error: No code found.</body>');return;}
     _runningBookId=id;_runnerStartTime=Date.now();
-    document.getElementById('runner-frame').srcdoc=code;
+    _postToFrame(code);
     update(ref(db),{[`books/${book._origId}/views`]:(book.views||0)+1});
     if(currentUser)markOwnerPlayed(id,book);
     _playtimeInterval=setInterval(()=>{if(!document.hidden&&_runnerStartTime){const el=Math.floor((Date.now()-_runnerStartTime)/1000);document.getElementById('runner-live-time').textContent=formatMinutes(el);}},500);
@@ -1366,7 +1375,13 @@
     if(book){const cur=(book.playtimeSeconds)||0;update(ref(db),{[`books/${book._origId}/playtimeSeconds`]:cur+elapsed});}
   }
   function stopRunnerSilent(){_savePlaytime(false);}
-  window.stopRunner=function(){_savePlaytime(false);document.getElementById('runner-overlay').classList.remove('open');document.getElementById('runner-frame').srcdoc='';document.getElementById('runner-live-time').textContent='0s';document.getElementById('chat-fab').classList.remove('hidden-during-game');};
+  window.stopRunner=function(){
+    _savePlaytime(false);
+    document.getElementById('runner-overlay').classList.remove('open');
+    _postToFrame('');
+    document.getElementById('runner-live-time').textContent='0s';
+    document.getElementById('chat-fab').classList.remove('hidden-during-game');
+  };
   window.addEventListener('visibilitychange',()=>{if(document.hidden&&_runningBookId)_savePlaytime(true);});
   window.addEventListener('beforeunload',()=>{_savePlaytime(false);});
   window.toggleFullscreen=function(){const el=document.getElementById('runner-overlay');if(!document.fullscreenElement)el.requestFullscreen().catch(()=>{});else document.exitFullscreen();};
@@ -1675,7 +1690,7 @@
       closeOverlay('auth-overlay');
     }catch(e){
       let msg=e.message||'Authentication failed.';msg=msg.replace('Firebase: ','').replace(/\s*\(auth\/.*\)\s*\.?$/,'').trim();
-      if(e.code==='auth/email-already-in-use')msg='An account with this email already exists.';else if(e.code==='auth/invalid-email')msg='Please enter a valid email address.';else if(e.code==='auth/weak-password')msg='Password must be at least 6 characters.';else if(e.code==='auth/user-not-found'||e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')msg='Invalid email or password.';else if(e.code==='auth/too-many-requests')msg='Too many attempts. Please wait a moment.';
+      if(e.code==='auth/email-already-in-use')msg='An account with this email already exists.';else if(e.code==='auth/invalid-email')msg='Please enter a valid email address.';else if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')msg='Invalid email or password.';else if(e.code==='auth/too-many-requests')msg='Too many attempts. Please wait a moment.';
       if(errEl){errEl.textContent=msg;errEl.style.display='block';}else showToast(msg,'error');
     }finally{btn.disabled=false;btn.textContent=authMode==='login'?'SIGN IN':'REGISTER';_modalAuthSubmitting=false;}
   };
