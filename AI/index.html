@@ -3,52 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Make Your Own AI - HTMLTools</title>
+<title>Loading…</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0a0a0a; display: flex; align-items: center; justify-content: center; height: 100vh; }
   #loading { color: #555; font-family: monospace; font-size: 13px; }
+  #err { color: #ff6b6b; font-family: monospace; font-size: 13px; display: none; }
   iframe { display: none; position: fixed; inset: 0; width: 100%; height: 100%; border: none; }
 </style>
 </head>
 <body>
 <div id="loading">loading…</div>
+<div id="err"></div>
 <iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-  const app = initializeApp({
-    apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
-    authDomain: "htmltools2.firebaseapp.com",
-    databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
-    projectId: "htmltools2",
-    storageBucket: "htmltools2.firebasestorage.app",
-    messagingSenderId: "61467480060",
-    appId: "1:61467480060:web:4f964a671a5623d10e2c79"
-  });
-
-  const db = getDatabase(app);
-
-  try {
-    const snap = await get(ref(db, 'aiCode'));
-    const html = snap.val();
-
-    if (!html) {
-      document.getElementById('loading').textContent = 'nothing found at that path.';
-      return;
-    }
-
-    const frame = document.getElementById('frame');
-    const blob = new Blob([html], { type: 'text/html' });
-    frame.src = URL.createObjectURL(blob);
-    frame.style.display = 'block';
-    document.getElementById('loading').style.display = 'none';
-
-  } catch(e) {
-    document.getElementById('loading').textContent = 'error: ' + e.message;
-  }
+<script>
+  fetch('https://htmltools2-default-rtdb.firebaseio.com/aiCode.json')
+    .then(r => r.json())
+    .then(html => {
+      if (!html) throw new Error('no data at aiCode');
+      const frame = document.getElementById('frame');
+      frame.src = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      frame.style.display = 'block';
+      document.getElementById('loading').style.display = 'none';
+    })
+    .catch(e => {
+      document.getElementById('loading').style.display = 'none';
+      const err = document.getElementById('err');
+      err.style.display = 'block';
+      err.textContent = 'error: ' + e.message;
+    });
 </script>
 </body>
 </html>
