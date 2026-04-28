@@ -1,383 +1,115 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Make Your Own AI - HTMLTools</title>
-  <link rel="icon" type="image/png" href="/logo3.png?v=2"/>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0;}
-    html,body{height:100%;width:100%;overflow:hidden;background:#080810;font-family:monospace;}
-
-    #app-frame{position:fixed;inset:0;width:100%;height:100%;border:none;display:none;background:#fff;}
-
-    /* Loading */
-    #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#080810;z-index:50;}
-    .ld-logo{width:44px;height:44px;border-radius:10px;overflow:hidden;}
-    .ld-logo img{width:100%;height:100%;object-fit:contain;}
-    .ld-spin{width:26px;height:26px;border-radius:50%;border:2px solid #1e1e32;border-top-color:#00e5ff;animation:spin .8s linear infinite;}
-    @keyframes spin{to{transform:rotate(360deg);}}
-    .ld-text{font-size:.65rem;color:#44445a;letter-spacing:.12em;}
-
-    /* Sign-in screen */
-    #signin-screen{
-      position:fixed;inset:0;display:none;flex-direction:column;
-      align-items:center;justify-content:center;background:#080810;z-index:20;
-      background-image:linear-gradient(rgba(0,229,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.015) 1px,transparent 1px);
-      background-size:32px 32px;
-    }
-    .si-card{
-      background:#0e0e1a;border:1px solid #1e1e32;border-radius:12px;
-      padding:32px 28px;width:100%;max-width:380px;
-      box-shadow:0 24px 80px rgba(0,0,0,.9),0 0 0 1px rgba(0,229,255,.04);
-    }
-    .si-logo{display:flex;align-items:center;justify-content:center;margin-bottom:22px;}
-    .si-logo img{width:36px;height:36px;border-radius:8px;object-fit:contain;}
-    .si-title{font-size:.95rem;font-weight:700;color:#e8e8f0;letter-spacing:.04em;text-align:center;margin-bottom:4px;}
-    .si-sub{font-size:.68rem;color:#44445a;text-align:center;margin-bottom:22px;letter-spacing:.04em;}
-    .si-label{display:block;font-size:.58rem;font-weight:700;color:#44445a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;}
-    .si-input{
-      width:100%;background:#131320;border:1px solid #262640;color:#e8e8f0;
-      font-family:monospace;font-size:.8rem;padding:.55rem .8rem;border-radius:5px;
-      outline:none;transition:border-color .13s,box-shadow .13s;margin-bottom:14px;
-    }
-    .si-input:focus{border-color:#00e5ff;box-shadow:0 0 0 2px rgba(0,229,255,.07);}
-    .si-input::placeholder{color:#2a2a44;}
-    .si-err{font-size:.68rem;color:#f87171;margin-bottom:12px;padding:.4rem .7rem;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:4px;display:none;}
-    .si-btn{
-      width:100%;padding:.6rem;border-radius:5px;
-      background:linear-gradient(135deg,#00e5ff,#a855f7);
-      color:#080810;border:none;font-family:monospace;font-size:.78rem;
-      font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-      cursor:pointer;transition:opacity .13s;box-shadow:0 0 20px rgba(0,229,255,.12);
-    }
-    .si-btn:hover{opacity:.88;}
-    .si-btn:disabled{opacity:.4;cursor:not-allowed;}
-
-    /* Not-owner / empty state */
-    #info-screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#080810;z-index:20;text-align:center;padding:2rem;}
-    .is-icon{font-size:2.2rem;margin-bottom:4px;}
-    .is-title{font-size:.95rem;font-weight:700;color:#e8e8f0;letter-spacing:.04em;}
-    .is-sub{font-size:.72rem;color:#44445a;max-width:280px;line-height:1.7;}
-    .is-signout{margin-top:10px;background:transparent;border:1px solid #262640;color:#44445a;font-family:monospace;font-size:.65rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .9rem;border-radius:4px;cursor:pointer;transition:all .13s;}
-    .is-signout:hover{border-color:#f87171;color:#f87171;}
-
-    /* Owner bar */
-    #owner-bar{position:fixed;bottom:16px;right:16px;z-index:9999;display:none;flex-direction:column;gap:6px;align-items:flex-end;}
-    #owner-bar.show{display:flex;}
-    .ob-label{font-size:.52rem;color:#44445a;letter-spacing:.1em;text-transform:uppercase;}
-    .ob-btn{background:rgba(8,8,16,.92);border:1px solid #262640;color:#8888aa;font-family:monospace;font-size:.62rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.38rem .8rem;border-radius:4px;cursor:pointer;transition:all .15s;backdrop-filter:blur(12px);}
-    .ob-btn:hover{border-color:#00e5ff;color:#00e5ff;}
-    .ob-btn.danger:hover{border-color:#f87171;color:#f87171;}
-    .ob-btn.accent{background:linear-gradient(135deg,#00e5ff,#a855f7);color:#080810;border:none;font-weight:700;}
-    .ob-btn.accent:hover{opacity:.88;}
-
-    /* Upload overlay */
-    #upload-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(16px);z-index:8000;display:none;align-items:center;justify-content:center;padding:1rem;}
-    #upload-overlay.open{display:flex;}
-    .upload-box{background:#0e0e1a;border:1px solid #262640;border-radius:10px;width:100%;max-width:540px;box-shadow:0 24px 80px rgba(0,0,0,.95);overflow:hidden;}
-    .ub-hdr{padding:13px 18px;border-bottom:1px solid #1e1e32;display:flex;align-items:center;justify-content:space-between;}
-    .ub-hdr h3{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8e8f0;}
-    .ub-close{background:none;border:none;color:#44445a;font-size:1rem;cursor:pointer;padding:2px 6px;border-radius:3px;transition:color .13s;}
-    .ub-close:hover{color:#e8e8f0;}
-    .ub-body{padding:18px;}
-    .drop-zone{border:1px dashed #262640;border-radius:6px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:all .15s;background:#131320;position:relative;overflow:hidden;}
-    .drop-zone:hover,.drop-zone.drag{border-color:#00e5ff;background:#0d1f22;}
-    .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-    .dz-icon{font-size:1.8rem;margin-bottom:.5rem;}
-    .dz-text{font-size:.73rem;color:#44445a;line-height:1.7;}
-    .dz-text strong{color:#8888aa;}
-    .file-chosen{display:none;align-items:center;gap:10px;padding:.55rem .85rem;background:#131320;border:1px solid #1e1e32;border-radius:6px;margin-top:10px;font-size:.7rem;}
-    .file-chosen.show{display:flex;}
-    .fc-name{flex:1;color:#e8e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .fc-size{color:#44445a;flex-shrink:0;}
-    .fc-clear{background:none;border:none;color:#44445a;cursor:pointer;font-size:.9rem;transition:color .13s;flex-shrink:0;}
-    .fc-clear:hover{color:#f87171;}
-    .ub-warn{font-size:.67rem;color:#fbbf24;padding:.45rem .7rem;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.15);border-radius:4px;margin-top:10px;line-height:1.6;display:none;}
-    .ub-warn.show{display:block;}
-    .ub-foot{padding:12px 18px;border-top:1px solid #1e1e32;display:flex;gap:6px;justify-content:flex-end;}
-    .ub-btn{padding:.42rem 1rem;border-radius:4px;font-family:monospace;font-size:.68rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
-    .ub-btn.cancel{background:transparent;border:1px solid #262640;color:#44445a;}
-    .ub-btn.cancel:hover{color:#8888aa;border-color:#44445a;}
-    .ub-btn.publish{background:linear-gradient(135deg,#00e5ff,#a855f7);color:#080810;border:none;}
-    .ub-btn.publish:hover{opacity:.88;}
-    .ub-btn:disabled{opacity:.4;cursor:not-allowed;}
-
-    /* Toast */
-    #toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(12px);background:#131320;border:1px solid #262640;border-radius:5px;padding:.42rem 1rem;font-family:monospace;font-size:.68rem;color:#e8e8f0;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;box-shadow:0 8px 28px rgba(0,0,0,.7);z-index:9999;}
-    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-    #toast.ok{border-color:rgba(34,197,94,.35);color:#22c55e;}
-    #toast.err{border-color:rgba(248,113,113,.35);color:#f87171;}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Site</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #admin-panel { display: none; margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; background: #f9f9f9; }
+        textarea { width: 100%; height: 150px; margin-bottom: 10px; }
+        #injected-content { margin-top: 30px; border-top: 2px solid #333; padding-top: 20px; }
+    </style>
 </head>
 <body>
 
-<iframe id="app-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
-
-<!-- Loading -->
-<div id="loading">
-  <div class="ld-logo"><img src="/logo3.png?v=2" alt="logo"/></div>
-  <div class="ld-spin"></div>
-  <div class="ld-text">Loading...</div>
-</div>
-
-<!-- Sign-in screen (no app published + not logged in) -->
-<div id="signin-screen">
-  <div class="si-card">
-    <div class="si-logo"><img src="/logo3.png?v=2" alt="logo"/></div>
-    <div class="si-title">Sign In</div>
-    <div class="si-sub">Please sign in to continue.</div>
-    <label class="si-label">Email</label>
-    <input type="email" class="si-input" id="si-email" placeholder="you@example.com"
-      onkeydown="if(event.key==='Enter')document.getElementById('si-pass').focus()"/>
-    <label class="si-label">Password</label>
-    <input type="password" class="si-input" id="si-pass" placeholder="••••••••"
-      onkeydown="if(event.key==='Enter')doSignIn()"/>
-    <div class="si-err" id="si-err"></div>
-    <button class="si-btn" id="si-btn" onclick="doSignIn()">Sign In →</button>
-  </div>
-</div>
-
-<!-- Info screen (logged in but not owner + no app, OR owner with no app) -->
-<div id="info-screen">
-  <div class="is-icon" id="is-icon">🔒</div>
-  <div class="is-title" id="is-title">Nothing published yet</div>
-  <div class="is-sub" id="is-sub">The owner hasn't published anything here. Check back soon.</div>
-  <button class="is-signout" onclick="doSignOut()">Sign out</button>
-</div>
-
-<!-- Owner controls (floating, visible when logged in as owner) -->
-<div id="owner-bar">
-  <span class="ob-label">Owner mode</span>
-  <button class="ob-btn accent" onclick="openUpload()">⬆ Upload new app</button>
-  <button class="ob-btn danger" onclick="clearApp()">✕ Remove app</button>
-  <button class="ob-btn" onclick="doSignOut()">Sign out</button>
-</div>
-
-<!-- Upload overlay -->
-<div id="upload-overlay">
-  <div class="upload-box">
-    <div class="ub-hdr">
-      <h3>⬆ Upload App</h3>
-      <button class="ub-close" onclick="closeUpload()">✕</button>
+    <div id="login-section">
+        <button id="login-btn">Admin Login (Google)</button>
     </div>
-    <div class="ub-body">
-      <div class="drop-zone" id="drop-zone">
-        <input type="file" id="file-input" accept=".html,text/html" onchange="handleFile(this.files[0])"/>
-        <div class="dz-icon">📄</div>
-        <div class="dz-text"><strong>Click to choose</strong> or drag & drop an HTML file<br>
-          Stored in Firebase and served instantly to all visitors.</div>
-      </div>
-      <div class="file-chosen" id="file-chosen">
-        <span class="fc-name" id="fc-name"></span>
-        <span class="fc-size" id="fc-size"></span>
-        <button class="fc-clear" onclick="clearFile()">✕</button>
-      </div>
-      <div class="ub-warn" id="ub-warn"></div>
+
+    <div id="admin-panel">
+        <h3>Admin Panel</h3>
+        <p>Welcome, <span id="user-email"></span></p>
+        <textarea id="html-input" placeholder="Paste safe HTML here..."></textarea>
+        <button id="upload-btn">Publish HTML</button>
+        <button id="logout-btn">Logout</button>
     </div>
-    <div class="ub-foot">
-      <button class="ub-btn cancel" onclick="closeUpload()">Cancel</button>
-      <button class="ub-btn publish" id="publish-btn" onclick="publishApp()" disabled>Publish</button>
+
+    <div id="injected-content">
+        Loading content...
     </div>
-  </div>
-</div>
 
-<div id="toast"></div>
+    <script>
+        // Your Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
+            authDomain: "htmltools2.firebaseapp.com",
+            databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
+            projectId: "htmltools2",
+            storageBucket: "htmltools2.firebasestorage.app",
+            messagingSenderId: "61467480060",
+            appId: "1:61467480060:web:4f964a671a5623d10e2c79",
+            measurementId: "G-5KJ8DE63ZC"
+        };
 
-<script type="module">
-  import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import{getDatabase,ref,set,onValue}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+        const provider = new firebase.auth.GoogleAuthProvider();
 
-  const firebaseConfig={
-    apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
-    authDomain:"htmltools2.firebaseapp.com",
-    databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",
-    projectId:"htmltools2",
-    storageBucket:"htmltools2.firebasestorage.app",
-    messagingSenderId:"61467480060",
-    appId:"1:61467480060:web:4f964a671a5623d10e2c79"
-  };
+        // DOM Elements
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const adminPanel = document.getElementById('admin-panel');
+        const loginSection = document.getElementById('login-section');
+        const htmlInput = document.getElementById('html-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const injectedContent = document.getElementById('injected-content');
+        const userEmailSpan = document.getElementById('user-email');
 
-  const fbApp=initializeApp(firebaseConfig);
-  initializeAppCheck(fbApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
-  const db=getDatabase(fbApp);
-  const auth=getAuth(fbApp);
+        // Target Email
+        const ADMIN_EMAIL = "matthewbozhe@gmail.com";
 
-  const OWNER_EMAIL='matthewbozhe@gmail.com';
+        // 1. Authentication State Listener
+        auth.onAuthStateChanged(user => {
+            if (user && user.email === ADMIN_EMAIL) {
+                // User is logged in AND is the admin
+                adminPanel.style.display = 'block';
+                loginSection.style.display = 'none';
+                userEmailSpan.innerText = user.email;
+            } else {
+                // Not logged in or not admin
+                adminPanel.style.display = 'none';
+                loginSection.style.display = 'block';
+                if (user) auth.signOut(); // Kick out non-admins
+            }
+        });
 
-  let currentUser=null;
-  let appHtml=null;
-  let authReady=false;
-  let dataReady=false;
-  let selectedFile=null;
-  let selectedHtml=null;
+        // 2. Login / Logout functions
+        loginBtn.addEventListener('click', () => {
+            auth.signInWithPopup(provider).catch(error => console.error(error));
+        });
 
-  const $=id=>document.getElementById(id);
-  const isOwner=u=>!!(u&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase());
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
 
-  // ── SCREEN LOGIC ──────────────────────────────────────────────────────────
-  function updateUI(){
-    if(!authReady||!dataReady)return;
+        // 3. Upload HTML to Database
+        uploadBtn.addEventListener('click', () => {
+            const htmlToUpload = htmlInput.value;
+            db.ref('public_html').set({
+                content: htmlToUpload
+            }).then(() => {
+                alert("HTML Published!");
+            }).catch(error => {
+                console.error("Upload failed: ", error);
+                alert("Upload failed. Check console or Database rules.");
+            });
+        });
 
-    $('loading').style.display='none';
-
-    if(appHtml){
-      // App is live — show to EVERYONE, no login needed
-      $('app-frame').srcdoc=appHtml;
-      $('app-frame').style.display='block';
-      $('signin-screen').style.display='none';
-      $('info-screen').style.display='none';
-      // Owner bar floats on top if signed in as owner
-      $('owner-bar').classList.toggle('show',isOwner(currentUser));
-    }else{
-      // No app published
-      $('app-frame').style.display='none';
-      $('owner-bar').classList.remove('show');
-
-      if(!currentUser){
-        // Not signed in → show sign-in
-        $('signin-screen').style.display='flex';
-        $('info-screen').style.display='none';
-      }else if(isOwner(currentUser)){
-        // Owner signed in but nothing published → tell them to upload
-        $('signin-screen').style.display='none';
-        $('is-icon').textContent='📭';
-        $('is-title').textContent='Nothing published yet';
-        $('is-sub').textContent="You're the owner. Use the Upload button to publish an app.";
-        $('info-screen').style.display='flex';
-        $('owner-bar').classList.add('show');
-      }else{
-        // Non-owner signed in, nothing published
-        $('signin-screen').style.display='none';
-        $('is-icon').textContent='🔒';
-        $('is-title').textContent='Nothing here yet';
-        $('is-sub').textContent="The owner hasn't published anything. Check back soon.";
-        $('info-screen').style.display='flex';
-      }
-    }
-  }
-
-  // ── FIREBASE DATA ─────────────────────────────────────────────────────────
-  onValue(ref(db,'featuredApp/html'),snap=>{
-    appHtml=snap.val()||null;
-    dataReady=true;
-    updateUI();
-  });
-
-  // ── AUTH ──────────────────────────────────────────────────────────────────
-  onAuthStateChanged(auth,user=>{
-    currentUser=user;
-    authReady=true;
-    if(dataReady)updateUI();
-  });
-
-  // ── SIGN IN ───────────────────────────────────────────────────────────────
-  window.doSignIn=async function(){
-    const email=$('si-email').value.trim();
-    const pass=$('si-pass').value;
-    const errEl=$('si-err');
-    const btn=$('si-btn');
-    errEl.style.display='none';
-    if(!email||!pass){errEl.textContent='Please fill in both fields.';errEl.style.display='block';return;}
-    btn.disabled=true;btn.textContent='Signing in...';
-    try{
-      await signInWithEmailAndPassword(auth,email,pass);
-      // onAuthStateChanged fires → updateUI() handles the rest
-    }catch(e){
-      let msg='Invalid email or password.';
-      if(e.code==='auth/too-many-requests')msg='Too many attempts. Please wait a moment.';
-      errEl.textContent=msg;errEl.style.display='block';
-      btn.disabled=false;btn.textContent='Sign In →';
-    }
-  };
-
-  window.doSignOut=async function(){
-    await fbSignOut(auth);
-    showToast('Signed out','ok');
-  };
-
-  // ── UPLOAD ────────────────────────────────────────────────────────────────
-  window.openUpload=function(){
-    if(!isOwner(currentUser)){showToast('Not authorised','err');return;}
-    clearFile();
-    $('upload-overlay').classList.add('open');
-  };
-
-  window.closeUpload=()=>$('upload-overlay').classList.remove('open');
-
-  window.handleFile=function(file){
-    if(!file)return;
-    if(!file.name.toLowerCase().endsWith('.html')&&file.type!=='text/html'){
-      showWarn('Only .html files are supported.');return;
-    }
-    if(file.size>8*1024*1024){
-      showWarn('File is very large ('+Math.round(file.size/1024/1024)+'MB). Max recommended: 8MB.');
-    }else{hideWarn();}
-    selectedFile=file;
-    $('fc-name').textContent=file.name;
-    $('fc-size').textContent=Math.round(file.size/1024)+' KB';
-    $('file-chosen').classList.add('show');
-    $('publish-btn').disabled=false;
-    const reader=new FileReader();
-    reader.onload=e=>{selectedHtml=e.target.result;};
-    reader.readAsText(file);
-  };
-
-  window.clearFile=function(){
-    selectedFile=null;selectedHtml=null;
-    $('file-input').value='';
-    $('file-chosen').classList.remove('show');
-    $('publish-btn').disabled=true;
-    hideWarn();
-  };
-
-  window.publishApp=async function(){
-    // Hard check — must be owner
-    if(!isOwner(currentUser)){showToast('Not authorised','err');return;}
-    if(!selectedHtml){showToast('No file selected','err');return;}
-    const btn=$('publish-btn');
-    btn.disabled=true;btn.textContent='Publishing...';
-    try{
-      await set(ref(db,'featuredApp/html'),selectedHtml);
-      await set(ref(db,'featuredApp/updatedAt'),Date.now());
-      await set(ref(db,'featuredApp/filename'),selectedFile?.name||'app.html');
-      closeUpload();showToast('App published! ✓','ok');
-    }catch(e){
-      showToast('Error: '+e.message,'err');
-      btn.disabled=false;btn.textContent='Publish';
-    }
-  };
-
-  window.clearApp=async function(){
-    if(!isOwner(currentUser)){showToast('Not authorised','err');return;}
-    if(!confirm('Remove the current app? Everyone will see the sign-in screen again.'))return;
-    await set(ref(db,'featuredApp/html'),null);
-    showToast('App removed','ok');
-  };
-
-  // ── DRAG & DROP ───────────────────────────────────────────────────────────
-  const dz=$('drop-zone');
-  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
-  dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
-  dz.addEventListener('drop',e=>{
-    e.preventDefault();dz.classList.remove('drag');
-    const f=e.dataTransfer.files[0];if(f)handleFile(f);
-  });
-
-  // ── HELPERS ───────────────────────────────────────────────────────────────
-  function showWarn(msg){const w=$('ub-warn');w.textContent=msg;w.classList.add('show');}
-  function hideWarn(){$('ub-warn').classList.remove('show');}
-
-  window.showToast=function(msg,type=''){
-    const t=$('toast');t.textContent=msg;
-    t.className='show'+(type?' '+type:'');
-    clearTimeout(window._tt);window._tt=setTimeout(()=>t.className='',3000);
-  };
-
-  $('upload-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeUpload();});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeUpload();});
-</script>
+        // 4. Fetch and Display HTML (For Everyone)
+        db.ref('public_html').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.content) {
+                injectedContent.innerHTML = data.content;
+            } else {
+                injectedContent.innerHTML = "<p>No content available right now.</p>";
+            }
+        });
+    </script>
 </body>
 </html>
