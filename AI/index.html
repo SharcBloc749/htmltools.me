@@ -3,233 +3,273 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portal</title>
+<title>Site</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root { --bg: #0a0a0a; --surface: #111111; --border: #222222; --accent: #e8ff47; --text: #f0f0f0; --muted: #555; }
-  html, body { height: 100%; }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #f0f0f0; font-family: monospace; }
 
-  #signin-screen { width: 100%; max-width: 360px; padding: 2rem; animation: fadeUp .4s ease both; }
-  .signin-label { font-family: 'Syne', sans-serif; font-size: .65rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem; }
-  .signin-title { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; line-height: 1; margin-bottom: 2.5rem; }
-  .signin-title span { color: var(--accent); }
-  .field { margin-bottom: 1.2rem; }
-  .field label { display: block; font-size: .72rem; color: var(--muted); margin-bottom: .4rem; }
-  .field input { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: .9rem; padding: .75rem 1rem; outline: none; transition: border-color .2s; }
-  .field input:focus { border-color: var(--accent); }
-  .btn-signin { width: 100%; margin-top: .5rem; background: var(--accent); color: #0a0a0a; border: none; font-family: 'Syne', sans-serif; font-weight: 700; font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; padding: .85rem; cursor: pointer; transition: opacity .15s; }
-  .btn-signin:hover { opacity: .85; }
-  .btn-signin:disabled { opacity: .4; cursor: not-allowed; }
-  #signin-error { margin-top: .9rem; font-size: .78rem; color: #ff6b6b; min-height: 1.2rem; text-align: center; }
+  #loading {
+    position: fixed; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    background: #0a0a0a; font-size: 13px; color: #555;
+  }
 
-  #admin-bar { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 2147483647; background: #0a0a0acc; border-bottom: 1px solid #333; backdrop-filter: blur(8px); padding: .6rem 1.2rem; align-items: center; gap: 1rem; }
-  #admin-bar.visible { display: flex; }
-  #admin-bar span { font-size: .72rem; color: var(--muted); flex: 1; }
-  #admin-bar span b { color: var(--accent); }
-  .btn-upload { background: var(--accent); color: #0a0a0a; border: none; font-family: 'Syne', sans-serif; font-weight: 700; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; padding: .45rem .9rem; cursor: pointer; }
-  .btn-upload:hover { opacity: .8; }
-  .btn-signout { background: transparent; color: var(--muted); border: 1px solid #333; font-family: 'DM Mono', monospace; font-size: .72rem; padding: .4rem .8rem; cursor: pointer; }
-  .btn-signout:hover { color: var(--text); }
-  #file-input { display: none; }
+  /* Sign-in */
+  #signin {
+    display: none; position: fixed; inset: 0;
+    align-items: center; justify-content: center; background: #0a0a0a;
+  }
+  #signin.show { display: flex; }
+  .box { width: 340px; padding: 2rem; }
+  .box h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 1.8rem; letter-spacing: -0.03em; }
+  .box h1 span { color: #e8ff47; }
+  .box input {
+    width: 100%; background: #111; border: 1px solid #222; color: #f0f0f0;
+    font-family: monospace; font-size: 14px; padding: 10px 14px;
+    outline: none; margin-bottom: 10px; transition: border-color .2s;
+  }
+  .box input:focus { border-color: #e8ff47; }
+  .box button {
+    width: 100%; background: #e8ff47; color: #0a0a0a; border: none;
+    font-family: monospace; font-weight: 700; font-size: 14px;
+    padding: 11px; cursor: pointer; letter-spacing: .05em;
+    transition: opacity .15s; margin-top: 4px;
+  }
+  .box button:hover { opacity: .85; }
+  .box button:disabled { opacity: .4; cursor: not-allowed; }
+  #err { color: #ff6b6b; font-size: 12px; margin-top: 8px; min-height: 16px; text-align: center; }
 
-  #empty-state { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--muted); font-size: .85rem; text-align: center; }
-  #empty-state.visible { display: flex; }
-  .dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 1.4s ease infinite; }
+  /* Admin bar */
+  #adminbar {
+    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+    background: rgba(10,10,10,.92); border-bottom: 1px solid #222;
+    backdrop-filter: blur(10px); padding: 8px 16px;
+    align-items: center; gap: 10px; font-size: 12px; color: #555;
+  }
+  #adminbar.show { display: flex; }
+  #adminbar b { color: #e8ff47; }
+  #adminbar .spacer { flex: 1; }
+  #adminbar button {
+    background: #e8ff47; color: #0a0a0a; border: none;
+    font-family: monospace; font-weight: 700; font-size: 11px;
+    padding: 6px 12px; cursor: pointer; letter-spacing: .06em;
+  }
+  #adminbar .out {
+    background: transparent; color: #555; border: 1px solid #222;
+    font-family: monospace; font-size: 11px; padding: 5px 10px; cursor: pointer;
+  }
+  #adminbar .out:hover { color: #f0f0f0; border-color: #555; }
 
-  /* The injected site lives here */
-  #site-root { display: none; position: fixed; inset: 0; overflow: auto; }
-  #site-root.visible { display: block; }
-  #site-root.has-admin { top: 41px; }
+  /* Paste modal */
+  #modal {
+    display: none; position: fixed; inset: 0; z-index: 999999;
+    background: rgba(0,0,0,.8); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+  }
+  #modal.show { display: flex; }
+  .modal-box {
+    background: #111; border: 1px solid #222;
+    width: min(700px, 95vw); padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .modal-box h2 { font-size: 14px; font-weight: 700; letter-spacing: .05em; }
+  .modal-box textarea {
+    width: 100%; height: 340px; background: #0a0a0a; border: 1px solid #333;
+    color: #f0f0f0; font-family: monospace; font-size: 12px;
+    padding: 12px; resize: vertical; outline: none; line-height: 1.5;
+  }
+  .modal-box textarea:focus { border-color: #e8ff47; }
+  .modal-row { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-row button {
+    background: #e8ff47; color: #0a0a0a; border: none;
+    font-family: monospace; font-weight: 700; font-size: 12px;
+    padding: 8px 16px; cursor: pointer;
+  }
+  .modal-row .cancel {
+    background: transparent; color: #555; border: 1px solid #333; cursor: pointer;
+    font-family: monospace; font-size: 12px; padding: 8px 16px;
+  }
+  .modal-row .cancel:hover { color: #f0f0f0; }
 
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+  /* The site iframe */
+  #frame {
+    display: none; position: fixed; inset: 0;
+    border: none; width: 100%; height: 100%;
+  }
+  #frame.show { display: block; }
+  #frame.admin { top: 41px; height: calc(100% - 41px); }
 </style>
 </head>
 <body>
 
-<div id="signin-screen">
-  <p class="signin-label">access</p>
-  <h1 class="signin-title">Sign<span>.</span>in</h1>
-  <div class="field"><label>email</label><input id="email" type="email" placeholder="you@example.com" autocomplete="email"></div>
-  <div class="field"><label>password</label><input id="password" type="password" placeholder="••••••••"></div>
-  <button class="btn-signin" id="signin-btn" onclick="doSignIn()">Enter</button>
-  <p id="signin-error"></p>
+<div id="loading">loading…</div>
+
+<div id="signin">
+  <div class="box">
+    <h1>Sign<span>.</span>in</h1>
+    <input id="em" type="email" placeholder="email" autocomplete="email">
+    <input id="pw" type="password" placeholder="password">
+    <button id="sibtn" onclick="doSignIn()">Enter →</button>
+    <div id="err"></div>
+  </div>
 </div>
 
-<div id="admin-bar">
-  <span>admin: <b id="admin-email-label"></b></span>
-  <button class="btn-upload" onclick="document.getElementById('file-input').click()">↑ Upload HTML</button>
-  <button class="btn-signout" onclick="doSignOut()">sign out</button>
-  <input id="file-input" type="file" accept=".html,text/html" onchange="uploadHTML(this)">
+<div id="adminbar">
+  <b>admin</b>
+  <span class="spacer"></span>
+  <button onclick="openModal()">✎ Edit HTML</button>
+  <button class="out" onclick="doSignOut()">sign out</button>
 </div>
 
-<div id="empty-state">
-  <div class="dot"></div>
-  <p>Nothing uploaded yet.</p>
+<div id="modal">
+  <div class="modal-box">
+    <h2>PASTE YOUR HTML</h2>
+    <textarea id="pastearea" placeholder="Paste your full HTML code here…"></textarea>
+    <div class="modal-row">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button onclick="saveHTML()">Save & Publish →</button>
+    </div>
+  </div>
 </div>
 
-<!-- Uploaded site renders here as a full shadow DOM -->
-<div id="site-root"></div>
+<iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getDatabase, ref, set, onValue }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, onValue }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  const ADMIN = "matthewbozhe@gmail.com";
+const ADMIN = "matthewbozhe@gmail.com";
 
-  const app = initializeApp({
-    apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
-    authDomain: "htmltools2.firebaseapp.com",
-    databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
-    projectId: "htmltools2",
-    storageBucket: "htmltools2.firebasestorage.app",
-    messagingSenderId: "61467480060",
-    appId: "1:61467480060:web:4f964a671a5623d10e2c79"
-  });
+const app = initializeApp({
+  apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
+  authDomain: "htmltools2.firebaseapp.com",
+  databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
+  projectId: "htmltools2",
+  storageBucket: "htmltools2.firebasestorage.app",
+  messagingSenderId: "61467480060",
+  appId: "1:61467480060:web:4f964a671a5623d10e2c79"
+});
 
-  const auth = getAuth(app);
-  const db = getDatabase(app);
-  const contentRef = ref(db, 'site/html');
+const auth = getAuth(app);
+const db   = getDatabase(app);
+const htmlRef = ref(db, 'site/html');
 
-  let currentHTML = null;
-  let isAdmin = false;
-  let loggedIn = false;
+let siteHTML = null;
+let user = null;
+let ready = false; // true once we've gotten both auth + db snapshot
 
-  const signinScreen = document.getElementById('signin-screen');
-  const adminBar     = document.getElementById('admin-bar');
-  const emptyState   = document.getElementById('empty-state');
-  const siteRoot     = document.getElementById('site-root');
+const loading  = document.getElementById('loading');
+const signin   = document.getElementById('signin');
+const adminbar = document.getElementById('adminbar');
+const frame    = document.getElementById('frame');
+const modal    = document.getElementById('modal');
 
-  function showSignIn() {
-    signinScreen.style.display = '';
-    document.body.style.alignItems = 'center';
-    adminBar.classList.remove('visible');
-    emptyState.classList.remove('visible');
-    siteRoot.classList.remove('visible');
-    siteRoot.classList.remove('has-admin');
-    siteRoot.innerHTML = '';
-  }
+function render() {
+  if (!ready) return;
+  loading.style.display = 'none';
 
-  function showSite() {
-    signinScreen.style.display = 'none';
-    document.body.style.alignItems = 'stretch';
-
-    if (currentHTML) {
-      emptyState.classList.remove('visible');
-      siteRoot.classList.add('visible');
-      renderIntoRoot(currentHTML);
+  if (siteHTML) {
+    // Show the site to everyone — no sign-in needed
+    showFrame(siteHTML);
+    if (user?.email === ADMIN) {
+      adminbar.classList.add('show');
+      frame.classList.add('admin');
+    }
+  } else {
+    // No content yet — only useful if admin, so show sign-in
+    if (user?.email === ADMIN) {
+      adminbar.classList.add('show');
+      showEmpty();
     } else {
-      emptyState.classList.add('visible');
+      signin.classList.add('show');
     }
   }
+}
 
-  function renderIntoRoot(html) {
-    // Use a shadow DOM so the uploaded page's styles are fully isolated
-    siteRoot.innerHTML = '';
-    const shadow = siteRoot.attachShadow({ mode: 'open' });
+function showFrame(html) {
+  signin.classList.remove('show');
+  const blob = new Blob([html], { type: 'text/html' });
+  frame.src = URL.createObjectURL(blob);
+  frame.classList.add('show');
+}
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+function showEmpty() {
+  signin.classList.remove('show');
+  frame.classList.remove('show');
+  frame.src = '';
+  document.body.style.display = 'flex';
+  document.body.style.alignItems = 'center';
+  document.body.style.justifyContent = 'center';
+  document.body.innerHTML += '<p style="color:#555;font-size:13px">No HTML uploaded yet. Use Edit HTML above.</p>';
+}
 
-    // Inject styles
-    doc.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
-      shadow.appendChild(document.adoptNode(el));
-    });
+// Watch DB
+let dbReady = false;
+let authReady = false;
 
-    // Inject body content
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = doc.body.innerHTML;
-    if (doc.body.getAttribute('style')) wrapper.setAttribute('style', doc.body.getAttribute('style'));
-    shadow.appendChild(wrapper);
+onValue(htmlRef, snap => {
+  siteHTML = snap.val() || null;
+  dbReady = true;
+  if (authReady) { ready = true; render(); }
+  // If already rendered and admin updates content, refresh frame
+  else if (ready && siteHTML) showFrame(siteHTML);
+});
 
-    // Run scripts (shadow DOM doesn't auto-execute them)
-    doc.querySelectorAll('script').forEach(oldScript => {
-      const s = document.createElement('script');
-      if (oldScript.src) {
-        s.src = oldScript.src;
-        s.type = oldScript.type || 'text/javascript';
-      } else {
-        s.textContent = oldScript.textContent;
-        if (oldScript.type) s.type = oldScript.type;
-      }
-      document.head.appendChild(s); // scripts need to be in real DOM to run
-    });
+onAuthStateChanged(auth, u => {
+  user = u;
+  authReady = true;
+  if (dbReady) { ready = true; render(); }
+});
 
-    // Update page title
-    const t = doc.querySelector('title');
-    if (t) document.title = t.textContent;
+// Sign in
+window.doSignIn = async () => {
+  const btn = document.getElementById('sibtn');
+  const err = document.getElementById('err');
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = 'signing in…';
+  try {
+    await signInWithEmailAndPassword(auth,
+      document.getElementById('em').value.trim(),
+      document.getElementById('pw').value
+    );
+    // onAuthStateChanged handles the rest
+  } catch(e) {
+    err.textContent = 'wrong email or password';
+    btn.disabled = false; btn.textContent = 'Enter →';
   }
+};
 
-  // Watch Firebase for content (fires immediately on load too)
-  onValue(contentRef, snap => {
-    currentHTML = snap.val();
-    if (loggedIn && currentHTML) {
-      emptyState.classList.remove('visible');
-      siteRoot.classList.add('visible');
-      if (isAdmin) siteRoot.classList.add('has-admin');
-      renderIntoRoot(currentHTML);
-    }
-  });
+window.doSignOut = async () => {
+  await signOut(auth);
+  user = null;
+  adminbar.classList.remove('show');
+  frame.classList.remove('show', 'admin');
+  frame.src = '';
+  if (siteHTML) showFrame(siteHTML); // just show the site, no sign-in needed
+};
 
-  onAuthStateChanged(auth, user => {
-    loggedIn = !!user;
-    isAdmin = user?.email === ADMIN;
+// Modal
+window.openModal = () => {
+  document.getElementById('pastearea').value = siteHTML || '';
+  modal.classList.add('show');
+};
+window.closeModal = () => modal.classList.remove('show');
 
-    if (user) {
-      if (isAdmin) {
-        adminBar.classList.add('visible');
-        document.getElementById('admin-email-label').textContent = user.email;
-        siteRoot.classList.add('has-admin');
-      }
-      showSite();
-    } else {
-      showSignIn();
-    }
-  });
+window.saveHTML = async () => {
+  const html = document.getElementById('pastearea').value.trim();
+  if (!html) return;
+  await set(htmlRef, html);
+  closeModal();
+  // onValue will fire and update the frame
+};
 
-  window.doSignIn = async function() {
-    const email    = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const btn      = document.getElementById('signin-btn');
-    const err      = document.getElementById('signin-error');
-    err.textContent = '';
-    btn.disabled = true;
-    btn.textContent = 'signing in…';
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch(e) {
-      err.textContent = 'invalid email or password';
-      btn.disabled = false;
-      btn.textContent = 'Enter';
-    }
-  };
-
-  window.doSignOut = async function() {
-    loggedIn = false;
-    isAdmin = false;
-    await signOut(auth);
-    // onAuthStateChanged will call showSignIn()
-  };
-
-  window.uploadHTML = function(input) {
-    const file = input.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async e => {
-      await set(contentRef, e.target.result);
-      input.value = '';
-    };
-    reader.readAsText(file);
-  };
-
-  document.getElementById('password').addEventListener('keydown', e => {
-    if (e.key === 'Enter') window.doSignIn();
-  });
+// Enter key
+document.getElementById('pw').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.doSignIn();
+});
 </script>
 </body>
 </html>
