@@ -3,29 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Make Your Own AI - HTMLTools</title>
+    <title>Dynamic HTML Uploader</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        #admin-panel { display: none; margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; background: #f9f9f9; }
-        textarea { width: 100%; height: 150px; margin-bottom: 10px; }
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        
+        /* Login Panel Styles */
+        #login-section { padding: 20px; border: 1px solid #ccc; background: #f0f0f0; border-radius: 5px; max-width: 300px; }
+        .input-group { margin-bottom: 10px; }
+        .input-group input { width: 100%; padding: 8px; box-sizing: border-box; }
+        #login-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        #login-btn:hover { background: #0056b3; }
+        #login-error { color: red; font-size: 0.9em; margin-top: 10px; display: none; }
+
+        /* Admin Panel Styles */
+        #admin-panel { display: none; margin-bottom: 20px; padding: 20px; border: 2px solid #28a745; background: #e9f7ef; border-radius: 5px; }
+        textarea { width: 100%; height: 200px; margin-bottom: 10px; font-family: monospace; padding: 10px; box-sizing: border-box;}
+        .button-group button { padding: 10px 15px; cursor: pointer; margin-right: 10px; }
+        #upload-btn { background: #28a745; color: white; border: none; }
+        #logout-btn { background: #dc3545; color: white; border: none; }
+        
+        /* Content Display */
         #injected-content { margin-top: 30px; border-top: 2px solid #333; padding-top: 20px; }
     </style>
 </head>
 <body>
 
     <div id="login-section">
-        <button id="login-btn">Admin Login (Google)</button>
+        <h3>Admin Login</h3>
+        <div class="input-group">
+            <input type="email" id="email-input" placeholder="Email" required>
+        </div>
+        <div class="input-group">
+            <input type="password" id="password-input" placeholder="Password" required>
+        </div>
+        <button id="login-btn">Log In</button>
+        <div id="login-error"></div>
     </div>
 
     <div id="admin-panel">
-        <h3>Admin Panel</h3>
-        <p>Welcome, <span id="user-email"></span></p>
-        <textarea id="html-input" placeholder="Paste safe HTML here..."></textarea>
-        <button id="upload-btn">Publish HTML</button>
-        <button id="logout-btn">Logout</button>
+        <h3>Admin Dashboard</h3>
+        <p>Logged in as: <strong><span id="user-email"></span></strong></p>
+        <textarea id="html-input" placeholder="Paste your HTML here..."></textarea>
+        <div class="button-group">
+            <button id="upload-btn">Publish HTML</button>
+            <button id="logout-btn">Logout</button>
+        </div>
     </div>
 
     <div id="injected-content">
@@ -49,67 +74,97 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
-        const provider = new firebase.auth.GoogleAuthProvider();
 
         // DOM Elements
+        const loginSection = document.getElementById('login-section');
+        const adminPanel = document.getElementById('admin-panel');
+        const emailInput = document.getElementById('email-input');
+        const passwordInput = document.getElementById('password-input');
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
-        const adminPanel = document.getElementById('admin-panel');
-        const loginSection = document.getElementById('login-section');
+        const loginError = document.getElementById('login-error');
         const htmlInput = document.getElementById('html-input');
         const uploadBtn = document.getElementById('upload-btn');
         const injectedContent = document.getElementById('injected-content');
         const userEmailSpan = document.getElementById('user-email');
 
-        // Target Email
+        // Target Admin Email
         const ADMIN_EMAIL = "matthewbozhe@gmail.com";
 
-        // 1. Authentication State Listener
+        // 1. Listen for Login State Changes
         auth.onAuthStateChanged(user => {
             if (user && user.email === ADMIN_EMAIL) {
-                // User is logged in AND is the admin
+                // Admin is logged in
                 adminPanel.style.display = 'block';
                 loginSection.style.display = 'none';
                 userEmailSpan.innerText = user.email;
+                loginError.style.display = 'none';
+                emailInput.value = '';
+                passwordInput.value = '';
             } else {
-                // Not logged in or not admin
+                // Not logged in, or wrong email
                 adminPanel.style.display = 'none';
                 loginSection.style.display = 'block';
-                if (user) auth.signOut(); // Kick out non-admins
+                if (user) {
+                    auth.signOut(); // Kick out if they aren't the target email
+                    showError("Unauthorized email address.");
+                }
             }
         });
 
-        // 2. Login / Logout functions
+        // 2. Handle Login
         loginBtn.addEventListener('click', () => {
-            auth.signInWithPopup(provider).catch(error => console.error(error));
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            loginError.style.display = 'none';
+
+            if(email !== ADMIN_EMAIL) {
+                showError("Access restricted to admin email only.");
+                return;
+            }
+
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    showError(error.message);
+                });
         });
 
+        // 3. Handle Logout
         logoutBtn.addEventListener('click', () => {
             auth.signOut();
         });
 
-        // 3. Upload HTML to Database
+        // 4. Upload HTML to Realtime Database
         uploadBtn.addEventListener('click', () => {
             const htmlToUpload = htmlInput.value;
+            
+            // Push to the database (relies on your current Firebase Rules allowing writes)
             db.ref('public_html').set({
                 content: htmlToUpload
             }).then(() => {
-                alert("HTML Published!");
+                alert("HTML successfully published to the live site!");
             }).catch(error => {
                 console.error("Upload failed: ", error);
-                alert("Upload failed. Check console or Database rules.");
+                alert("Upload failed. If your Firebase rules are set to false, it will block this.");
             });
         });
 
-        // 4. Fetch and Display HTML (For Everyone)
+        // 5. Fetch and Display Live HTML (For Everyone)
         db.ref('public_html').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data && data.content) {
                 injectedContent.innerHTML = data.content;
             } else {
-                injectedContent.innerHTML = "<p>No content available right now.</p>";
+                injectedContent.innerHTML = "<p>No content uploaded yet.</p>";
             }
         });
+
+        // Helper function for login errors
+        function showError(message) {
+            loginError.innerText = message;
+            loginError.style.display = 'block';
+        }
     </script>
 </body>
 </html>
