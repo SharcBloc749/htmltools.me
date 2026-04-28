@@ -1,170 +1,353 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Make Your Own AI - HTMLTools</title>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
-        
-        /* Login Panel Styles */
-        #login-section { padding: 20px; border: 1px solid #ccc; background: #f0f0f0; border-radius: 5px; max-width: 300px; }
-        .input-group { margin-bottom: 10px; }
-        .input-group input { width: 100%; padding: 8px; box-sizing: border-box; }
-        #login-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
-        #login-btn:hover { background: #0056b3; }
-        #login-error { color: red; font-size: 0.9em; margin-top: 10px; display: none; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap');
 
-        /* Admin Panel Styles */
-        #admin-panel { display: none; margin-bottom: 20px; padding: 20px; border: 2px solid #28a745; background: #e9f7ef; border-radius: 5px; }
-        textarea { width: 100%; height: 200px; margin-bottom: 10px; font-family: monospace; padding: 10px; box-sizing: border-box;}
-        .button-group button { padding: 10px 15px; cursor: pointer; margin-right: 10px; }
-        #upload-btn { background: #28a745; color: white; border: none; }
-        #logout-btn { background: #dc3545; color: white; border: none; }
-        
-        /* Content Display */
-        #injected-content { margin-top: 30px; border-top: 2px solid #333; padding-top: 20px; }
-    </style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --border: #222222;
+    --accent: #e8ff47;
+    --text: #f0f0f0;
+    --muted: #555;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── SIGN-IN ── */
+  #signin-screen {
+    width: 100%;
+    max-width: 360px;
+    padding: 2rem;
+    animation: fadeUp .4s ease both;
+  }
+
+  .signin-label {
+    font-family: 'Syne', sans-serif;
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .4rem;
+  }
+
+  .signin-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 2.5rem;
+    color: var(--text);
+  }
+  .signin-title span { color: var(--accent); }
+
+  .field { margin-bottom: 1.2rem; }
+  .field label {
+    display: block;
+    font-size: .72rem;
+    color: var(--muted);
+    margin-bottom: .4rem;
+    letter-spacing: .08em;
+  }
+  .field input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: .9rem;
+    padding: .75rem 1rem;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  .btn-signin {
+    width: 100%;
+    margin-top: .5rem;
+    background: var(--accent);
+    color: #0a0a0a;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: .85rem;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn-signin:hover { opacity: .85; }
+  .btn-signin:disabled { opacity: .4; cursor: not-allowed; }
+
+  #signin-error {
+    margin-top: .9rem;
+    font-size: .78rem;
+    color: #ff6b6b;
+    min-height: 1.2rem;
+    text-align: center;
+  }
+
+  /* ── ADMIN BAR ── */
+  #admin-bar {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 9999;
+    background: #0a0a0aee;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    padding: .6rem 1.2rem;
+    align-items: center;
+    gap: 1rem;
+  }
+  #admin-bar.visible { display: flex; }
+
+  #admin-bar span {
+    font-size: .72rem;
+    color: var(--muted);
+    flex: 1;
+  }
+  #admin-bar span b { color: var(--accent); }
+
+  .btn-upload {
+    background: var(--accent);
+    color: #0a0a0a;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: .45rem .9rem;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn-upload:hover { opacity: .8; }
+
+  .btn-signout {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: .72rem;
+    padding: .4rem .8rem;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .btn-signout:hover { color: var(--text); border-color: var(--muted); }
+
+  #file-input { display: none; }
+
+  /* ── IFRAME / CONTENT ── */
+  #content-frame {
+    display: none;
+    position: fixed;
+    inset: 0;
+    border: none;
+    width: 100%;
+    height: 100%;
+  }
+  #content-frame.visible { display: block; }
+  #content-frame.admin-offset { top: 41px; height: calc(100% - 41px); }
+
+  /* ── EMPTY STATE ── */
+  #empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: var(--muted);
+    font-size: .85rem;
+    text-align: center;
+  }
+  #empty-state.visible { display: flex; }
+  #empty-state .dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 1.4s ease infinite;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; } 50% { opacity: .2; }
+  }
+</style>
 </head>
 <body>
 
-    <div id="login-section">
-        <h3>Admin Login</h3>
-        <div class="input-group">
-            <input type="email" id="email-input" placeholder="Email" required>
-        </div>
-        <div class="input-group">
-            <input type="password" id="password-input" placeholder="Password" required>
-        </div>
-        <button id="login-btn">Log In</button>
-        <div id="login-error"></div>
-    </div>
+<!-- SIGN-IN SCREEN -->
+<div id="signin-screen">
+  <p class="signin-label">access</p>
+  <h1 class="signin-title">Sign<span>.</span>in</h1>
+  <div class="field">
+    <label>email</label>
+    <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+  </div>
+  <div class="field">
+    <label>password</label>
+    <input id="password" type="password" placeholder="••••••••">
+  </div>
+  <button class="btn-signin" id="signin-btn" onclick="doSignIn()">Enter</button>
+  <p id="signin-error"></p>
+</div>
 
-    <div id="admin-panel">
-        <h3>Admin Dashboard</h3>
-        <p>Logged in as: <strong><span id="user-email"></span></strong></p>
-        <textarea id="html-input" placeholder="Paste your HTML here..."></textarea>
-        <div class="button-group">
-            <button id="upload-btn">Publish HTML</button>
-            <button id="logout-btn">Logout</button>
-        </div>
-    </div>
+<!-- ADMIN BAR (shown only to matthew) -->
+<div id="admin-bar">
+  <span>logged in as <b id="admin-email-label"></b></span>
+  <button class="btn-upload" onclick="document.getElementById('file-input').click()">↑ Upload HTML</button>
+  <button class="btn-signout" onclick="doSignOut()">sign out</button>
+  <input id="file-input" type="file" accept=".html,text/html" onchange="uploadHTML(this)">
+</div>
 
-    <div id="injected-content">
-        Loading content...
-    </div>
+<!-- CONTENT IFRAME -->
+<iframe id="content-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
 
-    <script>
-        // Your Firebase Config
-        const firebaseConfig = {
-            apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
-            authDomain: "htmltools2.firebaseapp.com",
-            databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
-            projectId: "htmltools2",
-            storageBucket: "htmltools2.firebasestorage.app",
-            messagingSenderId: "61467480060",
-            appId: "1:61467480060:web:4f964a671a5623d10e2c79",
-            measurementId: "G-5KJ8DE63ZC"
-        };
+<!-- EMPTY STATE (logged in but no content yet) -->
+<div id="empty-state">
+  <div class="dot"></div>
+  <p>No page uploaded yet.<br>Use the bar above to upload an HTML file.</p>
+</div>
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.database();
+<!-- FIREBASE -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getDatabase, ref, set, onValue }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-        // DOM Elements
-        const loginSection = document.getElementById('login-section');
-        const adminPanel = document.getElementById('admin-panel');
-        const emailInput = document.getElementById('email-input');
-        const passwordInput = document.getElementById('password-input');
-        const loginBtn = document.getElementById('login-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const loginError = document.getElementById('login-error');
-        const htmlInput = document.getElementById('html-input');
-        const uploadBtn = document.getElementById('upload-btn');
-        const injectedContent = document.getElementById('injected-content');
-        const userEmailSpan = document.getElementById('user-email');
+  const ADMIN = "matthewbozhe@gmail.com";
 
-        // Target Admin Email
-        const ADMIN_EMAIL = "matthewbozhe@gmail.com";
+  const firebaseConfig = {
+    apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
+    authDomain: "htmltools2.firebaseapp.com",
+    databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
+    projectId: "htmltools2",
+    storageBucket: "htmltools2.firebasestorage.app",
+    messagingSenderId: "61467480060",
+    appId: "1:61467480060:web:4f964a671a5623d10e2c79",
+    measurementId: "G-5KJ8DE63ZC"
+  };
 
-        // 1. Listen for Login State Changes
-        auth.onAuthStateChanged(user => {
-            if (user && user.email === ADMIN_EMAIL) {
-                // Admin is logged in
-                adminPanel.style.display = 'block';
-                loginSection.style.display = 'none';
-                userEmailSpan.innerText = user.email;
-                loginError.style.display = 'none';
-                emailInput.value = '';
-                passwordInput.value = '';
-            } else {
-                // Not logged in, or wrong email
-                adminPanel.style.display = 'none';
-                loginSection.style.display = 'block';
-                if (user) {
-                    auth.signOut(); // Kick out if they aren't the target email
-                    showError("Unauthorized email address.");
-                }
-            }
-        });
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getDatabase(app);
 
-        // 2. Handle Login
-        loginBtn.addEventListener('click', () => {
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            
-            loginError.style.display = 'none';
+  const signinScreen  = document.getElementById('signin-screen');
+  const adminBar      = document.getElementById('admin-bar');
+  const contentFrame  = document.getElementById('content-frame');
+  const emptyState    = document.getElementById('empty-state');
+  const signinError   = document.getElementById('signin-error');
+  const adminLabel    = document.getElementById('admin-email-label');
 
-            if(email !== ADMIN_EMAIL) {
-                showError("Access restricted to admin email only.");
-                return;
-            }
+  // ── live content listener ──
+  const contentRef = ref(db, 'site/html');
+  let currentHTML = null;
 
-            auth.signInWithEmailAndPassword(email, password)
-                .catch(error => {
-                    showError(error.message);
-                });
-        });
+  onValue(contentRef, snap => {
+    currentHTML = snap.val();
+    if (currentHTML) renderContent(currentHTML);
+  });
 
-        // 3. Handle Logout
-        logoutBtn.addEventListener('click', () => {
-            auth.signOut();
-        });
+  function renderContent(html) {
+    // Only show content if signed in
+    if (!auth.currentUser) return;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    contentFrame.src = url;
+    contentFrame.classList.add('visible');
+    emptyState.classList.remove('visible');
+  }
 
-        // 4. Upload HTML to Realtime Database
-        uploadBtn.addEventListener('click', () => {
-            const htmlToUpload = htmlInput.value;
-            
-            // Push to the database (relies on your current Firebase Rules allowing writes)
-            db.ref('public_html').set({
-                content: htmlToUpload
-            }).then(() => {
-                alert("HTML successfully published to the live site!");
-            }).catch(error => {
-                console.error("Upload failed: ", error);
-                alert("Upload failed. If your Firebase rules are set to false, it will block this.");
-            });
-        });
+  // ── auth state ──
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      signinScreen.style.display = 'none';
+      document.body.style.alignItems = 'stretch';
 
-        // 5. Fetch and Display Live HTML (For Everyone)
-        db.ref('public_html').on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data && data.content) {
-                injectedContent.innerHTML = data.content;
-            } else {
-                injectedContent.innerHTML = "<p>No content uploaded yet.</p>";
-            }
-        });
+      if (user.email === ADMIN) {
+        adminBar.classList.add('visible');
+        contentFrame.classList.add('admin-offset');
+        adminLabel.textContent = user.email;
+      }
 
-        // Helper function for login errors
-        function showError(message) {
-            loginError.innerText = message;
-            loginError.style.display = 'block';
-        }
-    </script>
+      if (currentHTML) {
+        renderContent(currentHTML);
+      } else {
+        emptyState.classList.add('visible');
+      }
+    } else {
+      signinScreen.style.display = '';
+      signinScreen.style.animation = 'fadeUp .4s ease both';
+      adminBar.classList.remove('visible');
+      contentFrame.classList.remove('visible');
+      contentFrame.classList.remove('admin-offset');
+      contentFrame.src = '';
+      emptyState.classList.remove('visible');
+      document.body.style.alignItems = 'center';
+    }
+  });
+
+  // ── sign in ──
+  window.doSignIn = async function() {
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn      = document.getElementById('signin-btn');
+    signinError.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'signing in…';
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch(e) {
+      signinError.textContent = 'invalid email or password';
+      btn.disabled = false;
+      btn.textContent = 'Enter';
+    }
+  };
+
+  // ── sign out ──
+  window.doSignOut = async function() {
+    await signOut(auth);
+  };
+
+  // ── upload HTML ──
+  window.uploadHTML = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async e => {
+      const html = e.target.result;
+      await set(contentRef, html);
+      input.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  // enter key on password
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.doSignIn();
+  });
+</script>
 </body>
 </html>
