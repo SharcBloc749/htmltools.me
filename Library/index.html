@@ -879,7 +879,7 @@
     <button id="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
     <button class="h-btn" style="color:var(--red-hi);border-color:rgba(248,113,113,.25)" onclick="stopRunner()">⏹ Stop</button>
   </div>
-  <iframe id="runner-frame" src="https://htmltools.htmltools.me" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+  <iframe id="runner-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
 </div>
 
 <div id="toast"></div>
@@ -921,13 +921,14 @@
   let _commentImgB64=null;
   let _chatImgB64=null;
 
-  // --- SANDBOX POSTMESSAGE HELPER ---
-  let _frameReady=false;
-  document.getElementById('runner-frame').addEventListener('load',()=>{_frameReady=true;});
+  // --- SANDBOX HELPER ---
+  // Render user HTML directly into the iframe via srcdoc. This avoids depending
+  // on an external sandbox origin (the previous postMessage-based approach got
+  // stuck on "Loading..." whenever the external sandbox was unreachable).
   function _postToFrame(html){
     const frame=document.getElementById('runner-frame');
-    const send=()=>frame.contentWindow.postMessage({type:'RUN_HTML',html},SANDBOX_ORIGIN);
-    if(_frameReady)send();else frame.addEventListener('load',send,{once:true});
+    // Setting srcdoc to the same value twice in a row won't reload, so blank first.
+    frame.srcdoc = html || '<!doctype html><html><body></body></html>';
   }
 
   // ACHIEVEMENTS
