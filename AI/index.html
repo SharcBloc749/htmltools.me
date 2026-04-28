@@ -3,273 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Site</title>
+<title>Make Your Own AI - HTMLTools</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0a0a0a; color: #f0f0f0; font-family: monospace; }
-
-  #loading {
-    position: fixed; inset: 0; display: flex;
-    align-items: center; justify-content: center;
-    background: #0a0a0a; font-size: 13px; color: #555;
-  }
-
-  /* Sign-in */
-  #signin {
-    display: none; position: fixed; inset: 0;
-    align-items: center; justify-content: center; background: #0a0a0a;
-  }
-  #signin.show { display: flex; }
-  .box { width: 340px; padding: 2rem; }
-  .box h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 1.8rem; letter-spacing: -0.03em; }
-  .box h1 span { color: #e8ff47; }
-  .box input {
-    width: 100%; background: #111; border: 1px solid #222; color: #f0f0f0;
-    font-family: monospace; font-size: 14px; padding: 10px 14px;
-    outline: none; margin-bottom: 10px; transition: border-color .2s;
-  }
-  .box input:focus { border-color: #e8ff47; }
-  .box button {
-    width: 100%; background: #e8ff47; color: #0a0a0a; border: none;
-    font-family: monospace; font-weight: 700; font-size: 14px;
-    padding: 11px; cursor: pointer; letter-spacing: .05em;
-    transition: opacity .15s; margin-top: 4px;
-  }
-  .box button:hover { opacity: .85; }
-  .box button:disabled { opacity: .4; cursor: not-allowed; }
-  #err { color: #ff6b6b; font-size: 12px; margin-top: 8px; min-height: 16px; text-align: center; }
-
-  /* Admin bar */
-  #adminbar {
-    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
-    background: rgba(10,10,10,.92); border-bottom: 1px solid #222;
-    backdrop-filter: blur(10px); padding: 8px 16px;
-    align-items: center; gap: 10px; font-size: 12px; color: #555;
-  }
-  #adminbar.show { display: flex; }
-  #adminbar b { color: #e8ff47; }
-  #adminbar .spacer { flex: 1; }
-  #adminbar button {
-    background: #e8ff47; color: #0a0a0a; border: none;
-    font-family: monospace; font-weight: 700; font-size: 11px;
-    padding: 6px 12px; cursor: pointer; letter-spacing: .06em;
-  }
-  #adminbar .out {
-    background: transparent; color: #555; border: 1px solid #222;
-    font-family: monospace; font-size: 11px; padding: 5px 10px; cursor: pointer;
-  }
-  #adminbar .out:hover { color: #f0f0f0; border-color: #555; }
-
-  /* Paste modal */
-  #modal {
-    display: none; position: fixed; inset: 0; z-index: 999999;
-    background: rgba(0,0,0,.8); backdrop-filter: blur(6px);
-    align-items: center; justify-content: center;
-  }
-  #modal.show { display: flex; }
-  .modal-box {
-    background: #111; border: 1px solid #222;
-    width: min(700px, 95vw); padding: 1.5rem;
-    display: flex; flex-direction: column; gap: 12px;
-  }
-  .modal-box h2 { font-size: 14px; font-weight: 700; letter-spacing: .05em; }
-  .modal-box textarea {
-    width: 100%; height: 340px; background: #0a0a0a; border: 1px solid #333;
-    color: #f0f0f0; font-family: monospace; font-size: 12px;
-    padding: 12px; resize: vertical; outline: none; line-height: 1.5;
-  }
-  .modal-box textarea:focus { border-color: #e8ff47; }
-  .modal-row { display: flex; gap: 8px; justify-content: flex-end; }
-  .modal-row button {
-    background: #e8ff47; color: #0a0a0a; border: none;
-    font-family: monospace; font-weight: 700; font-size: 12px;
-    padding: 8px 16px; cursor: pointer;
-  }
-  .modal-row .cancel {
-    background: transparent; color: #555; border: 1px solid #333; cursor: pointer;
-    font-family: monospace; font-size: 12px; padding: 8px 16px;
-  }
-  .modal-row .cancel:hover { color: #f0f0f0; }
-
-  /* The site iframe */
-  #frame {
-    display: none; position: fixed; inset: 0;
-    border: none; width: 100%; height: 100%;
-  }
-  #frame.show { display: block; }
-  #frame.admin { top: 41px; height: calc(100% - 41px); }
+  body { background: #0a0a0a; display: flex; align-items: center; justify-content: center; height: 100vh; }
+  #loading { color: #555; font-family: monospace; font-size: 13px; }
+  iframe { display: none; position: fixed; inset: 0; width: 100%; height: 100%; border: none; }
 </style>
 </head>
 <body>
-
 <div id="loading">loading…</div>
-
-<div id="signin">
-  <div class="box">
-    <h1>Sign<span>.</span>in</h1>
-    <input id="em" type="email" placeholder="email" autocomplete="email">
-    <input id="pw" type="password" placeholder="password">
-    <button id="sibtn" onclick="doSignIn()">Enter →</button>
-    <div id="err"></div>
-  </div>
-</div>
-
-<div id="adminbar">
-  <b>admin</b>
-  <span class="spacer"></span>
-  <button onclick="openModal()">✎ Edit HTML</button>
-  <button class="out" onclick="doSignOut()">sign out</button>
-</div>
-
-<div id="modal">
-  <div class="modal-box">
-    <h2>PASTE YOUR HTML</h2>
-    <textarea id="pastearea" placeholder="Paste your full HTML code here…"></textarea>
-    <div class="modal-row">
-      <button class="cancel" onclick="closeModal()">Cancel</button>
-      <button onclick="saveHTML()">Save & Publish →</button>
-    </div>
-  </div>
-</div>
-
 <iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, onValue }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-const ADMIN = "matthewbozhe@gmail.com";
+  const app = initializeApp({
+    apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
+    authDomain: "htmltools2.firebaseapp.com",
+    databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
+    projectId: "htmltools2",
+    storageBucket: "htmltools2.firebasestorage.app",
+    messagingSenderId: "61467480060",
+    appId: "1:61467480060:web:4f964a671a5623d10e2c79"
+  });
 
-const app = initializeApp({
-  apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
-  authDomain: "htmltools2.firebaseapp.com",
-  databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
-  projectId: "htmltools2",
-  storageBucket: "htmltools2.firebasestorage.app",
-  messagingSenderId: "61467480060",
-  appId: "1:61467480060:web:4f964a671a5623d10e2c79"
-});
+  const db = getDatabase(app);
 
-const auth = getAuth(app);
-const db   = getDatabase(app);
-const htmlRef = ref(db, 'site/html');
-
-let siteHTML = null;
-let user = null;
-let ready = false; // true once we've gotten both auth + db snapshot
-
-const loading  = document.getElementById('loading');
-const signin   = document.getElementById('signin');
-const adminbar = document.getElementById('adminbar');
-const frame    = document.getElementById('frame');
-const modal    = document.getElementById('modal');
-
-function render() {
-  if (!ready) return;
-  loading.style.display = 'none';
-
-  if (siteHTML) {
-    // Show the site to everyone — no sign-in needed
-    showFrame(siteHTML);
-    if (user?.email === ADMIN) {
-      adminbar.classList.add('show');
-      frame.classList.add('admin');
-    }
-  } else {
-    // No content yet — only useful if admin, so show sign-in
-    if (user?.email === ADMIN) {
-      adminbar.classList.add('show');
-      showEmpty();
-    } else {
-      signin.classList.add('show');
-    }
-  }
-}
-
-function showFrame(html) {
-  signin.classList.remove('show');
-  const blob = new Blob([html], { type: 'text/html' });
-  frame.src = URL.createObjectURL(blob);
-  frame.classList.add('show');
-}
-
-function showEmpty() {
-  signin.classList.remove('show');
-  frame.classList.remove('show');
-  frame.src = '';
-  document.body.style.display = 'flex';
-  document.body.style.alignItems = 'center';
-  document.body.style.justifyContent = 'center';
-  document.body.innerHTML += '<p style="color:#555;font-size:13px">No HTML uploaded yet. Use Edit HTML above.</p>';
-}
-
-// Watch DB
-let dbReady = false;
-let authReady = false;
-
-onValue(htmlRef, snap => {
-  siteHTML = snap.val() || null;
-  dbReady = true;
-  if (authReady) { ready = true; render(); }
-  // If already rendered and admin updates content, refresh frame
-  else if (ready && siteHTML) showFrame(siteHTML);
-});
-
-onAuthStateChanged(auth, u => {
-  user = u;
-  authReady = true;
-  if (dbReady) { ready = true; render(); }
-});
-
-// Sign in
-window.doSignIn = async () => {
-  const btn = document.getElementById('sibtn');
-  const err = document.getElementById('err');
-  err.textContent = '';
-  btn.disabled = true; btn.textContent = 'signing in…';
   try {
-    await signInWithEmailAndPassword(auth,
-      document.getElementById('em').value.trim(),
-      document.getElementById('pw').value
-    );
-    // onAuthStateChanged handles the rest
+    const snap = await get(ref(db, 'Or4Nffq6BbgFHr9BrWr'));
+    const html = snap.val();
+
+    if (!html) {
+      document.getElementById('loading').textContent = 'nothing found at that path.';
+      return;
+    }
+
+    const frame = document.getElementById('frame');
+    const blob = new Blob([html], { type: 'text/html' });
+    frame.src = URL.createObjectURL(blob);
+    frame.style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+
   } catch(e) {
-    err.textContent = 'wrong email or password';
-    btn.disabled = false; btn.textContent = 'Enter →';
+    document.getElementById('loading').textContent = 'error: ' + e.message;
   }
-};
-
-window.doSignOut = async () => {
-  await signOut(auth);
-  user = null;
-  adminbar.classList.remove('show');
-  frame.classList.remove('show', 'admin');
-  frame.src = '';
-  if (siteHTML) showFrame(siteHTML); // just show the site, no sign-in needed
-};
-
-// Modal
-window.openModal = () => {
-  document.getElementById('pastearea').value = siteHTML || '';
-  modal.classList.add('show');
-};
-window.closeModal = () => modal.classList.remove('show');
-
-window.saveHTML = async () => {
-  const html = document.getElementById('pastearea').value.trim();
-  if (!html) return;
-  await set(htmlRef, html);
-  closeModal();
-  // onValue will fire and update the frame
-};
-
-// Enter key
-document.getElementById('pw').addEventListener('keydown', e => {
-  if (e.key === 'Enter') window.doSignIn();
-});
 </script>
 </body>
 </html>
