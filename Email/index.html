@@ -5,531 +5,160 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HTMLTools Mail</title>
 <link rel="icon" type="image/png" href="/logo3.png?v=2" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 <style>
-:root {
-  --bg: #0a0a0f;
-  --surface: #111118;
-  --surface2: #16161f;
-  --surface3: #1c1c28;
-  --border: rgba(255,255,255,0.06);
-  --border2: rgba(255,255,255,0.1);
-  --accent: #6366f1;
-  --accent2: #818cf8;
-  --accent-glow: rgba(99,102,241,0.25);
-  --accent-dim: rgba(99,102,241,0.12);
-  --green: #34d399;
-  --green-dim: rgba(52,211,153,0.1);
-  --red: #fb7185;
-  --red-dim: rgba(251,113,133,0.1);
-  --amber: #fbbf24;
-  --text: #f1f5f9;
-  --text2: #94a3b8;
-  --text3: #475569;
-  --font: 'Geist', -apple-system, sans-serif;
-  --mono: 'Geist Mono', monospace;
-  --radius: 10px;
-  --t: 0.16s cubic-bezier(0.4,0,0.2,1);
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  :root {
+    --bg: #0a0c10;
+    --surface: #0e1117;
+    --surface2: #13181f;
+    --surface3: #1a2030;
+    --border: #1e2535;
+    --border2: #252d3d;
+    --accent: #4da6ff;
+    --accent-dim: rgba(77,166,255,0.12);
+    --accent-glow: rgba(77,166,255,0.25);
+    --green: #34d97b;
+    --red: #f04060;
+    --red-dim: rgba(240,64,96,0.1);
+    --text: #d0daea;
+    --text2: #7a8ba0;
+    --text3: #4a5a6a;
+    --font: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+  /* ── GATE ── */
+  #gate { width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2.25rem 2rem; text-align: center; }
+  #gate.hidden { display: none; }
+  .gate-icon { font-size: 2.2rem; margin-bottom: .6rem; }
+  .gate-title { font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; }
+  .gate-title span { color: var(--accent); }
+  .gate-sub { font-size: .72rem; color: var(--text3); margin: .3rem 0 1.6rem; }
+  .g-input { width: 100%; padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: .9rem; outline: none; margin-bottom: .55rem; transition: border-color .2s; font-family: inherit; }
+  .g-input:focus { border-color: var(--accent); }
+  .g-btn { width: 100%; padding: .85rem; background: var(--accent); border: none; border-radius: 10px; color: #fff; font-size: .88rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .g-btn:hover { opacity: .88; }
+  .g-err { display: none; margin-top: .6rem; font-size: .7rem; color: var(--red); background: var(--red-dim); border-radius: 6px; padding: .4rem .6rem; }
 
-/* ── GATE ── */
-#gate {
-  width: 100%;
-  max-width: 400px;
-  padding: 2.75rem 2.5rem;
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  border-radius: 20px;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
-  animation: fadeUp .4s ease;
-}
-#gate.hidden { display: none; }
-@keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  /* ── SHELL ── */
+  #shell { display: none; width: 100vw; height: 100vh; flex-direction: column; }
+  #shell.show { display: flex; }
 
-.gate-icon {
-  width: 48px; height: 48px;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
-  border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.3rem;
-  box-shadow: 0 8px 24px var(--accent-glow);
-  margin-bottom: 1.5rem;
-}
-.gate-heading { font-size: 1.6rem; font-weight: 700; letter-spacing: -.04em; margin-bottom: .4rem; }
-.gate-sub { font-size: .8rem; color: var(--text3); margin-bottom: 2rem; }
+  .topbar { height: 52px; min-height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1rem; gap: .75rem; z-index: 10; }
+  .topbar-logo { font-weight: 800; font-size: 1rem; letter-spacing: -.02em; display: flex; align-items: center; gap: .3rem; }
+  .topbar-logo span { color: var(--accent); }
+  .topbar-logo .icon { font-size: 1.2rem; }
+  .topbar-search { flex: 1; max-width: 500px; position: relative; }
+  .topbar-search input { width: 100%; padding: .5rem 1rem .5rem 2.4rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 24px; color: var(--text); font-size: .85rem; outline: none; font-family: inherit; transition: border-color .2s, background .2s; }
+  .topbar-search input:focus { border-color: var(--accent); background: var(--surface3); }
+  .topbar-search .si { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: .8rem; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
+  .online-pill { display: flex; align-items: center; gap: .35rem; font-size: .7rem; color: var(--text3); background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: .3rem .7rem; }
+  .online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+  .user-email { font-size: .7rem; color: var(--text2); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .signout { background: transparent; border: 1px solid rgba(240,64,96,.3); color: var(--red); font-size: .68rem; padding: .3rem .65rem; border-radius: 6px; cursor: pointer; font-family: inherit; transition: background .15s; }
+  .signout:hover { background: var(--red-dim); }
 
-.field-group { display: flex; flex-direction: column; gap: 1rem; }
-.field-wrap { display: flex; flex-direction: column; gap: .45rem; }
-.field-label { font-size: .68rem; font-weight: 600; color: var(--text2); letter-spacing: .06em; text-transform: uppercase; }
-.g-input {
-  width: 100%; padding: .8rem 1rem;
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  color: var(--text); font-size: .875rem; font-family: var(--font);
-  outline: none; transition: all var(--t);
-}
-.g-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-.g-btn {
-  width: 100%; padding: .9rem;
-  background: var(--accent);
-  border: none; border-radius: 10px;
-  color: #fff; font-size: .875rem; font-weight: 600; font-family: var(--font);
-  cursor: pointer; margin-top: .25rem;
-  transition: all var(--t);
-  box-shadow: 0 4px 16px var(--accent-glow);
-  display: flex; align-items: center; justify-content: center; gap: .5rem;
-}
-.g-btn:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
-.g-err {
-  display: none; margin-top: .85rem; font-size: .75rem;
-  color: var(--red); background: var(--red-dim);
-  border: 1px solid rgba(251,113,133,.2);
-  border-radius: 8px; padding: .65rem .9rem;
-}
+  .main { display: flex; flex: 1; overflow: hidden; }
 
-/* ── SHELL ── */
-#shell { display: none; width: 100vw; height: 100vh; flex-direction: column; }
-#shell.show { display: flex; }
+  /* ── SIDEBAR ── */
+  .sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1rem 0; gap: .25rem; }
+  .compose-btn { margin: 0 .75rem .75rem; padding: .8rem 1rem; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: .5rem; justify-content: center; transition: opacity .15s, box-shadow .15s; box-shadow: 0 2px 12px var(--accent-glow); }
+  .compose-btn:hover { opacity: .88; box-shadow: 0 4px 20px var(--accent-glow); }
+  .nav-item { display: flex; align-items: center; gap: .7rem; padding: .55rem 1rem; margin: 0 .5rem; border-radius: 8px; font-size: .83rem; cursor: pointer; color: var(--text2); transition: all .15s; border: 1px solid transparent; user-select: none; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(77,166,255,.2); }
+  .nav-item .ni { width: 16px; text-align: center; font-size: .85rem; }
+  .nav-item .badge { margin-left: auto; background: var(--accent); color: #fff; font-size: .6rem; font-weight: 700; padding: .15rem .4rem; border-radius: 10px; min-width: 18px; text-align: center; display: none; }
+  .nav-item .badge.show { display: block; }
+  .sidebar-sep { height: 1px; background: var(--border); margin: .5rem .75rem; }
 
-/* ── TOPBAR ── */
-.topbar {
-  height: 52px; min-height: 52px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center;
-  padding: 0 1rem; gap: .75rem; z-index: 100;
-  backdrop-filter: blur(12px);
-}
-.topbar-brand {
-  display: flex; align-items: center; gap: .55rem;
-  text-decoration: none; user-select: none; flex-shrink: 0; margin-right: .25rem;
-}
-.topbar-logo {
-  width: 28px; height: 28px;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .8rem;
-}
-.topbar-name { font-size: .88rem; font-weight: 700; letter-spacing: -.03em; color: var(--text); }
-.topbar-name em { color: var(--accent2); font-style: normal; }
+  /* ── EMAIL LIST ── */
+  .email-list-pane { width: 340px; min-width: 280px; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .list-header { padding: .75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .5rem; min-height: 48px; }
+  .list-title { font-size: .85rem; font-weight: 700; flex: 1; }
+  .refresh-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text3); padding: .3rem .6rem; font-size: .72rem; cursor: pointer; font-family: inherit; transition: all .15s; display: flex; align-items: center; gap: .3rem; }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .refresh-btn.spinning i { animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .email-list { flex: 1; overflow-y: auto; }
+  .email-list::-webkit-scrollbar { width: 4px; }
+  .email-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .email-row { padding: .85rem 1rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .12s; position: relative; }
+  .email-row:hover { background: var(--surface2); }
+  .email-row.active { background: var(--accent-dim); }
+  .email-row.unread .er-subject { font-weight: 700; color: var(--text); }
+  .er-from { font-size: .75rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: .2rem; display: flex; align-items: center; gap: .4rem; }
+  .er-from .unread-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; flex-shrink: 0; }
+  .er-subject { font-size: .78rem; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: .2rem; }
+  .er-snippet { font-size: .7rem; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .er-meta { position: absolute; top: .85rem; right: 1rem; font-size: .65rem; color: var(--text3); }
+  .empty-list { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: .8rem; }
+  .empty-list i { font-size: 2rem; display: block; margin-bottom: .5rem; }
 
-.topbar-search {
-  flex: 1; max-width: 440px; position: relative;
-}
-.topbar-search input {
-  width: 100%; padding: .5rem .9rem .5rem 2.3rem;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 8px; color: var(--text); font-size: .82rem; font-family: var(--font);
-  outline: none; transition: all var(--t);
-}
-.topbar-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-.topbar-search .si { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: .75rem; pointer-events: none; }
+  /* ── EMAIL DETAIL ── */
+  .email-detail-pane { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .email-detail-pane::-webkit-scrollbar { width: 5px; }
+  .email-detail-pane::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .detail-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text3); gap: .5rem; }
+  .detail-empty i { font-size: 3rem; opacity: .3; }
+  .detail-empty p { font-size: .8rem; }
+  .detail-header { padding: 1.25rem 1.5rem .75rem; border-bottom: 1px solid var(--border); }
+  .detail-subject { font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; margin-bottom: .75rem; line-height: 1.3; }
+  .detail-meta { display: flex; flex-direction: column; gap: .3rem; }
+  .detail-meta-row { display: flex; gap: .5rem; font-size: .75rem; }
+  .detail-meta-label { color: var(--text3); min-width: 32px; }
+  .detail-meta-val { color: var(--text2); }
+  .detail-meta-val strong { color: var(--text); }
+  .detail-date { font-size: .7rem; color: var(--text3); margin-top: .25rem; }
+  .detail-body { padding: 1.25rem 1.5rem; flex: 1; }
+  .detail-body iframe { width: 100%; border: none; border-radius: 10px; background: #fff; }
+  .detail-body .text-body { font-size: .88rem; line-height: 1.7; color: var(--text2); white-space: pre-wrap; word-break: break-word; }
+  .sent-status { display: inline-flex; align-items: center; gap: .35rem; font-size: .68rem; padding: .25rem .55rem; border-radius: 20px; font-weight: 600; margin-top: .5rem; }
+  .sent-status.delivered { background: rgba(52,217,123,.1); color: var(--green); }
+  .sent-status.sent { background: var(--accent-dim); color: var(--accent); }
+  .sent-status.bounced { background: var(--red-dim); color: var(--red); }
 
-.topbar-right { margin-left: auto; display: flex; align-items: center; gap: .6rem; flex-shrink: 0; }
-.live-badge {
-  display: flex; align-items: center; gap: .3rem;
-  font-size: .65rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
-  color: var(--green); background: var(--green-dim);
-  border: 1px solid rgba(52,211,153,.18); border-radius: 20px; padding: .28rem .65rem;
-}
-.live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-.user-chip {
-  display: flex; align-items: center; gap: .4rem;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 8px; padding: .28rem .7rem .28rem .4rem;
-}
-.user-avatar {
-  width: 22px; height: 22px; border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent), #a78bfa);
-  display: flex; align-items: center; justify-content: center;
-  font-size: .62rem; font-weight: 700; color: #fff; flex-shrink: 0;
-}
-.user-email-text { font-size: .7rem; color: var(--text2); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.signout {
-  background: transparent; border: 1px solid var(--border);
-  color: var(--text3); font-size: .7rem; font-weight: 500;
-  padding: .32rem .65rem; border-radius: 7px;
-  cursor: pointer; font-family: var(--font);
-  transition: all var(--t); display: flex; align-items: center; gap: .3rem;
-}
-.signout:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
-
-/* ── MAIN ── */
-.main { display: flex; flex: 1; overflow: hidden; }
-
-/* ── SIDEBAR ── */
-.sidebar {
-  width: 210px; min-width: 210px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  padding: .85rem .65rem; gap: .15rem;
-}
-.compose-btn {
-  margin-bottom: .85rem; padding: .72rem 1rem;
-  background: var(--accent);
-  border: none; border-radius: 10px;
-  color: #fff; font-size: .82rem; font-weight: 600; font-family: var(--font);
-  cursor: pointer; display: flex; align-items: center; gap: .45rem; justify-content: center;
-  transition: all var(--t);
-  box-shadow: 0 4px 14px var(--accent-glow);
-}
-.compose-btn:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 8px 20px var(--accent-glow); }
-.nav-label {
-  font-size: .6rem; font-weight: 700; color: var(--text3);
-  letter-spacing: .1em; text-transform: uppercase;
-  padding: .55rem .65rem .2rem;
-}
-.nav-item {
-  display: flex; align-items: center; gap: .6rem;
-  padding: .55rem .7rem; border-radius: 8px;
-  font-size: .8rem; font-weight: 500;
-  cursor: pointer; color: var(--text2);
-  transition: all var(--t);
-  border: 1px solid transparent; user-select: none;
-}
-.nav-item:hover { background: var(--surface2); color: var(--text); }
-.nav-item.active { background: var(--accent-dim); color: var(--accent2); border-color: rgba(99,102,241,.2); }
-.nav-item .ni { width: 15px; text-align: center; font-size: .78rem; }
-.nav-badge {
-  margin-left: auto;
-  background: var(--accent); color: #fff;
-  font-size: .58rem; font-weight: 700;
-  padding: .12rem .38rem; border-radius: 20px;
-  min-width: 18px; text-align: center; display: none;
-}
-.nav-badge.show { display: block; }
-.sidebar-sep { height: 1px; background: var(--border); margin: .5rem 0; }
-
-/* ── EMAIL LIST ── */
-.email-list-pane {
-  width: 320px; min-width: 260px;
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; overflow: hidden;
-  background: var(--bg);
-}
-.list-header {
-  padding: .7rem .9rem;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: .5rem;
-  min-height: 48px; background: var(--surface);
-}
-.list-title { font-size: .85rem; font-weight: 700; flex: 1; letter-spacing: -.02em; }
-.list-count { font-size: .65rem; color: var(--text3); background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: .12rem .5rem; }
-.refresh-btn {
-  background: transparent; border: 1px solid var(--border);
-  border-radius: 7px; color: var(--text3);
-  padding: .28rem .6rem; font-size: .7rem; font-weight: 500;
-  cursor: pointer; font-family: var(--font);
-  transition: all var(--t);
-  display: flex; align-items: center; gap: .3rem;
-}
-.refresh-btn:hover { border-color: var(--accent); color: var(--accent2); }
-.refresh-btn.spinning i { animation: spin .7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.email-list { flex: 1; overflow-y: auto; }
-.email-row {
-  padding: .85rem .9rem;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer; transition: background var(--t);
-  position: relative;
-}
-.email-row:hover { background: var(--surface2); }
-.email-row.active { background: rgba(99,102,241,.08); border-left: 2px solid var(--accent); padding-left: calc(.9rem - 2px); }
-.email-row.unread { background: var(--surface); }
-.email-row.unread .er-subject { font-weight: 700; color: var(--text); }
-.er-from {
-  font-size: .76rem; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  margin-bottom: .18rem; display: flex; align-items: center; gap: .35rem;
-}
-.er-from .unread-dot { width: 5px; height: 5px; background: var(--accent2); border-radius: 50%; flex-shrink: 0; }
-.er-subject { font-size: .75rem; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: .22rem; }
-.er-snippet { font-size: .68rem; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.er-meta { position: absolute; top: .85rem; right: .9rem; font-size: .63rem; color: var(--text3); font-variant-numeric: tabular-nums; }
-.er-to-tag {
-  display: inline-block; font-size: .58rem; font-weight: 600; padding: .08rem .36rem;
-  background: var(--accent-dim); color: var(--accent2);
-  border-radius: 4px; margin-left: .3rem; flex-shrink: 0;
-}
-.empty-list { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: .78rem; }
-.empty-list i { font-size: 1.5rem; display: block; margin-bottom: .5rem; opacity: .3; }
-
-/* ── DETAIL ── */
-.email-detail-pane {
-  flex: 1; overflow-y: auto;
-  display: flex; flex-direction: column;
-  background: var(--bg);
-}
-.detail-empty {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  color: var(--text3); gap: .5rem;
-}
-.detail-empty i { font-size: 2.2rem; opacity: .15; }
-.detail-empty p { font-size: .8rem; }
-.detail-empty span { font-size: .68rem; opacity: .5; }
-
-.detail-header { padding: 1.75rem 2rem 1.1rem; border-bottom: 1px solid var(--border); }
-.detail-subject { font-size: 1.2rem; font-weight: 700; letter-spacing: -.03em; margin-bottom: 1rem; line-height: 1.3; }
-.detail-meta-table { display: flex; flex-direction: column; gap: .4rem; }
-.detail-meta-row { display: flex; gap: .75rem; font-size: .76rem; }
-.detail-meta-label { color: var(--text3); width: 32px; flex-shrink: 0; font-weight: 600; }
-.detail-meta-val { color: var(--text2); flex: 1; }
-.detail-meta-val strong { color: var(--text); font-weight: 600; }
-.detail-date { font-size: .68rem; color: var(--text3); margin-top: .55rem; }
-.detail-body { padding: 1.75rem 2rem; flex: 1; }
-.detail-body .text-body { font-size: .875rem; line-height: 1.8; color: var(--text2); white-space: pre-wrap; word-break: break-word; }
-.detail-body iframe { width: 100%; border: none; border-radius: 12px; background: #fff; display: block; }
-
-.status-pill {
-  display: inline-flex; align-items: center; gap: .3rem;
-  font-size: .66rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-  padding: .22rem .6rem; border-radius: 20px; margin-top: .5rem;
-}
-.status-pill.delivered { background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
-.status-pill.sent { background: var(--accent-dim); color: var(--accent2); border: 1px solid rgba(99,102,241,.2); }
-.status-pill.bounced { background: var(--red-dim); color: var(--red); border: 1px solid rgba(251,113,133,.2); }
-
-/* ── COMPOSE MODAL ── */
-.compose-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.6); backdrop-filter: blur(6px);
-  z-index: 200; align-items: center; justify-content: center;
-  padding: 1rem;
-}
-.compose-overlay.show { display: flex; }
-.compose-modal {
-  width: 100%; max-width: 580px;
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  border-radius: 18px;
-  display: flex; flex-direction: column;
-  max-height: 90vh;
-  box-shadow: 0 32px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(99,102,241,.1), inset 0 1px 0 rgba(255,255,255,.05);
-  animation: modalIn .2s cubic-bezier(0.34,1.4,0.64,1);
-}
-@keyframes modalIn { from { transform: scale(.95) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
-
-.cm-header {
-  padding: .9rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  flex-shrink: 0;
-}
-.cm-title { font-size: .82rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; color: var(--text); }
-.cm-title-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 6px var(--accent); }
-.cm-close {
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--text3); cursor: pointer; font-size: .75rem;
-  width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-  transition: all var(--t);
-}
-.cm-close:hover { color: var(--red); border-color: var(--red); background: var(--red-dim); }
-
-.cm-fields { display: flex; flex-direction: column; flex-shrink: 0; }
-.cm-field {
-  display: flex; align-items: flex-start;
-  border-bottom: 1px solid var(--border);
-  padding: .6rem 1.25rem; gap: .75rem;
-}
-.cm-field label { font-size: .65rem; font-weight: 700; color: var(--text3); min-width: 44px; padding-top: .55rem; letter-spacing: .08em; text-transform: uppercase; }
-.cm-field input, .cm-field select, .cm-field textarea {
-  flex: 1; background: transparent; border: none;
-  color: var(--text); font-size: .855rem; outline: none; font-family: var(--font); resize: none;
-}
-.cm-field select option { background: var(--surface2); }
-.cm-field input::placeholder { color: var(--text3); }
-
-.cm-tag-input-wrapper {
-  flex: 1; display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; min-height: 34px; padding: .1rem 0;
-}
-.to-tag {
-  display: inline-flex; align-items: center; gap: .28rem;
-  background: var(--accent-dim); border: 1px solid rgba(99,102,241,.22);
-  color: var(--accent2); font-size: .72rem; font-weight: 500;
-  padding: .2rem .55rem .2rem .45rem; border-radius: 6px; white-space: nowrap;
-}
-.to-tag-rm { cursor: pointer; opacity: .55; font-size: .62rem; line-height: 1; }
-.to-tag-rm:hover { opacity: 1; color: var(--red); }
-.to-input {
-  flex: 1; min-width: 130px; background: transparent; border: none;
-  color: var(--text); font-size: .855rem; outline: none; font-family: var(--font); padding: 0;
-}
-.to-input::placeholder { color: var(--text3); }
-
-.cm-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
-
-.cm-type-tabs {
-  display: flex; padding: .55rem 1.25rem;
-  gap: .35rem; border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.cm-tab {
-  padding: .28rem .7rem; border: 1px solid var(--border);
-  border-radius: 6px; background: transparent;
-  color: var(--text3); font-size: .7rem; font-weight: 600;
-  cursor: pointer; font-family: var(--font); transition: all var(--t);
-}
-.cm-tab:hover { border-color: var(--accent); color: var(--accent2); }
-.cm-tab.active { border-color: var(--accent); color: var(--accent2); background: var(--accent-dim); }
-
-.cm-toolbar {
-  display: flex; gap: .25rem; padding: .5rem 1.25rem;
-  border-bottom: 1px solid var(--border); flex-wrap: wrap;
-  flex-shrink: 0;
-}
-.cm-tb-group { display: flex; gap: .18rem; }
-.cm-tb-sep { width: 1px; background: var(--border); margin: .1rem .3rem; align-self: stretch; }
-.cm-tb {
-  background: transparent; border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text3);
-  font-size: .7rem; padding: .28rem .52rem;
-  cursor: pointer; font-family: var(--font);
-  transition: all var(--t);
-  display: flex; align-items: center; gap: .2rem;
-  user-select: none;
-}
-.cm-tb:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-dim); }
-
-.cm-img-chips { display: flex; flex-wrap: wrap; gap: .3rem; padding: .45rem 1.25rem; flex-shrink: 0; }
-.cm-img-chip {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 7px; padding: .22rem .55rem;
-  font-size: .67rem; display: flex; align-items: center; gap: .3rem; color: var(--text2);
-}
-.cm-img-chip img { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; }
-.cm-img-chip-rm { color: var(--red); cursor: pointer; opacity: .65; }
-.cm-img-chip-rm:hover { opacity: 1; }
-
-.cm-textarea {
-  width: 100%; flex: 1; min-height: 160px;
-  padding: .9rem 1.25rem; background: transparent; border: none;
-  color: var(--text); font-size: .875rem; font-family: var(--font);
-  outline: none; resize: none; line-height: 1.75;
-}
-.cm-textarea::placeholder { color: var(--text3); }
-.cm-preview {
-  width: 100%; border: none;
-  border-top: 1px solid var(--border); background: #fff;
-  min-height: 150px; display: none; flex-shrink: 0;
-}
-.cm-preview.show { display: block; }
-
-.cm-footer {
-  display: flex; align-items: center; gap: .55rem;
-  padding: .85rem 1.25rem; border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.cm-send {
-  padding: .62rem 1.2rem; background: var(--accent);
-  border: none; border-radius: 9px; color: #fff;
-  font-size: .825rem; font-weight: 600; font-family: var(--font);
-  cursor: pointer; transition: all var(--t);
-  display: flex; align-items: center; gap: .4rem;
-  box-shadow: 0 2px 10px var(--accent-glow);
-}
-.cm-send:hover { background: var(--accent2); transform: translateY(-1px); }
-.cm-send:disabled { opacity: .4; cursor: not-allowed; transform: none; }
-.cm-preview-btn {
-  padding: .62rem .85rem; background: transparent;
-  border: 1px solid var(--border); border-radius: 9px;
-  color: var(--text3); font-size: .76rem; font-family: var(--font);
-  cursor: pointer; transition: all var(--t);
-}
-.cm-preview-btn:hover { border-color: var(--accent); color: var(--accent2); }
-.cm-status {
-  flex: 1; font-size: .73rem; padding: .38rem .72rem;
-  border-radius: 7px; display: none;
-}
-.cm-status.ok { display: block; background: var(--green-dim); color: var(--green); border: 1px solid rgba(52,211,153,.2); }
-.cm-status.err { display: block; background: var(--red-dim); color: var(--red); border: 1px solid rgba(251,113,133,.2); }
-
-/* ── ACCESS PANEL ── */
-.access-detail { padding: 1.75rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-y: auto; }
-.access-section-title { font-size: .82rem; font-weight: 700; color: var(--text); margin-bottom: .75rem; }
-.access-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: .75rem;
-}
-.access-input {
-  width: 100%; padding: .68rem .9rem;
-  background: var(--surface2); border: 1px solid var(--border2);
-  border-radius: 8px; color: var(--text); font-size: .845rem; font-family: var(--font);
-  outline: none; transition: all var(--t);
-}
-.access-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-.access-input::placeholder { color: var(--text3); }
-.access-label { font-size: .68rem; font-weight: 600; color: var(--text2); letter-spacing: .05em; text-transform: uppercase; margin-bottom: .3rem; }
-.sender-tags-wrap { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .35rem; }
-.sender-tag {
-  display: flex; align-items: center; gap: .3rem;
-  background: var(--surface2); border: 1px solid var(--border2);
-  border-radius: 6px; padding: .28rem .65rem;
-  font-size: .72rem; font-family: var(--mono); color: var(--text2);
-}
-.sender-tag input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
-.access-grant-btn {
-  padding: .65rem 1.2rem; background: var(--green);
-  border: none; border-radius: 8px; color: #000;
-  font-size: .8rem; font-weight: 700; font-family: var(--font);
-  cursor: pointer; align-self: flex-start; transition: all var(--t);
-}
-.access-grant-btn:hover { opacity: .88; transform: translateY(-1px); }
-.ac-status { font-size: .74rem; padding: .38rem .72rem; border-radius: 7px; }
-.ac-status.ok { background: var(--green-dim); color: var(--green); }
-.ac-status.err { background: var(--red-dim); color: var(--red); }
-.access-user-row {
-  padding: .8rem 1rem; border-radius: 10px;
-  background: var(--surface2); border: 1px solid var(--border);
-  display: flex; align-items: center; gap: .75rem;
-  transition: border-color var(--t);
-}
-.access-user-row:hover { border-color: var(--border2); }
-.access-user-avatar {
-  width: 32px; height: 32px; border-radius: 8px;
-  background: var(--accent-dim); border: 1px solid rgba(99,102,241,.2);
-  display: flex; align-items: center; justify-content: center;
-  font-size: .7rem; font-weight: 700; color: var(--accent2); flex-shrink: 0;
-}
-.access-user-info { flex: 1; min-width: 0; }
-.access-user-email { font-size: .78rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.access-user-senders { font-size: .65rem; color: var(--text3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.revoke-btn {
-  background: transparent; border: 1px solid rgba(251,113,133,.25);
-  color: var(--red); font-size: .67rem; font-weight: 600; font-family: var(--font);
-  padding: .28rem .62rem; border-radius: 6px; cursor: pointer;
-  transition: all var(--t);
-}
-.revoke-btn:hover { background: var(--red-dim); border-color: var(--red); }
-
-.access-mini { padding: .75rem 1rem; font-size: .75rem; }
-.access-mini-title { font-size: .7rem; font-weight: 700; color: var(--text); margin-bottom: .6rem; }
-.access-mini-item { padding: .38rem 0; border-bottom: 1px solid var(--border); color: var(--text2); font-size: .72rem; }
-.access-mini-item:last-child { border-bottom: none; }
+  /* ── COMPOSE MODAL ── */
+  .compose-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: flex-end; justify-content: flex-end; padding: 1rem; }
+  .compose-overlay.show { display: flex; }
+  .compose-modal { width: 100%; max-width: 520px; background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; display: flex; flex-direction: column; max-height: 90vh; box-shadow: 0 20px 60px rgba(0,0,0,.6); animation: slideUp .2s ease; }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .cm-header { padding: .75rem 1rem; background: var(--surface3); border-radius: 16px 16px 0 0; display: flex; align-items: center; justify-content: space-between; cursor: move; }
+  .cm-title { font-size: .82rem; font-weight: 700; color: var(--text2); }
+  .cm-close { background: transparent; border: none; color: var(--text3); cursor: pointer; font-size: 1rem; padding: .2rem .4rem; border-radius: 4px; transition: color .15s; }
+  .cm-close:hover { color: var(--red); }
+  .cm-fields { display: flex; flex-direction: column; }
+  .cm-field { display: flex; align-items: center; border-bottom: 1px solid var(--border); padding: .5rem 1rem; gap: .5rem; }
+  .cm-field label { font-size: .7rem; color: var(--text3); min-width: 44px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .cm-field input, .cm-field select { flex: 1; background: transparent; border: none; color: var(--text); font-size: .85rem; outline: none; font-family: inherit; }
+  .cm-field select option { background: var(--surface); }
+  .cm-body { flex: 1; overflow-y: auto; }
+  .cm-body::-webkit-scrollbar { width: 3px; }
+  .cm-body::-webkit-scrollbar-thumb { background: var(--border2); }
+  .cm-type-tabs { display: flex; padding: .5rem 1rem; gap: .4rem; border-bottom: 1px solid var(--border); }
+  .cm-tab { padding: .3rem .7rem; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text3); font-size: .72rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .cm-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .cm-toolbar { display: flex; gap: .3rem; padding: .4rem 1rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .cm-tb { background: transparent; border: 1px solid var(--border); border-radius: 5px; color: var(--text3); font-size: .7rem; padding: .3rem .6rem; cursor: pointer; font-family: inherit; transition: all .15s; display: flex; align-items: center; gap: .25rem; }
+  .cm-tb:hover { border-color: var(--accent); color: var(--accent); }
+  .cm-textarea { width: 100%; min-height: 200px; padding: 1rem; background: transparent; border: none; color: var(--text); font-size: .88rem; font-family: inherit; outline: none; resize: none; line-height: 1.6; }
+  .cm-img-chips { display: flex; flex-wrap: wrap; gap: .35rem; padding: 0 1rem .5rem; }
+  .cm-img-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: .25rem .5rem; font-size: .68rem; display: flex; align-items: center; gap: .35rem; }
+  .cm-img-chip img { width: 18px; height: 18px; border-radius: 3px; object-fit: cover; }
+  .cm-img-chip-rm { color: var(--red); cursor: pointer; }
+  .cm-preview { width: 100%; border: none; border-top: 1px solid var(--border); background: #fff; min-height: 150px; display: none; }
+  .cm-preview.show { display: block; }
+  .cm-footer { display: flex; align-items: center; gap: .6rem; padding: .75rem 1rem; border-top: 1px solid var(--border); }
+  .cm-send { padding: .65rem 1.25rem; background: var(--accent); border: none; border-radius: 8px; color: #fff; font-size: .83rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s; display: flex; align-items: center; gap: .4rem; }
+  .cm-send:hover { opacity: .88; }
+  .cm-send:disabled { opacity: .5; cursor: not-allowed; }
+  .cm-preview-btn { padding: .65rem .9rem; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--text3); font-size: .78rem; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .cm-preview-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .cm-status { flex: 1; font-size: .72rem; padding: .35rem .65rem; border-radius: 5px; display: none; }
+  .cm-status.ok { display: block; background: rgba(52,217,123,.1); color: var(--green); }
+  .cm-status.err { display: block; background: var(--red-dim); color: var(--red); }
 </style>
 </head>
 <body>
@@ -537,76 +166,61 @@ body {
 <!-- GATE -->
 <div id="gate">
   <div class="gate-icon">✉️</div>
-  <div class="gate-heading">Welcome back</div>
-  <div class="gate-sub">Sign in to HTMLTools Mail</div>
-  <div class="field-group">
-    <div class="field-wrap">
-      <label class="field-label">Email</label>
-      <input type="email" id="g-email" class="g-input" placeholder="you@example.com" autocomplete="email" />
-    </div>
-    <div class="field-wrap">
-      <label class="field-label">Password</label>
-      <input type="password" id="g-pass" class="g-input" placeholder="••••••••" autocomplete="current-password" />
-    </div>
-    <button class="g-btn" id="login-btn"><i class="fas fa-arrow-right-to-bracket"></i> Sign In</button>
-  </div>
+  <div class="gate-title">HTML<span>Tools</span> Mail</div>
+  <div class="gate-sub">Sign in to access the mail tool.</div>
+  <input type="email" id="g-email" class="g-input" placeholder="your@email.com" />
+  <input type="password" id="g-pass" class="g-input" placeholder="••••••••" />
+  <button class="g-btn" id="login-btn">Sign In</button>
   <div class="g-err" id="g-err"></div>
 </div>
 
 <!-- SHELL -->
 <div id="shell">
   <div class="topbar">
-    <div class="topbar-brand">
-      <div class="topbar-logo">✉️</div>
-      <div class="topbar-name">HTML<em>Tools</em> Mail</div>
-    </div>
+    <div class="topbar-logo"><span class="icon">✉️</span> HTML<span>Tools</span> Mail</div>
     <div class="topbar-search">
-      <i class="fas fa-magnifying-glass si"></i>
-      <input type="text" id="search-input" placeholder="Search emails…" oninput="filterEmails()" />
+      <i class="fas fa-search si"></i>
+      <input type="text" id="search-input" placeholder="Search mail..." oninput="filterEmails()" />
     </div>
     <div class="topbar-right">
-      <div class="live-badge"><span class="live-dot"></span> Live</div>
-      <div class="user-chip">
-        <div class="user-avatar" id="user-avatar">?</div>
-        <span class="user-email-text" id="user-label"></span>
-      </div>
-      <button class="signout" id="signout-btn"><i class="fas fa-arrow-right-from-bracket"></i> Out</button>
+      <div class="online-pill"><span class="online-dot"></span> Live</div>
+      <span class="user-email" id="user-label"></span>
+      <button class="signout" id="signout-btn">Sign Out</button>
     </div>
   </div>
-
   <div class="main">
+    <!-- SIDEBAR -->
     <div class="sidebar">
-      <button class="compose-btn" onclick="openCompose()"><i class="fas fa-pen-to-square"></i> Compose</button>
-      <div class="nav-label">Mailbox</div>
+      <button class="compose-btn" onclick="openCompose()"><i class="fas fa-pen"></i> Compose</button>
       <div class="nav-item active" id="nav-inbox" onclick="switchView('inbox')">
         <i class="fas fa-inbox ni"></i> Inbox
-        <span class="nav-badge" id="inbox-badge">0</span>
+        <span class="badge" id="inbox-badge">0</span>
       </div>
       <div class="nav-item" id="nav-sent" onclick="switchView('sent')">
         <i class="fas fa-paper-plane ni"></i> Sent
       </div>
       <div class="sidebar-sep"></div>
       <div class="nav-item" id="nav-access" onclick="switchView('access')" style="display:none;">
-        <i class="fas fa-users-gear ni"></i> Access
+        <i class="fas fa-users-cog ni"></i> Access
       </div>
     </div>
 
+    <!-- EMAIL LIST -->
     <div class="email-list-pane">
       <div class="list-header">
         <span class="list-title" id="list-title">Inbox</span>
-        <span class="list-count" id="list-count">0</span>
-        <button class="refresh-btn" id="refresh-btn" onclick="loadCurrentView()"><i class="fas fa-arrows-rotate"></i> Refresh</button>
+        <button class="refresh-btn" id="refresh-btn" onclick="loadCurrentView()"><i class="fas fa-sync-alt"></i> Refresh</button>
       </div>
       <div class="email-list" id="email-list">
-        <div class="empty-list"><i class="fas fa-circle-notch fa-spin"></i>Loading…</div>
+        <div class="empty-list"><i class="fas fa-envelope-open"></i>Loading...</div>
       </div>
     </div>
 
+    <!-- EMAIL DETAIL -->
     <div class="email-detail-pane" id="email-detail-pane">
       <div class="detail-empty">
-        <i class="fas fa-envelope-open-text"></i>
+        <i class="fas fa-envelope"></i>
         <p>Select an email to read</p>
-        <span>Nothing selected</span>
       </div>
     </div>
   </div>
@@ -616,7 +230,7 @@ body {
 <div class="compose-overlay" id="compose-overlay" onclick="overlayClick(event)">
   <div class="compose-modal" id="compose-modal">
     <div class="cm-header">
-      <span class="cm-title"><span class="cm-title-dot"></span> New Message</span>
+      <span class="cm-title">New Message</span>
       <button class="cm-close" onclick="closeCompose()"><i class="fas fa-times"></i></button>
     </div>
     <div class="cm-fields">
@@ -624,37 +238,27 @@ body {
         <label>From</label>
         <select id="cm-from"></select>
       </div>
-      <div class="cm-field" id="to-field">
+      <div class="cm-field">
         <label>To</label>
-        <div class="cm-tag-input-wrapper" id="to-tags-wrap">
-          <input type="text" class="to-input" id="cm-to-input" placeholder="recipient@example.com — Enter or comma" autocomplete="off" />
-        </div>
+        <input type="email" id="cm-to" placeholder="recipient@example.com" />
       </div>
       <div class="cm-field">
         <label>Subject</label>
-        <input type="text" id="cm-subject" placeholder="Subject…" />
+        <input type="text" id="cm-subject" placeholder="Subject..." />
       </div>
     </div>
     <div class="cm-body">
       <div class="cm-type-tabs">
-        <button class="cm-tab active" id="cm-tab-normal" onclick="setCmType('normal')"><i class="fas fa-pencil"></i> Normal</button>
-        <button class="cm-tab" id="cm-tab-html" onclick="setCmType('html')"><i class="fas fa-code"></i> HTML</button>
+        <button class="cm-tab active" id="cm-tab-normal" onclick="setCmType('normal')">✏️ Normal</button>
+        <button class="cm-tab" id="cm-tab-html" onclick="setCmType('html')">🧩 HTML</button>
       </div>
       <div class="cm-toolbar" id="cm-toolbar">
-        <div class="cm-tb-group">
-          <button class="cm-tb" onclick="cmFormat('bold')" title="Bold"><b>B</b></button>
-          <button class="cm-tb" onclick="cmFormat('italic')" title="Italic"><i>I</i></button>
-          <button class="cm-tb" onclick="cmFormat('underline')" title="Underline"><u>U</u></button>
-        </div>
-        <div class="cm-tb-sep"></div>
-        <div class="cm-tb-group">
-          <button class="cm-tb" onclick="cmInsertLink()" title="Link"><i class="fas fa-link"></i></button>
-          <button class="cm-tb" onclick="document.getElementById('cm-img-input').click()" title="Image"><i class="fas fa-image"></i></button>
-          <input type="file" id="cm-img-input" accept="image/*" multiple style="display:none" onchange="cmHandleImages(event)" />
-        </div>
+        <button class="cm-tb" onclick="cmInsertLink()"><i class="fas fa-link"></i> Link</button>
+        <button class="cm-tb" onclick="document.getElementById('cm-img-input').click()"><i class="fas fa-image"></i> Image</button>
+        <input type="file" id="cm-img-input" accept="image/*" multiple style="display:none" onchange="cmHandleImages(event)" />
       </div>
       <div class="cm-img-chips" id="cm-img-chips"></div>
-      <textarea class="cm-textarea" id="cm-body" placeholder="Write your message here…&#10;&#10;**bold**  *italic*  __underline__  [link](https://url)"></textarea>
+      <textarea class="cm-textarea" id="cm-body" placeholder="Write your message here..."></textarea>
       <iframe class="cm-preview" id="cm-preview" sandbox="allow-same-origin"></iframe>
     </div>
     <div class="cm-footer">
@@ -672,24 +276,17 @@ body {
 
   const SUPER_ADMIN = 'matthewbozhe@gmail.com';
   const WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
-
-  const authApp = initializeApp({
-    apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
-    authDomain: "htmltools-library.firebaseapp.com",
-    projectId: "htmltools-library",
-  }, 'auth-app');
-  const auth = getAuth(authApp);
-
-  const dbApp = initializeApp({
+  const firebaseConfig = {
     apiKey: "AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
     authDomain: "htmltools-library.firebaseapp.com",
     databaseURL: "https://htmltools-library-default-rtdb.firebaseio.com",
     projectId: "htmltools-library",
-  }, 'db-app');
-  const db = getDatabase(dbApp);
+  };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
 
-  const ALL_SENDERS = ['noreply', 'matthew', 'kovan'];
-
+  // ── State ──
   let currentView = 'inbox';
   let allEmails = [];
   let readIds = new Set(JSON.parse(localStorage.getItem('readIds') || '[]'));
@@ -697,30 +294,21 @@ body {
   let cmType = 'normal';
   let cmImages = [];
   let cmPreviewOpen = false;
-  let allowedSenders = [];
+  let allowedSenders = ['noreply', 'matthew', 'kovan'];
   let isSuperAdmin = false;
-  let toRecipients = [];
 
   // ── Login ──
   document.getElementById('login-btn').addEventListener('click', async () => {
     const email = document.getElementById('g-email').value.trim();
     const pass = document.getElementById('g-pass').value;
     const err = document.getElementById('g-err');
-    const btn = document.getElementById('login-btn');
     err.style.display = 'none';
-    if (!email || !pass) { showGateErr('Please fill in both fields.'); return; }
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Signing in…'; btn.disabled = true;
+    if (!email || !pass) { err.textContent = 'Please fill in both fields.'; err.style.display = 'block'; return; }
     try { await signInWithEmailAndPassword(auth, email, pass); }
-    catch(e) { showGateErr('⛔ ' + e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim()); }
-    btn.innerHTML = '<i class="fas fa-arrow-right-to-bracket"></i> Sign In'; btn.disabled = false;
+    catch(e) { err.textContent = '⛔ ' + e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim(); err.style.display = 'block'; }
   });
   document.getElementById('g-pass').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-btn').click(); });
   document.getElementById('signout-btn').addEventListener('click', () => signOut(auth));
-
-  function showGateErr(msg) {
-    const err = document.getElementById('g-err');
-    err.textContent = msg; err.style.display = 'block';
-  }
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
@@ -731,26 +319,23 @@ body {
     const email = user.email.toLowerCase();
     if (email === SUPER_ADMIN.toLowerCase()) {
       isSuperAdmin = true;
-      allowedSenders = ALL_SENDERS;
+      allowedSenders = ['noreply', 'matthew', 'kovan'];
       showShell(user);
       document.getElementById('nav-access').style.display = 'flex';
     } else {
-      try {
-        const snap = await get(ref(db, `mailAccess/${email.replace(/\./g,'_')}`));
-        if (snap.exists()) {
-          allowedSenders = snap.val().senders || [];
-          showShell(user);
-          onValue(ref(db, `mailAccess/${email.replace(/\./g,'_')}`), s => {
-            if (!s.exists()) { signOut(auth); alert('Your access has been revoked.'); }
-            else { allowedSenders = s.val().senders || []; rebuildFromSelect(); }
-          });
-        } else {
-          await signOut(auth);
-          showGateErr('⛔ You do not have access to this tool.');
-        }
-      } catch(e) {
+      const snap = await get(ref(db, `mailAccess/${email.replace(/\./g,'_')}`));
+      if (snap.exists()) {
+        allowedSenders = snap.val().senders || [];
+        showShell(user);
+        onValue(ref(db, `mailAccess/${email.replace(/\./g,'_')}`), s => {
+          if (!s.exists()) { signOut(auth); alert('Your access has been revoked.'); }
+          else { allowedSenders = s.val().senders || []; rebuildFromSelect(); }
+        });
+      } else {
         await signOut(auth);
-        showGateErr('⛔ Database error: ' + e.message);
+        const err = document.getElementById('g-err');
+        err.textContent = '⛔ You do not have access to this tool.';
+        err.style.display = 'block';
       }
     }
   });
@@ -758,9 +343,7 @@ body {
   function showShell(user) {
     document.getElementById('gate').classList.add('hidden');
     document.getElementById('shell').classList.add('show');
-    const email = user.email;
-    document.getElementById('user-label').textContent = email;
-    document.getElementById('user-avatar').textContent = email.charAt(0).toUpperCase();
+    document.getElementById('user-label').textContent = user.email;
     rebuildFromSelect();
     loadInbox();
   }
@@ -772,6 +355,11 @@ body {
       const opt = new Option(s + '@htmltools.me', s + '@htmltools.me');
       sel.add(opt);
     });
+    if (isSuperAdmin) {
+      // Add custom option for super admin
+      const opt = new Option('✏️ Custom...', 'custom');
+      sel.add(opt);
+    }
   }
 
   // ── View switching ──
@@ -779,9 +367,8 @@ body {
     currentView = view;
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.getElementById('nav-' + view)?.classList.add('active');
-    const titles = { inbox: 'Inbox', sent: 'Sent', access: 'Access Control' };
-    document.getElementById('list-title').textContent = titles[view] || view;
-    document.getElementById('email-detail-pane').innerHTML = '<div class="detail-empty"><i class="fas fa-envelope-open-text"></i><p>Select an email to read</p></div>';
+    document.getElementById('list-title').textContent = view === 'inbox' ? 'Inbox' : view === 'sent' ? 'Sent' : 'Access';
+    document.getElementById('email-detail-pane').innerHTML = '<div class="detail-empty"><i class="fas fa-envelope"></i><p>Select an email to read</p></div>';
     currentEmail = null;
     if (view === 'inbox') loadInbox();
     else if (view === 'sent') loadSent();
@@ -790,38 +377,33 @@ body {
 
   window.loadCurrentView = function() { switchView(currentView); };
 
-  // ── FIX: pass recipients as an array, not a joined string ──
   async function apiPost(body) {
-    const res = await fetch(WORKER, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    const res = await fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     return res.json();
   }
 
   async function loadInbox() {
     setRefreshSpinning(true);
-    document.getElementById('email-list').innerHTML = '<div class="empty-list"><i class="fas fa-circle-notch fa-spin"></i><br>Loading…</div>';
+    document.getElementById('email-list').innerHTML = '<div class="empty-list"><i class="fas fa-spinner fa-spin"></i><br>Loading...</div>';
     try {
       const data = await apiPost({ type: 'get_inbox' });
       allEmails = (data.emails || []).sort((a,b) => new Date(b.date) - new Date(a.date));
       renderList();
     } catch(e) {
-      document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-triangle-exclamation"></i><br>${e.message}</div>`;
+      document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-exclamation-triangle"></i><br>${e.message}</div>`;
     }
     setRefreshSpinning(false);
   }
 
   async function loadSent() {
     setRefreshSpinning(true);
-    document.getElementById('email-list').innerHTML = '<div class="empty-list"><i class="fas fa-circle-notch fa-spin"></i><br>Loading…</div>';
+    document.getElementById('email-list').innerHTML = '<div class="empty-list"><i class="fas fa-spinner fa-spin"></i><br>Loading...</div>';
     try {
       const data = await apiPost({ type: 'get_sent' });
       allEmails = (data.emails || []).sort((a,b) => new Date(b.date) - new Date(a.date));
       renderList();
     } catch(e) {
-      document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-triangle-exclamation"></i><br>${e.message}</div>`;
+      document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-exclamation-triangle"></i><br>${e.message}</div>`;
     }
     setRefreshSpinning(false);
   }
@@ -842,18 +424,20 @@ body {
         (e.to||'').toLowerCase().includes(q)
       );
     }
-    document.getElementById('list-count').textContent = emails.length;
     if (!emails.length) {
       list.innerHTML = `<div class="empty-list"><i class="fas fa-envelope-open"></i><br>No emails found.</div>`;
       document.getElementById('inbox-badge').classList.remove('show');
       return;
     }
+
+    // Update unread badge for inbox
     if (currentView === 'inbox') {
       const unreadCount = emails.filter(e => !readIds.has(e.id)).length;
       const badge = document.getElementById('inbox-badge');
       if (unreadCount > 0) { badge.textContent = unreadCount; badge.classList.add('show'); }
       else badge.classList.remove('show');
     }
+
     list.innerHTML = '';
     emails.forEach(email => {
       const isUnread = currentView === 'inbox' && !readIds.has(email.id);
@@ -861,19 +445,12 @@ body {
       row.className = 'email-row' + (isUnread ? ' unread' : '') + (currentEmail?.id === email.id ? ' active' : '');
       row.dataset.id = email.id;
       const date = formatDate(email.date);
-      const toRaw = Array.isArray(email.to) ? email.to.join(', ') : (email.to || '');
-      const fromRaw = email.from || '';
-      const fromDisplay = currentView === 'sent' ? toRaw : fromRaw;
-      const snippet = email.snippet || (currentView === 'sent' ? toRaw : '');
+      const fromDisplay = currentView === 'sent' ? (email.to || '') : (email.from || '');
       row.innerHTML = `
-        <div class="er-meta">${escHtml(date)}</div>
-        <div class="er-from">
-          ${isUnread ? '<span class="unread-dot"></span>' : ''}
-          ${escHtml(fromDisplay)}
-          ${currentView === 'sent' ? `<span class="er-to-tag">sent</span>` : ''}
-        </div>
+        <div class="er-meta">${date}</div>
+        <div class="er-from">${isUnread ? '<span class="unread-dot"></span>' : ''} ${escHtml(fromDisplay)}</div>
         <div class="er-subject">${escHtml(email.subject || '(no subject)')}</div>
-        <div class="er-snippet">${escHtml(snippet)}</div>
+        <div class="er-snippet">${escHtml(email.snippet || (currentView === 'sent' ? '→ ' + email.to : ''))}</div>
       `;
       row.addEventListener('click', () => openEmail(email, row));
       list.appendChild(row);
@@ -881,13 +458,16 @@ body {
   }
 
   window.filterEmails = function() {
-    renderList(document.getElementById('search-input').value.trim() || undefined);
+    renderList(document.getElementById('search-input').value.trim());
   };
 
   async function openEmail(email, row) {
+    // Mark active row
     document.querySelectorAll('.email-row').forEach(r => r.classList.remove('active'));
     row.classList.add('active');
     currentEmail = email;
+
+    // Mark read
     if (currentView === 'inbox' && !readIds.has(email.id)) {
       readIds.add(email.id);
       localStorage.setItem('readIds', JSON.stringify([...readIds]));
@@ -895,214 +475,129 @@ body {
       row.querySelector('.unread-dot')?.remove();
       renderList(document.getElementById('search-input').value.trim() || undefined);
     }
+
     const pane = document.getElementById('email-detail-pane');
-    pane.innerHTML = '<div class="detail-empty"><i class="fas fa-circle-notch fa-spin"></i><p>Loading…</p></div>';
+    pane.innerHTML = '<div class="detail-empty"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+
+    // Fetch full email
     let fullEmail = email;
     try {
       const data = await apiPost({ type: 'get_email', id: email.id });
       if (data.success && data.email) fullEmail = { ...email, ...data.email };
     } catch(e) {}
-    const dateStr = fullEmail.date ? new Date(fullEmail.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+
+    const dateStr = fullEmail.date ? new Date(fullEmail.date).toLocaleString() : '';
     const toVal = Array.isArray(fullEmail.to) ? fullEmail.to.join(', ') : (fullEmail.to || '');
     const fromVal = fullEmail.from || '';
+
+    let bodyHtml = '';
     const rawHtml = fullEmail.html || fullEmail.text || '';
     const hasHtml = !!(fullEmail.html);
+
     let statusBadge = '';
     if (currentView === 'sent' && fullEmail.status) {
-      const sc = fullEmail.status === 'delivered' ? 'delivered' : fullEmail.status === 'bounced' ? 'bounced' : 'sent';
-      const icons = { delivered: 'fa-circle-check', bounced: 'fa-circle-xmark', sent: 'fa-circle-dot' };
-      statusBadge = `<span class="status-pill ${sc}"><i class="fas ${icons[sc]||'fa-circle-dot'}" style="font-size:.6rem;"></i> ${fullEmail.status}</span>`;
+      const statusClass = fullEmail.status === 'delivered' ? 'delivered' : fullEmail.status === 'bounced' ? 'bounced' : 'sent';
+      statusBadge = `<span class="sent-status ${statusClass}"><i class="fas fa-circle" style="font-size:.5rem;"></i> ${fullEmail.status}</span>`;
     }
+
     pane.innerHTML = `
       <div class="detail-header">
         <div class="detail-subject">${escHtml(fullEmail.subject || '(no subject)')}</div>
         ${statusBadge}
-        <div class="detail-meta-table" style="margin-top:.85rem;">
-          <div class="detail-meta-row">
-            <span class="detail-meta-label">From</span>
-            <span class="detail-meta-val"><strong>${escHtml(fromVal)}</strong></span>
-          </div>
-          <div class="detail-meta-row">
-            <span class="detail-meta-label">To</span>
-            <span class="detail-meta-val">${escHtml(toVal)}</span>
-          </div>
-          <div class="detail-date">${escHtml(dateStr)}</div>
+        <div class="detail-meta">
+          <div class="detail-meta-row"><span class="detail-meta-label">From</span><span class="detail-meta-val"><strong>${escHtml(fromVal)}</strong></span></div>
+          <div class="detail-meta-row"><span class="detail-meta-label">To</span><span class="detail-meta-val">${escHtml(toVal)}</span></div>
+          <div class="detail-date">${dateStr}</div>
         </div>
       </div>
       <div class="detail-body" id="detail-body-area"></div>
     `;
+
     const bodyArea = document.getElementById('detail-body-area');
     if (rawHtml) {
       if (hasHtml) {
         const frame = document.createElement('iframe');
-        frame.style.cssText = 'width:100%;border:none;border-radius:12px;background:#fff;min-height:300px;display:block;';
+        frame.style.cssText = 'width:100%;border:none;border-radius:10px;background:#fff;min-height:300px;';
         frame.sandbox = 'allow-same-origin allow-popups';
         bodyArea.appendChild(frame);
         const doc = frame.contentDocument || frame.contentWindow.document;
         doc.open(); doc.write(rawHtml); doc.close();
+        // Auto-resize
         setTimeout(() => {
           try { frame.style.height = (frame.contentDocument.body.scrollHeight + 32) + 'px'; } catch(e) {}
         }, 200);
       } else {
-        const linked = rawHtml.replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" style="color:#818cf8;">$1</a>');
+        // Plain text — linkify
+        const linked = rawHtml.replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" style="color:#4da6ff;">$1</a>');
         bodyArea.innerHTML = `<div class="text-body">${linked}</div>`;
       }
     } else {
-      bodyArea.innerHTML = '<p style="color:var(--text3);font-size:.82rem;padding-top:.5rem;">No content available.</p>';
+      bodyArea.innerHTML = '<p style="color:var(--text3);font-size:.82rem;">No content available.</p>';
     }
   }
 
-  // ── Access panel ──
+  // ── Access panel (super admin only) ──
   function loadAccessPanel() {
     const list = document.getElementById('email-list');
-    list.innerHTML = '<div class="access-mini"><div class="access-mini-title"><i class="fas fa-users-gear" style="margin-right:.4rem;"></i>Users with access</div><div id="access-mini-list" style="font-size:.72rem;color:var(--text3);">Loading…</div></div>';
+    list.innerHTML = '<div class="empty-list" style="text-align:left;padding:1rem;"><div style="font-size:.78rem;font-weight:700;color:var(--text);margin-bottom:.75rem;">👥 Access Manager</div><div id="access-mini-list" style="font-size:.75rem;color:var(--text3);">Loading...</div></div>';
     const pane = document.getElementById('email-detail-pane');
     pane.innerHTML = `
-      <div class="access-detail">
-        <div>
-          <div class="access-section-title">Grant Access</div>
-          <div class="access-card">
-            <div>
-              <div class="access-label">User Email</div>
-              <input type="email" id="ac-email" class="access-input" placeholder="user@example.com" />
-            </div>
-            <div>
-              <div class="access-label">Sender Access</div>
-              <div class="sender-tags-wrap" id="ac-senders-checks">
-                ${ALL_SENDERS.map(s => `<label class="sender-tag"><input type="checkbox" value="${s}" checked /> ${s}@htmltools.me</label>`).join('')}
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
-              <button class="access-grant-btn" onclick="grantAccess()"><i class="fas fa-plus"></i> Grant Access</button>
-              <div id="ac-status" style="font-size:.75rem;"></div>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="access-section-title">Current Users</div>
-          <div id="access-user-list" style="display:flex;flex-direction:column;gap:.5rem;">
-            <div style="color:var(--text3);font-size:.78rem;">Loading…</div>
-          </div>
+      <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+        <div style="font-size:.95rem;font-weight:700;">Grant Access</div>
+        <div style="display:flex;flex-direction:column;gap:.5rem;">
+          <input type="email" id="ac-email" placeholder="User email" style="padding:.65rem .9rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;outline:none;font-family:inherit;" />
+          <input type="text" id="ac-senders" placeholder="noreply,matthew,kovan" style="padding:.65rem .9rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;outline:none;font-family:inherit;" />
+          <div style="font-size:.65rem;color:var(--text3);">Comma-separated usernames (without @htmltools.me)</div>
+          <button onclick="grantAccess()" style="padding:.7rem 1.25rem;background:var(--green);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;align-self:flex-start;">Grant Access</button>
+          <div id="ac-status" style="font-size:.72rem;"></div>
         </div>
       </div>
     `;
     onValue(ref(db, 'mailAccess'), snap => {
       const data = snap.val() || {};
-      const entries = Object.entries(data);
       const ml = document.getElementById('access-mini-list');
-      if (ml) {
-        ml.innerHTML = !entries.length ? 'No users with access yet.' : entries.map(([,v]) => `<div class="access-mini-item">${escHtml(v.email)}</div>`).join('');
-      }
-      const ul = document.getElementById('access-user-list');
-      if (!ul) return;
-      if (!entries.length) { ul.innerHTML = '<div style="color:var(--text3);font-size:.78rem;">No users with access yet.</div>'; return; }
-      ul.innerHTML = entries.map(([key, val]) => {
-        const initials = (val.email || '?').charAt(0).toUpperCase();
-        const senderStr = (val.senders||[]).map(s=>s+'@htmltools.me').join(', ') || 'No senders';
-        return `
-          <div class="access-user-row">
-            <div class="access-user-avatar">${escHtml(initials)}</div>
-            <div class="access-user-info">
-              <div class="access-user-email">${escHtml(val.email)}</div>
-              <div class="access-user-senders">${escHtml(senderStr)}</div>
-            </div>
-            <button class="revoke-btn" onclick="revokeAccess('${key}','${escHtml(val.email)}')">Revoke</button>
+      if (!ml) return;
+      const entries = Object.entries(data);
+      if (!entries.length) { ml.innerHTML = 'No users with access.'; return; }
+      ml.innerHTML = entries.map(([key, val]) =>
+        `<div style="padding:.5rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:600;color:var(--text);">${escHtml(val.email)}</div>
+            <div style="font-size:.65rem;color:var(--text3);">${(val.senders||[]).map(s=>s+'@htmltools.me').join(', ')}</div>
           </div>
-        `;
-      }).join('');
+          <button onclick="revokeAccess('${key}','${val.email}')" style="padding:.25rem .5rem;border:1px solid rgba(240,64,96,.4);background:transparent;color:var(--red);border-radius:5px;font-size:.65rem;cursor:pointer;font-family:inherit;">Revoke</button>
+        </div>`
+      ).join('');
     });
   }
 
   window.grantAccess = async function() {
     const email = document.getElementById('ac-email').value.trim().toLowerCase();
-    if (!email) { setAcStatus('⛔ Enter a user email.', 'err'); return; }
-    const checkboxes = document.querySelectorAll('#ac-senders-checks input[type=checkbox]:checked');
-    const senders = Array.from(checkboxes).map(cb => cb.value);
-    if (!senders.length) { setAcStatus('⛔ Select at least one sender.', 'err'); return; }
+    const sendersRaw = document.getElementById('ac-senders').value.trim();
+    const status = document.getElementById('ac-status');
+    if (!email || !sendersRaw) { status.textContent = '⛔ Fill both fields.'; status.style.color = 'var(--red)'; return; }
+    const senders = sendersRaw.split(',').map(s => s.trim().toLowerCase().replace('@htmltools.me','')).filter(Boolean);
     const key = email.replace(/\./g,'_');
     try {
       await set(ref(db, `mailAccess/${key}`), { email, senders });
       document.getElementById('ac-email').value = '';
-      setAcStatus('✅ Access granted!', 'ok');
-      setTimeout(() => setAcStatus('', ''), 3000);
-    } catch(e) { setAcStatus('❌ ' + e.message, 'err'); }
+      document.getElementById('ac-senders').value = '';
+      status.textContent = '✅ Access granted!'; status.style.color = 'var(--green)';
+    } catch(e) { status.textContent = '❌ ' + e.message; status.style.color = 'var(--red)'; }
   };
-
-  function setAcStatus(msg, cls) {
-    const el = document.getElementById('ac-status');
-    if (!el) return;
-    el.textContent = msg;
-    el.className = 'ac-status' + (cls ? ' ' + cls : '');
-  }
 
   window.revokeAccess = async function(key, email) {
     if (!confirm(`Revoke access for ${email}?`)) return;
-    try { await remove(ref(db, `mailAccess/${key}`)); }
-    catch(e) { alert('Error: ' + e.message); }
+    await remove(ref(db, `mailAccess/${key}`));
   };
-
-  // ── To field (multi-recipient) ──
-  function addRecipient(email) {
-    if (!email || toRecipients.includes(email)) return;
-    toRecipients.push(email);
-    renderToTags();
-  }
-  function removeRecipient(email) {
-    toRecipients = toRecipients.filter(r => r !== email);
-    renderToTags();
-  }
-  function renderToTags() {
-    const wrap = document.getElementById('to-tags-wrap');
-    const input = document.getElementById('cm-to-input');
-    wrap.querySelectorAll('.to-tag').forEach(t => t.remove());
-    toRecipients.forEach(email => {
-      const tag = document.createElement('span');
-      tag.className = 'to-tag';
-      tag.innerHTML = `${escHtml(email)} <span class="to-tag-rm" data-email="${escHtml(email)}">✕</span>`;
-      tag.querySelector('.to-tag-rm').addEventListener('click', () => removeRecipient(email));
-      wrap.insertBefore(tag, input);
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const toInput = document.getElementById('cm-to-input');
-    if (toInput) {
-      toInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ',') {
-          e.preventDefault();
-          const val = toInput.value.trim().replace(/,$/,'');
-          if (val) { addRecipient(val); toInput.value = ''; }
-        } else if (e.key === 'Backspace' && !toInput.value && toRecipients.length) {
-          removeRecipient(toRecipients[toRecipients.length - 1]);
-        }
-      });
-      toInput.addEventListener('blur', () => {
-        const val = toInput.value.trim().replace(/,$/,'');
-        if (val) { addRecipient(val); toInput.value = ''; }
-      });
-    }
-  });
 
   // ── Compose ──
   window.openCompose = function() {
-    toRecipients = [];
-    const inp = document.getElementById('cm-to-input');
-    if (inp) inp.value = '';
-    renderToTags();
     document.getElementById('compose-overlay').classList.add('show');
-    setTimeout(() => document.getElementById('cm-to-input').focus(), 100);
+    document.getElementById('cm-to').focus();
   };
   window.closeCompose = function() {
     document.getElementById('compose-overlay').classList.remove('show');
-    cmImages = []; renderCmChips();
-    cmPreviewOpen = false;
-    document.getElementById('cm-preview').classList.remove('show');
-    document.getElementById('cm-preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview';
-    document.getElementById('cm-status').className = 'cm-status';
-    document.getElementById('cm-body').value = '';
-    document.getElementById('cm-subject').value = '';
-    toRecipients = [];
-    renderToTags();
   };
   window.overlayClick = function(e) {
     if (e.target === document.getElementById('compose-overlay')) closeCompose();
@@ -1116,48 +611,18 @@ body {
     document.getElementById('cm-img-chips').style.display = type === 'normal' ? 'flex' : 'none';
     document.getElementById('cm-preview-btn').style.display = type === 'html' ? 'inline-flex' : 'none';
     document.getElementById('cm-body').placeholder = type === 'html'
-      ? '<h1>Hello!</h1>\n<p>Your message here…</p>'
-      : 'Write your message…\n\n**bold**  *italic*  __underline__  [link](https://url)';
+      ? '<h1>Hello!</h1>\n<p>Your message here...</p>'
+      : 'Write your message here... URLs become clickable automatically.';
     if (type === 'normal') { document.getElementById('cm-preview').classList.remove('show'); cmPreviewOpen = false; }
   };
 
-  window.cmFormat = function(cmd) {
-    const ta = document.getElementById('cm-body');
-    const start = ta.selectionStart, end = ta.selectionEnd;
-    const selected = ta.value.slice(start, end);
-    const markers = { bold: '**', italic: '*', underline: '__' };
-    const m = markers[cmd];
-    if (!m) return;
-    const wrapped = `${m}${selected || 'text'}${m}`;
-    ta.value = ta.value.slice(0, start) + wrapped + ta.value.slice(end);
-    const newCursor = start + m.length;
-    ta.setSelectionRange(newCursor, newCursor + (selected || 'text').length);
-    ta.focus();
-  };
-
   window.cmInsertLink = function() {
+    const url = prompt('Enter URL:'); if (!url) return;
+    const text = prompt('Link text:') || url;
     const ta = document.getElementById('cm-body');
-    const start = ta.selectionStart, end = ta.selectionEnd;
-    const selected = ta.value.slice(start, end);
-    const url = prompt('Enter URL:', 'https://');
-    if (!url) return;
-    const text = selected || prompt('Link text:', 'Click here') || url;
-    const insert = `[${text}](${url})`;
-    ta.value = ta.value.slice(0, start) + insert + ta.value.slice(end);
-    ta.setSelectionRange(start, start + insert.length);
-    ta.focus();
+    const pos = ta.selectionStart;
+    ta.value = ta.value.slice(0, pos) + `[${text}](${url})` + ta.value.slice(pos);
   };
-
-  document.addEventListener('keydown', e => {
-    if (!document.getElementById('compose-overlay').classList.contains('show')) return;
-    if (e.target.id !== 'cm-body') return;
-    if (e.ctrlKey || e.metaKey) {
-      if (e.key === 'b') { e.preventDefault(); cmFormat('bold'); }
-      else if (e.key === 'i') { e.preventDefault(); cmFormat('italic'); }
-      else if (e.key === 'u') { e.preventDefault(); cmFormat('underline'); }
-      else if (e.key === 'k') { e.preventDefault(); cmInsertLink(); }
-    }
-  });
 
   window.cmHandleImages = function(e) {
     Array.from(e.target.files).forEach(file => {
@@ -1174,29 +639,21 @@ body {
     cmImages.forEach((img, i) => {
       const d = document.createElement('div');
       d.className = 'cm-img-chip';
-      d.innerHTML = `<img src="${img.data}" alt=""><span>${escHtml(img.name)}</span><span class="cm-img-chip-rm" data-i="${i}">✕</span>`;
+      d.innerHTML = `<img src="${img.data}"><span>${img.name}</span><span class="cm-img-chip-rm" data-i="${i}">✕</span>`;
       c.appendChild(d);
     });
     c.querySelectorAll('.cm-img-chip-rm').forEach(btn => {
-      btn.addEventListener('click', () => { cmImages.splice(parseInt(btn.dataset.i), 1); renderCmChips(); });
+      btn.addEventListener('click', () => { cmImages.splice(parseInt(btn.dataset.i),1); renderCmChips(); });
     });
-  }
-
-  function parseMarkdown(text) {
-    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    text = text.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
-    text = text.replace(/__(.+?)__/g, '<u>$1</u>');
-    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" style="color:#818cf8;text-decoration:underline;">$1</a>');
-    text = text.replace(/(^|[^"'=\(])(https?:\/\/[^\s<>"]+)/g, '$1<a href="$2" style="color:#818cf8;text-decoration:underline;">$2</a>');
-    text = text.replace(/\n/g, '<br>');
-    return text;
   }
 
   function buildCmHtml() {
     if (cmType === 'html') return document.getElementById('cm-body').value;
     let text = document.getElementById('cm-body').value;
-    let html = `<div style="font-family:'Segoe UI',sans-serif;font-size:14px;line-height:1.75;color:#1e293b;max-width:600px;padding:8px 0;">`;
-    html += parseMarkdown(text);
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" style="color:#4da6ff;">$1</a>');
+    text = text.replace(/(^|[^"'=])(https?:\/\/[^\s<>"]+)/g, '$1<a href="$2" style="color:#4da6ff;">$2</a>');
+    text = text.replace(/\n/g, '<br>');
+    let html = `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222;max-width:600px;">${text}`;
     cmImages.forEach(img => { html += `<br><img src="${img.data}" style="max-width:100%;border-radius:8px;margin-top:12px;display:block;">`; });
     return html + '</div>';
   }
@@ -1216,43 +673,36 @@ body {
     }
   };
 
-  // ── SEND — FIX: pass toRecipients array directly, not a joined string ──
   window.cmSend = async function() {
-    // Flush any pending input in the To field
-    const rawInput = document.getElementById('cm-to-input').value.trim().replace(/,$/,'');
-    if (rawInput) { addRecipient(rawInput); document.getElementById('cm-to-input').value = ''; }
-
-    const from = document.getElementById('cm-from').value;
+    const fromSel = document.getElementById('cm-from');
+    let from = fromSel.value;
+    if (from === 'custom') {
+      from = prompt('Enter full sender address (must be @htmltools.me):');
+      if (!from) return;
+    }
+    const to = document.getElementById('cm-to').value.trim();
     const subject = document.getElementById('cm-subject').value.trim();
     const body = document.getElementById('cm-body').value.trim();
     const btn = document.getElementById('cm-send-btn');
     const status = document.getElementById('cm-status');
     status.className = 'cm-status'; status.textContent = '';
 
-    if (!toRecipients.length) { status.textContent = 'Please add at least one recipient.'; status.className = 'cm-status err'; return; }
+    if (!to) { status.textContent = 'Please enter a recipient.'; status.className = 'cm-status err'; return; }
     if (!subject) { status.textContent = 'Please enter a subject.'; status.className = 'cm-status err'; return; }
     if (!body) { status.textContent = 'Please write a message.'; status.className = 'cm-status err'; return; }
 
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending…';
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
     try {
-      // KEY FIX: send `to` as an array of individual email strings, not a comma-joined string.
-      // The Resend API (and most email APIs) expect either a single string or an array.
-      // Passing a comma-joined string like "a@b.com, c@d.com" as one address causes a 422.
-      const data = await apiPost({
-        type: 'send_email',
-        from,
-        to: toRecipients,        // ← array, not toRecipients.join(', ')
-        subject,
-        html: buildCmHtml()
-      });
-
+      const data = await apiPost({ type: 'send_email', from, to, subject, html: buildCmHtml() });
       if (data.success) {
-        status.textContent = `✅ Sent to ${toRecipients.join(', ')}!`;
-        status.className = 'cm-status ok';
-        setTimeout(closeCompose, 2200);
+        status.textContent = '✅ Sent from ' + from + '!'; status.className = 'cm-status ok';
+        document.getElementById('cm-to').value = '';
+        document.getElementById('cm-subject').value = '';
+        document.getElementById('cm-body').value = '';
+        cmImages = []; renderCmChips();
+        setTimeout(closeCompose, 1800);
       } else {
-        status.textContent = '❌ ' + (data.error || JSON.stringify(data.data));
-        status.className = 'cm-status err';
+        status.textContent = '❌ ' + (data.error || JSON.stringify(data.data)); status.className = 'cm-status err';
       }
     } catch(e) { status.textContent = '❌ ' + e.message; status.className = 'cm-status err'; }
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
@@ -1261,12 +711,13 @@ body {
   // ── Helpers ──
   function formatDate(iso) {
     if (!iso) return '';
-    const d = new Date(iso), now = new Date();
-    const isToday = now.toDateString() === d.toDateString();
-    if (isToday) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const isThisYear = now.getFullYear() === d.getFullYear();
-    if (isThisYear) return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' });
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 86400000 && now.getDate() === d.getDate()) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
 
   function escHtml(s) {
