@@ -4,1059 +4,474 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>HTMLTools Mail</title>
-<link rel="icon" href="/logo3.png?v=2"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✉️</text></svg>"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
-/* ═══════════════════════════════════════
-   RESET & TOKENS
-═══════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#0a0a0a;
-  --surface:#111111;
-  --surface2:#161616;
-  --surface3:#1c1c1c;
-  --border:#222222;
-  --border2:#2a2a2a;
-  --border3:#333333;
-  --text:#f0f0f0;
-  --text2:#999999;
-  --text3:#555555;
-  --text4:#333333;
-  --white:#ffffff;
-  --black:#000000;
-  --accent:#ffffff;
-  --accent-dim:rgba(255,255,255,.06);
-  --accent-dim2:rgba(255,255,255,.1);
-  --red:#ef4444;
-  --red-dim:rgba(239,68,68,.1);
-  --green:#22c55e;
-  --green-dim:rgba(34,197,94,.1);
-  --yellow:#f59e0b;
-  --r:6px;
-  --r-md:8px;
-  --r-lg:12px;
-  --r-xl:16px;
-  --r-pill:999px;
-  --topbar-h:56px;
-  --sidebar-w:240px;
-  --font:'Geist','system-ui',sans-serif;
-  --mono:'Geist Mono','SF Mono',monospace;
-  --shadow:0 1px 4px rgba(0,0,0,.6);
-  --shadow-md:0 4px 16px rgba(0,0,0,.8);
-  --shadow-lg:0 12px 40px rgba(0,0,0,.9);
+  --bg:#080b11;
+  --surface:#0d1119;
+  --surface2:#111720;
+  --surface3:#161e2d;
+  --border:#1c2638;
+  --border2:#243044;
+  --accent:#4da6ff;
+  --accent-dim:rgba(77,166,255,.12);
+  --accent-glow:rgba(77,166,255,.2);
+  --text:#d4e2f4;
+  --text2:#8899b0;
+  --text3:#4e607a;
+  --green:#2de87a;
+  --green-dim:rgba(45,232,122,.1);
+  --red:#f0506e;
+  --red-dim:rgba(240,80,110,.1);
+  --yellow:#ffc142;
+  --yellow-dim:rgba(255,193,66,.1);
+  --sidebar-w:220px;
+  --header-h:56px;
+  --radius:10px;
 }
-html,body{height:100%;overflow:hidden;background:var(--bg);}
-body{color:var(--text);font-family:var(--font);font-size:13.5px;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border3);border-radius:3px;}
-::-webkit-scrollbar-thumb:hover{background:#444;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;}
 
-/* ═══════════════════════════════════════
-   GATE / LOGIN
-═══════════════════════════════════════ */
-#gate{
-  position:fixed;inset:0;
-  background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
-  z-index:1000;transition:opacity .25s;
-  /* subtle grid bg */
-  background-image:
-    linear-gradient(var(--border) 1px,transparent 1px),
-    linear-gradient(90deg,var(--border) 1px,transparent 1px);
-  background-size:40px 40px;
-}
+/* ════════════════ GATE ════════════════ */
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;transition:opacity .3s;}
 #gate.out{opacity:0;pointer-events:none;}
-.gate-card{
-  width:360px;
-  background:var(--surface);
-  border:1px solid var(--border2);
-  border-radius:var(--r-xl);
-  padding:2rem 1.75rem;
-  box-shadow:var(--shadow-lg);
-  position:relative;
-  /* kill grid on card */
-  background-image:none;
-}
-.gate-logo{
-  display:flex;align-items:center;justify-content:center;gap:.6rem;
-  margin-bottom:1.5rem;
-}
-.gate-logo img{width:32px;height:32px;object-fit:contain;border-radius:6px;}
-.gate-logo-text{font-size:1.1rem;font-weight:700;letter-spacing:-.03em;color:var(--text);}
-.gate-headline{font-size:1.4rem;font-weight:700;letter-spacing:-.04em;text-align:center;margin-bottom:.3rem;}
-.gate-sub{font-size:.78rem;color:var(--text3);text-align:center;margin-bottom:1.5rem;}
-.g-field{margin-bottom:.75rem;}
-.g-field label{display:block;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:.35rem;}
-.g-input{
-  width:100%;padding:.7rem .9rem;
-  background:var(--surface2);
-  border:1px solid var(--border2);
-  border-radius:var(--r);
-  color:var(--text);font-size:.875rem;
-  font-family:var(--font);outline:none;
-  transition:border-color .15s;
-}
-.g-input:focus{border-color:var(--border3);}
-.g-btn{
-  width:100%;padding:.8rem;margin-top:.5rem;
-  background:var(--white);
-  border:none;border-radius:var(--r);
-  color:var(--black);font-size:.85rem;font-weight:700;
-  cursor:pointer;font-family:var(--font);
-  transition:opacity .15s;
-  display:flex;align-items:center;justify-content:center;gap:.5rem;
-}
-.g-btn:hover{opacity:.9;}
-.g-err{
-  margin-top:.75rem;font-size:.75rem;
-  color:var(--red);
-  background:var(--red-dim);
-  border:1px solid rgba(239,68,68,.2);
-  border-radius:var(--r);padding:.55rem .8rem;
-  display:none;
-}
+.gate-box{width:340px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;text-align:center;}
+.gate-logo{font-size:2.2rem;margin-bottom:.5rem;}
+.gate-title{font-size:1.4rem;font-weight:700;letter-spacing:-.02em;margin-bottom:.2rem;}
+.gate-title em{color:var(--accent);font-style:normal;}
+.gate-sub{font-size:.72rem;color:var(--text3);margin-bottom:1.5rem;}
+.g-field{margin-bottom:.75rem;text-align:left;}
+.g-field label{display:block;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:.35rem;font-weight:600;}
+.g-input{width:100%;padding:.75rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.g-input:focus{border-color:var(--accent);}
+.g-btn{width:100%;padding:.85rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:.88rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:.25rem;transition:opacity .15s;}
+.g-btn:hover{opacity:.88;}
+.g-err{margin-top:.75rem;font-size:.72rem;color:var(--red);background:var(--red-dim);border-radius:6px;padding:.5rem;display:none;}
 
-/* ═══════════════════════════════════════
-   APP SHELL
-═══════════════════════════════════════ */
+/* ════════════════ APP SHELL ════════════════ */
 #app{display:none;flex-direction:column;height:100%;}
 #app.show{display:flex;}
 
-/* TOPBAR */
-.topbar{
-  height:var(--topbar-h);
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;
-  padding:0 1rem;gap:.75rem;
-  flex-shrink:0;z-index:100;
-}
-.topbar-logo{
-  display:flex;align-items:center;gap:.5rem;
-  flex-shrink:0;
-}
-.topbar-logo img{width:26px;height:26px;object-fit:contain;border-radius:5px;}
-.topbar-logo-text{font-size:.95rem;font-weight:700;letter-spacing:-.03em;color:var(--text);}
+/* HEADER */
+.hdr{height:var(--header-h);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1rem;gap:.75rem;flex-shrink:0;}
+.hdr-logo{font-size:.9rem;font-weight:700;white-space:nowrap;}
+.hdr-logo em{color:var(--accent);font-style:normal;}
+.hdr-search{flex:1;max-width:480px;position:relative;}
+.hdr-search input{width:100%;padding:.5rem 1rem .5rem 2.2rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.hdr-search input:focus{border-color:var(--accent);background:var(--surface3);}
+.hdr-search i{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:var(--text3);font-size:.75rem;}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:.5rem;}
+.hdr-user{font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:.4rem;}
+.hdr-user-dot{width:6px;height:6px;background:var(--green);border-radius:50%;}
+.hdr-signout{padding:.35rem .7rem;background:transparent;border:1px solid rgba(240,80,110,.3);color:var(--red);font-size:.65rem;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.hdr-signout:hover{background:var(--red-dim);}
 
-.topbar-search{
-  flex:1;max-width:520px;position:relative;
-}
-.topbar-search input{
-  width:100%;padding:.55rem .9rem .55rem 2.25rem;
-  background:var(--surface2);
-  border:1px solid var(--border);
-  border-radius:var(--r-pill);
-  color:var(--text);font-size:.82rem;
-  font-family:var(--font);outline:none;
-  transition:border-color .15s;
-}
-.topbar-search input:focus{border-color:var(--border3);}
-.topbar-search input::placeholder{color:var(--text3);}
-.topbar-search .si{
-  position:absolute;left:.8rem;top:50%;transform:translateY(-50%);
-  color:var(--text3);font-size:.75rem;
-}
+/* BODY */
+.body{display:flex;flex:1;overflow:hidden;}
 
-.topbar-right{margin-left:auto;display:flex;align-items:center;gap:.5rem;}
-.user-chip{
-  display:flex;align-items:center;gap:.5rem;
-  padding:.35rem .7rem;
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:var(--r-pill);
-  font-size:.75rem;color:var(--text2);
-}
-.user-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;}
-.user-email{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.signout-btn{
-  padding:.4rem .8rem;
-  background:transparent;
-  border:1px solid var(--border2);
-  border-radius:var(--r-pill);
-  color:var(--text3);font-size:.72rem;font-weight:500;
-  cursor:pointer;font-family:var(--font);
-  transition:all .15s;white-space:nowrap;
-}
-.signout-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-dim);}
-
-/* ─── APP BODY ─── */
-.app-body{display:flex;flex:1;overflow:hidden;}
-
-/* ─── SIDEBAR ─── */
-.sidebar{
-  width:var(--sidebar-w);
-  background:var(--surface);
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
-  flex-shrink:0;overflow-y:auto;
-}
-.compose-btn{
-  margin:.875rem .75rem .5rem;
-  padding:.75rem 1rem;
-  background:var(--white);color:var(--black);
-  border:none;border-radius:var(--r-md);
-  font-size:.82rem;font-weight:700;
-  cursor:pointer;font-family:var(--font);
-  display:flex;align-items:center;gap:.6rem;
-  transition:opacity .15s;
-}
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.compose-btn{margin:1rem .75rem .5rem;padding:.75rem 1rem;background:var(--accent);border:none;border-radius:var(--radius);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
 .compose-btn:hover{opacity:.88;}
-.compose-btn .cb-icon{font-size:.85rem;}
+.sidebar-section{padding:.5rem .75rem .25rem;font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);font-weight:700;}
+.nav-item{display:flex;align-items:center;gap:.6rem;padding:.55rem .75rem;border-radius:8px;margin:0 .25rem .1rem;cursor:pointer;color:var(--text2);font-size:.8rem;font-weight:500;transition:all .15s;position:relative;}
+.nav-item:hover{background:var(--surface3);color:var(--text);}
+.nav-item.active{background:var(--accent-dim);color:var(--accent);}
+.nav-item i{width:16px;text-align:center;font-size:.75rem;}
+.nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:.6rem;font-weight:700;padding:.15rem .4rem;border-radius:20px;min-width:18px;text-align:center;}
+.sidebar-accounts{padding:.5rem;margin-top:auto;border-top:1px solid var(--border);}
+.account-chip{display:flex;align-items:center;gap:.5rem;padding:.45rem .5rem;border-radius:6px;font-size:.7rem;cursor:pointer;color:var(--text2);transition:all .15s;}
+.account-chip:hover{background:var(--surface3);color:var(--text);}
+.account-chip.active{color:var(--accent);}
+.account-avatar{width:20px;height:20px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:var(--accent);flex-shrink:0;}
 
-.nav-section{
-  padding:.75rem .75rem .2rem;
-  font-size:.6rem;font-weight:700;
-  text-transform:uppercase;letter-spacing:.1em;
-  color:var(--text4);
-}
-.nav-item{
-  display:flex;align-items:center;gap:.65rem;
-  padding:.55rem .875rem;
-  margin:0 .375rem .05rem;
-  border-radius:var(--r);
-  font-size:.82rem;font-weight:500;
-  cursor:pointer;color:var(--text2);
-  transition:all .12s;
-  user-select:none;
-}
-.nav-item:hover{background:var(--surface2);color:var(--text);}
-.nav-item.active{background:var(--surface3);color:var(--white);font-weight:600;}
-.nav-item i{width:16px;text-align:center;font-size:.75rem;flex-shrink:0;}
-.nav-label{flex:1;}
-.nav-badge{
-  background:var(--white);color:var(--black);
-  font-size:.6rem;font-weight:700;
-  padding:.1rem .4rem;border-radius:var(--r-pill);
-  min-width:18px;text-align:center;display:none;
-}
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 
-.sidebar-inboxes{padding:.5rem .75rem;margin-top:auto;border-top:1px solid var(--border);}
-.inbox-tag{
-  display:flex;align-items:center;gap:.5rem;
-  padding:.4rem .5rem;border-radius:var(--r);
-  font-size:.75rem;color:var(--text3);
-  cursor:pointer;transition:all .12s;
-  font-family:var(--mono);
-}
-.inbox-tag:hover{background:var(--surface2);color:var(--text2);}
-.inbox-tag-dot{width:5px;height:5px;border-radius:50%;background:var(--text3);flex-shrink:0;}
-.inbox-tag.active .inbox-tag-dot{background:var(--white);}
-.inbox-tag.active{color:var(--text);}
-
-/* ─── MAIN AREA ─── */
-.main-area{
-  flex:1;display:flex;overflow:hidden;
-  background:var(--bg);
-}
-
-/* ─── MAIL LIST PANE ─── */
-.list-pane{
-  width:320px;min-width:280px;
-  background:var(--surface);
-  border-right:1px solid var(--border);
-  display:flex;flex-direction:column;
-  overflow:hidden;
-  flex-shrink:0;
-}
-.list-header{
-  padding:.65rem 1rem;
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:.5rem;
-  min-height:48px;flex-shrink:0;
-}
-.list-header-title{font-size:.85rem;font-weight:700;color:var(--text);flex:1;}
-.list-count{font-size:.72rem;color:var(--text3);font-family:var(--mono);}
-.refresh-btn{
-  padding:.35rem .65rem;
-  background:transparent;border:1px solid var(--border2);
-  border-radius:var(--r);
-  color:var(--text3);font-size:.7rem;font-weight:500;
-  cursor:pointer;font-family:var(--font);
-  display:flex;align-items:center;gap:.35rem;
-  transition:all .15s;
-}
-.refresh-btn:hover{border-color:var(--border3);color:var(--text2);}
-.refresh-btn.spinning i{animation:spin .6s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
+/* MAIL LIST */
+#view-list{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.list-toolbar{padding:.6rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
+.list-toolbar-title{font-size:.82rem;font-weight:700;color:var(--text);}
+.list-toolbar-count{font-size:.7rem;color:var(--text3);margin-left:.3rem;}
+.tb-btn{padding:.35rem .7rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.72rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;display:flex;align-items:center;gap:.3rem;}
+.tb-btn:hover{border-color:var(--accent);color:var(--accent);}
 .mail-list{flex:1;overflow-y:auto;}
+.mail-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;position:relative;}
+.mail-item:hover{background:var(--surface2);}
+.mail-item.active{background:var(--surface3);}
+.mail-item.unread .mi-subject{font-weight:700;color:var(--text);}
+.mail-item.unread .mi-sender{font-weight:700;color:var(--text);}
+.mi-avatar{width:34px;height:34px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:var(--accent);flex-shrink:0;}
+.mi-body{flex:1;min-width:0;}
+.mi-top{display:flex;align-items:center;gap:.5rem;margin-bottom:.2rem;}
+.mi-sender{font-size:.82rem;font-weight:500;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;}
+.mi-time{font-size:.65rem;color:var(--text3);white-space:nowrap;font-family:'JetBrains Mono',monospace;}
+.mi-subject{font-size:.8rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.1rem;}
+.mi-preview{font-size:.72rem;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mi-tag{font-size:.58rem;padding:.1rem .4rem;border-radius:4px;font-weight:600;background:var(--accent-dim);color:var(--accent);flex-shrink:0;}
+.mi-tag.sent{background:var(--green-dim);color:var(--green);}
+.unread-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.75rem;color:var(--text3);}
+.empty-state i{font-size:2rem;opacity:.4;}
+.empty-state p{font-size:.82rem;}
 
-/* Mail rows */
-.mail-row{
-  padding:.85rem 1rem;
-  border-bottom:1px solid var(--border);
-  cursor:pointer;
-  transition:background .1s;
-  position:relative;
-  display:flex;gap:.65rem;align-items:flex-start;
-}
-.mail-row:hover{background:var(--surface2);}
-.mail-row.active{background:var(--surface3);}
-.mail-row.unread{background:var(--surface);}
-.mail-row.read{background:rgba(17,17,17,.5);}
-.mr-avatar{
-  width:34px;height:34px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-size:.78rem;font-weight:700;
-  flex-shrink:0;text-transform:uppercase;
-  border:1px solid var(--border2);
-}
-.mr-content{flex:1;min-width:0;}
-.mr-top{display:flex;align-items:baseline;gap:.4rem;margin-bottom:.25rem;}
-.mr-sender{
-  font-size:.8rem;font-weight:600;color:var(--text);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  flex:1;min-width:0;
-}
-.mail-row.read .mr-sender{font-weight:400;color:var(--text2);}
-.mr-time{font-size:.65rem;color:var(--text3);white-space:nowrap;font-family:var(--mono);flex-shrink:0;}
-.mail-row.unread .mr-time{color:var(--text2);}
-.mr-subject{
-  font-size:.78rem;color:var(--text2);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  margin-bottom:.2rem;
-}
-.mail-row.unread .mr-subject{color:var(--text);font-weight:500;}
-.mr-preview{font-size:.72rem;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mr-tags{display:flex;gap:.3rem;margin-top:.3rem;flex-wrap:wrap;}
-.mr-tag{
-  font-size:.58rem;font-weight:600;
-  padding:.1rem .4rem;border-radius:3px;
-  letter-spacing:.04em;text-transform:uppercase;
-  background:var(--surface3);color:var(--text3);
-  border:1px solid var(--border2);
-}
-.mr-tag.inbox{background:rgba(255,255,255,.06);color:var(--text2);border-color:var(--border3);}
-.mr-tag.sent-tag{background:var(--green-dim);color:var(--green);border-color:rgba(34,197,94,.2);}
-.unread-dot{
-  width:7px;height:7px;border-radius:50%;
-  background:var(--white);flex-shrink:0;
-  margin-top:.45rem;
-}
-
-.empty-pane{
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  height:100%;gap:.75rem;color:var(--text3);
-  padding:2rem;
-}
-.empty-pane i{font-size:1.75rem;opacity:.25;}
-.empty-pane p{font-size:.8rem;color:var(--text4);}
-
-/* ─── DETAIL PANE ─── */
-.detail-pane{
-  flex:1;display:flex;flex-direction:column;
-  overflow:hidden;background:var(--bg);
-}
-.detail-empty{
-  flex:1;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  gap:.75rem;color:var(--text4);
-}
-.detail-empty i{font-size:2.5rem;opacity:.15;}
-.detail-empty p{font-size:.82rem;}
-
-.detail-topbar{
-  padding:.75rem 1.25rem;
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:.75rem;
-  flex-shrink:0;
-}
-.back-btn{
-  padding:.4rem .7rem;
-  background:transparent;border:1px solid var(--border2);
-  border-radius:var(--r);
-  color:var(--text3);font-size:.72rem;
-  cursor:pointer;font-family:var(--font);
-  display:flex;align-items:center;gap:.35rem;
-  transition:all .15s;
-}
-.back-btn:hover{border-color:var(--border3);color:var(--text2);}
-.detail-subject-bar{
-  flex:1;font-size:1rem;font-weight:700;
-  letter-spacing:-.02em;color:var(--text);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.detail-action{
-  width:32px;height:32px;border-radius:var(--r);
-  background:transparent;border:1px solid var(--border2);
-  color:var(--text3);font-size:.75rem;
-  cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  transition:all .15s;
-}
-.detail-action:hover{background:var(--surface2);border-color:var(--border3);color:var(--text2);}
-.detail-action.danger:hover{border-color:var(--red);color:var(--red);background:var(--red-dim);}
-.detail-action.starred{color:var(--yellow);}
-
-.detail-scroll{flex:1;overflow-y:auto;padding:1.25rem;}
-
-.email-card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--r-lg);
-  overflow:hidden;margin-bottom:1rem;
-}
-.email-card-head{
-  padding:1rem 1.25rem;
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:flex-start;gap:.875rem;
-}
-.ec-avatar{
-  width:40px;height:40px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-size:.9rem;font-weight:700;
-  flex-shrink:0;text-transform:uppercase;
-  border:1px solid var(--border2);
-}
-.ec-info{flex:1;min-width:0;}
-.ec-sender{font-size:.92rem;font-weight:700;color:var(--text);margin-bottom:.25rem;}
-.ec-meta{display:flex;flex-direction:column;gap:.2rem;}
-.ec-meta-row{
-  display:flex;gap:.35rem;
-  font-size:.75rem;color:var(--text3);align-items:center;
-}
-.ec-meta-row strong{color:var(--text2);}
-.ec-right{display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;flex-shrink:0;}
-.ec-time{font-size:.7rem;color:var(--text3);font-family:var(--mono);}
-.ec-inbox-badge{
-  font-size:.62rem;font-weight:700;
-  padding:.15rem .5rem;border-radius:3px;
-  background:var(--surface3);color:var(--text2);
-  border:1px solid var(--border3);
-  font-family:var(--mono);
-  letter-spacing:.02em;
-}
-
-.email-card-body{padding:1.25rem;}
-.body-plain{
-  font-size:.875rem;line-height:1.8;
-  color:var(--text2);white-space:pre-wrap;
-  word-break:break-word;
-}
-.body-html iframe{
-  width:100%;border:none;
-  border-radius:var(--r);background:#fff;
-  min-height:200px;display:block;
-}
-.email-card-attach{
-  padding:.75rem 1.25rem;
-  border-top:1px solid var(--border);
-  display:flex;gap:.5rem;flex-wrap:wrap;
-}
-.attach-chip{
-  display:flex;align-items:center;gap:.4rem;
-  padding:.35rem .7rem;
-  background:var(--surface2);border:1px solid var(--border2);
-  border-radius:var(--r);font-size:.72rem;color:var(--text2);
-  cursor:pointer;transition:all .15s;
-}
-.attach-chip:hover{border-color:var(--border3);color:var(--text);}
-.attach-chip i{color:var(--text3);font-size:.7rem;}
-
-/* Reply box */
-.reply-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r-lg);overflow:hidden;
-}
-.reply-header{
-  padding:.65rem 1rem;
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:.5rem;
-  font-size:.78rem;color:var(--text3);
-  background:var(--surface2);
-}
-.reply-header span{color:var(--text2);font-weight:500;}
-.reply-from-sel{
-  margin-left:auto;
-  padding:.3rem .6rem;
-  background:var(--surface);border:1px solid var(--border2);
-  border-radius:var(--r);color:var(--text);font-size:.72rem;
-  font-family:var(--font);outline:none;cursor:pointer;
-}
-.reply-from-sel option{background:var(--surface);}
-.reply-body{
-  width:100%;padding:.875rem 1rem;
-  background:transparent;border:none;
-  color:var(--text);font-size:.875rem;
-  font-family:var(--font);outline:none;
-  resize:none;line-height:1.7;min-height:90px;
-}
-.reply-body::placeholder{color:var(--text4);}
-.reply-footer{
-  padding:.6rem 1rem;
-  border-top:1px solid var(--border);
-  display:flex;align-items:center;gap:.5rem;
-  background:var(--surface2);
-}
-.reply-send{
-  padding:.55rem 1.25rem;
-  background:var(--white);border:none;
-  border-radius:var(--r);
-  color:var(--black);font-size:.78rem;font-weight:700;
-  cursor:pointer;font-family:var(--font);
-  display:flex;align-items:center;gap:.4rem;
-  transition:opacity .15s;
-}
+/* MAIL DETAIL */
+#view-detail{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.detail-header{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
+.detail-back{padding:.35rem .65rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.72rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;display:flex;align-items:center;gap:.3rem;}
+.detail-back:hover{border-color:var(--accent);color:var(--accent);}
+.detail-subject-bar{flex:1;font-size:.95rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.detail-actions{display:flex;gap:.4rem;}
+.detail-action{padding:.35rem .7rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.72rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;display:flex;align-items:center;gap:.3rem;}
+.detail-action:hover{border-color:var(--accent);color:var(--accent);}
+.detail-action.danger:hover{border-color:var(--red);color:var(--red);}
+.detail-meta{padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0;}
+.detail-meta-row{display:flex;gap:.6rem;font-size:.75rem;margin-bottom:.3rem;align-items:flex-start;}
+.detail-meta-label{color:var(--text3);min-width:60px;font-weight:600;}
+.detail-meta-val{color:var(--text2);}
+.detail-meta-val.highlight{color:var(--text);}
+.detail-body{flex:1;overflow-y:auto;padding:1.25rem;}
+.detail-body-content{max-width:680px;}
+.detail-body-plain{font-size:.88rem;line-height:1.8;color:var(--text2);white-space:pre-wrap;}
+.detail-body-html iframe{width:100%;border:none;border-radius:8px;background:#fff;}
+.detail-attachments{padding:.75rem 1rem;border-top:1px solid var(--border);display:flex;gap:.5rem;flex-wrap:wrap;flex-shrink:0;}
+.attachment-chip{display:flex;align-items:center;gap:.5rem;padding:.4rem .75rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:.72rem;color:var(--text2);cursor:pointer;transition:all .15s;}
+.attachment-chip:hover{border-color:var(--accent);color:var(--accent);}
+.attachment-chip i{color:var(--accent);}
+.detail-reply{padding:.75rem 1rem;border-top:1px solid var(--border);flex-shrink:0;}
+.reply-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.reply-to-bar{padding:.5rem .75rem;border-bottom:1px solid var(--border);font-size:.72rem;color:var(--text3);}
+.reply-to-bar span{color:var(--text2);}
+.reply-textarea{width:100%;padding:.75rem;background:transparent;border:none;color:var(--text);font-size:.85rem;font-family:'DM Sans',sans-serif;outline:none;resize:none;line-height:1.6;min-height:80px;}
+.reply-footer{padding:.5rem .75rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:.5rem;}
+.reply-send{padding:.5rem 1.1rem;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:.4rem;transition:opacity .15s;}
 .reply-send:hover{opacity:.88;}
-.reply-send:disabled{opacity:.35;cursor:not-allowed;}
-.reply-attach-btn{
-  width:30px;height:30px;
-  background:transparent;border:1px solid var(--border2);
-  border-radius:var(--r);color:var(--text3);font-size:.72rem;
-  cursor:pointer;display:flex;align-items:center;justify-content:center;
-  transition:all .15s;
-}
-.reply-attach-btn:hover{border-color:var(--border3);color:var(--text2);}
-.reply-status{font-size:.72rem;margin-left:.25rem;}
-.reply-status.ok{color:var(--green);}
-.reply-status.err{color:var(--red);}
+.reply-send:disabled{opacity:.4;cursor:not-allowed;}
+.reply-attach{padding:.45rem .6rem;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--text2);font-size:.75rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.reply-attach:hover{border-color:var(--accent);color:var(--accent);}
 
-/* ─── COMPOSE VIEW ─── */
-#view-compose{
-  display:none;flex-direction:column;
-  height:100%;width:100%;overflow:hidden;
-}
-.compose-topbar{
-  padding:.75rem 1.25rem;
-  background:var(--surface);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:.75rem;
-  flex-shrink:0;
-}
-.compose-topbar-title{font-size:.9rem;font-weight:700;letter-spacing:-.02em;}
-.compose-discard{
-  margin-left:auto;padding:.4rem .75rem;
-  background:transparent;border:1px solid var(--border2);
-  border-radius:var(--r);color:var(--text3);font-size:.72rem;
-  cursor:pointer;font-family:var(--font);transition:all .15s;
-  display:flex;align-items:center;gap:.35rem;
-}
-.compose-discard:hover{border-color:var(--red);color:var(--red);background:var(--red-dim);}
-
-.compose-scroll{flex:1;overflow-y:auto;padding:1.25rem;}
-.compose-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r-lg);overflow:hidden;max-width:720px;
-}
-.cf-row{
-  display:flex;align-items:center;
-  border-bottom:1px solid var(--border);
-  padding:.65rem 1rem;
-}
-.cf-label{
-  font-size:.65rem;font-weight:700;
-  text-transform:uppercase;letter-spacing:.08em;
-  color:var(--text3);min-width:56px;
-}
-.cf-input{
-  flex:1;padding:.3rem .5rem;
-  background:transparent;border:none;
-  color:var(--text);font-size:.875rem;
-  font-family:var(--font);outline:none;
-}
-.cf-input::placeholder{color:var(--text4);}
-.cf-select{
-  flex:1;padding:.3rem .5rem;
-  background:transparent;border:none;
-  color:var(--text);font-size:.875rem;
-  font-family:var(--font);outline:none;cursor:pointer;
-}
+/* COMPOSE PANEL */
+#view-compose{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.compose-header{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
+.compose-title{font-size:.9rem;font-weight:700;}
+.compose-discard{margin-left:auto;padding:.35rem .7rem;background:transparent;border:1px solid rgba(240,80,110,.3);border-radius:6px;color:var(--red);font-size:.7rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.compose-discard:hover{background:var(--red-dim);}
+.compose-form{flex:1;overflow-y:auto;padding:1rem;}
+.cf-field{margin-bottom:.75rem;}
+.cf-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700;margin-bottom:.35rem;display:block;}
+.cf-input{width:100%;padding:.65rem .9rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.cf-input:focus{border-color:var(--accent);}
+.cf-select{width:100%;padding:.65rem .9rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;}
 .cf-select option{background:var(--surface);}
-
-.type-toggle{
-  display:flex;gap:.35rem;
-  padding:.6rem 1rem;border-bottom:1px solid var(--border);
-  background:var(--surface2);
-}
-.type-tab{
-  padding:.35rem .75rem;
-  background:transparent;border:1px solid var(--border2);
-  border-radius:var(--r);
-  color:var(--text3);font-size:.72rem;font-weight:600;
-  cursor:pointer;font-family:var(--font);transition:all .15s;
-}
-.type-tab.active{
-  background:var(--white);border-color:var(--white);
-  color:var(--black);
-}
-
-.compose-toolbar{
-  display:flex;gap:.3rem;flex-wrap:wrap;
-  padding:.55rem 1rem;border-bottom:1px solid var(--border);
-  background:var(--surface2);
-}
-.c-tb{
-  padding:.35rem .65rem;
-  background:transparent;border:1px solid var(--border);
-  border-radius:var(--r);color:var(--text3);font-size:.7rem;
-  cursor:pointer;font-family:var(--font);
-  display:flex;align-items:center;gap:.3rem;
-  transition:all .15s;
-}
-.c-tb:hover{border-color:var(--border3);color:var(--text2);}
-
-.attach-chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.5rem 1rem;border-bottom:1px solid var(--border);display:none;}
-.att-chip{
-  display:flex;align-items:center;gap:.4rem;
-  padding:.3rem .6rem;
-  background:var(--surface2);border:1px solid var(--border2);
-  border-radius:var(--r);font-size:.7rem;color:var(--text2);
-}
-.att-chip img{width:20px;height:20px;object-fit:cover;border-radius:3px;}
-.att-chip-rm{color:var(--red);cursor:pointer;margin-left:.2rem;font-size:.75rem;}
-
-.compose-textarea{
-  width:100%;padding:1rem;
-  background:transparent;border:none;
-  color:var(--text);font-size:.875rem;
-  font-family:var(--font);outline:none;
-  resize:vertical;min-height:260px;line-height:1.8;
-}
-.compose-textarea::placeholder{color:var(--text4);}
-.preview-section{border-top:1px solid var(--border);display:none;padding:1rem;}
-.preview-section.show{display:block;}
-.preview-iframe{width:100%;min-height:180px;border:1px solid var(--border);border-radius:var(--r);background:#fff;}
-
-.compose-footer{
-  padding:.75rem 1rem;border-top:1px solid var(--border);
-  background:var(--surface2);
-  display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
-}
-.send-btn{
-  padding:.7rem 1.5rem;
-  background:var(--white);border:none;
-  border-radius:var(--r);
-  color:var(--black);font-size:.82rem;font-weight:700;
-  cursor:pointer;font-family:var(--font);
-  display:flex;align-items:center;gap:.45rem;
-  transition:opacity .15s;
-}
+.type-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:.75rem;}
+.type-tab{flex:1;padding:.55rem;background:transparent;border:none;color:var(--text3);font-size:.75rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.type-tab.active{background:var(--accent-dim);color:var(--accent);}
+.compose-toolbar{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.5rem;}
+.ctb{padding:.38rem .65rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.7rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;display:flex;align-items:center;gap:.3rem;}
+.ctb:hover{border-color:var(--accent);color:var(--accent);}
+.compose-body{width:100%;padding:.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;min-height:200px;line-height:1.7;transition:border-color .2s;}
+.compose-body:focus{border-color:var(--accent);}
+.attach-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;}
+.att-chip{display:flex;align-items:center;gap:.4rem;padding:.3rem .6rem;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;font-size:.7rem;color:var(--text2);}
+.att-chip img{width:22px;height:22px;object-fit:cover;border-radius:3px;}
+.att-chip-rm{color:var(--red);cursor:pointer;margin-left:.2rem;}
+.preview-wrap{margin-top:.75rem;display:none;}
+.preview-wrap.show{display:block;}
+.preview-wrap label{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-weight:700;margin-bottom:.35rem;display:block;}
+.preview-iframe{width:100%;min-height:180px;border:1px solid var(--border);border-radius:8px;background:#fff;}
+.compose-footer{padding:.75rem 1rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:.6rem;flex-shrink:0;flex-wrap:wrap;}
+.send-btn{padding:.75rem 1.5rem;background:var(--accent);border:none;border-radius:var(--radius);color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:.5rem;transition:all .15s;}
 .send-btn:hover{opacity:.88;}
-.send-btn:disabled{opacity:.35;cursor:not-allowed;}
-.preview-toggle{
-  padding:.65rem 1rem;
-  background:transparent;border:1px solid var(--border2);
-  border-radius:var(--r);color:var(--text3);font-size:.75rem;
-  cursor:pointer;font-family:var(--font);transition:all .15s;
-}
-.preview-toggle:hover{border-color:var(--border3);color:var(--text2);}
-.c-status{font-size:.75rem;}
-.c-status.ok{color:var(--green);}
-.c-status.err{color:var(--red);}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;}
+.preview-btn{padding:.7rem 1rem;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);font-size:.78rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.preview-btn:hover{border-color:var(--accent);color:var(--accent);}
+.send-status{font-size:.75rem;padding:.4rem .75rem;border-radius:6px;display:none;}
+.send-status.ok{display:block;background:var(--green-dim);color:var(--green);}
+.send-status.err{display:block;background:var(--red-dim);color:var(--red);}
 
-/* ─── SETTINGS VIEW ─── */
-#view-settings{display:none;flex-direction:column;height:100%;width:100%;overflow:hidden;}
-.settings-topbar{
-  padding:.75rem 1.25rem;
-  background:var(--surface);border-bottom:1px solid var(--border);
-  font-size:.9rem;font-weight:700;letter-spacing:-.02em;
-  display:flex;align-items:center;gap:.5rem;flex-shrink:0;
-}
-.settings-scroll{flex:1;overflow-y:auto;padding:1.25rem;}
-.settings-max{max-width:640px;display:flex;flex-direction:column;gap:1rem;}
-.settings-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r-lg);overflow:hidden;
-}
-.settings-card-title{
-  padding:.75rem 1rem;border-bottom:1px solid var(--border);
-  font-size:.78rem;font-weight:700;color:var(--text);
-  display:flex;align-items:center;gap:.5rem;letter-spacing:-.01em;
-}
-.settings-card-title i{color:var(--text3);font-size:.75rem;}
-.settings-row{
-  padding:.85rem 1rem;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;
-}
+/* SETTINGS PANEL */
+#view-settings{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.settings-header{padding:.75rem 1rem;border-bottom:1px solid var(--border);font-size:.9rem;font-weight:700;flex-shrink:0;}
+.settings-body{flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:1.25rem;max-width:640px;}
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.settings-section-title{padding:.75rem 1rem;border-bottom:1px solid var(--border);font-size:.78rem;font-weight:700;display:flex;align-items:center;gap:.5rem;}
+.settings-section-title i{color:var(--accent);}
+.settings-row{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;}
 .settings-row:last-child{border-bottom:none;}
-.sr-info{flex:1;}
-.sr-label{font-size:.82rem;font-weight:600;color:var(--text);}
-.sr-sub{font-size:.72rem;color:var(--text3);margin-top:.15rem;}
-.s-input{
-  padding:.55rem .8rem;
-  background:var(--surface2);border:1px solid var(--border2);
-  border-radius:var(--r);color:var(--text);font-size:.8rem;
-  font-family:var(--font);outline:none;transition:border-color .15s;
-  min-width:180px;
-}
-.s-input:focus{border-color:var(--border3);}
-.s-btn{
-  padding:.5rem 1rem;border:none;border-radius:var(--r);
-  font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font);transition:opacity .15s;
-}
-.s-btn.white{background:var(--white);color:var(--black);}
-.s-btn.white:hover{opacity:.85;}
+.settings-row-label{font-size:.8rem;font-weight:600;}
+.settings-row-sub{font-size:.68rem;color:var(--text3);margin-top:.15rem;}
+.s-input{padding:.55rem .8rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.8rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;min-width:180px;}
+.s-input:focus{border-color:var(--accent);}
+.s-btn{padding:.5rem 1rem;border:none;border-radius:7px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
+.s-btn.primary{background:var(--accent);color:#fff;}
 .s-btn.green{background:var(--green);color:#000;}
-.s-btn.danger{background:transparent;color:var(--red);border:1px solid rgba(239,68,68,.3);}
-.s-btn.danger:hover{background:var(--red-dim);}
-
-.access-card{
-  padding:.75rem 1rem;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:.75rem;
-}
-.access-card:last-child{border-bottom:none;}
-.access-av{
-  width:32px;height:32px;border-radius:50%;
-  background:var(--surface2);border:1px solid var(--border2);
-  display:flex;align-items:center;justify-content:center;
-  font-size:.72rem;font-weight:700;color:var(--text2);
-  flex-shrink:0;text-transform:uppercase;
-}
-.access-info{flex:1;}
-.access-email-t{font-size:.8rem;font-weight:600;color:var(--text);}
-.access-senders-t{font-size:.68rem;color:var(--text3);margin-top:.15rem;font-family:var(--mono);}
-.access-acts{display:flex;gap:.35rem;}
-.access-act{
-  padding:.3rem .65rem;border-radius:var(--r);
-  font-size:.68rem;font-weight:600;cursor:pointer;
-  font-family:var(--font);transition:all .15s;border:1px solid;
-}
-.access-act.edit{border-color:var(--border2);color:var(--text2);}
-.access-act.edit:hover{border-color:var(--border3);color:var(--text);}
-.access-act.revoke{border-color:rgba(239,68,68,.3);color:var(--red);}
+.s-btn.danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(240,80,110,.3);}
+.s-btn:hover{opacity:.82;}
+.access-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin-bottom:.5rem;}
+.access-email{font-size:.82rem;font-weight:600;}
+.access-senders{font-size:.67rem;color:var(--text3);margin-top:.2rem;}
+.access-actions{display:flex;gap:.4rem;margin-top:.5rem;}
+.access-act{padding:.32rem .65rem;border-radius:6px;font-size:.7rem;font-weight:600;cursor:pointer;border:1px solid;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.access-act.edit{border-color:var(--accent);color:var(--accent);}
+.access-act.edit:hover{background:var(--accent-dim);}
+.access-act.revoke{border-color:var(--red);color:var(--red);}
 .access-act.revoke:hover{background:var(--red-dim);}
+.empty-access{text-align:center;padding:1.5rem;font-size:.78rem;color:var(--text3);}
 
-/* ─── TOAST ─── */
-.toast{
-  position:fixed;bottom:1.5rem;right:1.5rem;
-  padding:.65rem 1rem;
-  background:var(--surface);
-  border:1px solid var(--border2);
-  border-radius:var(--r-md);
-  font-size:.78rem;font-weight:500;
-  display:flex;align-items:center;gap:.5rem;
-  z-index:9999;
-  transform:translateY(60px);opacity:0;
-  transition:all .25s cubic-bezier(.34,1.56,.64,1);
-  pointer-events:none;
-  box-shadow:var(--shadow-md);
-}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.65rem 1.1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:.78rem;display:flex;align-items:center;gap:.5rem;z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;}
 .toast.show{transform:translateY(0);opacity:1;}
-.toast.ok{border-color:rgba(34,197,94,.3);}
-.toast.ok .toast-icon{color:var(--green);}
-.toast.err{border-color:rgba(239,68,68,.3);}
-.toast.err .toast-icon{color:var(--red);}
-.toast.info .toast-icon{color:var(--text2);}
+.toast.ok{border-color:var(--green);color:var(--green);}
+.toast.err{border-color:var(--red);color:var(--red);}
+.toast.info{border-color:var(--accent);color:var(--accent);}
+
+/* MOBILE */
+@media(max-width:640px){
+  :root{--sidebar-w:180px;}
+  .sidebar{width:180px;}
+  .hdr-user{display:none;}
+}
+@media(max-width:480px){
+  .sidebar{display:none;}
+  .main{width:100%;}
+}
 </style>
 </head>
 <body>
 
-<!-- ══ GATE ══ -->
+<!-- GATE -->
 <div id="gate">
-  <div class="gate-card">
-    <div class="gate-logo">
-      <img src="/logo3.png?v=2" alt="HTMLTools"/>
-      <div class="gate-logo-text">HTMLTools Mail</div>
-    </div>
-    <div class="gate-headline">Sign in</div>
-    <div class="gate-sub">Access your @htmltools.me inbox</div>
-    <div class="g-field">
-      <label>Email address</label>
-      <input class="g-input" id="g-email" type="email" placeholder="you@gmail.com" autocomplete="email"/>
-    </div>
-    <div class="g-field">
-      <label>Password</label>
-      <input class="g-input" id="g-pass" type="password" placeholder="Password"/>
-    </div>
-    <button class="g-btn" id="login-btn">
-      <i class="fas fa-sign-in-alt"></i> Sign In
-    </button>
+  <div class="gate-box">
+    <div class="gate-logo">✉️</div>
+    <div class="gate-title">HTML<em>Tools</em> Mail</div>
+    <div class="gate-sub">Professional email for @htmltools.me</div>
+    <div class="g-field"><label>Email</label><input class="g-input" id="g-email" type="email" placeholder="you@gmail.com"/></div>
+    <div class="g-field"><label>Password</label><input class="g-input" id="g-pass" type="password" placeholder="••••••••"/></div>
+    <button class="g-btn" id="login-btn"><i class="fas fa-sign-in-alt"></i> Sign In</button>
     <div class="g-err" id="g-err"></div>
   </div>
 </div>
 
-<!-- ══ APP ══ -->
+<!-- APP -->
 <div id="app">
-  <!-- TOPBAR -->
-  <div class="topbar">
-    <div class="topbar-logo">
-      <img src="/logo3.png?v=2" alt="HT"/>
-      <div class="topbar-logo-text">HTMLTools Mail</div>
-    </div>
-    <div class="topbar-search">
-      <i class="fas fa-search si"></i>
-      <input type="text" id="search-input" placeholder="Search mail…" oninput="filterEmails()"/>
-    </div>
-    <div class="topbar-right">
-      <div class="user-chip">
-        <div class="user-dot"></div>
-        <span class="user-email" id="hdr-email"></span>
-      </div>
-      <button class="signout-btn" id="signout-btn">
-        <i class="fas fa-sign-out-alt"></i> Sign out
-      </button>
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-logo">✉️ HTML<em>Tools</em> Mail</div>
+    <div class="hdr-search"><i class="fas fa-search"></i><input type="text" id="search-input" placeholder="Search emails…" oninput="filterEmails()"/></div>
+    <div class="hdr-right">
+      <div class="hdr-user"><div class="hdr-user-dot"></div><span id="hdr-user-email"></span></div>
+      <button class="hdr-signout" id="signout-btn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
     </div>
   </div>
 
-  <div class="app-body">
+  <div class="body">
     <!-- SIDEBAR -->
     <div class="sidebar">
-      <button class="compose-btn" onclick="showCompose()">
-        <span class="cb-icon">✏️</span> Compose
-      </button>
-
-      <div class="nav-section">Folders</div>
-      <div class="nav-item active" id="nav-inbox" onclick="switchFolder('inbox')">
-        <i class="fas fa-inbox"></i>
-        <span class="nav-label">All Inbox</span>
-        <span class="nav-badge" id="badge-unread">0</span>
+      <button class="compose-btn" onclick="showCompose()"><i class="fas fa-pen"></i> Compose</button>
+      <div class="sidebar-section">Inbox</div>
+      <div class="nav-item active" id="nav-inbox" onclick="showView('list','inbox')">
+        <i class="fas fa-inbox"></i> Inbox
+        <span class="nav-badge" id="badge-inbox" style="display:none">0</span>
       </div>
-      <div class="nav-item" id="nav-sent" onclick="switchFolder('sent')">
-        <i class="fas fa-paper-plane"></i>
-        <span class="nav-label">Sent</span>
+      <div class="nav-item" id="nav-sent" onclick="showView('list','sent')">
+        <i class="fas fa-paper-plane"></i> Sent
       </div>
-      <div class="nav-item" id="nav-starred" onclick="switchFolder('starred')">
-        <i class="fas fa-star"></i>
-        <span class="nav-label">Starred</span>
+      <div class="nav-item" id="nav-starred" onclick="showView('list','starred')">
+        <i class="fas fa-star"></i> Starred
       </div>
-      <div class="nav-item" id="nav-trash" onclick="switchFolder('trash')">
-        <i class="fas fa-trash"></i>
-        <span class="nav-label">Trash</span>
+      <div class="nav-item" id="nav-trash" onclick="showView('list','trash')">
+        <i class="fas fa-trash"></i> Trash
       </div>
-      <div class="nav-item" id="nav-settings" onclick="showSettings()">
-        <i class="fas fa-cog"></i>
-        <span class="nav-label">Settings</span>
+      <div class="sidebar-section" style="margin-top:.5rem;">Account</div>
+      <div class="nav-item" id="nav-settings" onclick="showView('settings')">
+        <i class="fas fa-cog"></i> Settings
       </div>
-
-      <div class="sidebar-inboxes">
-        <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text4);margin-bottom:.4rem;padding:0 .1rem;">Inboxes</div>
-        <div id="sidebar-inbox-list"></div>
-      </div>
+      <div class="sidebar-accounts" id="sidebar-accounts"></div>
     </div>
 
-    <!-- MAIN AREA -->
-    <div class="main-area">
+    <!-- MAIN -->
+    <div class="main">
 
-      <!-- LIST PANE -->
-      <div class="list-pane" id="list-pane">
-        <div class="list-header">
-          <span class="list-header-title" id="list-title">All Inbox</span>
-          <span class="list-count" id="list-count"></span>
-          <button class="refresh-btn" id="refresh-btn" onclick="loadCurrentFolder()">
-            <i class="fas fa-sync-alt" id="refresh-icon"></i>
-          </button>
+      <!-- LIST VIEW -->
+      <div id="view-list">
+        <div class="list-toolbar">
+          <span class="list-toolbar-title" id="list-title">Inbox</span>
+          <span class="list-toolbar-count" id="list-count"></span>
+          <div style="margin-left:auto;display:flex;gap:.4rem;">
+            <button class="tb-btn" onclick="refreshInbox()"><i class="fas fa-sync-alt"></i> Refresh</button>
+          </div>
         </div>
         <div class="mail-list" id="mail-list">
-          <div class="empty-pane">
-            <i class="fas fa-inbox"></i>
-            <p>Loading…</p>
+          <div class="empty-state"><i class="fas fa-inbox"></i><p>Loading…</p></div>
+        </div>
+      </div>
+
+      <!-- DETAIL VIEW -->
+      <div id="view-detail">
+        <div class="detail-header">
+          <button class="detail-back" onclick="backToList()"><i class="fas fa-arrow-left"></i> Back</button>
+          <div class="detail-subject-bar" id="detail-subject"></div>
+          <div class="detail-actions">
+            <button class="detail-action" id="btn-reply-top" onclick="focusReply()"><i class="fas fa-reply"></i> Reply</button>
+            <button class="detail-action" id="btn-star-detail" onclick="starCurrent()"><i class="fas fa-star"></i></button>
+            <button class="detail-action" id="btn-fwd" onclick="forwardCurrent()"><i class="fas fa-share"></i> Forward</button>
+            <button class="detail-action danger" id="btn-trash-detail" onclick="trashCurrent()"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        <div class="detail-meta">
+          <div class="detail-meta-row"><span class="detail-meta-label">From:</span><span class="detail-meta-val highlight" id="d-from"></span></div>
+          <div class="detail-meta-row"><span class="detail-meta-label">To:</span><span class="detail-meta-val" id="d-to"></span></div>
+          <div class="detail-meta-row"><span class="detail-meta-label">Date:</span><span class="detail-meta-val" id="d-date"></span></div>
+          <div class="detail-meta-row" id="d-inbox-row" style="display:none"><span class="detail-meta-label">Inbox:</span><span class="detail-meta-val"><span id="d-inbox" style="background:var(--accent-dim);color:var(--accent);padding:.15rem .5rem;border-radius:4px;font-size:.72rem;font-weight:700;font-family:'JetBrains Mono',monospace;"></span></span></div>
+        </div>
+        <div class="detail-body"><div class="detail-body-content" id="detail-body-content"></div></div>
+        <div class="detail-attachments" id="detail-attachments" style="display:none"></div>
+        <div class="detail-reply">
+          <div class="reply-box">
+            <div class="reply-to-bar">Reply to <span id="reply-to-addr"></span></div>
+            <textarea class="reply-textarea" id="reply-body" placeholder="Write your reply…"></textarea>
+            <div class="reply-footer">
+              <button class="reply-send" id="reply-send-btn" onclick="sendReply()"><i class="fas fa-paper-plane"></i> Send Reply</button>
+              <button class="reply-attach" onclick="document.getElementById('reply-img-input').click()"><i class="fas fa-paperclip"></i></button>
+              <input type="file" id="reply-img-input" multiple accept="image/*,application/pdf,.gif" style="display:none" onchange="handleReplyAttach(event)"/>
+              <span class="send-status" id="reply-status"></span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- DETAIL / COMPOSE / SETTINGS PANE -->
-      <div class="detail-pane" id="detail-pane">
-
-        <!-- empty state -->
-        <div class="detail-empty" id="detail-empty">
-          <i class="fas fa-envelope"></i>
-          <p>Select an email to read</p>
+      <!-- COMPOSE VIEW -->
+      <div id="view-compose">
+        <div class="compose-header">
+          <i class="fas fa-pen" style="color:var(--accent)"></i>
+          <span class="compose-title">New Message</span>
+          <button class="compose-discard" onclick="showView('list',currentFolder)"><i class="fas fa-times"></i> Discard</button>
         </div>
-
-        <!-- email view -->
-        <div id="view-email" style="display:none;flex-direction:column;height:100%;overflow:hidden;">
-          <div class="detail-topbar">
-            <button class="back-btn" onclick="closeDetail()">
-              <i class="fas fa-arrow-left"></i> Back
-            </button>
-            <div class="detail-subject-bar" id="d-subject"></div>
-            <div style="display:flex;gap:.35rem;">
-              <button class="detail-action" id="btn-star" title="Star" onclick="starCurrent()"><i class="fas fa-star"></i></button>
-              <button class="detail-action" title="Forward" onclick="forwardCurrent()"><i class="fas fa-share"></i></button>
-              <button class="detail-action danger" title="Delete" onclick="trashCurrent()"><i class="fas fa-trash"></i></button>
+        <div class="compose-form">
+          <div class="cf-field">
+            <label class="cf-label">From</label>
+            <select class="cf-select" id="c-from" onchange="onFromChange()">
+              <option value="">Select sender…</option>
+            </select>
+            <div id="custom-from-wrap" style="display:none;margin-top:.5rem;">
+              <div style="display:flex;align-items:center;gap:.5rem;">
+                <input class="cf-input" style="flex:1" id="c-custom-from" placeholder="username"/>
+                <span style="color:var(--text3);font-size:.85rem;">@htmltools.me</span>
+              </div>
             </div>
           </div>
-          <div class="detail-scroll">
-            <div class="email-card">
-              <div class="email-card-head">
-                <div class="ec-avatar" id="ec-avatar">?</div>
-                <div class="ec-info">
-                  <div class="ec-sender" id="ec-sender"></div>
-                  <div class="ec-meta">
-                    <div class="ec-meta-row"><strong>From</strong><span id="ec-from"></span></div>
-                    <div class="ec-meta-row"><strong>To</strong><span id="ec-to"></span></div>
-                  </div>
-                </div>
-                <div class="ec-right">
-                  <div class="ec-time" id="ec-time"></div>
-                  <div class="ec-inbox-badge" id="ec-inbox-badge" style="display:none"></div>
-                </div>
-              </div>
-              <div class="email-card-body">
-                <div id="ec-body-content"></div>
-              </div>
-              <div class="email-card-attach" id="ec-attachments" style="display:none;"></div>
+          <div class="cf-field">
+            <label class="cf-label">To <span style="color:var(--text3);font-size:.62rem;text-transform:none;">(comma-separate multiple)</span></label>
+            <input class="cf-input" id="c-to" type="text" placeholder="recipient@example.com, another@example.com"/>
+          </div>
+          <div class="cf-field">
+            <label class="cf-label">Subject</label>
+            <input class="cf-input" id="c-subject" type="text" placeholder="Email subject…"/>
+          </div>
+          <div class="cf-field">
+            <label class="cf-label">Type</label>
+            <div class="type-toggle">
+              <button class="type-tab active" id="ctype-normal" onclick="setComposeType('normal')">✏️ Normal</button>
+              <button class="type-tab" id="ctype-html" onclick="setComposeType('html')">🧩 Raw HTML</button>
             </div>
-
-            <!-- Reply -->
-            <div class="reply-card">
-              <div class="reply-header">
-                <i class="fas fa-reply" style="font-size:.7rem;"></i>
-                Reply to <span id="reply-to-display"></span>
-                <select class="reply-from-sel" id="reply-from"></select>
-              </div>
-              <textarea class="reply-body" id="reply-textarea" placeholder="Write your reply…"></textarea>
-              <div class="reply-footer">
-                <button class="reply-send" id="reply-send-btn" onclick="sendReply()">
-                  <i class="fas fa-paper-plane"></i> Send Reply
-                </button>
-                <button class="reply-attach-btn" onclick="document.getElementById('reply-file-input').click()" title="Attach">
-                  <i class="fas fa-paperclip"></i>
-                </button>
-                <input type="file" id="reply-file-input" multiple style="display:none" onchange="handleReplyAttach(event)"/>
-                <span class="reply-status" id="reply-status"></span>
-              </div>
-            </div>
+          </div>
+          <div class="compose-toolbar" id="c-toolbar">
+            <button class="ctb" onclick="insertLinkCompose()"><i class="fas fa-link"></i> Link</button>
+            <button class="ctb" onclick="insertBoldCompose()"><i class="fas fa-bold"></i> Bold</button>
+            <button class="ctb" onclick="insertItalicCompose()"><i class="fas fa-italic"></i> Italic</button>
+            <button class="ctb" onclick="document.getElementById('c-img-input').click()"><i class="fas fa-image"></i> Image</button>
+            <button class="ctb" onclick="document.getElementById('c-file-input').click()"><i class="fas fa-paperclip"></i> File/GIF</button>
+            <input type="file" id="c-img-input" accept="image/*,.gif" multiple style="display:none" onchange="handleComposeAttach(event,'image')"/>
+            <input type="file" id="c-file-input" multiple style="display:none" onchange="handleComposeAttach(event,'file')"/>
+          </div>
+          <div class="attach-chips" id="c-attach-chips"></div>
+          <textarea class="compose-body" id="c-body" placeholder="Write your message here… URLs become clickable."></textarea>
+          <div class="preview-wrap" id="c-preview-wrap">
+            <label>HTML Preview</label>
+            <iframe class="preview-iframe" id="c-preview-frame" sandbox="allow-same-origin"></iframe>
           </div>
         </div>
+        <div class="compose-footer">
+          <button class="send-btn" id="c-send-btn" onclick="sendEmail()"><i class="fas fa-paper-plane"></i> Send</button>
+          <button class="preview-btn" id="c-preview-btn" onclick="togglePreview()" style="display:none"><i class="fas fa-eye"></i> Preview</button>
+          <span class="send-status" id="c-status"></span>
+        </div>
+      </div>
 
-        <!-- compose view -->
-        <div id="view-compose">
-          <div class="compose-topbar">
-            <i class="fas fa-pen" style="color:var(--text3);font-size:.8rem;"></i>
-            <span class="compose-topbar-title">New Message</span>
-            <button class="compose-discard" onclick="closeDetail()">
-              <i class="fas fa-times"></i> Discard
-            </button>
+      <!-- SETTINGS VIEW -->
+      <div id="view-settings">
+        <div class="settings-header"><i class="fas fa-cog" style="color:var(--accent)"></i> Settings</div>
+        <div class="settings-body">
+          <!-- Account Info -->
+          <div class="settings-section">
+            <div class="settings-section-title"><i class="fas fa-user"></i> Account</div>
+            <div class="settings-row">
+              <div><div class="settings-row-label">Signed in as</div><div class="settings-row-sub" id="s-user-email">—</div></div>
+              <button class="s-btn danger" onclick="document.getElementById('signout-btn').click()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+            </div>
           </div>
-          <div class="compose-scroll">
-            <div class="compose-card">
-              <div class="cf-row">
-                <span class="cf-label">From</span>
-                <select class="cf-select" id="c-from" onchange="onFromChange()"></select>
+          <!-- Inbound Webhook -->
+          <div class="settings-section" id="s-webhook-section" style="display:none">
+            <div class="settings-section-title"><i class="fas fa-webhook"></i> Inbound Webhook</div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row-label">Worker Inbound Endpoint</div>
+                <div class="settings-row-sub">POST received emails here from Resend inbound webhooks</div>
               </div>
-              <div class="cf-row" id="custom-from-row" style="display:none;">
-                <span class="cf-label">Custom</span>
-                <input class="cf-input" id="c-custom-from" placeholder="username"/>
-                <span style="font-size:.8rem;color:var(--text3);padding-right:.5rem;flex-shrink:0;">@htmltools.me</span>
-              </div>
-              <div class="cf-row">
-                <span class="cf-label">To</span>
-                <input class="cf-input" id="c-to" placeholder="recipient@example.com"/>
-              </div>
-              <div class="cf-row">
-                <span class="cf-label">Subject</span>
-                <input class="cf-input" id="c-subject" placeholder="Subject"/>
-              </div>
-
-              <div class="type-toggle">
-                <button class="type-tab active" id="ctype-normal" onclick="setComposeType('normal')">✏️ Normal</button>
-                <button class="type-tab" id="ctype-html" onclick="setComposeType('html')">🧩 Raw HTML</button>
-              </div>
-
-              <div class="compose-toolbar" id="c-toolbar">
-                <button class="c-tb" onclick="insertLink()"><i class="fas fa-link"></i> Link</button>
-                <button class="c-tb" onclick="insertBold()"><i class="fas fa-bold"></i> Bold</button>
-                <button class="c-tb" onclick="insertItalic()"><i class="fas fa-italic"></i> Italic</button>
-                <button class="c-tb" onclick="document.getElementById('c-img-input').click()"><i class="fas fa-image"></i> Image</button>
-                <button class="c-tb" onclick="document.getElementById('c-file-input').click()"><i class="fas fa-paperclip"></i> Attach</button>
-                <input type="file" id="c-img-input" accept="image/*,.gif" multiple style="display:none" onchange="handleComposeAttach(event,'image')"/>
-                <input type="file" id="c-file-input" multiple style="display:none" onchange="handleComposeAttach(event,'file')"/>
-              </div>
-
-              <div class="attach-chips" id="c-attach-chips"></div>
-              <textarea class="compose-textarea" id="c-body" placeholder="Write your message…"></textarea>
-              <div class="preview-section" id="c-preview-section">
-                <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:.5rem;">Preview</div>
-                <iframe class="preview-iframe" id="c-preview-frame" sandbox="allow-same-origin"></iframe>
-              </div>
-              <div class="compose-footer">
-                <button class="send-btn" id="c-send-btn" onclick="sendEmail()">
-                  <i class="fas fa-paper-plane"></i> Send
-                </button>
-                <button class="preview-toggle" id="c-preview-btn" onclick="togglePreview()" style="display:none;">
-                  <i class="fas fa-eye"></i> Preview
-                </button>
-                <span class="c-status" id="c-status"></span>
+              <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                <input class="s-input" id="s-worker-url" placeholder="https://your.worker.dev/"/>
+                <button class="s-btn primary" onclick="saveWorkerUrl()">Save</button>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- settings view -->
-        <div id="view-settings">
-          <div class="settings-topbar">
-            <i class="fas fa-cog" style="color:var(--text3);font-size:.8rem;"></i> Settings
-          </div>
-          <div class="settings-scroll">
-            <div class="settings-max">
-
-              <div class="settings-card">
-                <div class="settings-card-title"><i class="fas fa-user"></i> Account</div>
-                <div class="settings-row">
-                  <div class="sr-info">
-                    <div class="sr-label">Signed in as</div>
-                    <div class="sr-sub" id="s-signed-in-as">—</div>
-                  </div>
-                  <button class="s-btn danger" onclick="document.getElementById('signout-btn').click()">Sign Out</button>
-                </div>
+          <!-- Access Manager (super admin only) -->
+          <div class="settings-section" id="s-access-section" style="display:none">
+            <div class="settings-section-title"><i class="fas fa-users"></i> Access Manager <span style="color:var(--text3);font-weight:400;font-size:.7rem;margin-left:.4rem;">— Super Admin Only</span></div>
+            <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.6rem;">
+              <div style="font-size:.75rem;font-weight:700;">Grant / Edit Access</div>
+              <input class="s-input" id="s-new-email" placeholder="user@gmail.com" style="width:100%"/>
+              <input class="s-input" id="s-new-senders" placeholder="noreply,matthew,kovan (comma separated)" style="width:100%"/>
+              <div class="settings-row-sub">Username only — no @htmltools.me. Example: <strong>noreply,matthew</strong></div>
+              <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                <button class="s-btn green" onclick="grantAccess()"><i class="fas fa-plus"></i> Grant Access</button>
+                <span class="send-status" id="s-access-status"></span>
               </div>
-
-              <div class="settings-card" id="s-worker-card" style="display:none;">
-                <div class="settings-card-title"><i class="fas fa-plug"></i> Worker Endpoint</div>
-                <div class="settings-row">
-                  <div class="sr-info">
-                    <div class="sr-label">Cloudflare Worker URL</div>
-                    <div class="sr-sub">POST target for all email operations</div>
-                  </div>
-                  <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;">
-                    <input class="s-input" id="s-worker-url" placeholder="https://your.worker.dev/"/>
-                    <button class="s-btn white" onclick="saveWorkerUrl()">Save</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="settings-card" id="s-access-card" style="display:none;">
-                <div class="settings-card-title"><i class="fas fa-users"></i> Access Manager <span style="font-size:.65rem;font-weight:400;color:var(--text3);margin-left:.4rem;">— Super Admin</span></div>
-                <div style="padding:.85rem 1rem;border-bottom:1px solid var(--border);">
-                  <div style="font-size:.78rem;font-weight:600;margin-bottom:.65rem;">Grant / Edit Access</div>
-                  <div style="display:flex;flex-direction:column;gap:.5rem;max-width:460px;">
-                    <input class="s-input" id="s-new-email" placeholder="user@gmail.com" style="width:100%;"/>
-                    <input class="s-input" id="s-new-senders" placeholder="noreply,matthew,kovan (comma separated)" style="width:100%;"/>
-                    <div style="font-size:.68rem;color:var(--text3);">Usernames only — no @htmltools.me needed</div>
-                    <div style="display:flex;gap:.4rem;align-items:center;">
-                      <button class="s-btn green" onclick="grantAccess()"><i class="fas fa-plus"></i> Grant Access</button>
-                      <span class="c-status" id="s-access-status"></span>
-                    </div>
-                  </div>
-                </div>
-                <div style="padding:.6rem 1rem;font-size:.72rem;font-weight:700;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.06em;">Users</div>
-                <div id="s-access-list"></div>
-              </div>
-
-              <div class="settings-card">
-                <div class="settings-card-title"><i class="fas fa-at"></i> My Inboxes</div>
-                <div id="s-inboxes-list" style="padding:.75rem 1rem;"></div>
-              </div>
-
             </div>
+            <div style="padding:.75rem 1rem;font-size:.75rem;font-weight:700;border-bottom:1px solid var(--border);">Users with Access</div>
+            <div style="padding:.75rem 1rem;" id="s-access-list"><div class="empty-access">No users yet.</div></div>
+          </div>
+          <!-- My Inboxes -->
+          <div class="settings-section">
+            <div class="settings-section-title"><i class="fas fa-at"></i> My Inboxes</div>
+            <div style="padding:.75rem 1rem;" id="s-inboxes"><div class="settings-row-sub">Loading…</div></div>
           </div>
         </div>
+      </div>
 
-      </div><!-- detail-pane -->
-    </div><!-- main-area -->
-  </div><!-- app-body -->
-</div><!-- app -->
+    </div><!-- .main -->
+  </div><!-- .body -->
+</div><!-- #app -->
 
-<div class="toast" id="toast">
-  <i class="toast-icon fas fa-info-circle"></i>
-  <span id="toast-msg"></span>
-</div>
+<div class="toast" id="toast"></div>
 
-<!-- ══ FIREBASE ══ -->
 <script type="module">
-import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getDatabase, ref, set, get, onValue, remove, push, update }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, set, get, onValue, remove, push, update, query, orderByChild } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-/* ─── CONFIG ─── */
-const SUPER_ADMIN    = 'matthewbozhe@gmail.com';
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SUPER_ADMIN = 'matthewbozhe@gmail.com';
 const DEFAULT_WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
+
 const firebaseConfig = {
   apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",
   authDomain:"htmltools-library.firebaseapp.com",
@@ -1067,24 +482,20 @@ const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
 const db    = getDatabase(fbApp);
 
-/* ─── STATE ─── */
-let currentUser    = null;
-let isSuperAdmin   = false;
-let allowedSenders = [];
-let emails         = [];          // all loaded (inbound + sent)
-let currentFolder  = 'inbox';
-let currentInboxFilter = null;   // null = show all, 'noreply' = filter to that inbox
-let currentEmail   = null;
-let composeType    = 'normal';
+// ─── STATE ─────────────────────────────────────────────────────────────────────
+let currentUser   = null;
+let isSuperAdmin  = false;
+let allowedSenders= [];  // usernames only
+let emails        = [];  // all loaded emails
+let currentFolder = 'inbox';
+let currentEmail  = null;
+let composeType   = 'normal';
 let composeAttachments = [];
 let replyAttachments   = [];
-let previewOpen    = false;
-let workerUrl      = DEFAULT_WORKER;
-let readIds        = new Set(JSON.parse(localStorage.getItem('ht_readIds') || '[]'));
+let previewOpen   = false;
+let workerUrl     = DEFAULT_WORKER;
 
-const AVATAR_COLORS = ['#3b3b3b','#2b2b2b','#242424','#1e1e1e'];
-
-/* ─── LOGIN ─── */
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
 document.getElementById('login-btn').addEventListener('click', doLogin);
 document.getElementById('g-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 async function doLogin(){
@@ -1092,60 +503,65 @@ async function doLogin(){
   const pass  = document.getElementById('g-pass').value;
   const err   = document.getElementById('g-err');
   err.style.display = 'none';
-  if(!email||!pass){ showErr('Please fill in both fields.'); return; }
-  try { await signInWithEmailAndPassword(auth, email, pass); }
-  catch(e) { showErr('⛔ ' + (e.message||'Login failed').replace('Firebase:','').trim()); }
+  if(!email||!pass){ err.textContent='Fill in both fields.'; err.style.display='block'; return; }
+  try{ await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e){ err.textContent='⛔ '+(e.message||'Login failed'); err.style.display='block'; }
 }
-function showErr(msg){ const e=document.getElementById('g-err'); e.textContent=msg; e.style.display='block'; }
 document.getElementById('signout-btn').addEventListener('click', ()=>signOut(auth));
 
-/* ─── AUTH ─── */
+// ─── AUTH STATE ────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
   if(!user){ showGate(); return; }
   const email = user.email.toLowerCase();
   if(email === SUPER_ADMIN.toLowerCase()){
     isSuperAdmin = true;
-    allowedSenders = ['noreply','matthew','kovan'];
+    allowedSenders = ['noreply','matthew','kovan']; // super admin gets all
     currentUser = user;
     showApp(user);
-    document.getElementById('s-access-card').style.display = 'block';
-    document.getElementById('s-worker-card').style.display = 'block';
-    listenAccessList();
+    loadSuperAdmin();
   } else {
     const key = email.replace(/\./g,'_');
     const snap = await get(ref(db, `mailAccess/${key}`));
-    if(!snap.exists()){ await signOut(auth); showGate('⛔ You don\'t have access.'); return; }
-    allowedSenders = snap.val().senders || [];
+    if(!snap.exists()){ await signOut(auth); showGate('⛔ You don\'t have access to this tool.'); return; }
+    const data = snap.val();
+    allowedSenders = data.senders || [];
     currentUser = user;
     showApp(user);
-    onValue(ref(db,`mailAccess/${key}`), s => {
-      if(!s.exists()){ signOut(auth); alert('Access revoked.'); }
-      else { allowedSenders = s.val().senders||[]; rebuildFromSelects(); renderSidebarInboxes(); }
+    // watch for revoke
+    onValue(ref(db,`mailAccess/${key}`), s=>{
+      if(!s.exists()){ signOut(auth); alert('Your access was revoked.'); }
+      else { allowedSenders = s.val().senders || []; rebuildFromSelect(); renderInboxList(); }
     });
   }
   loadWorkerUrl();
-  loadAllEmails();
+  loadEmails();
+  startInboxPoll();
 });
 
 function showGate(errMsg){
   document.getElementById('gate').classList.remove('out');
   document.getElementById('app').classList.remove('show');
-  if(errMsg) showErr(errMsg);
+  if(errMsg){ const e=document.getElementById('g-err'); e.textContent=errMsg; e.style.display='block'; }
 }
 function showApp(user){
   document.getElementById('gate').classList.add('out');
   document.getElementById('app').classList.add('show');
-  document.getElementById('hdr-email').textContent = user.email;
-  document.getElementById('s-signed-in-as').textContent = user.email;
-  rebuildFromSelects();
-  renderSidebarInboxes();
+  document.getElementById('hdr-user-email').textContent = user.email;
+  document.getElementById('s-user-email').textContent = user.email;
+  rebuildFromSelect();
+  renderInboxList();
   renderSettingsInboxes();
 }
+function loadSuperAdmin(){
+  document.getElementById('s-access-section').style.display = 'block';
+  document.getElementById('s-webhook-section').style.display = 'block';
+  listenAccessList();
+}
 
-/* ─── WORKER URL ─── */
+// ─── WORKER URL ────────────────────────────────────────────────────────────────
 async function loadWorkerUrl(){
   const snap = await get(ref(db,'config/workerUrl'));
-  if(snap.exists()){ workerUrl=snap.val(); document.getElementById('s-worker-url').value=workerUrl; }
+  if(snap.exists()){ workerUrl = snap.val(); document.getElementById('s-worker-url').value = workerUrl; }
 }
 window.saveWorkerUrl = async function(){
   const val = document.getElementById('s-worker-url').value.trim();
@@ -1155,18 +571,22 @@ window.saveWorkerUrl = async function(){
   toast('Worker URL saved!','ok');
 };
 
-/* ─── FROM SELECTS ─── */
-function rebuildFromSelects(){
-  ['c-from','reply-from'].forEach(id => {
-    const sel = document.getElementById(id);
-    sel.innerHTML = '';
-    allowedSenders.forEach(s => sel.appendChild(new Option(s+'@htmltools.me', s+'@htmltools.me')));
-    if(isSuperAdmin) sel.appendChild(new Option('✏️ Custom…','custom'));
+// ─── FROM SELECT ───────────────────────────────────────────────────────────────
+function rebuildFromSelect(){
+  const sel = document.getElementById('c-from');
+  sel.innerHTML = '';
+  allowedSenders.forEach(s=>{
+    const o = new Option(s+'@htmltools.me', s+'@htmltools.me');
+    sel.appendChild(o);
   });
+  if(isSuperAdmin){
+    const o = new Option('✏️ Custom…','custom');
+    sel.appendChild(o);
+  }
 }
 window.onFromChange = function(){
   const v = document.getElementById('c-from').value;
-  document.getElementById('custom-from-row').style.display = v==='custom' ? 'flex' : 'none';
+  document.getElementById('custom-from-wrap').style.display = v==='custom' ? 'flex' : 'none';
 };
 function getFromAddress(){
   const v = document.getElementById('c-from').value;
@@ -1177,496 +597,348 @@ function getFromAddress(){
   return v || null;
 }
 
-/* ─── SIDEBAR INBOXES ─── */
-function renderSidebarInboxes(){
-  const el = document.getElementById('sidebar-inbox-list');
-  el.innerHTML = '';
-  // "All" option
-  const all = document.createElement('div');
-  all.className = 'inbox-tag' + (!currentInboxFilter ? ' active' : '');
-  all.innerHTML = `<div class="inbox-tag-dot"></div><span>All inboxes</span>`;
-  all.onclick = () => { currentInboxFilter = null; updateInboxTagUI(); renderMailList(); };
-  el.appendChild(all);
-
-  allowedSenders.forEach(s => {
+// ─── SIDEBAR INBOXES ──────────────────────────────────────────────────────────
+function renderInboxList(){
+  const el = document.getElementById('sidebar-accounts');
+  el.innerHTML = '<div class="sidebar-section" style="padding:.75rem .75rem .25rem;">My Inboxes</div>';
+  allowedSenders.forEach(s=>{
     const d = document.createElement('div');
-    d.className = 'inbox-tag' + (currentInboxFilter===s ? ' active' : '');
-    d.dataset.sender = s;
-    d.innerHTML = `<div class="inbox-tag-dot"></div><span>@${s}</span>`;
-    d.onclick = () => {
-      currentInboxFilter = s;
-      currentFolder = 'inbox';
-      updateNavUI();
-      updateInboxTagUI();
-      renderMailList();
-    };
+    d.className = 'account-chip';
+    d.innerHTML = `<div class="account-avatar">${s[0].toUpperCase()}</div><span>@${s}</span>`;
+    d.onclick = () => filterByInbox(s);
     el.appendChild(d);
   });
 }
-function updateInboxTagUI(){
-  document.querySelectorAll('.inbox-tag').forEach(el => {
-    const sender = el.dataset.sender || null;
-    el.classList.toggle('active', sender === currentInboxFilter);
-  });
-}
-function renderSettingsInboxes(){
-  const el = document.getElementById('s-inboxes-list');
-  el.innerHTML = '';
-  if(!allowedSenders.length){ el.innerHTML='<div class="sr-sub">No inboxes assigned.</div>'; return; }
-  allowedSenders.forEach(s => {
-    const row = document.createElement('div');
-    row.className = 'settings-row';
-    row.innerHTML = `<div class="sr-info"><div class="sr-label" style="font-family:var(--mono);">@${s}</div><div class="sr-sub">${s}@htmltools.me</div></div>`;
-    el.appendChild(row);
-  });
-}
 
-/* ─── LOAD ALL EMAILS ─── */
-// We load BOTH inbox (from Resend inbound) and sent (from Firebase + Resend sent)
-async function loadAllEmails(){
-  setRefreshSpinning(true);
-  try {
-    // Load inbound (all @htmltools.me addresses) via worker
-    const inboundData = await workerPost({ type: 'get_inbox' });
-    const inbound = (inboundData.emails || []).map(e => ({
-      ...e, _type:'inbound',
-      _read: readIds.has(e.id),
-    }));
-
-    // Load sent from Firebase (locally stored sent emails)
-    let sentFromFB = [];
-    try {
-      const snap = await get(ref(db,'emails/sent'));
-      if(snap.exists()) snap.forEach(c => sentFromFB.push({...c.val(), _key:c.key, _type:'sent', _read:true}));
-    } catch(e){}
-
-    // Optionally also load sent from Resend API
-    let sentFromResend = [];
-    try {
-      const sentData = await workerPost({ type: 'get_sent' });
-      sentFromResend = (sentData.emails || []).map(e => ({
-        ...e, _type:'sent', _read:true,
-        id: e.id || ('sent-'+Date.now()+Math.random()),
-      }));
-    } catch(e){}
-
-    // Merge: dedupe by id
-    const sentIds = new Set();
-    const allSent = [];
-    [...sentFromFB, ...sentFromResend].forEach(e => {
-      const key = e.id || e._key;
-      if(!sentIds.has(key)){ sentIds.add(key); allSent.push(e); }
-    });
-
-    emails = [...inbound, ...allSent].sort((a,b) => {
-      const ta = a.timestamp || new Date(a.date||0).getTime() || 0;
-      const tb = b.timestamp || new Date(b.date||0).getTime() || 0;
-      return tb - ta;
-    });
-
+// ─── EMAIL LOADING ─────────────────────────────────────────────────────────────
+async function loadEmails(){
+  // Load inbound from Firebase (stored by your Cloudflare Worker inbound handler)
+  const inboundRef = ref(db,'emails/inbound');
+  const sentRef    = ref(db,'emails/sent');
+  onValue(inboundRef, snap=>{
+    const inbound = [];
+    if(snap.exists()) snap.forEach(c=>inbound.push({...c.val(), _key:c.key, _type:'inbound'}));
+    const current = emails.filter(e=>e._type==='sent');
+    emails = [...inbound, ...current].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
     renderMailList();
-    updateUnreadBadge();
-  } catch(e){
-    document.getElementById('mail-list').innerHTML = `<div class="empty-pane"><i class="fas fa-exclamation-triangle"></i><p>${e.message}</p></div>`;
-  }
-  setRefreshSpinning(false);
-}
-
-// Also listen to Firebase sent in real-time
-onAuthStateChanged(auth, user => {
-  if(!user) return;
-  onValue(ref(db,'emails/sent'), snap => {
+    updateBadge();
+  });
+  onValue(sentRef, snap=>{
     const sent = [];
-    if(snap.exists()) snap.forEach(c => sent.push({...c.val(), _key:c.key, _type:'sent', _read:true}));
-    // merge back in
-    const inbound = emails.filter(e => e._type === 'inbound');
-    const sentFromResend = emails.filter(e => e._type === 'sent' && !e._key);
-    const sentIds = new Set();
-    const allSent = [];
-    [...sent, ...sentFromResend].forEach(e => {
-      const key = e.id || e._key;
-      if(!sentIds.has(key)){ sentIds.add(key); allSent.push(e); }
-    });
-    emails = [...inbound, ...allSent].sort((a,b) => {
-      const ta = a.timestamp || new Date(a.date||0).getTime() || 0;
-      const tb = b.timestamp || new Date(b.date||0).getTime() || 0;
-      return tb - ta;
-    });
+    if(snap.exists()) snap.forEach(c=>sent.push({...c.val(), _key:c.key, _type:'sent'}));
+    const current = emails.filter(e=>e._type==='inbound');
+    emails = [...current, ...sent].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
     renderMailList();
-    updateUnreadBadge();
   });
-});
-
-function setRefreshSpinning(on){
-  document.getElementById('refresh-btn').classList.toggle('spinning', on);
 }
-window.loadCurrentFolder = function(){
-  setRefreshSpinning(true);
-  loadAllEmails();
-};
+function startInboxPoll(){ /* onValue handles real-time */ }
+async function refreshInbox(){ toast('Inbox refreshed','info'); }
 
-/* ─── FILTER & RENDER ─── */
-function getFiltered(){
-  const q = (document.getElementById('search-input').value||'').toLowerCase();
-  let list = emails.filter(e => {
-    if(e._deleted) return currentFolder === 'trash';
-    if(currentFolder === 'trash') return false;
-    if(currentFolder === 'inbox') {
-      if(e._type !== 'inbound') return false;
-      // inbox filter
-      if(currentInboxFilter){
-        const toAddr = Array.isArray(e.to) ? e.to.join(' ') : (e.to||'');
-        return toAddr.includes(currentInboxFilter+'@htmltools.me');
-      }
-      return true;
-    }
-    if(currentFolder === 'sent')    return e._type === 'sent';
-    if(currentFolder === 'starred') return !!e._starred;
+window.refreshInbox = refreshInbox;
+
+// ─── EMAIL FILTERING ──────────────────────────────────────────────────────────
+function getFilteredEmails(){
+  const q = document.getElementById('search-input').value.toLowerCase();
+  let list = emails.filter(e=>{
+    if(e._deleted) return currentFolder==='trash';
+    if(currentFolder==='trash') return false;
+    if(currentFolder==='inbox') return e._type==='inbound';
+    if(currentFolder==='sent')  return e._type==='sent';
+    if(currentFolder==='starred') return e._starred;
     return true;
   });
-  if(q) list = list.filter(e =>
-    (e.subject||'').toLowerCase().includes(q) ||
-    (e.from||'').toLowerCase().includes(q) ||
-    (e.to||'').toLowerCase().includes(q) ||
-    (e.textBody||e.text||e.html||'').toLowerCase().includes(q)
+  if(q) list = list.filter(e=>
+    (e.subject||'').toLowerCase().includes(q)||
+    (e.from||'').toLowerCase().includes(q)||
+    (e.to||'').toLowerCase().includes(q)||
+    (e.textBody||e.html||'').toLowerCase().includes(q)
   );
   return list;
 }
 
 window.filterEmails = function(){ renderMailList(); };
+window.filterByInbox = function(sender){
+  currentFolder = 'inbox';
+  const q = `@${sender}`;
+  // filter to show only emails for that inbox
+  showView('list','inbox');
+  // temporarily override search
+  document.getElementById('search-input').value = q;
+  renderMailList();
+};
 
+// ─── RENDER MAIL LIST ─────────────────────────────────────────────────────────
 function renderMailList(){
-  const list = getFiltered();
+  const list = getFilteredEmails();
   const el   = document.getElementById('mail-list');
-  const titles = {inbox:'All Inbox', sent:'Sent', starred:'Starred', trash:'Trash'};
-  let title = titles[currentFolder] || currentFolder;
-  if(currentFolder==='inbox' && currentInboxFilter) title = `@${currentInboxFilter}`;
-  document.getElementById('list-title').textContent = title;
-  document.getElementById('list-count').textContent = list.length ? `${list.length}` : '';
+  const titles = {inbox:'Inbox',sent:'Sent',starred:'Starred',trash:'Trash'};
+  document.getElementById('list-title').textContent = titles[currentFolder]||currentFolder;
+  document.getElementById('list-count').textContent = list.length ? `(${list.length})` : '';
   el.innerHTML = '';
-
   if(!list.length){
-    el.innerHTML = `<div class="empty-pane"><i class="fas fa-inbox"></i><p>Nothing here.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p>Nothing here.</p></div>`;
     return;
   }
+  list.forEach(email=>{
+    const isSent   = email._type==='sent';
+    const isUnread = !email._read && !isSent;
+    const sender   = isSent ? `To: ${email.to}` : (email.from||'Unknown');
+    const initials = (sender.replace('To: ','')).replace(/[^a-zA-Z]/g,'').substring(0,2).toUpperCase()||'?';
+    const dt       = email.timestamp ? fmtDate(email.timestamp) : '—';
+    const preview  = stripHtml(email.html||email.textBody||'(no content)').substring(0,100);
+    const inbox    = email.to ? email.to.split('@')[0] : '';
 
-  list.forEach(email => {
-    const isSent   = email._type === 'sent';
-    const isUnread = !isSent && !email._read;
-    const senderRaw= isSent ? (email.to||'') : (email.from||'Unknown');
-    const senderDisplay = extractName(senderRaw);
-    const initials = (senderDisplay.replace(/[^a-zA-Z]/g,'').substring(0,2)||'?').toUpperCase();
-    const toAddr   = Array.isArray(email.to) ? email.to.join(', ') : (email.to||'');
-    const inbox    = toAddr.match(/([\w.-]+)@htmltools\.me/)?.[1] || '';
-    const ts       = email.timestamp || new Date(email.date||email.created_at||0).getTime();
-    const dt       = ts ? fmtDate(ts) : '—';
-    const preview  = stripHtml(email.html||email.text||email.textBody||'').substring(0,100);
-    const color    = avatarColor(senderRaw);
-
-    const row = document.createElement('div');
-    row.className = `mail-row ${isUnread ? 'unread' : 'read'}${currentEmail && (currentEmail.id===email.id||currentEmail._key===email._key) ? ' active' : ''}`;
-
-    let tagsHtml = '';
-    if(!isSent && inbox) tagsHtml += `<span class="mr-tag inbox">@${inbox}</span>`;
-    if(isSent) tagsHtml += `<span class="mr-tag sent-tag">Sent</span>`;
-    if(email._starred) tagsHtml += `<span class="mr-tag" style="color:var(--yellow);border-color:rgba(245,158,11,.3);">★</span>`;
-
-    row.innerHTML = `
-      ${isUnread ? '<div class="unread-dot"></div>' : ''}
-      <div class="mr-avatar" style="background:${color};color:var(--text3);">${initials}</div>
-      <div class="mr-content">
-        <div class="mr-top">
-          <span class="mr-sender">${escHtml(isSent ? 'To: '+senderDisplay : senderDisplay)}</span>
-          <span class="mr-time">${dt}</span>
+    const item = document.createElement('div');
+    item.className = `mail-item${isUnread?' unread':''}`;
+    item.dataset.key = email._key;
+    item.innerHTML = `
+      <div class="mi-avatar">${initials}</div>
+      <div class="mi-body">
+        <div class="mi-top">
+          <span class="mi-sender">${escHtml(sender)}</span>
+          ${!isSent && inbox ? `<span class="mi-tag">@${inbox}</span>` : ''}
+          ${isSent ? `<span class="mi-tag sent"><i class="fas fa-paper-plane" style="font-size:.55rem"></i> Sent</span>` : ''}
+          ${email._starred ? '<i class="fas fa-star" style="color:var(--yellow);font-size:.7rem;"></i>' : ''}
+          <span class="mi-time">${dt}</span>
         </div>
-        <div class="mr-subject">${escHtml(email.subject||'(no subject)')}</div>
-        <div class="mr-preview">${escHtml(preview)}</div>
-        ${tagsHtml ? `<div class="mr-tags">${tagsHtml}</div>` : ''}
+        <div class="mi-subject">${escHtml(email.subject||'(no subject)')}</div>
+        <div class="mi-preview">${escHtml(preview)}</div>
       </div>
+      ${isUnread ? '<div class="unread-dot"></div>' : ''}
     `;
-    row.addEventListener('click', () => openEmail(email));
-    el.appendChild(row);
+    item.addEventListener('click', ()=>openEmail(email));
+    el.appendChild(item);
   });
 }
 
-function updateUnreadBadge(){
-  const n = emails.filter(e => e._type==='inbound' && !e._read && !e._deleted).length;
-  const b = document.getElementById('badge-unread');
-  b.textContent = n;
-  b.style.display = n > 0 ? 'block' : 'none';
+function updateBadge(){
+  const unread = emails.filter(e=>e._type==='inbound'&&!e._read&&!e._deleted).length;
+  const badge  = document.getElementById('badge-inbox');
+  if(unread){ badge.textContent=unread; badge.style.display='block'; }
+  else { badge.style.display='none'; }
 }
 
-/* ─── OPEN EMAIL ─── */
+// ─── OPEN EMAIL ───────────────────────────────────────────────────────────────
 async function openEmail(email){
   currentEmail = email;
+  document.getElementById('detail-subject').textContent = email.subject||'(no subject)';
+  document.getElementById('d-from').textContent = email.from||'—';
+  document.getElementById('d-to').textContent   = Array.isArray(email.to) ? email.to.join(', ') : (email.to||'—');
+  document.getElementById('d-date').textContent  = email.timestamp ? new Date(email.timestamp).toLocaleString() : '—';
+  // inbox indicator
+  const toAddr = Array.isArray(email.to) ? email.to[0] : (email.to||'');
+  if(email._type==='inbound' && toAddr.includes('@htmltools.me')){
+    document.getElementById('d-inbox').textContent = toAddr;
+    document.getElementById('d-inbox-row').style.display = 'flex';
+  } else { document.getElementById('d-inbox-row').style.display='none'; }
 
-  // mark read
-  if(!email._read && email._type==='inbound'){
-    email._read = true;
-    readIds.add(email.id);
-    localStorage.setItem('ht_readIds', JSON.stringify([...readIds]));
-    updateUnreadBadge();
-    renderMailList();
-  }
-
-  const senderRaw = email._type==='sent' ? (email.to||'') : (email.from||'Unknown');
-  const senderName = extractName(senderRaw);
-  const initials = (senderName.replace(/[^a-zA-Z]/g,'').substring(0,2)||'?').toUpperCase();
-  const color = avatarColor(senderRaw);
-  const ts = email.timestamp || new Date(email.date||email.created_at||0).getTime();
-  const toAddr = Array.isArray(email.to) ? email.to.join(', ') : (email.to||'—');
-  const inbox = toAddr.match(/([\w.-]+)@htmltools\.me/)?.[1] || '';
-
-  document.getElementById('d-subject').textContent    = email.subject || '(no subject)';
-  document.getElementById('ec-avatar').textContent    = initials;
-  document.getElementById('ec-avatar').style.background = color;
-  document.getElementById('ec-sender').textContent    = senderName;
-  document.getElementById('ec-from').textContent      = email.from || '—';
-  document.getElementById('ec-to').textContent        = toAddr;
-  document.getElementById('ec-time').textContent      = ts ? new Date(ts).toLocaleString() : '—';
-  document.getElementById('reply-to-display').textContent = email.from || '—';
-  document.getElementById('reply-textarea').value     = '';
-  replyAttachments = [];
-  document.getElementById('reply-status').textContent = '';
-  document.getElementById('reply-status').className   = 'reply-status';
-
-  // inbox badge
-  if(inbox && email._type==='inbound'){
-    const badge = document.getElementById('ec-inbox-badge');
-    badge.textContent = inbox+'@htmltools.me';
-    badge.style.display = 'block';
-  } else document.getElementById('ec-inbox-badge').style.display = 'none';
-
-  // star
-  document.getElementById('btn-star').classList.toggle('starred', !!email._starred);
-
-  // body — try to load full email if no html
-  let html = email.html || '';
-  let textBody = email.textBody || email.text || '';
-
-  if(!html && !textBody && email.id){
-    try {
-      const data = await workerPost({ type:'get_email', id: email.id });
-      if(data.success && data.email){
-        html     = data.email.html || '';
-        textBody = data.email.text || data.email.textBody || '';
-      }
-    } catch(e){}
-  }
-
-  const bodyEl = document.getElementById('ec-body-content');
-  if(html){
+  // body
+  const bodyEl = document.getElementById('detail-body-content');
+  if(email.html){
     const iframe = document.createElement('iframe');
-    iframe.sandbox = 'allow-same-origin allow-popups allow-popups-to-escape-sandbox';
-    iframe.style.cssText = 'width:100%;border:none;border-radius:6px;background:#fff;min-height:200px;display:block;';
+    iframe.sandbox = 'allow-same-origin allow-popups';
+    iframe.style.cssText = 'width:100%;border:none;border-radius:8px;background:#fff;min-height:300px;';
     bodyEl.innerHTML = '';
     bodyEl.appendChild(iframe);
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    doc.open(); doc.write(`<base target="_blank">${html}`); doc.close();
-    setTimeout(() => {
-      try { iframe.style.height = (iframe.contentDocument.body.scrollHeight + 40) + 'px'; } catch(e){}
-    }, 300);
+    const doc = iframe.contentDocument||iframe.contentWindow.document;
+    doc.open(); doc.write(email.html); doc.close();
+    // auto resize
+    setTimeout(()=>{ iframe.style.height = (iframe.contentDocument.body.scrollHeight+40)+'px'; },300);
   } else {
-    const linked = escHtml(textBody||'(empty)').replace(/(https?:\/\/[^\s<>"&]+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#888;text-decoration:underline;">$1</a>');
-    bodyEl.innerHTML = `<div class="body-plain">${linked}</div>`;
+    bodyEl.innerHTML = `<div class="detail-body-plain">${escHtml(email.textBody||'(empty)')}</div>`;
   }
 
   // attachments
-  const attEl = document.getElementById('ec-attachments');
+  const attEl = document.getElementById('detail-attachments');
   if(email.attachments && email.attachments.length){
-    attEl.style.display = 'flex'; attEl.innerHTML = '';
-    email.attachments.forEach(att => {
+    attEl.style.display = 'flex';
+    attEl.innerHTML = '';
+    email.attachments.forEach(att=>{
       const chip = document.createElement('div');
-      chip.className = 'attach-chip';
-      chip.innerHTML = `<i class="fas fa-file-alt"></i>${escHtml(att.filename||'attachment')}`;
+      chip.className='attachment-chip';
+      const isImg = att.contentType&&att.contentType.startsWith('image/');
+      chip.innerHTML=`<i class="fas fa-${isImg?'image':'file'}"></i> ${escHtml(att.filename||'attachment')}`;
       if(att.data){
-        chip.onclick = () => {
-          const a = document.createElement('a');
-          a.href = 'data:'+att.contentType+';base64,'+att.data;
-          a.download = att.filename||'attachment'; a.click();
+        chip.onclick=()=>{
+          const a=document.createElement('a');
+          a.href='data:'+att.contentType+';base64,'+att.data;
+          a.download=att.filename||'attachment';
+          a.click();
         };
       }
       attEl.appendChild(chip);
     });
-  } else attEl.style.display = 'none';
+  } else { attEl.style.display='none'; }
 
-  showDetailView('email');
+  // reply box
+  document.getElementById('reply-to-addr').textContent = email.from||'—';
+  document.getElementById('reply-body').value = '';
+  replyAttachments = [];
+
+  // star button
+  document.getElementById('btn-star-detail').style.color = email._starred ? 'var(--yellow)' : '';
+
+  // mark read
+  if(!email._read && email._type==='inbound'){
+    email._read = true;
+    await update(ref(db,`emails/inbound/${email._key}`),{_read:true});
+    updateBadge();
+  }
+
+  showView('detail');
 }
 
-window.closeDetail = function(){
-  showDetailView('empty');
-  currentEmail = null;
-};
-window.starCurrent = async function(){
+window.backToList     = ()=>showView('list', currentFolder);
+window.focusReply     = ()=>document.getElementById('reply-body').focus();
+window.starCurrent    = async ()=>{
   if(!currentEmail) return;
-  currentEmail._starred = !currentEmail._starred;
-  document.getElementById('btn-star').classList.toggle('starred', !!currentEmail._starred);
-  if(currentEmail._key){
-    await update(ref(db, `emails/${currentEmail._type}/${currentEmail._key}`), {_starred: currentEmail._starred});
-  }
+  const starred = !currentEmail._starred;
+  currentEmail._starred = starred;
+  const path = `emails/${currentEmail._type}/${currentEmail._key}`;
+  await update(ref(db,path),{_starred:starred});
+  document.getElementById('btn-star-detail').style.color = starred ? 'var(--yellow)' : '';
   renderMailList();
-  toast(currentEmail._starred ? 'Starred' : 'Unstarred', 'info');
+  toast(starred?'Starred!':'Unstarred','info');
 };
-window.trashCurrent = async function(){
-  if(!currentEmail || !confirm('Move to trash?')) return;
-  currentEmail._deleted = true;
-  if(currentEmail._key)
-    await update(ref(db, `emails/${currentEmail._type}/${currentEmail._key}`), {_deleted:true});
-  emails = emails.filter(e => !(e.id===currentEmail.id && e._type===currentEmail._type));
-  toast('Moved to trash', 'info');
-  showDetailView('empty');
-  renderMailList();
+window.trashCurrent   = async ()=>{
+  if(!currentEmail||!confirm('Move to trash?')) return;
+  const path = `emails/${currentEmail._type}/${currentEmail._key}`;
+  await update(ref(db,path),{_deleted:true});
+  emails = emails.filter(e=>e._key!==currentEmail._key||e._type!==currentEmail._type);
+  toast('Moved to trash','info');
+  showView('list', currentFolder);
 };
-window.forwardCurrent = function(){
+window.forwardCurrent = ()=>{
   if(!currentEmail) return;
   showCompose();
-  setTimeout(() => {
-    document.getElementById('c-subject').value = 'Fwd: ' + (currentEmail.subject||'');
-    document.getElementById('c-body').value =
-      '\n\n--- Forwarded ---\nFrom: '+(currentEmail.from||'')+'\n\n'+(currentEmail.textBody||currentEmail.text||stripHtml(currentEmail.html||''));
-  }, 60);
+  setTimeout(()=>{
+    document.getElementById('c-subject').value = 'Fwd: '+(currentEmail.subject||'');
+    const body = '\n\n--- Forwarded Message ---\nFrom: '+(currentEmail.from||'')+'\nTo: '+(currentEmail.to||'')+'\nSubject: '+(currentEmail.subject||'')+'\n\n'+(currentEmail.textBody||stripHtml(currentEmail.html||''));
+    document.getElementById('c-body').value = body;
+  },100);
 };
 
-/* ─── VIEW MANAGEMENT ─── */
-function showDetailView(which){
-  ['detail-empty','view-email','view-compose','view-settings'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.style.display = 'none';
+// ─── REPLY ────────────────────────────────────────────────────────────────────
+window.handleReplyAttach = function(e){
+  Array.from(e.target.files).forEach(file=>{
+    const r=new FileReader();
+    r.onload=ev=>{ replyAttachments.push({filename:file.name,contentType:file.type,data:ev.target.result.split(',')[1]}); };
+    r.readAsDataURL(file);
   });
-  if(which === 'empty')    { document.getElementById('detail-empty').style.display = 'flex'; }
-  if(which === 'email')    { document.getElementById('view-email').style.display = 'flex'; }
-  if(which === 'compose')  { document.getElementById('view-compose').style.display = 'flex'; }
-  if(which === 'settings') { document.getElementById('view-settings').style.display = 'flex'; }
-}
+  e.target.value='';
+};
+window.sendReply = async function(){
+  if(!currentEmail) return;
+  const body  = document.getElementById('reply-body').value.trim();
+  if(!body){ toast('Write something first','err'); return; }
+  const from  = allowedSenders.length ? allowedSenders[0]+'@htmltools.me' : '';
+  const to    = currentEmail.from;
+  const subj  = 'Re: '+(currentEmail.subject||'');
+  const html  = `<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222;max-width:600px;">${body.replace(/\n/g,'<br>')}</div>`;
+  const btn   = document.getElementById('reply-send-btn');
+  btn.disabled=true;
+  const res = await sendToWorker({type:'send_email',from,to,subject:subj,html,attachments:replyAttachments});
+  btn.disabled=false;
+  if(res.success){ document.getElementById('reply-body').value=''; replyAttachments=[]; toast('Reply sent!','ok'); }
+  else toast('Send failed: '+(res.error||'error'),'err');
+};
 
-function switchFolder(folder){
-  currentFolder = folder;
-  currentInboxFilter = null;
-  updateNavUI();
-  updateInboxTagUI();
-  renderMailList();
-  showDetailView('empty');
-}
-window.switchFolder = switchFolder;
-
-function updateNavUI(){
-  ['inbox','sent','starred','trash','settings'].forEach(n => {
-    const el = document.getElementById('nav-'+n);
-    if(el) el.classList.remove('active');
-  });
-  const el = document.getElementById('nav-'+currentFolder);
-  if(el) el.classList.add('active');
-}
-
-function showSettings(){
-  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-  document.getElementById('nav-settings').classList.add('active');
-  document.getElementById('s-signed-in-as').textContent = currentUser?.email || '';
-  document.getElementById('s-worker-url').value = workerUrl;
-  if(isSuperAdmin){ document.getElementById('s-access-card').style.display='block'; document.getElementById('s-worker-card').style.display='block'; }
-  renderSettingsInboxes();
-  showDetailView('settings');
-}
-window.showSettings = showSettings;
-
-/* ─── COMPOSE ─── */
+// ─── COMPOSE ──────────────────────────────────────────────────────────────────
 window.showCompose = function(){
-  composeAttachments = []; previewOpen = false;
-  ['c-to','c-subject','c-body'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('c-attach-chips').innerHTML = '';
-  document.getElementById('c-attach-chips').style.display = 'none';
-  document.getElementById('c-status').textContent = '';
-  document.getElementById('c-status').className = 'c-status';
-  document.getElementById('c-preview-section').classList.remove('show');
-  document.getElementById('c-preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview';
+  composeAttachments=[];
+  previewOpen=false;
+  document.getElementById('c-to').value='';
+  document.getElementById('c-subject').value='';
+  document.getElementById('c-body').value='';
+  document.getElementById('c-attach-chips').innerHTML='';
+  document.getElementById('c-status').className='send-status';
+  document.getElementById('c-preview-wrap').classList.remove('show');
+  document.getElementById('c-preview-btn').innerHTML='<i class="fas fa-eye"></i> Preview';
   setComposeType('normal');
-  switchFolder_noReset();
-  showDetailView('compose');
+  showView('compose');
 };
-function switchFolder_noReset(){
-  // keep list as-is, just show compose
-}
-
 window.setComposeType = function(type){
-  composeType = type;
-  document.getElementById('ctype-normal').classList.toggle('active', type==='normal');
-  document.getElementById('ctype-html').classList.toggle('active', type==='html');
-  document.getElementById('c-toolbar').style.display = type==='normal' ? 'flex' : 'none';
-  document.getElementById('c-preview-btn').style.display = type==='html' ? 'block' : 'none';
+  composeType=type;
+  document.getElementById('ctype-normal').classList.toggle('active',type==='normal');
+  document.getElementById('ctype-html').classList.toggle('active',type==='html');
+  document.getElementById('c-toolbar').style.display = type==='normal'?'flex':'none';
+  document.getElementById('c-preview-btn').style.display = type==='html'?'block':'none';
   document.getElementById('c-body').placeholder = type==='html'
-    ? '<h1>Hello!</h1>\n<p>Content…</p>'
-    : 'Write your message… URLs become clickable.';
-  if(type==='normal'){ document.getElementById('c-preview-section').classList.remove('show'); previewOpen=false; }
+    ? '<h1>Hello!</h1>\n<p>Your content…</p>'
+    : 'Write your message… URLs auto-link.';
+  if(type==='normal'){ document.getElementById('c-preview-wrap').classList.remove('show'); previewOpen=false; }
 };
 
-window.insertLink = function(){
-  const url=prompt('URL:'); if(!url) return;
-  const text=prompt('Link text:')||url;
-  insertAt('c-body',`[${text}](${url})`);
+window.insertLinkCompose = function(){
+  const url  = prompt('URL:'); if(!url) return;
+  const text = prompt('Link text:')||url;
+  insertAtCursor('c-body', `[${text}](${url})`);
 };
-window.insertBold   = () => insertAt('c-body','**text**');
-window.insertItalic = () => insertAt('c-body','*text*');
-function insertAt(id,text){
-  const ta=document.getElementById(id), s=ta.selectionStart;
-  ta.value=ta.value.slice(0,s)+text+ta.value.slice(ta.selectionEnd);
-  ta.selectionStart=ta.selectionEnd=s+text.length; ta.focus();
+window.insertBoldCompose   = ()=>insertAtCursor('c-body','**text**');
+window.insertItalicCompose = ()=>insertAtCursor('c-body','*text*');
+function insertAtCursor(id, text){
+  const ta=document.getElementById(id);
+  const s=ta.selectionStart, e=ta.selectionEnd;
+  ta.value=ta.value.slice(0,s)+text+ta.value.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+text.length;
+  ta.focus();
 }
 
 window.handleComposeAttach = function(e, kind){
-  Array.from(e.target.files).forEach(file => {
-    const r = new FileReader();
-    r.onload = ev => {
-      composeAttachments.push({filename:file.name,contentType:file.type,data:ev.target.result.split(',')[1],dataUrl:ev.target.result,kind});
+  Array.from(e.target.files).forEach(file=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      const data=ev.target.result;
+      composeAttachments.push({filename:file.name,contentType:file.type,data:data.split(',')[1],dataUrl:data,kind});
       renderComposeChips();
     };
     r.readAsDataURL(file);
   });
-  e.target.value = '';
+  e.target.value='';
 };
 function renderComposeChips(){
-  const el = document.getElementById('c-attach-chips');
-  el.style.display = composeAttachments.length ? 'flex' : 'none';
-  el.innerHTML = '';
-  composeAttachments.forEach((att,i) => {
-    const d = document.createElement('div'); d.className = 'att-chip';
-    const isImg = att.contentType && att.contentType.startsWith('image/');
-    d.innerHTML = `${isImg?`<img src="${att.dataUrl}">`:'<i class="fas fa-file"></i>'}<span>${escHtml(att.filename)}</span><span class="att-chip-rm" data-i="${i}">✕</span>`;
+  const el=document.getElementById('c-attach-chips');
+  el.innerHTML='';
+  composeAttachments.forEach((att,i)=>{
+    const d=document.createElement('div');
+    d.className='att-chip';
+    const isImg=att.contentType&&att.contentType.startsWith('image/');
+    d.innerHTML=`${isImg?`<img src="${att.dataUrl}">`:'<i class="fas fa-file" style="color:var(--accent)"></i>'}<span>${escHtml(att.filename)}</span><span class="att-chip-rm" data-i="${i}">✕</span>`;
     el.appendChild(d);
   });
-  el.querySelectorAll('.att-chip-rm').forEach(b => b.addEventListener('click', () => {
+  el.querySelectorAll('.att-chip-rm').forEach(b=>b.addEventListener('click',()=>{
     composeAttachments.splice(parseInt(b.dataset.i),1); renderComposeChips();
   }));
 }
 
 window.togglePreview = function(){
-  previewOpen = !previewOpen;
-  const sec = document.getElementById('c-preview-section');
-  const frame = document.getElementById('c-preview-frame');
+  previewOpen=!previewOpen;
+  const wrap=document.getElementById('c-preview-wrap');
+  const frame=document.getElementById('c-preview-frame');
   if(previewOpen){
-    sec.classList.add('show');
-    const doc = frame.contentDocument || frame.contentWindow.document;
+    wrap.classList.add('show');
+    const doc=frame.contentDocument||frame.contentWindow.document;
     doc.open(); doc.write(buildEmailHtml()); doc.close();
-    document.getElementById('c-preview-btn').innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
+    document.getElementById('c-preview-btn').innerHTML='<i class="fas fa-eye-slash"></i> Hide';
   } else {
-    sec.classList.remove('show');
-    document.getElementById('c-preview-btn').innerHTML = '<i class="fas fa-eye"></i> Preview';
+    wrap.classList.remove('show');
+    document.getElementById('c-preview-btn').innerHTML='<i class="fas fa-eye"></i> Preview';
   }
 };
 
 function buildEmailHtml(){
   if(composeType==='html') return document.getElementById('c-body').value;
-  let text = document.getElementById('c-body').value;
-  text = text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-  text = text.replace(/\*(.+?)\*/g,'<em>$1</em>');
-  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:#4a9eff;">$1</a>');
-  text = text.replace(/(^|[^"'=])(https?:\/\/[^\s<>"]+)/g,'$1<a href="$2" target="_blank" rel="noopener" style="color:#4a9eff;">$2</a>');
-  text = text.replace(/\n/g,'<br>');
-  let html = `<div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;line-height:1.75;color:#1a1a1a;max-width:600px;">${text}`;
-  composeAttachments.filter(a=>a.contentType&&a.contentType.startsWith('image/')).forEach(a => {
-    html += `<br><img src="${a.dataUrl}" style="max-width:100%;border-radius:8px;margin-top:12px;display:block;">`;
+  let text=document.getElementById('c-body').value;
+  text=text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  text=text.replace(/\*(.+?)\*/g,'<em>$1</em>');
+  text=text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,'<a href="$2" style="color:#4da6ff;">$1</a>');
+  text=text.replace(/(^|[^"'=])(https?:\/\/[^\s<>"]+)/g,'$1<a href="$2" style="color:#4da6ff;">$2</a>');
+  text=text.replace(/\n/g,'<br>');
+  let html=`<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#222;max-width:600px;">${text}`;
+  composeAttachments.filter(a=>a.contentType&&a.contentType.startsWith('image/')).forEach(a=>{
+    html+=`<br><img src="${a.dataUrl}" style="max-width:100%;border-radius:8px;margin-top:12px;display:block;">`;
   });
-  return html + '</div>';
+  return html+'</div>';
 }
 
 window.sendEmail = async function(){
@@ -1674,159 +946,153 @@ window.sendEmail = async function(){
   const toRaw   = document.getElementById('c-to').value.trim();
   const subject = document.getElementById('c-subject').value.trim();
   const body    = document.getElementById('c-body').value.trim();
-  const setStatus = (msg,type) => { const el=document.getElementById('c-status'); el.textContent=msg; el.className='c-status '+type; };
+  const status  = document.getElementById('c-status');
 
-  if(!from)    { setStatus('Select a sender.','err'); return; }
-  if(!toRaw)   { setStatus('Enter a recipient.','err'); return; }
-  if(!subject) { setStatus('Enter a subject.','err'); return; }
-  if(!body)    { setStatus('Write a message.','err'); return; }
+  if(!from)   { showComposeStatus('Select a sender.','err'); return; }
+  if(!toRaw)  { showComposeStatus('Enter a recipient.','err'); return; }
+  if(!subject){ showComposeStatus('Enter a subject.','err'); return; }
+  if(!body)   { showComposeStatus('Write a message.','err'); return; }
 
   const toList = toRaw.split(',').map(s=>s.trim()).filter(Boolean);
   const btn    = document.getElementById('c-send-btn');
-  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+  btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Sending…';
 
-  const attachments = composeAttachments.filter(a=>!(a.contentType&&a.contentType.startsWith('image/'))).map(a=>({filename:a.filename,contentType:a.contentType,data:a.data}));
+  // non-image attachments as base64
+  const attachments = composeAttachments.filter(a=>!(a.contentType&&a.contentType.startsWith('image/'))).map(a=>({
+    filename:a.filename, contentType:a.contentType, data:a.data
+  }));
 
-  const res = await workerPost({ type:'send_email', from, to:toList.join(','), subject, html:buildEmailHtml(), attachments });
-  btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+  const res = await sendToWorker({
+    type:'send_email', from, to:toList.join(','), subject,
+    html:buildEmailHtml(), attachments
+  });
 
+  btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Send';
   if(res.success){
-    setStatus('✓ Sent!','ok');
-    // Save to Firebase sent
-    await push(ref(db,'emails/sent'), {
+    showComposeStatus('✅ Sent!','ok');
+    // Save to sent in Firebase
+    await push(ref(db,'emails/sent'),{
       from, to:toList.join(', '), subject,
       html:buildEmailHtml(), textBody:body,
       timestamp:Date.now(), _read:true, _starred:false, _deleted:false, _type:'sent'
     });
-    setTimeout(() => { switchFolder('sent'); }, 1200);
+    setTimeout(()=>{ showView('list','sent'); },1200);
   } else {
-    setStatus('✗ '+(res.error||'Failed'),'err');
+    showComposeStatus('❌ '+(res.error||'Failed'),'err');
   }
 };
+function showComposeStatus(msg,type){ const el=document.getElementById('c-status'); el.textContent=msg; el.className='send-status '+type; }
 
-/* ─── REPLY ─── */
-window.handleReplyAttach = function(e){
-  Array.from(e.target.files).forEach(file => {
-    const r = new FileReader();
-    r.onload = ev => replyAttachments.push({filename:file.name,contentType:file.type,data:ev.target.result.split(',')[1]});
-    r.readAsDataURL(file);
-  });
-  e.target.value = '';
-};
-window.sendReply = async function(){
-  if(!currentEmail) return;
-  const body    = document.getElementById('reply-textarea').value.trim();
-  const status  = document.getElementById('reply-status');
-  if(!body){ toast('Write something first','err'); return; }
-  const fromSel = document.getElementById('reply-from').value;
-  const from    = (fromSel && fromSel !== 'custom') ? fromSel : (allowedSenders[0]+'@htmltools.me');
-  const to      = currentEmail.from;
-  const subj    = 'Re: '+(currentEmail.subject||'');
-  const html    = `<div style="font-family:-apple-system,sans-serif;font-size:14px;line-height:1.75;color:#1a1a1a;">${body.replace(/\n/g,'<br>')}</div>`;
-  const btn     = document.getElementById('reply-send-btn');
-  btn.disabled  = true; status.className = 'reply-status';
-  const res     = await workerPost({ type:'send_email', from, to, subject:subj, html, attachments:replyAttachments });
-  btn.disabled  = false;
-  if(res.success){
-    document.getElementById('reply-textarea').value = '';
-    replyAttachments = [];
-    toast('Reply sent!','ok');
-  } else {
-    status.textContent = 'Failed: '+(res.error||'error');
-    status.className = 'reply-status err';
-  }
-};
+// ─── WORKER ───────────────────────────────────────────────────────────────────
+async function sendToWorker(payload){
+  try{
+    const r=await fetch(workerUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    return await r.json();
+  }catch(e){ return {success:false,error:e.message}; }
+}
 
-/* ─── ACCESS MANAGER ─── */
+// ─── ACCESS MANAGER ───────────────────────────────────────────────────────────
 function listenAccessList(){
-  onValue(ref(db,'mailAccess'), snap => {
-    const data  = snap.val() || {};
-    const el    = document.getElementById('s-access-list');
-    const entries = Object.entries(data);
-    if(!entries.length){ el.innerHTML='<div style="padding:.75rem 1rem;font-size:.75rem;color:var(--text3);">No users yet.</div>'; return; }
-    el.innerHTML = '';
-    entries.forEach(([key,val]) => {
-      const card = document.createElement('div'); card.className = 'access-card';
-      const init = (val.email||'?')[0].toUpperCase();
-      card.innerHTML = `
-        <div class="access-av">${init}</div>
-        <div class="access-info">
-          <div class="access-email-t">${escHtml(val.email)}</div>
-          <div class="access-senders-t">${(val.senders||[]).map(s=>s+'@htmltools.me').join(', ')}</div>
-        </div>
-        <div class="access-acts">
-          <button class="access-act edit" data-k="${key}" data-e="${val.email}" data-s="${(val.senders||[]).join(',')}">Edit</button>
-          <button class="access-act revoke" data-k="${key}" data-e="${val.email}">Revoke</button>
+  onValue(ref(db,'mailAccess'), snap=>{
+    const data=snap.val()||{};
+    const el=document.getElementById('s-access-list');
+    const entries=Object.entries(data);
+    if(!entries.length){ el.innerHTML='<div class="empty-access">No users yet.</div>'; return; }
+    el.innerHTML='';
+    entries.forEach(([key,val])=>{
+      const card=document.createElement('div');
+      card.className='access-card';
+      card.innerHTML=`
+        <div class="access-email">${escHtml(val.email)}</div>
+        <div class="access-senders">Can send from: ${(val.senders||[]).map(s=>s+'@htmltools.me').join(', ')}</div>
+        <div class="access-actions">
+          <button class="access-act edit" data-k="${key}" data-e="${val.email}" data-s="${(val.senders||[]).join(',')}"><i class="fas fa-edit"></i> Edit</button>
+          <button class="access-act revoke" data-k="${key}" data-e="${val.email}"><i class="fas fa-times"></i> Revoke</button>
         </div>`;
-      card.querySelector('.edit').addEventListener('click', b => {
-        const btn = card.querySelector('.edit');
-        document.getElementById('s-new-email').value = btn.dataset.e;
-        document.getElementById('s-new-senders').value = btn.dataset.s;
-        remove(ref(db,`mailAccess/${btn.dataset.k}`));
-      });
-      card.querySelector('.revoke').addEventListener('click', async b => {
-        const btn = card.querySelector('.revoke');
-        if(!confirm(`Revoke ${btn.dataset.e}?`)) return;
-        await remove(ref(db,`mailAccess/${btn.dataset.k}`));
-        toast('Access revoked','info');
-      });
       el.appendChild(card);
     });
+    el.querySelectorAll('.access-act.edit').forEach(b=>b.addEventListener('click',()=>{
+      document.getElementById('s-new-email').value=b.dataset.e;
+      document.getElementById('s-new-senders').value=b.dataset.s;
+      remove(ref(db,`mailAccess/${b.dataset.k}`));
+      document.getElementById('s-new-email').focus();
+      showAccessStatus('✏️ Editing — update and re-grant.','ok');
+    }));
+    el.querySelectorAll('.access-act.revoke').forEach(b=>b.addEventListener('click',async()=>{
+      if(!confirm(`Revoke ${b.dataset.e}?`)) return;
+      await remove(ref(db,`mailAccess/${b.dataset.k}`));
+      toast('Access revoked','info');
+    }));
   });
 }
 window.grantAccess = async function(){
-  const email  = document.getElementById('s-new-email').value.trim().toLowerCase();
-  const raw    = document.getElementById('s-new-senders').value.trim();
-  const setStatus = (msg,type) => { const el=document.getElementById('s-access-status'); el.textContent=msg; el.className='c-status '+type; };
-  if(!email||!raw){ setStatus('Fill both fields.','err'); return; }
-  const senders = raw.split(',').map(s=>s.trim().toLowerCase().replace('@htmltools.me','')).filter(Boolean);
-  const key     = email.replace(/\./g,'_');
+  const email=document.getElementById('s-new-email').value.trim().toLowerCase();
+  const raw=document.getElementById('s-new-senders').value.trim();
+  if(!email||!raw){ showAccessStatus('Fill in both fields.','err'); return; }
+  const senders=raw.split(',').map(s=>s.trim().toLowerCase().replace('@htmltools.me','')).filter(Boolean);
+  const key=email.replace(/\./g,'_');
   try{
-    await set(ref(db,`mailAccess/${key}`), {email,senders});
-    document.getElementById('s-new-email').value = '';
-    document.getElementById('s-new-senders').value = '';
-    setStatus('✓ Granted!','ok');
-  } catch(e){ setStatus('✗ '+e.message,'err'); }
+    await set(ref(db,`mailAccess/${key}`),{email,senders});
+    document.getElementById('s-new-email').value='';
+    document.getElementById('s-new-senders').value='';
+    showAccessStatus('✅ Access granted!','ok');
+  }catch(e){ showAccessStatus('❌ '+e.message,'err'); }
+};
+function showAccessStatus(msg,type){ const el=document.getElementById('s-access-status'); el.textContent=msg; el.className='send-status '+type; }
+
+// ─── SETTINGS INBOXES ─────────────────────────────────────────────────────────
+function renderSettingsInboxes(){
+  const el=document.getElementById('s-inboxes');
+  if(!allowedSenders.length){ el.innerHTML='<div class="settings-row-sub">No inboxes assigned.</div>'; return; }
+  el.innerHTML='';
+  allowedSenders.forEach(s=>{
+    const row=document.createElement('div');
+    row.className='settings-row';
+    row.innerHTML=`<div><div class="settings-row-label" style="font-family:'JetBrains Mono',monospace;font-size:.8rem;">@${s}</div><div class="settings-row-sub">${s}@htmltools.me</div></div>`;
+    el.appendChild(row);
+  });
+}
+
+// ─── VIEW ROUTING ─────────────────────────────────────────────────────────────
+window.showView = function(view, folder){
+  ['list','detail','compose','settings'].forEach(v=>{ document.getElementById('view-'+v).style.display='none'; });
+  document.getElementById('view-'+view).style.display='flex';
+  ['inbox','sent','starred','trash','settings'].forEach(n=>{
+    const el=document.getElementById('nav-'+n);
+    if(el) el.classList.remove('active');
+  });
+  if(view==='list' && folder){
+    currentFolder=folder;
+    const navEl=document.getElementById('nav-'+folder);
+    if(navEl) navEl.classList.add('active');
+    renderMailList();
+  }
+  if(view==='settings'){
+    document.getElementById('nav-settings').classList.add('active');
+    if(isSuperAdmin){ document.getElementById('s-access-section').style.display='block'; document.getElementById('s-webhook-section').style.display='block'; }
+    renderSettingsInboxes();
+    document.getElementById('s-worker-url').value=workerUrl;
+  }
 };
 
-/* ─── WORKER ─── */
-async function workerPost(payload){
-  try {
-    const r = await fetch(workerUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-    return await r.json();
-  } catch(e){ return {success:false, error:e.message}; }
-}
-
-/* ─── UTILS ─── */
-function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function stripHtml(h){ const d=document.createElement('div'); d.innerHTML=h; return d.textContent||d.innerText||''; }
-function extractName(addr){
-  if(!addr) return 'Unknown';
-  const m = addr.match(/^([^<]+)<[^>]+>$/);
-  if(m) return m[1].trim();
-  const m2 = addr.match(/^[^@]+/);
-  return m2 ? m2[0] : addr;
-}
 function fmtDate(ts){
-  const d = new Date(ts), now = new Date();
+  const d=new Date(ts), now=new Date();
   if(d.toDateString()===now.toDateString()) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   if(d.getFullYear()===now.getFullYear()) return d.toLocaleDateString([],{month:'short',day:'numeric'});
   return d.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});
 }
-function avatarColor(str){
-  let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))&0xffffffff;
-  const colors=['#1a1a1a','#1e1e1e','#222','#181818','#1c1c1c','#202020'];
-  return colors[Math.abs(h)%colors.length];
+function toast(msg,type='info'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast '+type+' show';
+  setTimeout(()=>{ el.classList.remove('show'); },2800);
 }
-function toast(msg, type='info'){
-  const el    = document.getElementById('toast');
-  const icons = {ok:'check-circle',err:'exclamation-circle',info:'info-circle'};
-  document.getElementById('toast-msg').textContent = msg;
-  el.querySelector('.toast-icon').className = `toast-icon fas fa-${icons[type]||'info-circle'}`;
-  el.className = `toast ${type} show`;
-  setTimeout(() => el.classList.remove('show'), 2800);
-}
-window.toast = toast;
+
+// ─── INITIAL VIEW ─────────────────────────────────────────────────────────────
+// will be triggered by showApp()
+
 </script>
 </body>
 </html>
