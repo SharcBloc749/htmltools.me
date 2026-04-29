@@ -471,6 +471,10 @@
   .cm-field input::placeholder { color: var(--muted); }
   .cm-field select option { background: var(--ink); color: var(--white); }
 
+  /* suffix hint for the From field */
+  .cm-from-wrap { flex: 1; display: flex; align-items: center; gap: .3rem; }
+  .cm-from-suffix { font-family: var(--mono); font-size: .78rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
   .cm-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
   .cm-type-row { display: flex; gap: .3rem; padding: .5rem 1rem; border-bottom: 1px solid var(--rule); }
   .cm-tab {
@@ -744,7 +748,10 @@
     </div>
     <div class="cm-field">
       <span class="cm-label">From</span>
-      <select id="cm-from"></select>
+      <div class="cm-from-wrap">
+        <input type="text" id="cm-from" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <span class="cm-from-suffix">@htmltools.me</span>
+      </div>
     </div>
     <div class="cm-field">
       <span class="cm-label">To</span>
@@ -864,10 +871,12 @@
   }
 
   function rebuildFrom() {
-    const sel = document.getElementById('cm-from');
-    sel.innerHTML = '';
-    (isSuperAdmin ? ['noreply', 'matthew', 'kovan'] : allowedSenders)
-      .forEach(s => sel.add(new Option(s + '@htmltools.me', s + '@htmltools.me')));
+    // Set a default username in the From input based on the first allowed sender
+    const senders = isSuperAdmin ? ['noreply', 'matthew', 'kovan'] : allowedSenders;
+    const input = document.getElementById('cm-from');
+    if (input && !input.value && senders.length > 0) {
+      input.value = senders[0];
+    }
   }
 
   // ── Views ──
@@ -1159,13 +1168,16 @@
   };
 
   window.cmSend = async function() {
-    const from = document.getElementById('cm-from').value;
+    // Build the full from address from the text input + domain suffix
+    const fromUsername = document.getElementById('cm-from').value.trim().toLowerCase().replace('@htmltools.me','');
+    const from = fromUsername + '@htmltools.me';
     const to = document.getElementById('cm-to').value.trim();
     const subject = document.getElementById('cm-subject').value.trim();
     const body = document.getElementById('cm-body').value.trim();
     const btn = document.getElementById('cm-send-btn');
     const st = document.getElementById('cm-status');
     st.className='cm-status'; st.textContent='';
+    if (!fromUsername) { st.textContent='Enter a sender username.'; st.className='cm-status err'; return; }
     if (!to) { st.textContent='Enter a recipient.'; st.className='cm-status err'; return; }
     if (!subject) { st.textContent='Enter a subject.'; st.className='cm-status err'; return; }
     if (!body) { st.textContent='Write a message.'; st.className='cm-status err'; return; }
