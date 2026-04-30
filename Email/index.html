@@ -74,7 +74,6 @@
     gap: .75rem;
   }
 
-  /* Tab switcher inside gate */
   .gate-tabs { display: flex; gap: 0; border: 1px solid var(--rule2); border-radius: 2px; overflow: hidden; margin-bottom: .25rem; }
   .gate-tab {
     flex: 1;
@@ -566,8 +565,6 @@
   const SUPER_ADMIN = 'matthewbozhe@gmail.com';
   const WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
   const API_TIMEOUT_MS = 15000;
-  // All possible @htmltools.me usernames the system knows about
-  const ALL_ADDRESSES = ['noreply', 'matthew', 'kovan'];
 
   const firebaseConfig = {
     apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
@@ -599,7 +596,7 @@
   // 'superadmin' | 'admin-all' | 'user'
   let userRole = null;
   // Array of address usernames this user can send from / see inbox of
-  // For superadmin & admin-all this is ALL_ADDRESSES
+  // For superadmin & admin-all this is unrestricted (no list enforced)
   let userAddresses = [];
 
   // Firebase listener handles for cleanup
@@ -616,6 +613,11 @@
     return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' });
   }
   function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  // Sanitise a username: strip @htmltools.me if pasted, lowercase, no spaces
+  function sanitiseUsername(s) {
+    return s.trim().toLowerCase().replace(/@htmltools\.me$/i, '').replace(/\s+/g, '');
+  }
 
   async function api(body) {
     const controller = new AbortController();
@@ -651,7 +653,6 @@
     document.getElementById('signin-form').style.flexDirection = 'column';
     document.getElementById('signin-form').style.gap = '.75rem';
   };
-  // init signin form flex
   document.getElementById('signin-form').style.display = 'flex';
   document.getElementById('signin-form').style.flexDirection = 'column';
   document.getElementById('signin-form').style.gap = '.75rem';
@@ -683,7 +684,6 @@
     btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Creating...';
     try {
       await createUserWithEmailAndPassword(auth, email, pass);
-      // Write a pending record — onAuthStateChanged will pick this up
       await set(ref(db, `mailPending/${dbKey(email)}`), { email, createdAt: Date.now() });
       ok.textContent = 'Account created! Waiting for owner approval...';
       ok.style.display = 'block';
@@ -708,10 +708,10 @@
     currentUser = user;
     const email = user.email.toLowerCase();
 
-    // Super admin
+    // Super admin — unrestricted
     if (email === SUPER_ADMIN.toLowerCase()) {
       userRole = 'superadmin';
-      userAddresses = [...ALL_ADDRESSES];
+      userAddresses = [];
       enterShell(user);
       return;
     }
@@ -721,10 +721,8 @@
     const snap = await get(ref(db, `mailAccess/${key}`));
     if (snap.exists()) {
       const data = snap.val();
-      // role: 'admin-all' means they can see/send all addresses
-      // role: 'user' (default) means restricted to their assigned addresses
       userRole = data.role === 'admin-all' ? 'admin-all' : 'user';
-      userAddresses = data.role === 'admin-all' ? [...ALL_ADDRESSES] : (data.addresses || []);
+      userAddresses = data.role === 'admin-all' ? [] : (data.addresses || []);
       enterShell(user);
 
       // Watch for revocation or changes
@@ -733,7 +731,7 @@
         if (!s.exists()) { cleanupListeners(); signOut(auth); alert('Your access has been revoked.'); return; }
         const d = s.val();
         userRole = d.role === 'admin-all' ? 'admin-all' : 'user';
-        userAddresses = d.role === 'admin-all' ? [...ALL_ADDRESSES] : (d.addresses || []);
+        userAddresses = d.role === 'admin-all' ? [] : (d.addresses || []);
         rebuildFromControl();
       });
       return;
@@ -747,7 +745,7 @@
       return;
     }
 
-    // Brand-new signup that hasn't written pending yet — write it now
+    // Brand-new signup
     await set(ref(db, `mailPending/${key}`), { email, createdAt: Date.now() });
     showScreen('pending');
     document.getElementById('pending-email-label').textContent = email;
@@ -764,10 +762,9 @@
     if (snap.exists()) {
       const data = snap.val();
       userRole = data.role === 'admin-all' ? 'admin-all' : 'user';
-      userAddresses = data.role === 'admin-all' ? [...ALL_ADDRESSES] : (data.addresses || []);
+      userAddresses = data.role === 'admin-all' ? [] : (data.addresses || []);
       enterShell(currentUser);
     } else {
-      // Still pending
       btn.classList.remove('spin');
     }
   };
@@ -776,7 +773,6 @@
     cleanupListeners();
     showScreen('shell');
     document.getElementById('user-label').textContent = user.email;
-    // Show Access tab only for superadmin
     document.getElementById('nav-access').style.display = userRole === 'superadmin' ? 'flex' : 'none';
     rebuildFromControl();
     loadInbox();
@@ -786,14 +782,14 @@
   function rebuildFromControl() {
     const sel = document.getElementById('cm-from-select');
     const inp = document.getElementById('cm-from-input');
+    // superadmin and admin-all get free-text; restricted users get a dropdown
     const canFreeType = userRole === 'superadmin' || userRole === 'admin-all';
     if (canFreeType) {
-      // Free-type input, full addresses
       sel.style.display = 'none';
       inp.style.display = 'block';
-      inp.value = userAddresses[0] + '@htmltools.me';
+      // Leave whatever they typed, or seed with empty
+      if (!inp.value) inp.value = '';
     } else {
-      // Dropdown of their assigned addresses
       inp.style.display = 'none';
       sel.style.display = 'block';
       sel.innerHTML = '';
@@ -839,17 +835,15 @@
   function spin(on) { document.getElementById('refresh-btn').classList.toggle('spin', on); }
 
   // ── Filter emails by user's allowed addresses ──
-  // For inbox: keep only emails where the `to` field matches one of userAddresses
+  // superadmin and admin-all see everything; restricted users filtered to their addresses
   function filterByAccess(emails, view) {
     if (userRole === 'superadmin' || userRole === 'admin-all') return emails;
     return emails.filter(e => {
       const toField = Array.isArray(e.to) ? e.to.join(' ') : (e.to || '');
       const fromField = (e.from || '');
       if (view === 'sent') {
-        // Sent: from address must be one of theirs
         return userAddresses.some(addr => fromField.toLowerCase().includes(addr + '@htmltools.me'));
       } else {
-        // Inbox: to address must be one of theirs
         return userAddresses.some(addr => toField.toLowerCase().includes(addr + '@htmltools.me'));
       }
     });
@@ -904,7 +898,6 @@
       const row = document.createElement('div');
       row.className = 'email-row' + (currentEmail?.id === email.id ? ' active' : '');
       const fromDisplay = currentView === 'sent' ? (email.to || '') : (email.from || '');
-      // Show which address this email was sent to (useful when user has multiple)
       const toDisplay = Array.isArray(email.to) ? email.to.join(', ') : (email.to || '');
       const showAddr = currentView === 'inbox' && userAddresses.length > 1;
       let pillHtml = '';
@@ -1001,14 +994,12 @@
       window._accessSnap = snap.val() || {};
       if (currentView === 'access') renderAccessPane();
     });
-    // Also watch pending users
     onValue(ref(db, 'mailPending'), snap => {
       window._pendingSnap = snap.val() || {};
       if (currentView === 'access') renderAccessPane();
     });
   }
 
-  // selectedRole for the grant form: 'user' | 'admin-all'
   let grantRole = 'user';
   window.setGrantRole = function(role) {
     grantRole = role;
@@ -1057,8 +1048,8 @@
           </div>
 
           <div id="ac-addr-row" style="display:flex;flex-direction:column;gap:.35rem;">
-            <input type="text" id="ac-addresses" class="af-input" placeholder="noreply,matthew,kovan" />
-            <div class="af-hint">Comma-separated @htmltools.me usernames this user can access. Available: ${ALL_ADDRESSES.join(', ')}</div>
+            <input type="text" id="ac-addresses" class="af-input" placeholder="support,billing,hello (any @htmltools.me usernames)" />
+            <div class="af-hint">Comma-separated @htmltools.me usernames. Enter any usernames you want — no restrictions.</div>
           </div>
 
           <button class="af-btn" onclick="grantAccess()"><i class="fas fa-plus"></i> Grant Access</button>
@@ -1095,12 +1086,9 @@
     `;
   }
 
-  // Quick-approve pending user — opens grant form with their email pre-filled
   window.approvePending = async function(key, email) {
-    // Remove from pending and open grant form with their email
     document.getElementById('ac-email').value = email;
     document.getElementById('ac-email').scrollIntoView({ behavior: 'smooth' });
-    // Will be removed from pending when grant is saved
     window._approveKey = key;
   };
 
@@ -1120,20 +1108,20 @@
     let payload = { email: emailVal, role: grantRole };
     if (grantRole === 'user') {
       if (!addrsRaw) { statusEl.textContent = 'Enter at least one address.'; statusEl.className = 'af-status err'; return; }
-      const addresses = addrsRaw.split(',').map(s => s.trim().toLowerCase().replace('@htmltools.me', '')).filter(Boolean);
-      const invalid = addresses.filter(a => !ALL_ADDRESSES.includes(a));
-      if (invalid.length) { statusEl.textContent = `Unknown address(es): ${invalid.join(', ')}. Use: ${ALL_ADDRESSES.join(', ')}`; statusEl.className = 'af-status err'; return; }
+      // Accept any usernames — just sanitise them (strip @htmltools.me if pasted, trim spaces)
+      const addresses = addrsRaw.split(',')
+        .map(s => sanitiseUsername(s))
+        .filter(s => s.length > 0);
+      if (!addresses.length) { statusEl.textContent = 'No valid addresses found.'; statusEl.className = 'af-status err'; return; }
       payload.addresses = addresses;
-    } else {
-      payload.addresses = [...ALL_ADDRESSES];
     }
+    // For admin-all, no addresses list needed — they access everything
 
     const key = dbKey(emailVal);
     try {
       await set(ref(db, `mailAccess/${key}`), payload);
-      // Remove from pending if this was an approval
       if (window._approveKey) { await remove(ref(db, `mailPending/${window._approveKey}`)); window._approveKey = null; }
-      else { await remove(ref(db, `mailPending/${key}`)); } // in case they signed up
+      else { await remove(ref(db, `mailPending/${key}`)); }
       statusEl.textContent = `Access granted to ${emailVal}`; statusEl.className = 'af-status ok';
       document.getElementById('ac-email').value = '';
       if (document.getElementById('ac-addresses')) document.getElementById('ac-addresses').value = '';
@@ -1143,16 +1131,20 @@
   window.editUser = async function(key) {
     const data = window._accessSnap?.[key];
     if (!data) return;
-    const newAddrs = prompt(`Edit addresses for ${data.email}\nCurrent: ${(data.addresses || []).join(', ')}\n\nEnter comma-separated usernames (or "all" for admin-all):`);
+    const newAddrs = prompt(
+      `Edit addresses for ${data.email}\nCurrent: ${(data.addresses || []).join(', ')}\n\nEnter comma-separated @htmltools.me usernames (any names you want), or type "all" to give admin access to all addresses:`
+    );
     if (newAddrs === null) return;
     let payload = { email: data.email };
     if (newAddrs.trim().toLowerCase() === 'all') {
-      payload.role = 'admin-all'; payload.addresses = [...ALL_ADDRESSES];
+      payload.role = 'admin-all';
     } else {
-      const addresses = newAddrs.split(',').map(s => s.trim().toLowerCase().replace('@htmltools.me', '')).filter(Boolean);
-      const invalid = addresses.filter(a => !ALL_ADDRESSES.includes(a));
-      if (invalid.length) { alert(`Unknown: ${invalid.join(', ')}. Valid: ${ALL_ADDRESSES.join(', ')}`); return; }
-      payload.role = 'user'; payload.addresses = addresses;
+      const addresses = newAddrs.split(',')
+        .map(s => sanitiseUsername(s))
+        .filter(s => s.length > 0);
+      if (!addresses.length) { alert('No valid addresses entered.'); return; }
+      payload.role = 'user';
+      payload.addresses = addresses;
     }
     try { await set(ref(db, `mailAccess/${key}`), payload); }
     catch (e) { alert('Error: ' + e.message); }
@@ -1244,9 +1236,9 @@
     if (!subject) { st.textContent = 'Enter a subject.'; st.className = 'cm-status err'; return; }
     if (!body) { st.textContent = 'Write a message.'; st.className = 'cm-status err'; return; }
 
-    // For restricted users, validate the from address is in their allowed list
+    // For restricted users, validate from address is in their assigned list
     if (userRole === 'user') {
-      const fromUser = from.replace('@htmltools.me', '');
+      const fromUser = from.replace('@htmltools.me', '').toLowerCase();
       if (!userAddresses.includes(fromUser)) {
         st.textContent = 'You can only send from your assigned addresses.'; st.className = 'cm-status err'; return;
       }
