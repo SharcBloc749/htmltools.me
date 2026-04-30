@@ -471,7 +471,6 @@
   .cm-field input::placeholder { color: var(--muted); }
   .cm-field select option { background: var(--ink); color: var(--white); }
 
-  /* suffix hint for the From field */
   .cm-from-wrap { flex: 1; display: flex; align-items: center; gap: .3rem; }
   .cm-from-suffix { font-family: var(--mono); font-size: .78rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
 
@@ -786,10 +785,11 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue, remove, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const SUPER_ADMIN = 'matthewbozhe@gmail.com';
   const WORKER = 'https://htmltools-reset.bozhetarnikmatthew.workers.dev/';
+  const API_TIMEOUT_MS = 15000; // 15s — if the worker doesn't respond, fail fast
 
   const firebaseConfig = {
     apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
@@ -816,6 +816,33 @@
   let allowedSenders = [];
   let isSuperAdmin = false;
 
+  // ── Request management ──
+  // Each list-load gets a unique token; if the view changes mid-flight the
+  // old result is silently dropped instead of overwriting the new view.
+  let loadToken = 0;
+
+  // Track active Firebase listeners so we can remove them before re-attaching
+  let accessListenerRef = null;
+  let userAccessListenerRef = null;
+  let userAccessListenerCallback = null;
+
+  // ── Timeout-aware fetch wrapper ──
+  async function api(body) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    try {
+      const r = await fetch(WORKER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      return await r.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // ── Auth ──
   document.getElementById('login-btn').addEventListener('click', async () => {
     const email = document.getElementById('g-email').value.trim();
@@ -827,10 +854,28 @@
     catch(e) { err.textContent = e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim(); err.style.display = 'block'; }
   });
   document.getElementById('g-pass').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-btn').click(); });
-  document.getElementById('signout-btn').addEventListener('click', () => signOut(auth));
+  document.getElementById('signout-btn').addEventListener('click', () => {
+    cleanupListeners();
+    signOut(auth);
+  });
+
+  function cleanupListeners() {
+    // Remove access panel listener
+    if (accessListenerRef) {
+      off(accessListenerRef);
+      accessListenerRef = null;
+    }
+    // Remove per-user access listener
+    if (userAccessListenerRef) {
+      off(userAccessListenerRef);
+      userAccessListenerRef = null;
+      userAccessListenerCallback = null;
+    }
+  }
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
+      cleanupListeners();
       document.getElementById('gate').classList.remove('hidden');
       document.getElementById('shell').classList.remove('show');
       return;
@@ -847,9 +892,18 @@
       if (snap.exists()) {
         allowedSenders = snap.val().senders || [];
         showShell(user);
-        onValue(ref(db, `mailAccess/${key}`), s => {
-          if (!s.exists()) { signOut(auth); alert('Your access has been revoked.'); }
-          else { allowedSenders = s.val().senders || []; rebuildFrom(); }
+
+        // Attach ONE listener and track it so we can clean it up later
+        userAccessListenerRef = ref(db, `mailAccess/${key}`);
+        userAccessListenerCallback = onValue(userAccessListenerRef, s => {
+          if (!s.exists()) {
+            cleanupListeners();
+            signOut(auth);
+            alert('Your access has been revoked.');
+          } else {
+            allowedSenders = s.val().senders || [];
+            rebuildFrom();
+          }
         });
       } else {
         await signOut(auth);
@@ -871,7 +925,6 @@
   }
 
   function rebuildFrom() {
-    // Set a default username in the From input based on the first allowed sender
     const senders = isSuperAdmin ? ['noreply', 'matthew', 'kovan'] : allowedSenders;
     const input = document.getElementById('cm-from');
     if (input && !input.value && senders.length > 0) {
@@ -882,6 +935,7 @@
   // ── Views ──
   window.switchView = function(view) {
     currentView = view;
+    loadToken++; // invalidate any in-flight request for the previous view
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.getElementById('nav-' + view)?.classList.add('active');
     document.getElementById('list-title').textContent = { inbox: 'Inbox', sent: 'Sent', access: 'Access' }[view] || view;
@@ -897,32 +951,41 @@
     document.getElementById('detail-pane').innerHTML = '<div class="detail-empty"><i class="fas fa-envelope-open"></i><p>No message selected</p></div>';
   }
 
-  async function api(body) {
-    const r = await fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    return r.json();
-  }
   function spin(on) { document.getElementById('refresh-btn').classList.toggle('spin', on); }
 
   async function loadInbox() {
+    const token = ++loadToken;
     spin(true);
     document.getElementById('email-list').innerHTML = '<div class="empty-list"><i class="fas fa-circle-notch fa-spin"></i><p>Loading...</p></div>';
     try {
       const data = await api({ type: 'get_inbox' });
+      // If the view changed while we were waiting, discard this result
+      if (token !== loadToken) return;
       allEmails = (data.emails || []).sort((a,b) => new Date(b.date)-new Date(a.date));
       renderList();
-    } catch(e) { document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-triangle-exclamation"></i><p>${e.message}</p></div>`; }
-    spin(false);
+    } catch(e) {
+      if (token !== loadToken) return;
+      const msg = e.name === 'AbortError' ? 'Request timed out — try refreshing.' : e.message;
+      document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-triangle-exclamation"></i><p>${msg}</p></div>`;
+    }
+    if (token === loadToken) spin(false);
   }
 
   async function loadSent() {
+    const token = ++loadToken;
     spin(true);
     document.getElementById('email-list').innerHTML = '<div class="empty-list"><i class="fas fa-circle-notch fa-spin"></i><p>Loading...</p></div>';
     try {
       const data = await api({ type: 'get_sent' });
+      if (token !== loadToken) return;
       allEmails = (data.emails || []).sort((a,b) => new Date(b.date)-new Date(a.date));
       renderList();
-    } catch(e) { document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-triangle-exclamation"></i><p>${e.message}</p></div>`; }
-    spin(false);
+    } catch(e) {
+      if (token !== loadToken) return;
+      const msg = e.name === 'AbortError' ? 'Request timed out — try refreshing.' : e.message;
+      document.getElementById('email-list').innerHTML = `<div class="empty-list"><i class="fas fa-triangle-exclamation"></i><p>${msg}</p></div>`;
+    }
+    if (token === loadToken) spin(false);
   }
 
   function renderList(q) {
@@ -973,8 +1036,19 @@
     }
     const pane = document.getElementById('detail-pane');
     pane.innerHTML = '<div class="detail-empty"><i class="fas fa-circle-notch fa-spin"></i><p>Loading...</p></div>';
+
+    // Capture the email id so we can detect if user clicked another email mid-fetch
+    const openedId = email.id;
+
     let full = { ...email };
-    try { const d = await api({ type: 'get_email', id: email.id }); if (d.success && d.email) full = { ...email, ...d.email }; } catch(e) {}
+    try {
+      const d = await api({ type: 'get_email', id: email.id });
+      // User may have clicked a different email while this was loading
+      if (currentEmail?.id !== openedId) return;
+      if (d.success && d.email) full = { ...email, ...d.email };
+    } catch(e) {
+      if (currentEmail?.id !== openedId) return;
+    }
 
     const toVal = Array.isArray(full.to) ? full.to.join(', ') : (full.to || '');
     const dateStr = full.date ? new Date(full.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
@@ -1030,8 +1104,15 @@
   // ── Access ──
   function loadAccess() {
     document.getElementById('email-list').innerHTML = '<div class="empty-list"><i class="fas fa-users-cog"></i><p>Manage in panel →</p></div>';
-    renderAccessPane();
-    onValue(ref(db, 'mailAccess'), snap => {
+
+    // Remove previous listener before attaching a new one
+    if (accessListenerRef) {
+      off(accessListenerRef);
+      accessListenerRef = null;
+    }
+
+    accessListenerRef = ref(db, 'mailAccess');
+    onValue(accessListenerRef, snap => {
       window._accessSnap = snap.val() || {};
       if (currentView === 'access') renderAccessPane();
     });
@@ -1085,9 +1166,7 @@
       statusEl.textContent = `Access granted to ${emailVal}`; statusEl.className = 'af-status ok';
       document.getElementById('ac-email').value = '';
       document.getElementById('ac-senders').value = '';
-      const snap = await get(ref(db, 'mailAccess'));
-      window._accessSnap = snap.val() || {};
-      renderAccessPane();
+      // No need to manually re-fetch — the onValue listener will fire automatically
     } catch(e) { statusEl.textContent = e.message; statusEl.className = 'af-status err'; }
   };
 
@@ -1095,9 +1174,7 @@
     if (!confirm(`Revoke access for ${email}?`)) return;
     try {
       await remove(ref(db, `mailAccess/${key}`));
-      const snap = await get(ref(db, 'mailAccess'));
-      window._accessSnap = snap.val() || {};
-      renderAccessPane();
+      // onValue listener will fire and re-render automatically
     } catch(e) { alert('Error: ' + e.message); }
   };
 
@@ -1168,7 +1245,6 @@
   };
 
   window.cmSend = async function() {
-    // Build the full from address from the text input + domain suffix
     const fromUsername = document.getElementById('cm-from').value.trim().toLowerCase().replace('@htmltools.me','');
     const from = fromUsername + '@htmltools.me';
     const to = document.getElementById('cm-to').value.trim();
@@ -1192,7 +1268,10 @@
         cmImgs=[]; renderChips();
         setTimeout(closeCompose, 1600);
       } else { st.textContent=(d.error||JSON.stringify(d.data)); st.className='cm-status err'; }
-    } catch(e) { st.textContent=e.message; st.className='cm-status err'; }
+    } catch(e) {
+      const msg = e.name === 'AbortError' ? 'Request timed out — please try again.' : e.message;
+      st.textContent=msg; st.className='cm-status err';
+    }
     btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Send';
   };
 
