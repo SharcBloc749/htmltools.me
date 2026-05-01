@@ -46,7 +46,7 @@
       try {
         const userSnap = await get(ref(db, `users/${user.uid}`));
         if (userSnap.exists()) {
-          showDashboard(userSnap.val().username);
+          await showDashboard(userSnap.val().username);
         } else {
           showUsernameSetup();
         }
@@ -61,124 +61,136 @@
 
 <style>
   :root {
-    --bg: #0d0d0f; --surface: #141416; --surface2: #1a1a1e; --surface3: #222228;
-    --border: #2a2a32; --accent: #7c6aff; --accent2: #ff6a9b;
-    --text: #e8e8f0; --text2: #8888a0; --text3: #555568;
-    --green: #4ade80; --red: #f87171; --yellow: #fbbf24;
-    --font-mono: 'JetBrains Mono', monospace; --font-display: 'Syne', sans-serif;
+    --bg:#0d0d0f; --surface:#141416; --surface2:#1a1a1e; --surface3:#222228;
+    --border:#2a2a32; --accent:#7c6aff; --accent2:#ff6a9b;
+    --text:#e8e8f0; --text2:#8888a0; --text3:#555568;
+    --green:#4ade80; --red:#f87171; --yellow:#fbbf24;
+    --font-mono:'JetBrains Mono',monospace; --font-display:'Syne',sans-serif;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); min-height: 100vh; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh}
 
   /* AUTH */
-  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: radial-gradient(ellipse at 30% 50%, #1a1040 0%, var(--bg) 60%); }
-  .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 48px; width: 420px; max-width: 95vw; }
-  .auth-logo { font-family: var(--font-display); font-size: 28px; font-weight: 800; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .auth-tagline { color: var(--text2); font-size: 12px; margin-bottom: 36px; }
-  .auth-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 8px; padding: 4px; margin-bottom: 28px; }
-  .auth-tab { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text2); font-family: var(--font-mono); font-size: 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
-  .auth-tab.active { background: var(--surface3); color: var(--text); }
-  .form-group { margin-bottom: 16px; }
-  .form-group label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .form-group input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: var(--font-mono); font-size: 13px; outline: none; transition: border-color 0.2s; }
-  .form-group input:focus { border-color: var(--accent); }
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border: none; border-radius: 8px; font-family: var(--font-mono); font-size: 12px; cursor: pointer; transition: all 0.2s; text-decoration: none; }
-  .btn-primary { background: var(--accent); color: #fff; width: 100%; justify-content: center; padding: 12px; font-size: 13px; margin-top: 8px; }
-  .btn-primary:hover { background: #6b5ce7; transform: translateY(-1px); }
-  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
-  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
-  .btn-sm { padding: 6px 12px; font-size: 11px; }
-  .btn-danger { background: transparent; color: var(--red); border: 1px solid #f8717133; font-size: 11px; padding: 6px 12px; }
-  .btn-danger:hover { background: #f8717111; }
-  .auth-error { color: var(--red); font-size: 11px; margin-top: 12px; display: none; background: #f8717122; padding: 8px 12px; border-radius: 6px; border: 1px solid #f8717144; }
+  #auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(ellipse at 30% 50%,#1a1040 0%,var(--bg) 60%)}
+  .auth-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px;width:420px;max-width:95vw}
+  .auth-logo{font-family:var(--font-display);font-size:28px;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .auth-tagline{color:var(--text2);font-size:12px;margin-bottom:36px}
+  .auth-tabs{display:flex;gap:4px;background:var(--surface2);border-radius:8px;padding:4px;margin-bottom:28px}
+  .auth-tab{flex:1;padding:8px;border:none;background:transparent;color:var(--text2);font-family:var(--font-mono);font-size:12px;border-radius:6px;cursor:pointer;transition:all .2s}
+  .auth-tab.active{background:var(--surface3);color:var(--text)}
+  .form-group{margin-bottom:16px}
+  .form-group label{display:block;font-size:11px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+  .form-group input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;transition:border-color .2s}
+  .form-group input:focus{border-color:var(--accent)}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border:none;border-radius:8px;font-family:var(--font-mono);font-size:12px;cursor:pointer;transition:all .2s;text-decoration:none}
+  .btn-primary{background:var(--accent);color:#fff;width:100%;justify-content:center;padding:12px;font-size:13px;margin-top:8px}
+  .btn-primary:hover{background:#6b5ce7;transform:translateY(-1px)}
+  .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+  .btn-ghost:hover{background:var(--surface2);color:var(--text)}
+  .btn-sm{padding:6px 12px;font-size:11px}
+  .btn-danger{background:transparent;color:var(--red);border:1px solid #f8717133;font-size:11px;padding:6px 12px}
+  .btn-danger:hover{background:#f8717111}
+  .auth-error{color:var(--red);font-size:11px;margin-top:12px;display:none;background:#f8717122;padding:8px 12px;border-radius:6px;border:1px solid #f8717144}
 
   /* USERNAME */
-  #username-screen { display: none; align-items: center; justify-content: center; min-height: 100vh; background: radial-gradient(ellipse at 70% 50%, #1a1040 0%, var(--bg) 60%); }
+  #username-screen{display:none;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(ellipse at 70% 50%,#1a1040 0%,var(--bg) 60%)}
 
   /* DASHBOARD */
-  #dashboard { display: none; min-height: 100vh; }
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
-  .topbar-logo { font-family: var(--font-display); font-size: 16px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .topbar-right { display: flex; align-items: center; gap: 12px; }
-  .site-url { font-size: 11px; color: var(--text2); background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; }
-  .site-url a { color: var(--accent); text-decoration: none; }
-  .site-url a:hover { text-decoration: underline; }
-  .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; cursor: pointer; }
-  .layout { display: flex; height: calc(100vh - 52px); }
+  #dashboard{display:none;min-height:100vh}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+  .topbar-logo{font-family:var(--font-display);font-size:16px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .topbar-right{display:flex;align-items:center;gap:12px}
+  .site-url{font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px}
+  .site-url a{color:var(--accent);text-decoration:none}
+  .site-url a:hover{text-decoration:underline}
+  .topbar-discover{font-size:11px;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;text-decoration:none;transition:all .2s}
+  .topbar-discover:hover{color:var(--accent);border-color:var(--accent)}
+  .avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;cursor:pointer}
+  .layout{display:flex;height:calc(100vh - 52px)}
 
   /* SIDEBAR */
-  .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
-  .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); }
-  .sidebar-actions { display: flex; gap: 6px; }
-  .icon-btn { width: 26px; height: 26px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
-  .icon-btn:hover { background: var(--surface2); color: var(--text); }
-  .file-tree { flex: 1; overflow-y: auto; padding: 8px; }
-  .file-tree::-webkit-scrollbar { width: 4px; }
-  .file-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-  .tree-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text2); transition: all 0.15s; user-select: none; position: relative; }
-  .tree-item:hover { background: var(--surface2); color: var(--text); }
-  .tree-item.active { background: var(--surface3); color: var(--text); }
-  .tree-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tree-item .actions { display: none; gap: 3px; flex-shrink: 0; }
-  .tree-item:hover .actions { display: flex; }
-  .tree-action { font-size: 10px; padding: 2px 5px; border-radius: 4px; border: none; background: var(--surface3); color: var(--text2); cursor: pointer; transition: color 0.15s; }
-  .tree-action:hover { color: var(--text); }
-  .tree-action.del:hover { color: var(--red); }
-  .tree-children { padding-left: 14px; }
+  .sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+  .sidebar-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .sidebar-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text2)}
+  .sidebar-actions{display:flex;gap:6px}
+  .icon-btn{width:26px;height:26px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s}
+  .icon-btn:hover{background:var(--surface2);color:var(--text)}
+  .file-tree{flex:1;overflow-y:auto;padding:8px}
+  .file-tree::-webkit-scrollbar{width:4px}
+  .file-tree::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  .tree-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text2);transition:all .15s;user-select:none;position:relative}
+  .tree-item:hover{background:var(--surface2);color:var(--text)}
+  .tree-item.active{background:var(--surface3);color:var(--text)}
+  .tree-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tree-item .actions{display:none;gap:3px;flex-shrink:0}
+  .tree-item:hover .actions{display:flex}
+  .tree-action{font-size:10px;padding:2px 5px;border-radius:4px;border:none;background:var(--surface3);color:var(--text2);cursor:pointer;transition:color .15s}
+  .tree-action:hover{color:var(--text)}
+  .tree-action.del:hover{color:var(--red)}
+  .tree-children{padding-left:14px}
 
   /* MAIN */
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .editor-tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; min-height: 36px; }
-  .editor-tab { display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 36px; font-size: 11px; color: var(--text2); cursor: pointer; border-right: 1px solid var(--border); white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
-  .editor-tab.active { background: var(--bg); color: var(--text); border-bottom: 2px solid var(--accent); }
-  .editor-tab .close { opacity: 0.4; transition: opacity 0.15s; font-size: 14px; }
-  .editor-tab:hover .close { opacity: 1; }
-  .editor-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-  .editor-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 8px; flex-wrap: wrap; }
-  .editor-filename { font-size: 11px; color: var(--text2); flex: 1; }
-  .editor-filename span { color: var(--accent); }
-  .editor-buttons { display: flex; gap: 8px; flex-shrink: 0; }
-  .share-link { font-size: 10px; color: var(--text3); background: var(--surface3); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-  .share-link:hover { color: var(--accent); border-color: var(--accent); }
-  .CodeMirror { height: 100% !important; font-family: var(--font-mono) !important; font-size: 13px !important; }
-  #editor-wrapper { flex: 1; overflow: hidden; position: relative; }
-  #editor-wrapper .CodeMirror { position: absolute; inset: 0; height: 100% !important; }
-  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text3); gap: 12px; }
-  .empty-state .big-icon { font-size: 48px; opacity: 0.3; }
-  .empty-state p { font-size: 13px; }
-  #image-preview { flex: 1; display: none; align-items: center; justify-content: center; padding: 24px; background: var(--bg); flex-direction: column; gap: 16px; }
-  #image-preview img { max-width: 100%; max-height: calc(100% - 80px); border-radius: 8px; border: 1px solid var(--border); }
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .editor-tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0;min-height:36px}
+  .editor-tab{display:flex;align-items:center;gap:8px;padding:0 16px;height:36px;font-size:11px;color:var(--text2);cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;flex-shrink:0;transition:all .15s}
+  .editor-tab.active{background:var(--bg);color:var(--text);border-bottom:2px solid var(--accent)}
+  .editor-tab .close{opacity:.4;transition:opacity .15s;font-size:14px}
+  .editor-tab:hover .close{opacity:1}
+  .editor-area{flex:1;overflow:hidden;display:flex;flex-direction:column}
+  .editor-toolbar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;gap:8px;flex-wrap:wrap}
+  .editor-filename{font-size:11px;color:var(--text2);flex:1}
+  .editor-filename span{color:var(--accent)}
+  .editor-buttons{display:flex;gap:8px;flex-shrink:0}
+  .share-link{font-size:10px;color:var(--text3);background:var(--surface3);border:1px solid var(--border);border-radius:5px;padding:3px 8px;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .share-link:hover{color:var(--accent);border-color:var(--accent)}
+  .CodeMirror{height:100% !important;font-family:var(--font-mono) !important;font-size:13px !important}
+  #editor-wrapper{flex:1;overflow:hidden;position:relative}
+  #editor-wrapper .CodeMirror{position:absolute;inset:0;height:100% !important}
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);gap:12px}
+  .empty-state .big-icon{font-size:48px;opacity:.3}
+  .empty-state p{font-size:13px}
+  #image-preview{flex:1;display:none;align-items:center;justify-content:center;padding:24px;background:var(--bg);flex-direction:column;gap:16px}
+  #image-preview img{max-width:100%;max-height:calc(100% - 80px);border-radius:8px;border:1px solid var(--border)}
 
   /* UPLOAD */
-  .sidebar-upload { padding: 12px; border-top: 1px solid var(--border); }
-  .upload-zone { border: 1px dashed var(--border); border-radius: 8px; padding: 12px; text-align: center; font-size: 11px; color: var(--text3); cursor: pointer; transition: all 0.2s; display: block; }
-  .upload-zone:hover { border-color: var(--accent); color: var(--accent); background: #7c6aff11; }
-  .upload-zone input { display: none; }
-  .storage-bar { height: 4px; background: var(--surface3); border-radius: 2px; margin-top: 6px; }
-  .storage-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
-  .storage-fill.warn { background: var(--yellow); }
-  .storage-fill.danger { background: var(--red); }
+  .sidebar-upload{padding:12px;border-top:1px solid var(--border)}
+  .upload-zone{border:1px dashed var(--border);border-radius:8px;padding:12px;text-align:center;font-size:11px;color:var(--text3);cursor:pointer;transition:all .2s;display:block}
+  .upload-zone:hover{border-color:var(--accent);color:var(--accent);background:#7c6aff11}
+  .upload-zone input{display:none}
+  .storage-bar{height:4px;background:var(--surface3);border-radius:2px;margin-top:6px}
+  .storage-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+  .storage-fill.warn{background:var(--yellow)}
+  .storage-fill.danger{background:var(--red)}
+
+  /* PRIVACY TOGGLE in sidebar */
+  .privacy-row{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .privacy-label{font-size:10px;color:var(--text3)}
+  .ptog{width:34px;height:18px;border-radius:999px;background:var(--surface3);border:1px solid var(--border);position:relative;cursor:pointer;transition:background .2s,border-color .2s;flex-shrink:0}
+  .ptog::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:var(--text3);top:2px;left:2px;transition:left .2s,background .2s}
+  .ptog.on{background:var(--accent);border-color:var(--accent)}
+  .ptog.on::after{left:18px;background:#fff}
+  .privacy-hint{font-size:10px;color:var(--text3);margin-top:4px}
+  .privacy-hint a{color:var(--accent);text-decoration:none}
 
   /* MODALS */
-  .modal-backdrop { position: fixed; inset: 0; background: #00000088; backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 1000; display: none; }
-  .modal-backdrop.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; width: 400px; max-width: 95vw; }
-  .modal h3 { font-family: var(--font-display); font-size: 16px; margin-bottom: 16px; }
-  .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
-  .modal-error { color: var(--red); font-size: 11px; margin-top: 8px; display: none; }
-  .modal-hint { font-size: 11px; color: var(--text2); margin-top: 6px; }
+  .modal-backdrop{position:fixed;inset:0;background:#00000088;backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:1000;display:none}
+  .modal-backdrop.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px;width:400px;max-width:95vw}
+  .modal h3{font-family:var(--font-display);font-size:16px;margin-bottom:16px}
+  .modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+  .modal-error{color:var(--red);font-size:11px;margin-top:8px;display:none}
+  .modal-hint{font-size:11px;color:var(--text2);margin-top:6px}
 
   /* TOAST */
-  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 12px; color: var(--text); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; max-width: 340px; }
-  #toast.show { transform: translateY(0); opacity: 1; }
-  #toast.success { border-color: var(--green); color: var(--green); }
-  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;color:var(--text);z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;max-width:340px}
+  #toast.show{transform:translateY(0);opacity:1}
+  #toast.success{border-color:var(--green);color:var(--green)}
+  #toast.error{border-color:var(--red);color:var(--red)}
 
   /* STATS */
-  .stats-bar { display: flex; gap: 16px; padding: 8px 16px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 10px; color: var(--text3); flex-shrink: 0; }
-  .stat { display: flex; align-items: center; gap: 4px; }
-  .stat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .stats-bar{display:flex;gap:16px;padding:8px 16px;background:var(--surface2);border-top:1px solid var(--border);font-size:10px;color:var(--text3);flex-shrink:0}
+  .stat{display:flex;align-items:center;gap:4px}
+  .stat-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
 </style>
 </head>
 <body>
@@ -229,12 +241,12 @@
   <div class="topbar">
     <div class="topbar-logo">htmltools.me</div>
     <div class="topbar-right">
-      <div class="site-url">🌐 <a id="site-link" href="#" target="_blank">username.htmltools.me</a></div>
+      <a class="topbar-discover" href="/discover">🌐 Discover</a>
+      <div class="site-url">🔗 <a id="site-link" href="#" target="_blank">username.htmltools.me</a></div>
       <div class="avatar" id="user-avatar" title="Sign out" onclick="doSignOut()">?</div>
     </div>
   </div>
   <div class="layout">
-    <!-- Sidebar -->
     <div class="sidebar">
       <div class="sidebar-header">
         <span class="sidebar-title">Files</span>
@@ -257,10 +269,15 @@
           </div>
           <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
         </div>
+        <!-- PRIVACY TOGGLE -->
+        <div class="privacy-row">
+          <span class="privacy-label" id="privacy-label">🌍 Visible in Discover</span>
+          <div class="ptog on" id="privacy-toggle" onclick="togglePrivacy()" title="Toggle Discover visibility"></div>
+        </div>
+        <div class="privacy-hint">shown on <a href="/discover" target="_blank">Discover</a></div>
       </div>
     </div>
 
-    <!-- Main editor -->
     <div class="main">
       <div class="editor-tabs" id="editor-tabs"></div>
       <div class="editor-area">
@@ -337,7 +354,7 @@
     <div class="form-group">
       <label>New name</label>
       <input type="text" id="rename-input" placeholder="new-name.html" onkeydown="if(event.key==='Enter')doRename()">
-      <div class="modal-hint">Keep the same extension (e.g. <code style="color:var(--accent)">.html</code>, <code style="color:var(--accent)">.png</code>)</div>
+      <div class="modal-hint">Keep the same extension</div>
     </div>
     <div class="modal-error" id="rename-error"></div>
     <div class="modal-actions">
@@ -353,177 +370,228 @@
   const MAX_STORAGE = 100 * 1024 * 1024;
   const DASHBOARD_BASE = 'https://htmltools.me/SiteLaunch';
 
-  function encodeKey(path) { return path.replace(/\|/g,'|p|').replace(/\./g,'|d|').replace(/\//g,'|s|'); }
-  function decodeKey(key)  { return key.replace(/\|d\|/g,'.').replace(/\|s\|/g,'/').replace(/\|p\|/g,'|'); }
+  function encodeKey(path){ return path.replace(/\|/g,'|p|').replace(/\./g,'|d|').replace(/\//g,'|s|') }
+  function decodeKey(key){ return key.replace(/\|d\|/g,'.').replace(/\|s\|/g,'/').replace(/\|p\|/g,'|') }
 
-  let editor = null, openTabs = [], activeTab = null, currentUsername = null, allFiles = {}, renamingPath = null;
+  let editor=null, openTabs=[], activeTab=null, currentUsername=null, allFiles={}, renamingPath=null;
+  let siteIsPrivate = false;
 
-  function showAuth() {
-    document.getElementById('auth-screen').style.display    = 'flex';
-    document.getElementById('username-screen').style.display = 'none';
-    document.getElementById('dashboard').style.display      = 'none';
+  // ── SCREENS ──────────────────────────────────────────────
+  function showAuth(){
+    document.getElementById('auth-screen').style.display='flex';
+    document.getElementById('username-screen').style.display='none';
+    document.getElementById('dashboard').style.display='none';
   }
-  function showUsernameSetup() {
-    document.getElementById('auth-screen').style.display    = 'none';
-    document.getElementById('username-screen').style.display = 'flex';
-    document.getElementById('dashboard').style.display      = 'none';
+  function showUsernameSetup(){
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('username-screen').style.display='flex';
+    document.getElementById('dashboard').style.display='none';
   }
-  async function showDashboard(username) {
-    currentUsername = username;
-    document.getElementById('auth-screen').style.display    = 'none';
-    document.getElementById('username-screen').style.display = 'none';
-    document.getElementById('dashboard').style.display      = 'block';
-    document.getElementById('site-link').textContent = `${username}.htmltools.me`;
-    document.getElementById('site-link').href = `https://${username}.htmltools.me`;
-    document.getElementById('user-avatar').textContent = username[0].toUpperCase();
+  async function showDashboard(username){
+    currentUsername=username;
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('username-screen').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+    document.getElementById('site-link').textContent=`${username}.htmltools.me`;
+    document.getElementById('site-link').href=`https://${username}.htmltools.me`;
+    document.getElementById('user-avatar').textContent=username[0].toUpperCase();
     await loadFiles();
-    const edit = parseEditUrl();
-    if (edit && edit.username === username && allFiles[edit.file]) openFile(edit.file);
+    await loadPrivacySetting();
+    // Refresh the discover index so we appear with latest file count
+    await updateDiscoverIndex();
+    const edit=parseEditUrl();
+    if(edit&&edit.username===username&&allFiles[edit.file]) openFile(edit.file);
   }
 
-  function parseEditUrl() {
-    const path = window.location.pathname;
-    const match = path.match(/\/SiteLaunch\/edit\/([^\/]+)\/(.+)/);
-    if (match) { const username = match[1].replace('.htmltools.me',''); return { username, file: match[2] }; }
+  // ── DISCOVER INDEX ────────────────────────────────────────
+  // Writes a lightweight public record to discover/sites/{username}
+  // so the discover page can read it without touching sites/ (file content)
+  async function updateDiscoverIndex(){
+    if(!currentUsername) return;
+    const {db,ref,set} = window._fb;
+    try {
+      await set(ref(db,`discover/sites/${currentUsername}`), {
+        fileCount: Object.keys(allFiles).length,
+        lastUpdated: Date.now(),
+        private: siteIsPrivate
+      });
+    } catch(e){ /* non-critical */ }
+  }
+
+  // ── PRIVACY ───────────────────────────────────────────────
+  async function loadPrivacySetting(){
+    const {db,ref,get} = window._fb;
+    try {
+      const snap = await get(ref(db,`discover/sites/${currentUsername}/private`));
+      siteIsPrivate = snap.exists() ? snap.val() : false;
+    } catch(_){ siteIsPrivate=false; }
+    renderPrivacyUI();
+  }
+
+  function renderPrivacyUI(){
+    const tog = document.getElementById('privacy-toggle');
+    const lbl = document.getElementById('privacy-label');
+    const hint = document.querySelector('.privacy-hint');
+    if(!tog) return;
+    if(siteIsPrivate){
+      tog.classList.remove('on');
+      lbl.textContent='🔒 Hidden from Discover';
+      hint.innerHTML='not shown on <a href="/discover" target="_blank">Discover</a>';
+    } else {
+      tog.classList.add('on');
+      lbl.textContent='🌍 Visible in Discover';
+      hint.innerHTML='shown on <a href="/discover" target="_blank">Discover</a>';
+    }
+  }
+
+  async function togglePrivacy(){
+    siteIsPrivate = !siteIsPrivate;
+    renderPrivacyUI();
+    await updateDiscoverIndex();
+    toast(siteIsPrivate ? '🔒 Hidden from Discover' : '🌍 Now visible in Discover');
+  }
+
+  // ── AUTH ──────────────────────────────────────────────────
+  function parseEditUrl(){
+    const match=window.location.pathname.match(/\/SiteLaunch\/edit\/([^\/]+)\/(.+)/);
+    if(match){ const username=match[1].replace('.htmltools.me',''); return {username,file:match[2]}; }
     return null;
   }
-  function getShareLink(filePath) { return `${DASHBOARD_BASE}/edit/${currentUsername}.htmltools.me/${filePath}`; }
-  function copyShareLink() {
-    if (!activeTab) return;
-    navigator.clipboard.writeText(getShareLink(activeTab)).then(() => toast('✓ Edit link copied!')).catch(() => prompt('Copy this link:', getShareLink(activeTab)));
+  function getShareLink(filePath){ return `${DASHBOARD_BASE}/edit/${currentUsername}.htmltools.me/${filePath}` }
+  function copyShareLink(){
+    if(!activeTab)return;
+    navigator.clipboard.writeText(getShareLink(activeTab)).then(()=>toast('✓ Edit link copied!')).catch(()=>prompt('Copy this link:',getShareLink(activeTab)));
   }
-  function updateBrowserUrl(filePath) {
-    if (!currentUsername || !filePath) return;
-    window.history.pushState({}, '', `/SiteLaunch/edit/${currentUsername}.htmltools.me/${filePath}`);
-    document.title = `${filePath} — htmltools.me`;
+  function updateBrowserUrl(filePath){
+    if(!currentUsername||!filePath)return;
+    window.history.pushState({},'',`/SiteLaunch/edit/${currentUsername}.htmltools.me/${filePath}`);
+    document.title=`${filePath} — htmltools.me`;
   }
 
-  function toast(msg, type='success') {
-    const el = document.getElementById('toast');
-    el.textContent = msg; el.className = `show ${type}`;
-    clearTimeout(window._tt); window._tt = setTimeout(() => el.className = '', 3500);
+  function toast(msg,type='success'){
+    const el=document.getElementById('toast');
+    el.textContent=msg; el.className=`show ${type}`;
+    clearTimeout(window._tt); window._tt=setTimeout(()=>el.className='',3500);
   }
-  function showError(id, msg) { const el=document.getElementById(id); if(el){el.textContent=msg;el.style.display='block';} }
-  function hideError(id) { const el=document.getElementById(id); if(el) el.style.display='none'; }
-  function setLoading(btnId, loading) { const btn=document.getElementById(btnId); if(!btn)return; btn.disabled=loading; btn.style.opacity=loading?'0.6':'1'; }
-  function switchTab(tab) {
+  function showError(id,msg){ const el=document.getElementById(id); if(el){el.textContent=msg;el.style.display='block';} }
+  function hideError(id){ const el=document.getElementById(id); if(el) el.style.display='none'; }
+  function setLoading(btnId,loading){ const btn=document.getElementById(btnId); if(!btn)return; btn.disabled=loading; btn.style.opacity=loading?'0.6':'1'; }
+  function switchTab(tab){
     document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',(tab==='login'&&i===0)||(tab==='signup'&&i===1)));
-    document.getElementById('login-form').style.display  = tab==='login'?'block':'none';
-    document.getElementById('signup-form').style.display = tab==='signup'?'block':'none';
+    document.getElementById('login-form').style.display=tab==='login'?'block':'none';
+    document.getElementById('signup-form').style.display=tab==='signup'?'block':'none';
   }
-  function updatePreview() { document.getElementById('username-preview').textContent=`${document.getElementById('username-input').value||'username'}.htmltools.me`; }
+  function updatePreview(){ document.getElementById('username-preview').textContent=`${document.getElementById('username-input').value||'username'}.htmltools.me` }
 
-  function friendlyError(code) {
-    const map = {
-      'auth/email-already-in-use':    'An account with this email already exists. Try signing in instead.',
-      'auth/invalid-email':           'That doesn\'t look like a valid email address.',
-      'auth/weak-password':           'Password must be at least 6 characters.',
-      'auth/user-not-found':          'No account found with this email.',
-      'auth/wrong-password':          'Incorrect password. Try again.',
-      'auth/invalid-credential':      'Incorrect email or password. Try again.',
-      'auth/too-many-requests':       'Too many attempts. Please wait a moment and try again.',
-      'auth/network-request-failed':  'Network error. Check your connection and try again.',
-      'auth/user-disabled':           'This account has been disabled. Contact support.',
+  function friendlyError(code){
+    const map={
+      'auth/email-already-in-use':'An account with this email already exists.',
+      'auth/invalid-email':'That doesn\'t look like a valid email address.',
+      'auth/weak-password':'Password must be at least 6 characters.',
+      'auth/user-not-found':'No account found with this email.',
+      'auth/wrong-password':'Incorrect password. Try again.',
+      'auth/invalid-credential':'Incorrect email or password. Try again.',
+      'auth/too-many-requests':'Too many attempts. Please wait a moment.',
+      'auth/network-request-failed':'Network error. Check your connection.',
+      'auth/user-disabled':'This account has been disabled.',
     };
-    return map[code] || 'Something went wrong. Please try again.';
+    return map[code]||'Something went wrong. Please try again.';
   }
 
-  async function doLogin() {
-    const { auth, signInWithEmailAndPassword } = window._fb;
-    hideError('login-error'); setLoading('login-btn', true);
-    try {
-      await signInWithEmailAndPassword(auth, document.getElementById('login-email').value, document.getElementById('login-password').value);
-    } catch(e) { showError('login-error', friendlyError(e.code)); setLoading('login-btn', false); }
+  async function doLogin(){
+    const {auth,signInWithEmailAndPassword}=window._fb;
+    hideError('login-error'); setLoading('login-btn',true);
+    try { await signInWithEmailAndPassword(auth,document.getElementById('login-email').value,document.getElementById('login-password').value); }
+    catch(e){ showError('login-error',friendlyError(e.code)); setLoading('login-btn',false); }
   }
-
-  async function doSignup() {
-    const { auth, createUserWithEmailAndPassword } = window._fb;
-    hideError('signup-error'); setLoading('signup-btn', true);
-    try {
-      await createUserWithEmailAndPassword(auth,
-        document.getElementById('signup-email').value,
-        document.getElementById('signup-password').value);
-      // onAuthStateChanged will handle the rest
-    } catch(e) { showError('signup-error', friendlyError(e.code)); setLoading('signup-btn', false); }
+  async function doSignup(){
+    const {auth,createUserWithEmailAndPassword}=window._fb;
+    hideError('signup-error'); setLoading('signup-btn',true);
+    try { await createUserWithEmailAndPassword(auth,document.getElementById('signup-email').value,document.getElementById('signup-password').value); }
+    catch(e){ showError('signup-error',friendlyError(e.code)); setLoading('signup-btn',false); }
   }
+  async function doSignOut(){ await window._fb.signOut(window._fb.auth); }
 
-  async function doSignOut() { await window._fb.signOut(window._fb.auth); }
-
-  async function saveUsername() {
-    const { auth, db, ref, set, get } = window._fb;
+  async function saveUsername(){
+    const {auth,db,ref,set,get}=window._fb;
     hideError('username-error');
-    const username = document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
-    if (!username || username.length < 2) { showError('username-error','Min 2 characters'); return; }
-    if (username.length > 32) { showError('username-error','Max 32 characters'); return; }
-    setLoading('username-btn', true);
+    const username=document.getElementById('username-input').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'');
+    if(!username||username.length<2){ showError('username-error','Min 2 characters'); return; }
+    if(username.length>32){ showError('username-error','Max 32 characters'); return; }
+    setLoading('username-btn',true);
     try {
-      const snap = await get(ref(db, `usernames/${username}`));
-      if (snap.exists()) { showError('username-error','Username taken!'); setLoading('username-btn',false); return; }
-      const user = auth.currentUser;
-      await set(ref(db, `users/${user.uid}`), { username, email: user.email, createdAt: Date.now() });
-      await set(ref(db, `usernames/${username}`), { uid: user.uid });
-      await saveFileToDb(username, 'index.html', defaultIndexHtml(username), 'text/html');
-      await saveFileToDb(username, 'not_found.html', defaultNotFoundHtml(username), 'text/html');
+      const snap=await get(ref(db,`usernames/${username}`));
+      if(snap.exists()){ showError('username-error','Username taken!'); setLoading('username-btn',false); return; }
+      const user=auth.currentUser;
+      await set(ref(db,`users/${user.uid}`),{username,email:user.email,createdAt:Date.now()});
+      await set(ref(db,`usernames/${username}`),{uid:user.uid});
+      await saveFileToDb(username,'index.html',defaultIndexHtml(username),'text/html');
+      await saveFileToDb(username,'not_found.html',defaultNotFoundHtml(username),'text/html');
+      // Create discover entry right away
+      await set(ref(db,`discover/sites/${username}`),{fileCount:2,lastUpdated:Date.now(),private:false});
       showDashboard(username);
-    } catch(e) { showError('username-error', e.message); setLoading('username-btn', false); }
+    } catch(e){ showError('username-error',e.message); setLoading('username-btn',false); }
   }
 
-  function defaultIndexHtml(u) { return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>${u}'s site</title>\n  <style>\n    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0d0d0f; color: #e8e8f0; text-align: center; margin: 0; }\n    h1 { color: #7c6aff; margin-bottom: 12px; }\n    p { color: #8888a0; }\n    a { color: #7c6aff; }\n  </style>\n</head>\n<body>\n  <div>\n    <h1>👋 Welcome to ${u}.htmltools.me!</h1>\n    <p>Edit this file in your <a href="https://htmltools.me/SiteLaunch">dashboard</a>.</p>\n  </div>\n</body>\n</html>`; }
-  function defaultNotFoundHtml(u) { return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>404 — Not Found</title>\n  <style>\n    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0d0d0f; color: #e8e8f0; text-align: center; margin: 0; }\n    .code { font-size: 6rem; font-weight: 900; color: #7c6aff; opacity: 0.3; line-height: 1; }\n    h1 { margin: 12px 0 8px; }\n    p { color: #8888a0; margin-bottom: 24px; }\n    a { color: #7c6aff; text-decoration: none; border: 1px solid #7c6aff44; padding: 8px 20px; border-radius: 8px; }\n  </style>\n</head>\n<body>\n  <div>\n    <div class="code">404</div>\n    <h1>Page not found</h1>\n    <p>This page doesn't exist on <strong>${u}.htmltools.me</strong></p>\n    <a href="/">← Go home</a>\n  </div>\n</body>\n</html>`; }
+  function defaultIndexHtml(u){ return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>${u}'s site</title>\n  <style>\n    body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0d0d0f;color:#e8e8f0;text-align:center;margin:0}\n    h1{color:#7c6aff;margin-bottom:12px}\n    p{color:#8888a0}\n    a{color:#7c6aff}\n  </style>\n</head>\n<body>\n  <div>\n    <h1>👋 Welcome to ${u}.htmltools.me!</h1>\n    <p>Edit this file in your <a href="https://htmltools.me/SiteLaunch">dashboard</a>.</p>\n  </div>\n</body>\n</html>`; }
+  function defaultNotFoundHtml(u){ return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>404 — Not Found</title>\n  <style>\n    body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0d0d0f;color:#e8e8f0;text-align:center;margin:0}\n    .code{font-size:6rem;font-weight:900;color:#7c6aff;opacity:.3;line-height:1}\n    h1{margin:12px 0 8px}\n    p{color:#8888a0;margin-bottom:24px}\n    a{color:#7c6aff;text-decoration:none;border:1px solid #7c6aff44;padding:8px 20px;border-radius:8px}\n  </style>\n</head>\n<body>\n  <div>\n    <div class="code">404</div>\n    <h1>Page not found</h1>\n    <p>This page doesn't exist on <strong>${u}.htmltools.me</strong></p>\n    <a href="/">← Go home</a>\n  </div>\n</body>\n</html>`; }
 
-  async function saveFileToDb(username, filePath, content, type) {
-    const { db, ref, set } = window._fb;
-    const size = new Blob([content]).size;
-    await set(ref(db, `sites/${username}/files/${encodeKey(filePath)}`), { content, type: type||getContentType(filePath), size, path: filePath, updatedAt: Date.now() });
+  // ── FILES ─────────────────────────────────────────────────
+  async function saveFileToDb(username,filePath,content,type){
+    const {db,ref,set}=window._fb;
+    const size=new Blob([content]).size;
+    await set(ref(db,`sites/${username}/files/${encodeKey(filePath)}`),{content,type:type||getContentType(filePath),size,path:filePath,updatedAt:Date.now()});
     return size;
   }
-  async function removeFileFromDb(username, filePath) {
-    const { db, ref, remove } = window._fb;
-    await remove(ref(db, `sites/${username}/files/${encodeKey(filePath)}`));
+  async function removeFileFromDb(username,filePath){
+    const {db,ref,remove}=window._fb;
+    await remove(ref(db,`sites/${username}/files/${encodeKey(filePath)}`));
   }
 
-  async function loadFiles() {
-    const { db, ref, get } = window._fb;
+  async function loadFiles(){
+    const {db,ref,get}=window._fb;
     try {
-      const snap = await get(ref(db, `sites/${currentUsername}/files`));
-      allFiles = {};
-      if (snap.exists()) {
-        for (const [encodedKey, val] of Object.entries(snap.val())) {
-          if (val && val.content !== undefined) {
-            const realPath = val.path || decodeKey(encodedKey);
-            allFiles[realPath] = val;
+      const snap=await get(ref(db,`sites/${currentUsername}/files`));
+      allFiles={};
+      if(snap.exists()){
+        for(const [encodedKey,val] of Object.entries(snap.val())){
+          if(val&&val.content!==undefined){
+            const realPath=val.path||decodeKey(encodedKey);
+            allFiles[realPath]=val;
           }
         }
       }
       renderFileTree(); updateStorage();
-    } catch(e) { toast('Failed to load files: ' + e.message, 'error'); }
+    } catch(e){ toast('Failed to load files: '+e.message,'error'); }
   }
 
-  function renderFileTree() {
-    const tree = document.getElementById('file-tree');
-    const paths = Object.keys(allFiles).sort();
-    document.getElementById('file-count').textContent = `${paths.length} file${paths.length!==1?'s':''}`;
-    if (!paths.length) { tree.innerHTML='<div style="font-size:11px;color:var(--text3);text-align:center;padding:24px 8px">No files yet</div>'; return; }
-    const folders={}, rootFiles=[];
-    for (const path of paths) { const p=path.split('/'); if(p.length===1) rootFiles.push(path); else { const f=p[0]; if(!folders[f])folders[f]=[]; folders[f].push(path); } }
+  function renderFileTree(){
+    const tree=document.getElementById('file-tree');
+    const paths=Object.keys(allFiles).sort();
+    document.getElementById('file-count').textContent=`${paths.length} file${paths.length!==1?'s':''}`;
+    if(!paths.length){ tree.innerHTML='<div style="font-size:11px;color:var(--text3);text-align:center;padding:24px 8px">No files yet</div>'; return; }
+    const folders={},rootFiles=[];
+    for(const path of paths){ const p=path.split('/'); if(p.length===1) rootFiles.push(path); else{ const f=p[0]; if(!folders[f])folders[f]=[]; folders[f].push(path); } }
     let html='';
-    for (const p of rootFiles) html+=fileItemHTML(p);
-    for (const folder of Object.keys(folders).sort()) {
+    for(const p of rootFiles) html+=fileItemHTML(p);
+    for(const folder of Object.keys(folders).sort()){
       const id='fd_'+encodeKey(folder);
       html+=`<div class="tree-item" onclick="toggleFolder('${id}')"><span>📁</span><span class="name">${folder}/</span></div><div class="tree-children" id="${id}">`;
-      for (const p of folders[folder]) html+=fileItemHTML(p,true);
+      for(const p of folders[folder]) html+=fileItemHTML(p,true);
       html+='</div>';
     }
     tree.innerHTML=html;
   }
-  function fileItemHTML(path,indented=false) {
+
+  function fileItemHTML(path,indented=false){
     const name=path.split('/').pop();
     const icon=path.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)?'🖼':path.endsWith('.css')?'🎨':path.endsWith('.js')?'⚡':path.endsWith('.html')?'📄':'📝';
     const sp=path.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     return `<div class="tree-item" onclick="openFile('${sp}')" data-path="${path}"><span>${icon}</span><span class="name">${name}</span><div class="actions"><button class="tree-action" onclick="event.stopPropagation();openRenameModal('${sp}')" title="Rename">✏️</button><button class="tree-action del" onclick="event.stopPropagation();deleteFile('${sp}')" title="Delete">✕</button></div></div>`;
   }
-  function toggleFolder(id) { const el=document.getElementById(id); if(el) el.style.display=el.style.display==='none'?'block':'none'; }
-  function updateStorage() {
+  function toggleFolder(id){ const el=document.getElementById(id); if(el) el.style.display=el.style.display==='none'?'block':'none'; }
+
+  function updateStorage(){
     let total=0; for(const f of Object.values(allFiles)) total+=(f.size||0);
     const kb=(total/1024).toFixed(1),mb=(total/1024/1024).toFixed(2),pct=Math.min((total/MAX_STORAGE)*100,100).toFixed(1);
     document.getElementById('storage-text').textContent=total>1048576?`${mb} MB / 100 MB`:`${kb} KB / 100 MB`;
@@ -531,11 +599,12 @@
     fill.className='storage-fill'+(parseFloat(pct)>90?' danger':parseFloat(pct)>70?' warn':'');
   }
 
-  function initEditor() {
-    if (editor) return;
-    editor = CodeMirror(document.getElementById('editor-wrapper'), { mode:'htmlmixed', theme:'material-darker', lineNumbers:true, autoCloseTags:true, matchBrackets:true, indentUnit:2, tabSize:2, lineWrapping:true, extraKeys:{'Ctrl-S':saveFile,'Cmd-S':saveFile} });
+  function initEditor(){
+    if(editor)return;
+    editor=CodeMirror(document.getElementById('editor-wrapper'),{mode:'htmlmixed',theme:'material-darker',lineNumbers:true,autoCloseTags:true,matchBrackets:true,indentUnit:2,tabSize:2,lineWrapping:true,extraKeys:{'Ctrl-S':saveFile,'Cmd-S':saveFile}});
   }
-  async function openFile(path) {
+
+  async function openFile(path){
     document.querySelectorAll('.tree-item').forEach(el=>el.classList.remove('active'));
     const ti=document.querySelector(`[data-path="${path}"]`); if(ti) ti.classList.add('active');
     const file=allFiles[path]; if(!file){toast('File not found','error');return;}
@@ -553,29 +622,45 @@
     document.getElementById('current-filename').textContent=path;
     renderTabs(); setTimeout(()=>editor.refresh(),20);
   }
-  function renderTabs() {
+
+  function renderTabs(){
     document.getElementById('editor-tabs').innerHTML=openTabs.map(t=>{const sp=t.path.replace(/'/g,"\\'");return`<div class="editor-tab ${t.path===activeTab?'active':''}" onclick="openFile('${sp}')">${t.path.split('/').pop()}${t.dirty?' •':''}<span class="close" onclick="event.stopPropagation();closeTab('${sp}')">×</span></div>`;}).join('');
   }
-  function closeTab(path) {
+
+  function closeTab(path){
     openTabs=openTabs.filter(t=>t.path!==path);
-    if(activeTab===path){ activeTab=openTabs.length?openTabs[openTabs.length-1].path:null; if(activeTab) openFile(activeTab); else { document.getElementById('empty-state').style.display='flex'; document.getElementById('editor-container').style.display='none'; document.getElementById('image-preview').style.display='none'; window.history.pushState({},'','/SiteLaunch'); document.title='htmltools.me — Dashboard'; } }
+    if(activeTab===path){
+      activeTab=openTabs.length?openTabs[openTabs.length-1].path:null;
+      if(activeTab) openFile(activeTab);
+      else{
+        document.getElementById('empty-state').style.display='flex';
+        document.getElementById('editor-container').style.display='none';
+        document.getElementById('image-preview').style.display='none';
+        window.history.pushState({},'','/SiteLaunch');
+        document.title='htmltools.me — Dashboard';
+      }
+    }
     renderTabs();
   }
 
-  async function saveFile() {
-    if(!activeTab||!editor) return;
+  async function saveFile(){
+    if(!activeTab||!editor)return;
     setLoading('save-btn',true);
     try {
       const content=editor.getValue();
       const size=await saveFileToDb(currentUsername,activeTab,content,getContentType(activeTab));
       allFiles[activeTab]={...allFiles[activeTab],content,size};
       const tab=openTabs.find(t=>t.path===activeTab); if(tab) tab.dirty=false;
-      renderTabs(); updateStorage(); toast('✓ Saved!');
+      renderTabs(); updateStorage();
+      await updateDiscoverIndex(); // keep discover index fresh
+      toast('✓ Saved!');
     } catch(e){ toast('Save failed: '+e.message,'error'); }
     setLoading('save-btn',false);
   }
-  function getContentType(path) { if(path.endsWith('.css'))return'text/css'; if(path.endsWith('.js'))return'application/javascript'; if(path.endsWith('.json'))return'application/json'; return'text/html'; }
-  function previewFile() {
+
+  function getContentType(path){ if(path.endsWith('.css'))return'text/css'; if(path.endsWith('.js'))return'application/javascript'; if(path.endsWith('.json'))return'application/json'; return'text/html'; }
+
+  function previewFile(){
     if(!activeTab)return;
     let url;
     if(activeTab==='index.html') url=`https://${currentUsername}.htmltools.me/`;
@@ -584,20 +669,26 @@
     window.open(url,'_blank');
   }
 
-  async function deleteFile(path) {
+  async function deleteFile(path){
     if(!confirm(`Delete "${path}"? This cannot be undone.`))return;
-    try { await removeFileFromDb(currentUsername,path); delete allFiles[path]; closeTab(path); renderFileTree(); updateStorage(); toast('File deleted'); }
-    catch(e){ toast('Delete failed: '+e.message,'error'); }
+    try {
+      await removeFileFromDb(currentUsername,path);
+      delete allFiles[path];
+      closeTab(path); renderFileTree(); updateStorage();
+      await updateDiscoverIndex();
+      toast('File deleted');
+    } catch(e){ toast('Delete failed: '+e.message,'error'); }
   }
 
-  function openRenameModal(path) {
+  function openRenameModal(path){
     renamingPath=path; hideError('rename-error');
     const name=path.split('/').pop();
     document.getElementById('rename-input').value=name;
     document.getElementById('rename-modal').classList.add('open');
     setTimeout(()=>{ const input=document.getElementById('rename-input'); input.focus(); const dotIdx=name.lastIndexOf('.'); input.setSelectionRange(0,dotIdx>0?dotIdx:name.length); },100);
   }
-  async function doRename() {
+
+  async function doRename(){
     if(!renamingPath)return; hideError('rename-error');
     const newName=document.getElementById('rename-input').value.trim();
     if(!newName){showError('rename-error','Please enter a name');return;}
@@ -618,23 +709,24 @@
     setLoading('rename-btn',false);
   }
 
-  async function handleUpload(event) {
+  async function handleUpload(event){
     const files=Array.from(event.target.files); if(!files.length)return;
     let willAdd=0; for(const f of files) willAdd+=f.size;
     let total=0; for(const f of Object.values(allFiles)) total+=(f.size||0);
-    if(total+willAdd>MAX_STORAGE){ toast(`Not enough storage!`,'error'); event.target.value=''; return; }
+    if(total+willAdd>MAX_STORAGE){ toast('Not enough storage!','error'); event.target.value=''; return; }
     toast('Uploading…'); let uploaded=0;
-    for(const file of files) {
+    for(const file of files){
       try {
         let content;
         if(file.type.startsWith('image/')){ content=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);}); }
-        else { content=await file.text(); }
+        else{ content=await file.text(); }
         await saveFileToDb(currentUsername,file.name,content,file.type||getContentType(file.name));
         allFiles[file.name]={content,type:file.type,size:file.size,path:file.name};
         uploaded++;
       } catch(e){ toast(`Failed: ${file.name}`,'error'); }
     }
     renderFileTree(); updateStorage();
+    await updateDiscoverIndex();
     if(uploaded>0) toast(`✓ Uploaded ${uploaded} file${uploaded!==1?'s':''}`);
     event.target.value='';
   }
@@ -643,7 +735,7 @@
   function openNewFolderModal(){ document.getElementById('new-folder-name').value=''; hideError('new-folder-error'); document.getElementById('new-folder-modal').classList.add('open'); setTimeout(()=>document.getElementById('new-folder-name').focus(),100); }
   function closeModals(){ document.querySelectorAll('.modal-backdrop').forEach(m=>m.classList.remove('open')); renamingPath=null; }
 
-  async function createNewFile() {
+  async function createNewFile(){
     hideError('new-file-error');
     const name=document.getElementById('new-file-name').value.trim();
     if(!name){showError('new-file-error','Enter a file name');return;}
@@ -654,12 +746,14 @@
       const content=name.endsWith('.html')?`<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>New Page</title>\n</head>\n<body>\n  <h1>New Page</h1>\n</body>\n</html>`:name.endsWith('.css')?`/* styles */\n`:name.endsWith('.js')?`// script\n`:'';
       await saveFileToDb(currentUsername,name,content,getContentType(name));
       allFiles[name]={content,type:getContentType(name),size:new Blob([content]).size,path:name};
-      renderFileTree(); updateStorage(); closeModals(); openFile(name); toast(`✓ Created ${name}`);
+      renderFileTree(); updateStorage(); closeModals();
+      await updateDiscoverIndex();
+      openFile(name); toast(`✓ Created ${name}`);
     } catch(e){ showError('new-file-error',e.message); }
     setLoading('create-file-btn',false);
   }
 
-  async function createNewFolder() {
+  async function createNewFolder(){
     hideError('new-folder-error');
     const name=document.getElementById('new-folder-name').value.trim().replace(/[^a-z0-9-_]/gi,'-');
     if(!name){showError('new-folder-error','Enter a folder name');return;}
@@ -669,7 +763,9 @@
       const content=`<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  <h1>${name}</h1>\n</body>\n</html>`;
       await saveFileToDb(currentUsername,path,content,'text/html');
       allFiles[path]={content,type:'text/html',size:new Blob([content]).size,path};
-      renderFileTree(); updateStorage(); closeModals(); openFile(path); toast(`✓ Created folder ${name}/`);
+      renderFileTree(); updateStorage(); closeModals();
+      await updateDiscoverIndex();
+      openFile(path); toast(`✓ Created folder ${name}/`);
     } catch(e){ showError('new-folder-error',e.message); }
     setLoading('create-folder-btn',false);
   }
