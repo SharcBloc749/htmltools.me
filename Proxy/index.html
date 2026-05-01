@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Proxy — HTMLTools</title>
+<link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+:root {
+  --bg:        #0c0c0c;
+  --surface:   #111;
+  --panel:     #171717;
+  --panel-2:   #1e1e1e;
+  --border:    #252525;
+  --border-2:  #2e2e2e;
+  --border-hi: #404040;
+  --tx:        #e8e8e8;
+  --tx-2:      #888;
+  --tx-3:      #4a4a4a;
+  --white:     #fff;
+  --wfg:       #0c0c0c;
+  --green:     #16a34a;
+  --green-hi:  #22c55e;
+  --blue:      #2563eb;
+  --blue-hi:   #3b82f6;
+  --red:       #dc2626;
+  --red-hi:    #ef4444;
+  --r:    4px;
+  --r-md: 7px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+  --nav-h: 48px;
+  --font: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--tx); font-family: var(--font); font-size: 13.5px; -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+::selection { background: rgba(255,255,255,.12); }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+
+/* ── NAV ── */
+nav {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  height: var(--nav-h);
+  gap: 6px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.nav-mark {
+  width: 24px; height: 24px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; flex-shrink: 0;
+}
+.nav-mark img { width: 24px; height: 24px; object-fit: contain; display: block; }
+.nav-name { font-size: .78rem; font-weight: 600; color: var(--tx-2); letter-spacing: -.01em; white-space: nowrap; }
+.nav-back {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: var(--r);
+  font-size: 12px; font-weight: 500; color: var(--tx-3);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer; transition: all .15s; text-decoration: none;
+}
+.nav-back:hover { color: var(--tx-2); background: var(--panel); border-color: var(--border); }
+.nav-back i { font-size: 9.5px; }
+.nav-pill {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--tx-3);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 3px 9px;
+  flex-shrink: 0;
+}
+
+/* ── URL BAR ── */
+.url-strip {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.url-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r);
+  overflow: hidden;
+  transition: border-color .15s, box-shadow .15s;
+  min-width: 0;
+}
+.url-wrap:focus-within {
+  border-color: var(--border-hi);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.04);
+}
+.url-proto {
+  padding: 0 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--tx-3);
+  border-right: 1px solid var(--border);
+  height: 32px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--panel-2);
+}
+#proxyUrl {
+  flex: 1;
+  height: 32px;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tx);
+  min-width: 0;
+}
+#proxyUrl::placeholder { color: var(--tx-3); }
+
+.btn {
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  color: var(--tx-2);
+  padding: 0 11px;
+  border-radius: var(--r);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font);
+  transition: all .13s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  height: 32px;
+}
+.btn:hover { background: var(--panel-2); border-color: var(--border-hi); color: var(--tx); }
+.btn:active { opacity: .75; }
+.btn i { font-size: 9.5px; opacity: .7; }
+.btn-go {
+  background: var(--white);
+  color: var(--wfg);
+  border-color: var(--white);
+  font-weight: 600;
+  gap: 7px;
+  min-width: 72px;
+  justify-content: center;
+}
+.btn-go:hover { opacity: .9; color: var(--wfg); border-color: var(--white); }
+.btn-go i { opacity: 1; }
+.btn-go.loading { opacity: .6; pointer-events: none; }
+
+/* ── STATUS BAR ── */
+.status-bar {
+  height: 22px;
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: rgba(255,255,255,.8);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.sb-item {
+  padding: 0 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-right: 1px solid rgba(255,255,255,.1);
+  white-space: nowrap;
+}
+.sb-item i { font-size: 9px; opacity: .7; }
+.sb-push { margin-left: auto; border-right: none; border-left: 1px solid rgba(255,255,255,.1); }
+.status-bar.idle { background: var(--panel-2); color: var(--tx-3); border-bottom: 1px solid var(--border); }
+.status-bar.idle .sb-item { border-color: var(--border); }
+.status-bar.idle .sb-push { border-color: var(--border); }
+.status-bar.error-bar { background: #7f1d1d; color: rgba(255,200,200,.9); }
+
+/* ── MAIN AREA ── */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── FRAME ── */
+#proxyFrame {
+  flex: 1;
+  border: none;
+  background: #fff;
+  display: block;
+}
+
+/* ── HOMEPAGE ── */
+.homepage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.homepage::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .2;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 20%, transparent 75%);
+  z-index: 0;
+}
+.hp-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.hp-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.hp-logo-mark {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-2);
+  flex-shrink: 0;
+}
+.hp-logo-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.hp-logo-text { font-size: 1rem; font-weight: 700; letter-spacing: -.025em; color: var(--tx); }
+.hp-logo-text span { color: var(--tx-3); font-weight: 400; }
+.hp-heading {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -.04em;
+  line-height: 1.1;
+  color: var(--tx);
+}
+.hp-sub {
+  font-size: .82rem;
+  color: var(--tx-3);
+  line-height: 1.65;
+  margin-top: -10px;
+}
+
+/* card */
+.hp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hp-card-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--tx-3);
+}
+.hp-url-row {
+  display: flex;
+  gap: 6px;
+}
+.hp-url-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r);
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.hp-url-wrap:focus-within { border-color: var(--border-hi); }
+.hp-url-icon {
+  padding: 0 10px;
+  color: var(--tx-3);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+#mainUrl {
+  flex: 1;
+  height: 36px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tx);
+  padding-right: 10px;
+  min-width: 0;
+}
+#mainUrl::placeholder { color: var(--tx-3); }
+.hp-go {
+  height: 36px;
+  padding: 0 20px;
+  background: var(--white);
+  color: var(--wfg);
+  border: 1px solid var(--white);
+  border-radius: var(--r);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.hp-go:hover { opacity: .88; }
+
+/* quick links */
+.hp-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hp-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: border-color .13s, background .13s;
+  font-size: 12.5px;
+  color: var(--tx-2);
+}
+.hp-link:hover { background: var(--panel-2); border-color: var(--border-hi); color: var(--tx); }
+.hp-link i:first-child { width: 14px; text-align: center; font-size: 10px; color: var(--tx-3); flex-shrink: 0; }
+.hp-link span { flex: 1; }
+.hp-link .hp-link-url { font-family: var(--mono); font-size: 10.5px; color: var(--tx-3); }
+.hp-link:hover .hp-link-url { color: var(--tx-2); }
+
+/* warning */
+.hp-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(202, 138, 4, .05);
+  border: 1px solid rgba(202, 138, 4, .15);
+  border-radius: var(--r);
+  padding: 11px 13px;
+  font-size: 11.5px;
+  color: var(--tx-2);
+  line-height: 1.6;
+}
+.hp-warn i { color: #ca8a04; flex-shrink: 0; margin-top: 2px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--panel-2);
+  border: 1px solid var(--border-2);
+  padding: 8px 14px;
+  border-radius: var(--r-md);
+  color: var(--tx);
+  font-size: 12.5px;
+  font-weight: 500;
+  z-index: 9500;
+  opacity: 0;
+  transition: all .2s cubic-bezier(.22,1,.36,1);
+  box-shadow: 0 8px 28px rgba(0,0,0,.6);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── LOADING BAR ── */
+#loadBar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--white);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform .3s ease, opacity .3s;
+  z-index: 9999;
+  opacity: 0;
+}
+#loadBar.active { opacity: 1; animation: loadProg 1.5s ease-in-out infinite; }
+@keyframes loadProg {
+  0%   { transform: scaleX(0); }
+  50%  { transform: scaleX(.7); }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+@media (max-width: 560px) {
+  .hp-heading { font-size: 1.5rem; }
+  .url-proto { display: none; }
+  .nav-pill { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="loadBar"></div>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="/">
+    <div class="nav-mark"><img src="/logo3.png?v=2" alt="HT"/></div>
+    <span class="nav-name">HTML Tools</span>
+  </a>
+  <a class="nav-back" href="/">
+    <i class="fas fa-arrow-left"></i> Back
+  </a>
+  <div style="font-size:12px;color:var(--tx-3);padding:5px 10px;border-radius:var(--r);background:var(--panel);border:1px solid var(--border);">
+    <i class="fas fa-shield-alt" style="font-size:9.5px;margin-right:5px;opacity:.6;"></i>Proxy
+  </div>
+  <span class="nav-pill" id="navStatus">idle</span>
+</nav>
+
+<!-- URL STRIP (hidden until browsing) -->
+<div class="url-strip" id="urlStrip" style="display:none;">
+  <button class="btn" id="btnNavBack" title="Back"><i class="fas fa-arrow-left"></i></button>
+  <button class="btn" id="btnNavFwd"  title="Forward"><i class="fas fa-arrow-right"></i></button>
+  <button class="btn" id="btnReload"  title="Reload"><i class="fas fa-redo"></i></button>
+  <div class="url-wrap">
+    <div class="url-proto"><i class="fas fa-lock" style="font-size:9px;margin-right:5px;"></i>proxy</div>
+    <input id="proxyUrl" type="text" placeholder="https://example.com" spellcheck="false" autocomplete="off"/>
+  </div>
+  <button class="btn btn-go" id="btnGo"><i class="fas fa-arrow-right"></i> Go</button>
+  <button class="btn" id="btnHome" title="Home"><i class="fas fa-home"></i></button>
+</div>
+
+<!-- STATUS BAR (hidden until browsing) -->
+<div class="status-bar idle" id="statusBar" style="display:none;">
+  <div class="sb-item" id="sbStatus"><i class="fas fa-circle" style="font-size:6px;color:var(--tx-3)"></i> <span>Ready</span></div>
+  <div class="sb-item sb-push" id="sbHost">htmltools.me / proxy</div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainArea">
+
+  <!-- HOMEPAGE -->
+  <div class="homepage" id="homepage">
+    <div class="hp-inner">
+
+      <div>
+        <div class="hp-logo">
+          <div class="hp-logo-mark"><img src="/logo3.png?v=2" alt=""/></div>
+          <div class="hp-logo-text">HTMLTools <span>/ proxy</span></div>
+        </div>
+        <div class="hp-heading">Browse Anything</div>
+        <div class="hp-sub" style="margin-top:8px">Enter a URL below to browse through this proxy. Requests appear to originate from this server.</div>
+      </div>
+
+      <div class="hp-card">
+        <div class="hp-card-title"><i class="fas fa-globe" style="margin-right:5px;"></i>Enter URL</div>
+        <div class="hp-url-row">
+          <div class="hp-url-wrap">
+            <i class="fas fa-link hp-url-icon"></i>
+            <input id="mainUrl" type="text" placeholder="https://example.com" spellcheck="false" autocomplete="off"/>
+          </div>
+          <button class="hp-go" id="mainGoBtn">Go <i class="fas fa-arrow-right" style="font-size:10px;margin-left:3px;"></i></button>
+        </div>
+
+        <div class="hp-links" id="quickLinks">
+          <div class="hp-link" data-url="https://www.wikipedia.org/">
+            <i class="fas fa-book"></i><span>Wikipedia</span><span class="hp-link-url">wikipedia.org</span>
+          </div>
+          <div class="hp-link" data-url="https://news.ycombinator.com/">
+            <i class="fab fa-y-combinator"></i><span>Hacker News</span><span class="hp-link-url">news.ycombinator.com</span>
+          </div>
+          <div class="hp-link" data-url="https://www.reddit.com/">
+            <i class="fab fa-reddit"></i><span>Reddit</span><span class="hp-link-url">reddit.com</span>
+          </div>
+          <div class="hp-link" data-url="https://github.com/">
+            <i class="fab fa-github"></i><span>GitHub</span><span class="hp-link-url">github.com</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hp-warn">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Some sites block proxy requests or use WebSockets which can't be fully proxied. JavaScript-heavy apps may behave differently.</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PROXY FRAME (hidden until navigating) -->
+  <iframe id="proxyFrame" style="display:none;flex:1;border:none;background:#fff;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation"></iframe>
+
+</div>
+
+<footer style="padding:6px 14px;font-size:10.5px;color:var(--tx-3);background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.5rem;font-family:var(--mono);letter-spacing:.01em;">
+  <strong style="color:var(--tx-2);font-weight:500;">HTML Tools</strong>
+  <span style="color:var(--border-hi);">·</span>
+  <span>Proxy</span>
+  <span style="color:var(--border-hi);">·</span>
+  <span>built by Matthew</span>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const WORKER = 'https://wispy-hat-9611.bozhetarnikmatthew.workers.dev';
+
+  const homepage   = document.getElementById('homepage');
+  const proxyFrame = document.getElementById('proxyFrame');
+  const urlStrip   = document.getElementById('urlStrip');
+  const statusBar  = document.getElementById('statusBar');
+  const proxyUrlIn = document.getElementById('proxyUrl');
+  const mainUrlIn  = document.getElementById('mainUrl');
+  const navStatus  = document.getElementById('navStatus');
+  const sbStatus   = document.getElementById('sbStatus');
+  const sbHost     = document.getElementById('sbHost');
+  const loadBar    = document.getElementById('loadBar');
+
+  let browsing = false;
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function toProxyUrl(raw) {
+    let url = raw.trim();
+    if (!url) return null;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    try {
+      const t = new URL(url);
+      return WORKER + '/' + t.protocol.replace(':', '') + '/' + t.host + t.pathname + t.search + t.hash;
+    } catch { return null; }
+  }
+
+  function displayUrl(proxyHref) {
+    // Try to reverse-engineer the real URL from the proxy URL
+    try {
+      const p = new URL(proxyHref);
+      const m = p.pathname.match(/^\/(https?)\/(.*)/);
+      if (m) {
+        const real = m[1] + '://' + m[2] + p.search + p.hash;
+        proxyUrlIn.value = real;
+        sbHost.textContent = new URL(real).hostname;
+        return;
+      }
+    } catch {}
+    proxyUrlIn.value = proxyHref;
+  }
+
+  function setStatus(state, text) {
+    statusBar.className = 'status-bar' + (state === 'idle' ? ' idle' : state === 'error' ? ' error-bar' : '');
+    sbStatus.innerHTML = {
+      loading: '<i class="fas fa-circle-notch fa-spin" style="font-size:8px"></i> <span>' + text + '</span>',
+      ready:   '<i class="fas fa-circle" style="font-size:6px;color:var(--green-hi)"></i> <span>' + text + '</span>',
+      error:   '<i class="fas fa-times-circle" style="font-size:9px"></i> <span>' + text + '</span>',
+      idle:    '<i class="fas fa-circle" style="font-size:6px;color:var(--tx-3)"></i> <span>' + text + '</span>',
+    }[state] || '<span>' + text + '</span>';
+    navStatus.textContent = text;
+    loadBar.classList.toggle('active', state === 'loading');
+  }
+
+  function enterBrowseMode(proxyHref) {
+    browsing = true;
+    homepage.style.display   = 'none';
+    proxyFrame.style.display = 'flex';
+    urlStrip.style.display   = 'flex';
+    statusBar.style.display  = 'flex';
+    statusBar.className      = 'status-bar';
+    displayUrl(proxyHref);
+    setStatus('loading', 'Loading…');
+  }
+
+  // ── navigate ─────────────────────────────────────────────────────────────
+  function navigate(raw) {
+    const pUrl = toProxyUrl(raw);
+    if (!pUrl) { showToast('Enter a valid URL'); return; }
+    enterBrowseMode(pUrl);
+    proxyFrame.src = pUrl;
+  }
+
+  // ── frame events ─────────────────────────────────────────────────────────
+  proxyFrame.addEventListener('load', () => {
+    try {
+      const loc = proxyFrame.contentWindow.location.href;
+      if (loc && loc !== 'about:blank') {
+        displayUrl(loc);
+        setStatus('ready', 'Done');
+      }
+    } catch {
+      setStatus('ready', 'Done');
+    }
+    loadBar.classList.remove('active');
+  });
+
+  proxyFrame.addEventListener('error', () => {
+    setStatus('error', 'Failed to load');
+  });
+
+  // ── controls ─────────────────────────────────────────────────────────────
+  document.getElementById('btnGo').addEventListener('click', () => navigate(proxyUrlIn.value));
+  proxyUrlIn.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(proxyUrlIn.value); });
+
+  document.getElementById('btnNavBack').addEventListener('click', () => {
+    try { proxyFrame.contentWindow.history.back(); } catch { showToast("Can't go back"); }
+  });
+  document.getElementById('btnNavFwd').addEventListener('click', () => {
+    try { proxyFrame.contentWindow.history.forward(); } catch { showToast("Can't go forward"); }
+  });
+  document.getElementById('btnReload').addEventListener('click', () => {
+    setStatus('loading', 'Reloading…');
+    try { proxyFrame.contentWindow.location.reload(); }
+    catch { proxyFrame.src = proxyFrame.src; }
+  });
+  document.getElementById('btnHome').addEventListener('click', () => {
+    browsing = false;
+    homepage.style.display   = 'flex';
+    proxyFrame.style.display = 'none';
+    urlStrip.style.display   = 'none';
+    statusBar.style.display  = 'none';
+    proxyFrame.src = 'about:blank';
+    navStatus.textContent = 'idle';
+  });
+
+  // ── homepage inputs ───────────────────────────────────────────────────────
+  document.getElementById('mainGoBtn').addEventListener('click', () => navigate(mainUrlIn.value));
+  mainUrlIn.addEventListener('keydown', e => { if (e.key === 'Enter') navigate(mainUrlIn.value); });
+
+  document.querySelectorAll('.hp-link').forEach(el => {
+    el.addEventListener('click', () => navigate(el.dataset.url));
+  });
+</script>
+</body>
+</html>
