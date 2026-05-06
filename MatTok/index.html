@@ -644,7 +644,29 @@ window.doSignOut = () => fbSignOut(auth).then(() => {
 <script>
 const API_KEY = 'cSow8wheuBdXIJq6YRC50SvVa8H3';
 const BASE    = 'https://api.scrapecreators.com';
-const CORS_PROXY = 'https://corsproxy.io/?';
+
+// Helper to fetch with CORS proxy
+async function proxyFetch(url, options = {}) {
+  console.log('[v0] Fetching:', url);
+  // Try direct first
+  try {
+    const r = await fetch(url, { ...options, mode: 'cors' });
+    if (r.ok) return r;
+  } catch(e) {
+    console.log('[v0] Direct fetch failed, trying proxy');
+  }
+  // Try corsproxy.io
+  try {
+    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+    const r = await fetch(proxyUrl, options);
+    if (r.ok) return r;
+  } catch(e) {
+    console.log('[v0] corsproxy.io failed, trying allorigins');
+  }
+  // Try allorigins as fallback
+  const allOriginsUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+  return fetch(allOriginsUrl);
+}
 
 // Hidden algorithm settings (not visible to users)
 const CONTENT_FILTER = {
@@ -721,9 +743,7 @@ window.doSearch = async () => {
   
   try {
     const apiUrl = `${BASE}/v1/tiktok/search?keyword=${encodeURIComponent(query + ' funny comedy english')}&count=30`;
-    const r = await fetch(CORS_PROXY + encodeURIComponent(apiUrl), { 
-      headers: {'x-api-key': API_KEY} 
-    });
+    const r = await proxyFetch(apiUrl, { headers: {'x-api-key': API_KEY} });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     const videos = data.aweme_list || data.videos || data.data || [];
@@ -892,7 +912,7 @@ window.jumpToVideo = (awemeId, from) => {
 async function loadSpecificVideo(awemeId) {
   try {
     const apiUrl = `${BASE}/v1/tiktok/video?aweme_id=${awemeId}`;
-    const r = await fetch(CORS_PROXY + encodeURIComponent(apiUrl), { headers:{'x-api-key':API_KEY} });
+    const r = await proxyFetch(apiUrl, { headers:{'x-api-key':API_KEY} });
     const data = await r.json();
     const v = data.aweme_detail || data.video || data;
     if (v && v.aweme_id) playSharedVideo(v);
@@ -1197,9 +1217,7 @@ async function loadFeed() {
     const term = searchTerms[Math.floor(Math.random() * searchTerms.length)];
     
     const apiUrl = `${BASE}/v1/tiktok/search?keyword=${encodeURIComponent(term)}&count=30&cursor=${cursor}`;
-    const r = await fetch(CORS_PROXY + encodeURIComponent(apiUrl), { 
-      headers:{'x-api-key':API_KEY} 
-    });
+    const r = await proxyFetch(apiUrl, { headers:{'x-api-key':API_KEY} });
     if (!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
     const videos = data.aweme_list || data.videos || data.data || [];
@@ -1252,7 +1270,7 @@ window.initApp = async () => {
     else {
       try {
         const apiUrl2 = `${BASE}/v1/tiktok/video?aweme_id=${sharedId}`;
-        const r = await fetch(CORS_PROXY + encodeURIComponent(apiUrl2), { headers:{'x-api-key':API_KEY} });
+        const r = await proxyFetch(apiUrl2, { headers:{'x-api-key':API_KEY} });
         const data = await r.json();
         const v = data.aweme_detail || data.video || data;
         if (v && v.aweme_id) playSharedVideo(v);
