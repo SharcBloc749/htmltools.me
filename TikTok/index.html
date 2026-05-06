@@ -38,26 +38,27 @@
     background: #000;
   }
 
-  .embed-wrap {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .embed-wrap iframe {
-    max-height: 100vh !important;
-    border: none !important;
-  }
-
   .slide-thumb {
     position: absolute; inset: 0;
     background-size: cover;
     background-position: center;
     z-index: 0;
-    transition: opacity 0.4s;
+  }
+  .slide-thumb::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.4);
+  }
+
+  .tiktok-iframe {
+    position: relative;
+    z-index: 1;
+    width: 325px;
+    height: 740px;
+    max-height: 95vh;
+    border: none;
+    border-radius: 12px;
+    background: #000;
   }
 
   .slide-actions {
@@ -67,8 +68,11 @@
     z-index: 10;
     pointer-events: none;
   }
-  .action { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.7rem; color: #fff;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+  .action {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 0.7rem; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
   .action span { font-size: 1.6rem; }
 
   .slide-info {
@@ -79,8 +83,10 @@
     pointer-events: none;
   }
   .slide-author { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
-  .slide-desc { font-size: 0.82rem; color: #ddd; line-height: 1.4;
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .slide-desc {
+    font-size: 0.82rem; color: #ddd; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
 
   #loader {
     height: 100vh; scroll-snap-align: start;
@@ -101,8 +107,6 @@
 
 <div id="feed"></div>
 
-<script async src="https://www.tiktok.com/embed.js"></script>
-
 <script>
 const KEY = 'IZqo3P4uw2P5wnNvQD5q0GH9f5i1';
 const BASE = 'https://api.scrapecreators.com';
@@ -117,32 +121,41 @@ function fmt(n) {
   return ''+n;
 }
 
+// Only load iframe src when slide scrolls into view
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const iframe = entry.target.querySelector('iframe[data-src]');
+      if (iframe) {
+        iframe.src = iframe.dataset.src;
+        delete iframe.dataset.src;
+      }
+    }
+  });
+}, { threshold: 0.5 });
+
 function addSlide(v) {
   const author   = v.author?.unique_id || v.author?.uniqueId || '?';
   const nickname = v.author?.nickname || '@' + author;
   const desc     = v.desc || '';
   const thumb    = v.video?.cover?.url_list?.[0] || '';
-  const views    = v.statistics?.play_count   || 0;
-  const likes    = v.statistics?.digg_count   || 0;
+  const views    = v.statistics?.play_count    || 0;
+  const likes    = v.statistics?.digg_count    || 0;
   const comments = v.statistics?.comment_count || 0;
   const videoId  = v.aweme_id;
-  const url      = `https://www.tiktok.com/@${author}/video/${videoId}`;
+  const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
 
   const slide = document.createElement('div');
   slide.className = 'slide';
-
   slide.innerHTML = `
     ${thumb ? `<div class="slide-thumb" style="background-image:url('${thumb}')"></div>` : ''}
-    <div class="embed-wrap">
-      <blockquote
-        class="tiktok-embed"
-        cite="${url}"
-        data-video-id="${videoId}"
-        style="max-width:605px; min-width:325px; border:none;"
-      >
-        <section></section>
-      </blockquote>
-    </div>
+    <iframe
+      class="tiktok-iframe"
+      data-src="${embedUrl}"
+      allowfullscreen
+      allow="autoplay; encrypted-media"
+      scrolling="no"
+    ></iframe>
     <div class="slide-info">
       <div class="slide-author">@${author} · ${nickname}</div>
       <div class="slide-desc">${desc}</div>
@@ -157,9 +170,7 @@ function addSlide(v) {
   if (loader) feed.insertBefore(slide, loader);
   else feed.appendChild(slide);
 
-  if (window.tiktok && window.tiktok.embed) {
-    window.tiktok.embed.render(slide.querySelector('.tiktok-embed'));
-  }
+  observer.observe(slide);
 }
 
 function showLoader() {
@@ -189,8 +200,6 @@ async function load() {
     removeLoader();
     videos.forEach(v => addSlide(v));
     cursor = data.nextCursor ?? data.cursor ?? (cursor + videos.length);
-
-    if (window.__tiktokEmbedReload) window.__tiktokEmbedReload();
   } catch(e) {
     removeLoader();
     const err = document.createElement('div');
@@ -201,17 +210,6 @@ async function load() {
 
   loading = false;
 }
-
-window.addEventListener('load', () => {
-  window.__tiktokEmbedReload = () => {
-    if (window.tiktok && window.tiktok.embed && window.tiktok.embed.render) {
-      document.querySelectorAll('.tiktok-embed:not([data-rendered])').forEach(el => {
-        window.tiktok.embed.render(el);
-        el.setAttribute('data-rendered', '1');
-      });
-    }
-  };
-});
 
 feed.addEventListener('scroll', () => {
   if (!started) return;
