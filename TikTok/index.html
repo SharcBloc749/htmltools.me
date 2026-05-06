@@ -2,226 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>TikTok Feed</title>
+<title>TikTok Debug</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #000; color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; }
-
-  #start-screen {
-    position: fixed; inset: 0; background: #000;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-    z-index: 999;
-  }
-  #start-screen h1 { font-size: 2rem; }
-  #start-screen p { color: #aaa; font-size: 0.9rem; }
-  #start-btn {
-    padding: 14px 40px; background: #fe2c55; color: #fff;
-    border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer;
-  }
-
-  #feed {
-    height: 100vh;
-    overflow-y: scroll;
-    scroll-snap-type: y mandatory;
-    scrollbar-width: none;
-  }
-  #feed::-webkit-scrollbar { display: none; }
-
-  .slide {
-    height: 100vh;
-    scroll-snap-align: start;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #000;
-  }
-
-  .slide-thumb {
-    position: absolute; inset: 0;
-    background-size: cover;
-    background-position: center;
-    z-index: 0;
-  }
-  .slide-thumb::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.4);
-  }
-
-  .tiktok-iframe {
-    position: relative;
-    z-index: 1;
-    width: 325px;
-    height: 740px;
-    max-height: 95vh;
-    border: none;
-    border-radius: 12px;
-    background: #000;
-  }
-
-  .slide-actions {
-    position: absolute; right: 0; bottom: 80px;
-    display: flex; flex-direction: column; align-items: center; gap: 20px;
-    padding: 0 12px;
-    z-index: 10;
-    pointer-events: none;
-  }
-  .action {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-    font-size: 0.7rem; color: #fff;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-  }
-  .action span { font-size: 1.6rem; }
-
-  .slide-info {
-    position: absolute; bottom: 0; left: 0; right: 60px;
-    padding: 16px;
-    background: linear-gradient(transparent, rgba(0,0,0,0.75));
-    z-index: 10;
-    pointer-events: none;
-  }
-  .slide-author { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
-  .slide-desc {
-    font-size: 0.82rem; color: #ddd; line-height: 1.4;
-    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-  }
-
-  #loader {
-    height: 100vh; scroll-snap-align: start;
-    display: flex; align-items: center; justify-content: center;
-    color: #aaa; font-size: 0.9rem;
-  }
-
-  #error { color: #fe2c55; padding: 20px; font-size: 0.85rem; font-family: monospace; white-space: pre-wrap; }
+  body { background: #111; color: #0f0; font-family: monospace; padding: 20px; }
+  pre { white-space: pre-wrap; word-break: break-all; font-size: 12px; }
+  button { padding: 10px 20px; background: #fe2c55; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 20px; font-size: 1rem; }
 </style>
 </head>
 <body>
-
-<div id="start-screen">
-  <h1>🎵 TikTok Feed</h1>
-  <p>Scroll through trending TikTok videos</p>
-  <button id="start-btn">▶ Start Scrolling</button>
-</div>
-
-<div id="feed"></div>
-
+<h2>TikTok API Debug - Video URL Finder</h2>
+<button onclick="load()">Fetch First Video & Log Structure</button>
+<pre id="out">Click the button...</pre>
 <script>
-const KEY = 'IZqo3P4uw2P5wnNvQD5q0GH9f5i1';
-const BASE = 'https://api.scrapecreators.com';
+async function load() {
+  const out = document.getElementById('out');
+  out.textContent = 'Fetching...';
+  try {
+    const r = await fetch('https://api.scrapecreators.com/v1/tiktok/get-trending-feed?cursor=0', {
+      headers: { 'x-api-key': 'IZqo3P4uw2P5wnNvQD5q0GH9f5i1' }
+    });
+    const data = await r.json();
+    const v = data.aweme_list[0];
 
-let cursor = 0, loading = false, started = false;
-const feed = document.getElementById('feed');
-
-function fmt(n) {
-  if (!n && n !== 0) return '0';
-  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
-  if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
-  return ''+n;
-}
-
-// Only load iframe src when slide scrolls into view
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      const iframe = entry.target.querySelector('iframe[data-src]');
-      if (iframe) {
-        iframe.src = iframe.dataset.src;
-        delete iframe.dataset.src;
+    // Extract all keys that look URL-related
+    const urls = [];
+    function walk(obj, path) {
+      if (!obj || typeof obj !== 'object') return;
+      for (const [k, val] of Object.entries(obj)) {
+        const p = path + '.' + k;
+        if (typeof val === 'string' && (val.startsWith('http') || val.includes('url'))) {
+          urls.push(p + ' = ' + val.substring(0, 100));
+        } else if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'string' && val[0].startsWith('http')) {
+          urls.push(p + '[0] = ' + val[0].substring(0, 100));
+        } else if (typeof val === 'object') {
+          walk(val, p);
+        }
       }
     }
-  });
-}, { threshold: 0.5 });
+    walk(v, 'video');
 
-function addSlide(v) {
-  const author   = v.author?.unique_id || v.author?.uniqueId || '?';
-  const nickname = v.author?.nickname || '@' + author;
-  const desc     = v.desc || '';
-  const thumb    = v.video?.cover?.url_list?.[0] || '';
-  const views    = v.statistics?.play_count    || 0;
-  const likes    = v.statistics?.digg_count    || 0;
-  const comments = v.statistics?.comment_count || 0;
-  const videoId  = v.aweme_id;
-  const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
-
-  const slide = document.createElement('div');
-  slide.className = 'slide';
-  slide.innerHTML = `
-    ${thumb ? `<div class="slide-thumb" style="background-image:url('${thumb}')"></div>` : ''}
-    <iframe
-      class="tiktok-iframe"
-      data-src="${embedUrl}"
-      allowfullscreen
-      allow="autoplay; encrypted-media"
-      scrolling="no"
-    ></iframe>
-    <div class="slide-info">
-      <div class="slide-author">@${author} · ${nickname}</div>
-      <div class="slide-desc">${desc}</div>
-    </div>
-    <div class="slide-actions">
-      <div class="action"><span>❤️</span>${fmt(likes)}</div>
-      <div class="action"><span>💬</span>${fmt(comments)}</div>
-      <div class="action"><span>▶️</span>${fmt(views)}</div>
-    </div>`;
-
-  const loader = document.getElementById('loader');
-  if (loader) feed.insertBefore(slide, loader);
-  else feed.appendChild(slide);
-
-  observer.observe(slide);
-}
-
-function showLoader() {
-  const el = document.createElement('div');
-  el.id = 'loader';
-  el.textContent = 'Loading more...';
-  feed.appendChild(el);
-}
-
-function removeLoader() {
-  document.getElementById('loader')?.remove();
-}
-
-async function load() {
-  if (loading) return;
-  loading = true;
-  showLoader();
-
-  try {
-    const r = await fetch(`${BASE}/v1/tiktok/get-trending-feed?cursor=${cursor}`, {
-      headers: { 'x-api-key': KEY }
-    });
-    const text = await r.text();
-    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text}`);
-    const data = JSON.parse(text);
-    const videos = data.aweme_list || [];
-    removeLoader();
-    videos.forEach(v => addSlide(v));
-    cursor = data.nextCursor ?? data.cursor ?? (cursor + videos.length);
+    // Also show full video object
+    out.textContent = '=== URL-like fields ===\n' + urls.join('\n') + '\n\n=== Full video object ===\n' + JSON.stringify(v.video, null, 2);
   } catch(e) {
-    removeLoader();
-    const err = document.createElement('div');
-    err.id = 'error';
-    err.textContent = 'Error: ' + e.message;
-    feed.appendChild(err);
+    out.textContent = 'Error: ' + e.message;
   }
-
-  loading = false;
 }
-
-feed.addEventListener('scroll', () => {
-  if (!started) return;
-  const nearBottom = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - feed.clientHeight;
-  if (nearBottom) load();
-});
-
-document.getElementById('start-btn').onclick = function() {
-  document.getElementById('start-screen').style.display = 'none';
-  started = true;
-  load();
-};
 </script>
 </body>
 </html>
