@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>MatTok - HTMLTools</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --red: #fe2c55;
+  --red2: #ff4d6d;
+  --bg: #000;
+  --surface: #111;
+  --surface2: #1a1a1a;
+  --border: #2a2a2a;
+  --tx: #fff;
+  --tx2: #aaa;
+  --tx3: #555;
+  --font: 'DM Sans', sans-serif;
+  --nav-h: 56px;
+  --bottom-h: 56px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; overflow:hidden; background:var(--bg); color:var(--tx); font-family:var(--font); }
+button { font-family:var(--font); cursor:pointer; border:none; background:none; }
+
+/* ── AUTH SCREEN ── */
+#auth-screen {
+  position:fixed; inset:0; background:var(--bg); z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:24px;
+}
+#auth-screen.hidden { display:none; }
+.auth-logo {
+  display:flex; align-items:center; gap:10px; margin-bottom:32px;
+}
+.auth-logo img { width:44px; height:44px; border-radius:12px; }
+.auth-logo-name {
+  font-size:2rem; font-weight:700; letter-spacing:-.04em;
+  background: linear-gradient(135deg, #fff 0%, var(--red) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.auth-card {
+  width:100%; max-width:360px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:20px; padding:28px; position:relative; overflow:hidden;
+}
+.auth-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, var(--red), var(--red2), transparent);
+}
+.auth-tabs {
+  display:flex; background:var(--surface2); border-radius:10px;
+  padding:3px; gap:2px; margin-bottom:22px;
+}
+.auth-tab {
+  flex:1; padding:9px; border-radius:8px; font-size:.8rem; font-weight:600;
+  color:var(--tx2); letter-spacing:.04em; text-transform:uppercase;
+  transition:all .18s;
+}
+.auth-tab.active { background:var(--red); color:#fff; }
+.auth-field { margin-bottom:14px; }
+.auth-field label { display:block; font-size:.73rem; color:var(--tx2); margin-bottom:6px; font-weight:500; }
+.auth-field input {
+  width:100%; background:var(--surface2); border:1px solid var(--border);
+  color:var(--tx); padding:11px 14px; border-radius:10px; font-size:.9rem;
+  font-family:var(--font); outline:none; transition:border-color .15s;
+}
+.auth-field input:focus { border-color:var(--red); }
+.auth-field input::placeholder { color:var(--tx3); }
+.auth-submit {
+  width:100%; padding:13px; background:var(--red); color:#fff;
+  border-radius:10px; font-size:.9rem; font-weight:700; margin-top:6px;
+  letter-spacing:.01em; transition:opacity .15s;
+}
+.auth-submit:hover { opacity:.88; }
+.auth-err {
+  margin-top:12px; padding:10px 12px; background:rgba(254,44,85,.1);
+  border:1px solid rgba(254,44,85,.3); border-radius:8px;
+  color:var(--red2); font-size:.78rem; display:none;
+}
+.auth-err.show { display:block; }
+
+/* ── MAIN APP ── */
+#app { position:fixed; inset:0; display:none; flex-direction:column; }
+#app.show { display:flex; }
+
+/* ── TOP NAV ── */
+#top-nav {
+  position:relative; z-index:50; height:var(--nav-h);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 14px;
+  background:linear-gradient(to bottom, rgba(0,0,0,.85) 0%, transparent 100%);
+  position:fixed; top:0; left:0; right:0;
+}
+.nav-logo {
+  display:flex; align-items:center; gap:8px;
+}
+.nav-logo img { width:28px; height:28px; border-radius:7px; }
+.nav-logo-text {
+  font-size:1.3rem; font-weight:700; letter-spacing:-.03em;
+  background:linear-gradient(135deg,#fff,var(--red));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+
+/* Search bar */
+#search-bar {
+  display:none; position:fixed; inset:0; z-index:200; background:var(--bg);
+  flex-direction:column;
+}
+#search-bar.show { display:flex; }
+.search-top {
+  display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  padding-top:calc(12px + env(safe-area-inset-top));
+}
+.search-input-wrap {
+  flex:1; display:flex; align-items:center; gap:8px;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:22px; padding:8px 14px; transition:border-color .15s;
+}
+.search-input-wrap:focus-within { border-color:var(--red); }
+.search-input-wrap svg { color:var(--tx2); flex-shrink:0; }
+#search-input {
+  flex:1; background:transparent; border:none; color:var(--tx);
+  font-size:.92rem; font-family:var(--font); outline:none;
+}
+#search-input::placeholder { color:var(--tx3); }
+.search-cancel {
+  color:var(--tx2); font-size:.9rem; font-weight:500; flex-shrink:0; padding:4px;
+}
+.search-cancel:hover { color:var(--tx); }
+.search-body { flex:1; overflow-y:auto; padding:14px; }
+.search-section-title {
+  font-size:.72rem; font-weight:600; color:var(--tx2); text-transform:uppercase;
+  letter-spacing:.08em; margin-bottom:10px;
+}
+.search-results { display:flex; flex-direction:column; gap:2px; }
+.search-result-item {
+  display:flex; align-items:center; gap:12px; padding:10px 8px;
+  border-radius:10px; cursor:pointer; transition:background .13s;
+}
+.search-result-item:hover { background:var(--surface); }
+.sri-avatar {
+  width:42px; height:42px; border-radius:50%; background:var(--surface2);
+  flex-shrink:0; overflow:hidden; display:flex; align-items:center;
+  justify-content:center; font-size:1.1rem; font-weight:700; color:var(--tx2);
+}
+.sri-avatar img { width:100%; height:100%; object-fit:cover; }
+.sri-info { flex:1; min-width:0; }
+.sri-name { font-size:.9rem; font-weight:600; }
+.sri-sub { font-size:.78rem; color:var(--tx2); }
+.search-empty { text-align:center; padding:48px 20px; color:var(--tx2); font-size:.88rem; }
+
+/* nav icon buttons */
+.nav-icon-btn {
+  width:36px; height:36px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; color:var(--tx);
+  background:rgba(255,255,255,.08); transition:background .13s;
+}
+.nav-icon-btn:hover { background:rgba(255,255,255,.15); }
+.nav-right { display:flex; align-items:center; gap:8px; }
+
+/* user menu */
+#user-menu {
+  position:fixed; top:60px; right:14px; background:var(--surface);
+  border:1px solid var(--border); border-radius:14px; padding:6px;
+  z-index:100; min-width:180px; display:none;
+  box-shadow:0 20px 60px rgba(0,0,0,.8);
+  animation:pop .15s cubic-bezier(.22,1,.36,1);
+}
+#user-menu.show { display:block; }
+@keyframes pop { from{opacity:0;transform:scale(.95) translateY(-4px)} to{opacity:1;transform:scale(1) translateY(0)} }
+.um-header { padding:10px 12px 8px; border-bottom:1px solid var(--border); margin-bottom:4px; }
+.um-name { font-weight:600; font-size:.88rem; }
+.um-email { font-size:.72rem; color:var(--tx2); margin-top:2px; }
+.um-item {
+  display:flex; align-items:center; gap:9px; padding:9px 12px;
+  border-radius:9px; font-size:.85rem; color:var(--tx2); cursor:pointer;
+  transition:background .12s; width:100%;
+}
+.um-item:hover { background:var(--surface2); color:var(--tx); }
+.um-item svg { flex-shrink:0; }
+.um-signout { color:#f87171; }
+.um-signout:hover { background:rgba(248,113,113,.1); color:#f87171; }
+
+/* ── FEED ── */
+#feed {
+  flex:1; overflow-y:scroll; scroll-snap-type:y mandatory;
+  scrollbar-width:none; padding-bottom:var(--bottom-h);
+}
+#feed::-webkit-scrollbar { display:none; }
+
+.slide {
+  height:100dvh; scroll-snap-align:start;
+  position:relative; display:flex; align-items:center;
+  justify-content:center; background:#000;
+  overflow:hidden;
+}
+
+.slide video {
+  height:100%; width:100%; object-fit:contain; display:block;
+  cursor:pointer;
+}
+
+/* gradient overlays */
+.slide::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:180px;
+  background:linear-gradient(to bottom, rgba(0,0,0,.55), transparent);
+  z-index:2; pointer-events:none;
+}
+.slide::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:260px;
+  background:linear-gradient(to top, rgba(0,0,0,.75), transparent);
+  z-index:2; pointer-events:none;
+}
+
+/* pause flash */
+.pause-flash {
+  position:absolute; z-index:10;
+  width:72px; height:72px; border-radius:50%;
+  background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.pause-flash.show { opacity:1; }
+.pause-flash svg { color:#fff; }
+
+/* ── SLIDE INFO ── */
+.slide-info {
+  position:absolute; bottom:calc(var(--bottom-h) + 14px); left:0; right:72px;
+  padding:0 14px; z-index:5;
+}
+.si-author {
+  display:flex; align-items:center; gap:9px; margin-bottom:8px;
+}
+.si-avatar {
+  width:38px; height:38px; border-radius:50%; border:2px solid var(--red);
+  object-fit:cover; background:var(--surface2); flex-shrink:0;
+  overflow:hidden; display:flex; align-items:center; justify-content:center;
+  font-size:.95rem; font-weight:700;
+}
+.si-avatar img { width:100%; height:100%; object-fit:cover; }
+.si-name { font-weight:700; font-size:.92rem; }
+.si-follow {
+  background:transparent; border:1px solid rgba(255,255,255,.5);
+  color:#fff; font-size:.72rem; font-weight:600; padding:4px 10px;
+  border-radius:4px; transition:all .15s;
+}
+.si-follow:hover { background:rgba(255,255,255,.15); }
+.si-desc {
+  font-size:.83rem; color:#e0e0e0; line-height:1.45;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; margin-bottom:6px;
+}
+.si-music {
+  display:flex; align-items:center; gap:6px; font-size:.78rem; color:#ccc;
+}
+.si-music-disc {
+  width:22px; height:22px; border-radius:50%; background:var(--surface2);
+  border:2px solid #444; flex-shrink:0; display:flex; align-items:center;
+  justify-content:center; animation:spin 4s linear infinite;
+}
+.si-music-disc.paused { animation-play-state:paused; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* ── SLIDE ACTIONS ── */
+.slide-actions {
+  position:absolute; right:0; bottom:calc(var(--bottom-h) + 14px);
+  display:flex; flex-direction:column; align-items:center; gap:16px;
+  padding:0 10px; z-index:5;
+}
+.sa-btn {
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  cursor:pointer;
+}
+.sa-icon {
+  width:46px; height:46px; border-radius:50%;
+  background:rgba(255,255,255,.1); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .15s, background .15s;
+}
+.sa-btn:active .sa-icon { transform:scale(.88); }
+.sa-icon.liked { background:rgba(254,44,85,.25); }
+.sa-icon svg { color:#fff; }
+.sa-icon.liked svg { color:var(--red); }
+.sa-count { font-size:.68rem; color:#fff; font-weight:500; text-shadow:0 1px 4px rgba(0,0,0,.7); }
+
+/* progress bar */
+.slide-progress {
+  position:absolute; bottom:var(--bottom-h); left:0; right:0;
+  height:2px; background:rgba(255,255,255,.15); z-index:5; cursor:pointer;
+}
+.slide-progress-bar { height:100%; background:var(--red); width:0; pointer-events:none; }
+
+/* ── BOTTOM NAV ── */
+#bottom-nav {
+  position:fixed; bottom:0; left:0; right:0; height:var(--bottom-h);
+  background:rgba(0,0,0,.92); backdrop-filter:blur(16px);
+  border-top:1px solid rgba(255,255,255,.06);
+  display:flex; align-items:center; justify-content:space-around;
+  z-index:50; padding-bottom:env(safe-area-inset-bottom);
+}
+.bn-item {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:6px 14px; cursor:pointer; color:var(--tx3); transition:color .15s;
+}
+.bn-item.active { color:#fff; }
+.bn-item svg { transition:transform .15s; }
+.bn-item.active svg { color:var(--red); }
+.bn-label { font-size:.6rem; font-weight:600; letter-spacing:.04em; }
+
+/* ── COMMENTS PANEL ── */
+#comments-panel {
+  position:fixed; bottom:0; left:0; right:0; height:65vh;
+  background:var(--surface); border-radius:18px 18px 0 0;
+  z-index:200; display:flex; flex-direction:column;
+  transform:translateY(110%);
+  transition:transform .32s cubic-bezier(.32,.72,0,1);
+  border-top:1px solid var(--border);
+}
+#comments-panel.open { transform:translateY(0); }
+#comments-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:199; display:none;
+}
+#comments-overlay.show { display:block; }
+.cp-handle {
+  width:36px; height:4px; background:var(--border); border-radius:2px;
+  margin:10px auto 0;
+}
+.cp-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px; border-bottom:1px solid var(--border);
+}
+.cp-title { font-weight:700; font-size:.95rem; }
+.cp-close {
+  width:30px; height:30px; border-radius:50%; background:var(--surface2);
+  display:flex; align-items:center; justify-content:center; color:var(--tx2);
+  font-size:1rem; cursor:pointer;
+}
+#comments-list {
+  flex:1; overflow-y:auto; padding:12px 16px;
+  display:flex; flex-direction:column; gap:14px;
+}
+#comments-list::-webkit-scrollbar { display:none; }
+.comment { display:flex; gap:10px; }
+.c-avatar {
+  width:34px; height:34px; border-radius:50%; background:var(--surface2);
+  flex-shrink:0; overflow:hidden; display:flex; align-items:center;
+  justify-content:center; font-size:.82rem; font-weight:700; color:var(--tx2);
+}
+.c-avatar img { width:100%; height:100%; object-fit:cover; }
+.c-body { flex:1; min-width:0; }
+.c-user { font-weight:600; font-size:.82rem; margin-bottom:2px; }
+.c-text { font-size:.85rem; color:#ddd; line-height:1.45; }
+.c-meta { font-size:.72rem; color:var(--tx3); margin-top:4px; display:flex; gap:10px; }
+.c-loading { color:var(--tx2); font-size:.85rem; text-align:center; padding:28px; }
+
+/* ── LOADER ── */
+#loader {
+  height:100dvh; scroll-snap-align:start;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--tx2); font-size:.88rem; gap:8px;
+}
+.loader-dot {
+  width:6px; height:6px; border-radius:50%; background:var(--red);
+  animation:bounce .8s infinite;
+}
+.loader-dot:nth-child(2) { animation-delay:.15s; }
+.loader-dot:nth-child(3) { animation-delay:.3s; }
+@keyframes bounce { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:calc(var(--bottom-h) + 16px); left:50%;
+  transform:translateX(-50%) translateY(10px); opacity:0;
+  background:rgba(30,30,30,.95); border:1px solid var(--border);
+  color:#fff; padding:9px 16px; border-radius:22px; font-size:.82rem;
+  font-weight:500; z-index:999; transition:all .2s; pointer-events:none;
+  white-space:nowrap; backdrop-filter:blur(8px);
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-logo">
+    <img src="logo3.png" alt="MatTok" onerror="this.style.display='none'"/>
+    <span class="auth-logo-name">MatTok</span>
+  </div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="authTab('login')">Sign In</button>
+      <button class="auth-tab" id="tab-register" onclick="authTab('register')">Register</button>
+    </div>
+    <div id="name-field" class="auth-field" style="display:none">
+      <label>Display Name</label>
+      <input type="text" id="auth-name" placeholder="Your name"/>
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="auth-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doAuth()"/>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="auth-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAuth()"/>
+    </div>
+    <button class="auth-submit" id="auth-btn" onclick="doAuth()">Sign In</button>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- TOP NAV (fixed overlay) -->
+  <div id="top-nav">
+    <div class="nav-logo">
+      <img src="logo3.png" alt="MatTok" onerror="this.style.display='none'"/>
+      <span class="nav-logo-text">MatTok</span>
+    </div>
+    <div class="nav-right">
+      <button class="nav-icon-btn" onclick="openSearch()" title="Search">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+      <button class="nav-icon-btn" onclick="toggleUserMenu()" id="user-avatar-btn" title="Account">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- USER MENU -->
+  <div id="user-menu">
+    <div class="um-header">
+      <div class="um-name" id="um-name">—</div>
+      <div class="um-email" id="um-email">—</div>
+    </div>
+    <button class="um-item um-signout" onclick="doSignOut()">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Sign Out
+    </button>
+  </div>
+
+  <!-- SEARCH -->
+  <div id="search-bar">
+    <div class="search-top">
+      <div class="search-input-wrap">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search-input" placeholder="Search videos, creators..." oninput="doSearch(this.value)" autofocus/>
+      </div>
+      <button class="search-cancel" onclick="closeSearch()">Cancel</button>
+    </div>
+    <div class="search-body">
+      <div id="search-results">
+        <div class="search-section-title">Trending Creators</div>
+        <div class="search-results" id="trending-creators"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEED -->
+  <div id="feed"></div>
+
+  <!-- BOTTOM NAV -->
+  <div id="bottom-nav">
+    <div class="bn-item active">
+      <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span class="bn-label">For You</span>
+    </div>
+    <div class="bn-item" onclick="openSearch()">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span class="bn-label">Discover</span>
+    </div>
+    <div class="bn-item">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span class="bn-label">Upload</span>
+    </div>
+    <div class="bn-item">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="bn-label">Profile</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- COMMENTS -->
+<div id="comments-overlay" onclick="closeComments()"></div>
+<div id="comments-panel">
+  <div class="cp-handle"></div>
+  <div class="cp-header">
+    <span class="cp-title" id="cp-title">Comments</span>
+    <button class="cp-close" onclick="closeComments()">✕</button>
+  </div>
+  <div id="comments-list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, set, get, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCAtRRv7hxrBKxeJdh4VsL7j0jh5kf2X1U",
+  authDomain: "htmltools-main.firebaseapp.com",
+  databaseURL: "https://htmltools-main-default-rtdb.firebaseio.com",
+  projectId: "htmltools-main",
+  storageBucket: "htmltools-main.firebasestorage.app",
+  messagingSenderId: "692809314189",
+  appId: "1:692809314189:web:c386a54b41af7c867657c4"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+window._fbSignOut = () => fbSignOut(auth);
+window._fbSaveUser = async (user) => {
+  try {
+    const r = ref(db, `mattok/users/${user.uid}`);
+    const snap = await get(r);
+    const existing = snap.val() || {};
+    await set(r, { ...existing, displayName: user.displayName || '', email: user.email, uid: user.uid, lastSeen: Date.now(), joinedAt: existing.joinedAt || Date.now() });
+  } catch(e) { console.warn('DB save failed:', e); }
+};
+window._fbGetUsers = async () => {
+  try {
+    const snap = await get(ref(db, 'mattok/users'));
+    return snap.val() || {};
+  } catch(e) { return {}; }
+};
+
+let _authMode = 'login';
+window.authTab = (mode) => {
+  _authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+  document.getElementById('name-field').style.display = mode === 'register' ? 'block' : 'none';
+  document.getElementById('auth-btn').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-err').classList.remove('show');
+};
+
+window.doAuth = async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  const name  = document.getElementById('auth-name').value.trim();
+  const errEl = document.getElementById('auth-err');
+  const btn   = document.getElementById('auth-btn');
+  errEl.classList.remove('show');
+  if (!email || !pass) { errEl.textContent = 'Please fill in all fields.'; errEl.classList.add('show'); return; }
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    if (_authMode === 'register') {
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      if (name) await updateProfile(cred.user, { displayName: name });
+    } else {
+      await signInWithEmailAndPassword(auth, email, pass);
+    }
+  } catch(e) {
+    errEl.textContent = e.message.replace('Firebase: ', '').replace(/\(.*\)/, '').trim();
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = _authMode === 'login' ? 'Sign In' : 'Create Account';
+  }
+};
+
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    window._currentUser = user;
+    await window._fbSaveUser(user);
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app').classList.add('show');
+    document.getElementById('um-name').textContent = user.displayName || 'Anonymous';
+    document.getElementById('um-email').textContent = user.email;
+    if (!window._feedStarted) { window._feedStarted = true; window.startFeed(); }
+  } else {
+    window._currentUser = null;
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('app').classList.remove('show');
+  }
+});
+
+window.doSignOut = async () => { await fbSignOut(auth); };
+</script>
+
+<script>
+// ── CONSTANTS ──
+const KEY  = 'IZqo3P4uw2P5wnNvQD5q0GH9f5i1';
+const BASE = 'https://api.scrapecreators.com';
+
+let cursor = 0, loading = false;
+let currentVideoEl = null;
+let likedVideos = new Set(JSON.parse(localStorage.getItem('mattok_likes') || '[]'));
+
+const feed = document.getElementById('feed');
+
+// ── HELPERS ──
+function fmt(n) {
+  if (!n) return '0';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return '' + n;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── USER MENU ──
+let menuOpen = false;
+window.toggleUserMenu = () => {
+  menuOpen = !menuOpen;
+  document.getElementById('user-menu').classList.toggle('show', menuOpen);
+};
+document.addEventListener('click', e => {
+  if (!document.getElementById('user-menu').contains(e.target) &&
+      !document.getElementById('user-avatar-btn').contains(e.target)) {
+    menuOpen = false;
+    document.getElementById('user-menu').classList.remove('show');
+  }
+});
+
+// ── SEARCH ──
+let allVideoData = [];
+window.openSearch = () => {
+  document.getElementById('search-bar').classList.add('show');
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-input').focus();
+  renderTrendingCreators();
+  if (currentVideoEl) currentVideoEl.pause();
+};
+window.closeSearch = () => {
+  document.getElementById('search-bar').classList.remove('show');
+  if (currentVideoEl) currentVideoEl.play().catch(() => {});
+};
+
+function renderTrendingCreators() {
+  const tc = document.getElementById('trending-creators');
+  if (!allVideoData.length) { tc.innerHTML = '<div class="search-empty">Load some videos first to see creators.</div>'; return; }
+  const seen = new Set(), creators = [];
+  for (const v of allVideoData) {
+    const id = v.author?.unique_id || v.author?.uniqueId;
+    if (id && !seen.has(id)) { seen.add(id); creators.push(v); }
+    if (creators.length >= 8) break;
+  }
+  tc.innerHTML = creators.map(v => {
+    const id = v.author?.unique_id || v.author?.uniqueId || '?';
+    const nick = v.author?.nickname || id;
+    const avatar = v.author?.avatar_thumb?.url_list?.[0] || '';
+    const followers = v.author?.follower_count;
+    return `<div class="search-result-item" onclick="filterByAuthor('${id}')">
+      <div class="sri-avatar">${avatar ? `<img src="${avatar}" alt="">` : id[0].toUpperCase()}</div>
+      <div class="sri-info">
+        <div class="sri-name">@${id}</div>
+        <div class="sri-sub">${nick}${followers ? ' · ' + fmt(followers) + ' followers' : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.doSearch = (q) => {
+  const res = document.getElementById('search-results');
+  if (!q.trim()) { res.innerHTML = '<div class="search-section-title">Trending Creators</div><div class="search-results" id="trending-creators"></div>'; renderTrendingCreators(); return; }
+  const ql = q.toLowerCase();
+  const matches = allVideoData.filter(v => {
+    const id = (v.author?.unique_id || '').toLowerCase();
+    const nick = (v.author?.nickname || '').toLowerCase();
+    const desc = (v.desc || '').toLowerCase();
+    return id.includes(ql) || nick.includes(ql) || desc.includes(ql);
+  });
+  if (!matches.length) { res.innerHTML = '<div class="search-empty">No results for "' + q + '"</div>'; return; }
+  const seen = new Set(), creators = [];
+  for (const v of matches) {
+    const id = v.author?.unique_id || v.author?.uniqueId;
+    if (id && !seen.has(id)) { seen.add(id); creators.push(v); }
+  }
+  res.innerHTML = `<div class="search-section-title">${creators.length} creator${creators.length !== 1 ? 's' : ''} found</div>` +
+    creators.slice(0, 10).map(v => {
+      const id = v.author?.unique_id || '?';
+      const nick = v.author?.nickname || id;
+      const avatar = v.author?.avatar_thumb?.url_list?.[0] || '';
+      return `<div class="search-result-item" onclick="filterByAuthor('${id}')">
+        <div class="sri-avatar">${avatar ? `<img src="${avatar}" alt="">` : id[0].toUpperCase()}</div>
+        <div class="sri-info">
+          <div class="sri-name">@${id}</div>
+          <div class="sri-sub">${nick}</div>
+        </div>
+      </div>`;
+    }).join('');
+};
+
+window.filterByAuthor = (authorId) => {
+  closeSearch();
+  // Scroll to first slide by this author
+  const slides = document.querySelectorAll('.slide');
+  for (const s of slides) {
+    if (s.dataset.author === authorId) { s.scrollIntoView({behavior:'smooth'}); return; }
+  }
+  showToast(`Searching for @${authorId}…`);
+};
+
+// ── COMMENTS ──
+window.openComments = async (awemeId, count) => {
+  document.getElementById('cp-title').textContent = fmt(count) + ' Comments';
+  document.getElementById('comments-list').innerHTML = '<div class="c-loading">Loading comments…</div>';
+  document.getElementById('comments-panel').classList.add('open');
+  document.getElementById('comments-overlay').classList.add('show');
+  if (currentVideoEl) currentVideoEl.pause();
+
+  try {
+    const r = await fetch(`${BASE}/v1/tiktok/video/comments?aweme_id=${awemeId}&count=30`, { headers: {'x-api-key': KEY} });
+    const data = await r.json();
+    const comments = data.comments || [];
+    if (!comments.length) { document.getElementById('comments-list').innerHTML = '<div class="c-loading">No comments found.</div>'; return; }
+    document.getElementById('comments-list').innerHTML = comments.map(c => {
+      const user = c.user?.unique_id || 'user';
+      const avatar = c.user?.avatar_thumb?.url_list?.[0] || '';
+      const txt = c.text || '';
+      const likes = c.digg_count || 0;
+      const time = c.create_time ? timeAgo(c.create_time * 1000) : '';
+      return `<div class="comment">
+        <div class="c-avatar">${avatar ? `<img src="${avatar}">` : user[0].toUpperCase()}</div>
+        <div class="c-body">
+          <div class="c-user">@${user}</div>
+          <div class="c-text">${txt}</div>
+          <div class="c-meta"><span>${time}</span><span>❤️ ${fmt(likes)}</span></div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('comments-list').innerHTML = '<div class="c-loading">Could not load comments.</div>';
+  }
+};
+
+window.closeComments = () => {
+  document.getElementById('comments-panel').classList.remove('open');
+  document.getElementById('comments-overlay').classList.remove('show');
+  if (currentVideoEl) currentVideoEl.play().catch(() => {});
+};
+
+function timeAgo(ms) {
+  const d = Date.now() - ms;
+  if (d < 60000) return 'Just now';
+  if (d < 3600000) return Math.floor(d/60000) + 'm ago';
+  if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
+  return Math.floor(d/86400000) + 'd ago';
+}
+
+// ── SLIDE BUILDER ──
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    const slide = entry.target;
+    const video = slide.querySelector('video');
+    if (!video) return;
+    if (entry.isIntersecting) {
+      video.play().catch(() => {});
+      currentVideoEl = video;
+      const disc = slide.querySelector('.si-music-disc');
+      if (disc) disc.classList.remove('paused');
+    } else {
+      video.pause();
+      video.currentTime = 0;
+      const disc = slide.querySelector('.si-music-disc');
+      if (disc) disc.classList.add('paused');
+    }
+  });
+}, { threshold: 0.6 });
+
+function addSlide(v) {
+  const author   = v.author?.unique_id || v.author?.uniqueId || '?';
+  const nickname = v.author?.nickname || author;
+  const desc     = v.desc || '';
+  const music    = v.music?.title || '';
+  const views    = v.statistics?.play_count    || 0;
+  const likes    = v.statistics?.digg_count    || 0;
+  const comments = v.statistics?.comment_count || 0;
+  const shares   = v.statistics?.share_count   || 0;
+  const awemeId  = v.aweme_id;
+  const thumb    = v.video?.cover?.url_list?.[0] || '';
+  const avatar   = v.author?.avatar_thumb?.url_list?.[0] || '';
+
+  const videoUrl = v.video?.play_addr_h264?.url_list?.[0]
+                || v.video?.play_addr?.url_list?.[0] || '';
+  if (!videoUrl) return;
+
+  const liked = likedVideos.has(awemeId);
+
+  const slide = document.createElement('div');
+  slide.className = 'slide';
+  slide.dataset.author = author;
+  slide.dataset.awemeId = awemeId;
+
+  slide.innerHTML = `
+    <video src="${videoUrl}" loop playsinline preload="none" webkit-playsinline poster="${thumb}"></video>
+    <div class="pause-flash" id="pf-${awemeId}">
+      <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+    </div>
+    <div class="slide-info">
+      <div class="si-author">
+        <div class="si-avatar">${avatar ? `<img src="${avatar}" alt="">` : author[0].toUpperCase()}</div>
+        <span class="si-name">@${author}</span>
+        <button class="si-follow">Follow</button>
+      </div>
+      <div class="si-desc">${desc}</div>
+      ${music ? `<div class="si-music">
+        <div class="si-music-disc">🎵</div>
+        <span>${music}</span>
+      </div>` : ''}
+    </div>
+    <div class="slide-actions">
+      <div class="sa-btn" id="like-${awemeId}" onclick="toggleLike('${awemeId}', this)">
+        <div class="sa-icon${liked ? ' liked' : ''}">
+          <svg width="24" height="24" fill="${liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
+        <span class="sa-count">${fmt(likes)}</span>
+      </div>
+      <div class="sa-btn" onclick="openComments('${awemeId}', ${comments})">
+        <div class="sa-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <span class="sa-count">${fmt(comments)}</span>
+      </div>
+      <div class="sa-btn" onclick="shareVideo('${awemeId}', '${author}')">
+        <div class="sa-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </div>
+        <span class="sa-count">${fmt(shares)}</span>
+      </div>
+      <div class="sa-btn">
+        <div class="sa-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <span class="sa-count">${fmt(views)}</span>
+      </div>
+    </div>
+    <div class="slide-progress" id="prog-${awemeId}">
+      <div class="slide-progress-bar"></div>
+    </div>`;
+
+  const video = slide.querySelector('video');
+  const pauseFlash = slide.querySelector('.pause-flash');
+  const progressBar = slide.querySelector('.slide-progress-bar');
+
+  // Tap to pause/play
+  video.addEventListener('click', () => {
+    if (video.paused) {
+      video.play().catch(() => {});
+      pauseFlash.querySelector('svg').innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+    } else {
+      video.pause();
+      pauseFlash.querySelector('svg').innerHTML = '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
+    }
+    pauseFlash.classList.add('show');
+    setTimeout(() => pauseFlash.classList.remove('show'), 500);
+  });
+
+  // Progress
+  video.addEventListener('timeupdate', () => {
+    if (video.duration) {
+      progressBar.style.width = (video.currentTime / video.duration * 100) + '%';
+    }
+  });
+
+  // Seek
+  slide.querySelector('.slide-progress').addEventListener('click', e => {
+    if (!video.duration) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    video.currentTime = ((e.clientX - r.left) / r.width) * video.duration;
+  });
+
+  // Follow button
+  slide.querySelector('.si-follow').addEventListener('click', e => {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const following = btn.classList.toggle('following');
+    btn.textContent = following ? 'Following' : 'Follow';
+    btn.style.background = following ? 'var(--red)' : '';
+    btn.style.borderColor = following ? 'var(--red)' : '';
+    showToast(following ? `Following @${author}` : `Unfollowed @${author}`);
+  });
+
+  const loader = document.getElementById('loader');
+  if (loader) feed.insertBefore(slide, loader);
+  else feed.appendChild(slide);
+
+  observer.observe(slide);
+  allVideoData.push(v);
+}
+
+// ── LIKE ──
+window.toggleLike = (awemeId, btn) => {
+  const icon = btn.querySelector('.sa-icon');
+  const svg = btn.querySelector('svg');
+  const isLiked = likedVideos.has(awemeId);
+  if (isLiked) {
+    likedVideos.delete(awemeId);
+    icon.classList.remove('liked');
+    svg.setAttribute('fill', 'none');
+  } else {
+    likedVideos.add(awemeId);
+    icon.classList.add('liked');
+    svg.setAttribute('fill', 'currentColor');
+    // heart burst animation
+    icon.animate([{transform:'scale(1)'},{transform:'scale(1.35)'},{transform:'scale(1)'}], {duration:300, easing:'cubic-bezier(.36,.07,.19,.97)'});
+  }
+  localStorage.setItem('mattok_likes', JSON.stringify([...likedVideos]));
+};
+
+// ── SHARE ──
+window.shareVideo = (awemeId, author) => {
+  const url = `https://www.tiktok.com/@${author}/video/${awemeId}`;
+  if (navigator.share) {
+    navigator.share({ title: `@${author} on MatTok`, url }).catch(() => {});
+  } else {
+    navigator.clipboard?.writeText(url).then(() => showToast('Link copied!')).catch(() => showToast('Copy: ' + url));
+  }
+};
+
+// ── LOAD ──
+function showLoader() {
+  let el = document.getElementById('loader');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loader'; el.className = '';
+    el.innerHTML = `<div id="loader" style="height:100dvh;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;gap:6px">
+      <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
+    </div>`;
+    feed.appendChild(el);
+  }
+}
+
+function removeLoader() {
+  document.getElementById('loader')?.remove();
+}
+
+async function loadFeed() {
+  if (loading) return;
+  loading = true;
+  showLoader();
+  try {
+    const r = await fetch(`${BASE}/v1/tiktok/get-trending-feed?cursor=${cursor}`, { headers: {'x-api-key': KEY} });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const videos = data.aweme_list || [];
+    removeLoader();
+    videos.forEach(v => {
+      if (v.video?.play_addr_h264?.url_list?.[0] || v.video?.play_addr?.url_list?.[0]) addSlide(v);
+    });
+    cursor = data.nextCursor ?? data.cursor ?? (cursor + videos.length);
+  } catch(e) {
+    removeLoader();
+    const err = document.createElement('div');
+    err.style.cssText = 'height:100dvh;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;color:#f87171;font-size:.85rem;padding:20px;text-align:center;';
+    err.textContent = 'Could not load videos: ' + e.message;
+    feed.appendChild(err);
+  }
+  loading = false;
+}
+
+feed.addEventListener('scroll', () => {
+  const nearBottom = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - feed.clientHeight;
+  if (nearBottom) loadFeed();
+});
+
+window.startFeed = () => loadFeed();
+</script>
+</body>
+</html>
