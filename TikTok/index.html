@@ -8,7 +8,6 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; }
 
-  /* START SCREEN */
   #start-screen {
     position: fixed; inset: 0; background: #000;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
@@ -21,7 +20,6 @@
     border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer;
   }
 
-  /* FEED */
   #feed {
     height: 100vh;
     overflow-y: scroll;
@@ -30,7 +28,6 @@
   }
   #feed::-webkit-scrollbar { display: none; }
 
-  /* EACH VIDEO SLIDE */
   .slide {
     height: 100vh;
     scroll-snap-align: start;
@@ -38,49 +35,53 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #111;
+    background: #000;
   }
 
-  /* THUMBNAIL (shown when no video) */
+  .embed-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .embed-wrap iframe {
+    max-height: 100vh !important;
+    border: none !important;
+  }
+
   .slide-thumb {
     position: absolute; inset: 0;
     background-size: cover;
     background-position: center;
-    filter: blur(0px);
+    z-index: 0;
+    transition: opacity 0.4s;
   }
 
-  /* WATCH BUTTON overlay */
-  .watch-overlay {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.35);
+  .slide-actions {
+    position: absolute; right: 0; bottom: 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+    padding: 0 12px;
+    z-index: 10;
+    pointer-events: none;
   }
-  .watch-btn {
-    background: #fe2c55; color: #fff;
-    text-decoration: none; padding: 13px 28px;
-    border-radius: 30px; font-weight: bold; font-size: 1rem;
-  }
+  .action { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.7rem; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+  .action span { font-size: 1.6rem; }
 
-  /* BOTTOM INFO */
   .slide-info {
     position: absolute; bottom: 0; left: 0; right: 60px;
     padding: 16px;
     background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    z-index: 10;
+    pointer-events: none;
   }
   .slide-author { font-weight: bold; font-size: 1rem; margin-bottom: 4px; }
   .slide-desc { font-size: 0.82rem; color: #ddd; line-height: 1.4;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-  /* RIGHT SIDE ACTIONS */
-  .slide-actions {
-    position: absolute; right: 0; bottom: 80px;
-    display: flex; flex-direction: column; align-items: center; gap: 20px;
-    padding: 0 12px;
-  }
-  .action { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.7rem; color: #fff; }
-  .action span { font-size: 1.6rem; }
-
-  /* LOADING SPINNER */
   #loader {
     height: 100vh; scroll-snap-align: start;
     display: flex; align-items: center; justify-content: center;
@@ -99,6 +100,8 @@
 </div>
 
 <div id="feed"></div>
+
+<script async src="https://www.tiktok.com/embed.js"></script>
 
 <script>
 const KEY = 'IZqo3P4uw2P5wnNvQD5q0GH9f5i1';
@@ -119,17 +122,26 @@ function addSlide(v) {
   const nickname = v.author?.nickname || '@' + author;
   const desc     = v.desc || '';
   const thumb    = v.video?.cover?.url_list?.[0] || '';
-  const views    = v.statistics?.play_count  || 0;
-  const likes    = v.statistics?.digg_count  || 0;
+  const views    = v.statistics?.play_count   || 0;
+  const likes    = v.statistics?.digg_count   || 0;
   const comments = v.statistics?.comment_count || 0;
-  const url      = v.url || `https://www.tiktok.com/@${author}/video/${v.aweme_id}`;
+  const videoId  = v.aweme_id;
+  const url      = `https://www.tiktok.com/@${author}/video/${videoId}`;
 
   const slide = document.createElement('div');
   slide.className = 'slide';
+
   slide.innerHTML = `
-    <div class="slide-thumb" style="background-image:url('${thumb}')"></div>
-    <div class="watch-overlay">
-      <a class="watch-btn" href="${url}" target="_blank">▶ Watch on TikTok</a>
+    ${thumb ? `<div class="slide-thumb" style="background-image:url('${thumb}')"></div>` : ''}
+    <div class="embed-wrap">
+      <blockquote
+        class="tiktok-embed"
+        cite="${url}"
+        data-video-id="${videoId}"
+        style="max-width:605px; min-width:325px; border:none;"
+      >
+        <section></section>
+      </blockquote>
     </div>
     <div class="slide-info">
       <div class="slide-author">@${author} · ${nickname}</div>
@@ -141,10 +153,13 @@ function addSlide(v) {
       <div class="action"><span>▶️</span>${fmt(views)}</div>
     </div>`;
 
-  // Insert before the loader
   const loader = document.getElementById('loader');
   if (loader) feed.insertBefore(slide, loader);
   else feed.appendChild(slide);
+
+  if (window.tiktok && window.tiktok.embed) {
+    window.tiktok.embed.render(slide.querySelector('.tiktok-embed'));
+  }
 }
 
 function showLoader() {
@@ -174,6 +189,8 @@ async function load() {
     removeLoader();
     videos.forEach(v => addSlide(v));
     cursor = data.nextCursor ?? data.cursor ?? (cursor + videos.length);
+
+    if (window.__tiktokEmbedReload) window.__tiktokEmbedReload();
   } catch(e) {
     removeLoader();
     const err = document.createElement('div');
@@ -185,7 +202,17 @@ async function load() {
   loading = false;
 }
 
-// Load more when near bottom
+window.addEventListener('load', () => {
+  window.__tiktokEmbedReload = () => {
+    if (window.tiktok && window.tiktok.embed && window.tiktok.embed.render) {
+      document.querySelectorAll('.tiktok-embed:not([data-rendered])').forEach(el => {
+        window.tiktok.embed.render(el);
+        el.setAttribute('data-rendered', '1');
+      });
+    }
+  };
+});
+
 feed.addEventListener('scroll', () => {
   if (!started) return;
   const nearBottom = feed.scrollTop + feed.clientHeight >= feed.scrollHeight - feed.clientHeight;
