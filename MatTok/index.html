@@ -877,33 +877,71 @@
         // API Functions
         async function loadFeed() {
             try {
-                const res = await fetch(`${BASE_URL}/search?part=snippet&type=video&videoDuration=short&maxResults=20&q=shorts&key=${API_KEY}${nextPageToken ? '&pageToken=' + nextPageToken : ''}`);
+                // Search for popular short videos (YouTube Shorts style)
+                const searchTerms = ['#shorts', 'viral shorts', 'trending shorts', 'funny shorts', 'tiktok compilation'];
+                const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
+                
+                let url = `${BASE_URL}/search?part=snippet&type=video&videoDuration=short&maxResults=20&q=${encodeURIComponent(randomTerm)}&key=${API_KEY}`;
+                if (nextPageToken) {
+                    url += `&pageToken=${nextPageToken}`;
+                }
+                
+                console.log('[v0] Fetching feed:', url);
+                const res = await fetch(url);
                 const data = await res.json();
                 
-                if (data.items) {
+                console.log('[v0] Feed response:', data);
+                
+                if (data.error) {
+                    console.error('[v0] API Error:', data.error);
+                    document.getElementById('feed-scroll').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>API Error</h3><p>${data.error.message}</p></div>`;
+                    return;
+                }
+                
+                if (data.items && data.items.length > 0) {
                     nextPageToken = data.nextPageToken || '';
                     
                     // Get video statistics
-                    const videoIds = data.items.map(v => v.id.videoId).join(',');
+                    const videoIds = data.items.map(v => v.id.videoId).filter(Boolean).join(',');
+                    if (!videoIds) {
+                        console.error('[v0] No valid video IDs found');
+                        return;
+                    }
+                    
                     const statsRes = await fetch(`${BASE_URL}/videos?part=statistics,contentDetails&id=${videoIds}&key=${API_KEY}`);
                     const statsData = await statsRes.json();
                     
-                    const newVideos = data.items.map((item, i) => ({
-                        id: item.id.videoId,
-                        title: item.snippet.title,
-                        description: item.snippet.description,
-                        thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
-                        channelId: item.snippet.channelId,
-                        channelTitle: item.snippet.channelTitle,
-                        publishedAt: item.snippet.publishedAt,
-                        stats: statsData.items?.[i]?.statistics || {}
-                    }));
+                    const statsMap = {};
+                    if (statsData.items) {
+                        statsData.items.forEach(item => {
+                            statsMap[item.id] = item.statistics;
+                        });
+                    }
+                    
+                    const newVideos = data.items
+                        .filter(item => item.id && item.id.videoId)
+                        .map((item) => ({
+                            id: item.id.videoId,
+                            title: item.snippet.title,
+                            description: item.snippet.description,
+                            thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
+                            channelId: item.snippet.channelId,
+                            channelTitle: item.snippet.channelTitle,
+                            publishedAt: item.snippet.publishedAt,
+                            stats: statsMap[item.id.videoId] || {}
+                        }));
                     
                     videos = [...videos, ...newVideos];
                     renderFeed();
+                } else {
+                    console.log('[v0] No items in response');
+                    if (videos.length === 0) {
+                        document.getElementById('feed-scroll').innerHTML = `<div class="empty-state"><i class="fas fa-video-slash"></i><h3>No TikToks Found</h3><p>Try again later</p></div>`;
+                    }
                 }
             } catch (err) {
-                console.error('Error loading feed:', err);
+                console.error('[v0] Error loading feed:', err);
+                document.getElementById('feed-scroll').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error Loading</h3><p>${err.message}</p></div>`;
             }
         }
 
@@ -1070,8 +1108,22 @@
             }
             
             try {
-                const res = await fetch(`${BASE_URL}/search?part=snippet&channelId=${channelId}&type=video&videoDuration=short&maxResults=12&key=${API_KEY}${channelNextPageToken ? '&pageToken=' + channelNextPageToken : ''}`);
+                let url = `${BASE_URL}/search?part=snippet&channelId=${encodeURIComponent(channelId)}&type=video&videoDuration=short&maxResults=12&key=${API_KEY}`;
+                if (channelNextPageToken) {
+                    url += `&pageToken=${channelNextPageToken}`;
+                }
+                
+                console.log('[v0] Loading channel videos:', url);
+                const res = await fetch(url);
                 const data = await res.json();
+                
+                console.log('[v0] Channel videos response:', data);
+                
+                if (data.error) {
+                    console.error('[v0] Channel API Error:', data.error);
+                    container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-circle"></i><h3>API Error</h3><p>${data.error.message}</p></div>`;
+                    return;
+                }
                 
                 if (!append) container.innerHTML = '';
                 channelNextPageToken = data.nextPageToken || '';
@@ -1207,20 +1259,39 @@
             document.getElementById('search-grid').innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
             
             try {
-                const res = await fetch(`${BASE_URL}/search?part=snippet&type=video&videoDuration=short&maxResults=20&q=${encodeURIComponent(query)}&key=${API_KEY}`);
+                const searchQuery = query + ' #shorts';
+                const url = `${BASE_URL}/search?part=snippet&type=video&videoDuration=short&maxResults=20&q=${encodeURIComponent(searchQuery)}&key=${API_KEY}`;
+                console.log('[v0] Search URL:', url);
+                
+                const res = await fetch(url);
                 const data = await res.json();
+                
+                console.log('[v0] Search response:', data);
                 
                 const container = document.getElementById('search-grid');
                 container.innerHTML = '';
                 
-                if (data.items) {
+                if (data.error) {
+                    console.error('[v0] Search API Error:', data.error);
+                    container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-circle"></i><h3>API Error</h3><p>${data.error.message}</p></div>`;
+                    return;
+                }
+                
+                if (data.items && data.items.length > 0) {
                     // Get video stats
-                    const videoIds = data.items.map(v => v.id.videoId).join(',');
+                    const videoIds = data.items.map(v => v.id.videoId).filter(Boolean).join(',');
                     const statsRes = await fetch(`${BASE_URL}/videos?part=statistics&id=${videoIds}&key=${API_KEY}`);
                     const statsData = await statsRes.json();
                     
-                    data.items.forEach((item, i) => {
-                        const stats = statsData.items?.[i]?.statistics || {};
+                    const statsMap = {};
+                    if (statsData.items) {
+                        statsData.items.forEach(item => {
+                            statsMap[item.id] = item.statistics;
+                        });
+                    }
+                    
+                    data.items.filter(item => item.id && item.id.videoId).forEach((item) => {
+                        const stats = statsMap[item.id.videoId] || {};
                         const card = document.createElement('div');
                         card.className = 'channel-video-card';
                         card.innerHTML = `
@@ -1243,9 +1314,12 @@
                         });
                         container.appendChild(card);
                     });
+                } else {
+                    container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-search"></i><h3>No Results</h3><p>No TikToks found for "${query}"</p></div>`;
                 }
             } catch (err) {
-                console.error('Error searching:', err);
+                console.error('[v0] Error searching:', err);
+                document.getElementById('search-grid').innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-circle"></i><h3>Error</h3><p>${err.message}</p></div>`;
             }
         }
 
