@@ -185,19 +185,22 @@
             overflow: hidden;
         }
         .video-wrapper iframe {
-            width: 100%; height: 100%; border: none;
+            width: 100%; height: 100%; border: none; pointer-events: auto;
         }
         .video-overlay {
             position: absolute; bottom: 0; left: 0; right: 0;
             padding: 20px; background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            pointer-events: none;
         }
+        .video-overlay * { pointer-events: auto; }
         .video-channel {
             display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer;
         }
         .video-channel:hover .channel-name { text-decoration: underline; }
         .channel-avatar {
             width: 40px; height: 40px; background: var(--panel); border-radius: 50%;
-            overflow: hidden;
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
+            color: var(--tx); font-weight: 700; font-size: 14px;
         }
         .channel-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .channel-name { font-weight: 600; font-size: 16px; }
@@ -279,7 +282,8 @@
         }
         .channel-avatar-large {
             width: 116px; height: 116px; background: var(--panel); border-radius: 50%;
-            overflow: hidden; flex-shrink: 0;
+            overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            color: var(--tx); font-weight: 700; font-size: 40px;
         }
         .channel-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
         .channel-info { flex: 1; }
@@ -385,6 +389,7 @@
         .following-item:hover { background: var(--panel); }
         .following-avatar {
             width: 56px; height: 56px; background: var(--panel); border-radius: 50%; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; color: var(--tx); font-weight: 700;
         }
         .following-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .following-info { flex: 1; }
@@ -615,8 +620,9 @@
                 </button>
                 <div class="channel-view">
                     <div class="channel-header">
-                        <div class="channel-avatar-large">
-                            <img id="channel-avatar" src="" alt="">
+                        <div class="channel-avatar-large" id="channel-avatar-container">
+                            <img id="channel-avatar" src="" alt="" style="display: none;">
+                            <span id="channel-avatar-letter"></span>
                         </div>
                         <div class="channel-info">
                             <div class="channel-title-row">
@@ -674,6 +680,8 @@
         let currentChannelId = '';
         let commentsNextPageToken = '';
         let currentVideoId = '';
+        let isLoadingFeed = false;
+        let channelAvatarCache = {};
         
         // User data
         let savedVideos = [];
@@ -681,8 +689,33 @@
         let followingChannels = [];
         let watchHistory = [];
 
+        // URL routing
+        function updateURL(path) {
+            history.pushState({}, '', path);
+        }
+
+        function handleRoute() {
+            const path = window.location.pathname;
+            const params = new URLSearchParams(window.location.search);
+            
+            if (path.startsWith('/video/')) {
+                const videoId = path.replace('/video/', '').replace('id=', '');
+                if (videoId) {
+                    // Load this specific video
+                    playVideoById(videoId);
+                }
+            } else if (path.startsWith('/search/')) {
+                const query = decodeURIComponent(path.replace('/search/', ''));
+                if (query) {
+                    document.getElementById('search-input').value = query;
+                    searchVideos(query);
+                }
+            }
+        }
+
         // Wait for Firebase
         window.addEventListener('fbready', init);
+        window.addEventListener('popstate', handleRoute);
 
         function init() {
             const fb = window._fb;
@@ -694,6 +727,7 @@
                     showApp();
                     loadUserData();
                     loadFeed();
+                    handleRoute();
                 } else {
                     showAuth();
                 }
@@ -810,6 +844,15 @@
             navItems.forEach(item => {
                 item.addEventListener('click', () => {
                     const view = item.dataset.view;
+                    
+                    // If clicking Home, reload the feed
+                    if (view === 'home') {
+                        videos = [];
+                        nextPageToken = '';
+                        loadFeed();
+                        updateURL('/');
+                    }
+                    
                     switchView(view);
                     navItems.forEach(n => n.classList.remove('active'));
                     item.classList.add('active');
@@ -819,6 +862,7 @@
             // Back buttons
             document.getElementById('back-from-channel').addEventListener('click', () => {
                 switchView('home');
+                updateURL('/');
                 document.querySelectorAll('.nav-item').forEach(n => {
                     n.classList.toggle('active', n.dataset.view === 'home');
                 });
@@ -826,6 +870,7 @@
 
             document.getElementById('back-from-search').addEventListener('click', () => {
                 switchView('home');
+                updateURL('/');
                 document.querySelectorAll('.nav-item').forEach(n => {
                     n.classList.toggle('active', n.dataset.view === 'home');
                 });
@@ -858,6 +903,7 @@
             const doSearch = () => {
                 const query = input.value.trim();
                 if (query) {
+                    updateURL('/search/' + encodeURIComponent(query));
                     searchVideos(query);
                 }
             };
@@ -874,27 +920,47 @@
             });
         }
 
+        // Fetch channel avatar
+        async function getChannelAvatar(channelId) {
+            if (channelAvatarCache[channelId]) {
+                return channelAvatarCache[channelId];
+            }
+            
+            try {
+                const res = await fetch(`${BASE_URL}/channels?part=snippet&id=${channelId}&key=${API_KEY}`);
+                const data = await res.json();
+                if (data.items?.[0]) {
+                    const avatar = data.items[0].snippet.thumbnails.default?.url || 
+                                   data.items[0].snippet.thumbnails.medium?.url || '';
+                    channelAvatarCache[channelId] = avatar;
+                    return avatar;
+                }
+            } catch (e) {
+                // Fail silently
+            }
+            return '';
+        }
+
         // API Functions
         async function loadFeed() {
+            if (isLoadingFeed) return;
+            isLoadingFeed = true;
+            
             try {
-                // Search for popular short videos (YouTube Shorts style)
-                const searchTerms = ['#shorts', 'viral shorts', 'trending shorts', 'funny shorts', 'tiktok compilation'];
+                const searchTerms = ['shorts', 'viral shorts 2024', 'trending shorts', 'funny shorts', 'shorts compilation'];
                 const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
                 
-                let url = `${BASE_URL}/search?part=snippet&type=video&videoDuration=short&maxResults=20&q=${encodeURIComponent(randomTerm)}&key=${API_KEY}`;
+                let url = `${BASE_URL}/search?part=snippet&type=video&videoDuration=short&maxResults=10&q=${encodeURIComponent(randomTerm)}&key=${API_KEY}`;
                 if (nextPageToken) {
                     url += `&pageToken=${nextPageToken}`;
                 }
                 
-                console.log('[v0] Fetching feed:', url);
                 const res = await fetch(url);
                 const data = await res.json();
                 
-                console.log('[v0] Feed response:', data);
-                
                 if (data.error) {
-                    console.error('[v0] API Error:', data.error);
                     document.getElementById('feed-scroll').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>API Error</h3><p>${data.error.message}</p></div>`;
+                    isLoadingFeed = false;
                     return;
                 }
                 
@@ -904,11 +970,11 @@
                     // Get video statistics
                     const videoIds = data.items.map(v => v.id.videoId).filter(Boolean).join(',');
                     if (!videoIds) {
-                        console.error('[v0] No valid video IDs found');
+                        isLoadingFeed = false;
                         return;
                     }
                     
-                    const statsRes = await fetch(`${BASE_URL}/videos?part=statistics,contentDetails&id=${videoIds}&key=${API_KEY}`);
+                    const statsRes = await fetch(`${BASE_URL}/videos?part=statistics&id=${videoIds}&key=${API_KEY}`);
                     const statsData = await statsRes.json();
                     
                     const statsMap = {};
@@ -933,16 +999,27 @@
                     
                     videos = [...videos, ...newVideos];
                     renderFeed();
+                    
+                    // Fetch channel avatars in background
+                    newVideos.forEach(v => {
+                        getChannelAvatar(v.channelId).then(avatar => {
+                            if (avatar) {
+                                document.querySelectorAll(`[data-channel-avatar="${v.channelId}"]`).forEach(el => {
+                                    el.innerHTML = `<img src="${avatar}" alt="">`;
+                                });
+                            }
+                        });
+                    });
                 } else {
-                    console.log('[v0] No items in response');
                     if (videos.length === 0) {
                         document.getElementById('feed-scroll').innerHTML = `<div class="empty-state"><i class="fas fa-video-slash"></i><h3>No TikToks Found</h3><p>Try again later</p></div>`;
                     }
                 }
             } catch (err) {
-                console.error('[v0] Error loading feed:', err);
                 document.getElementById('feed-scroll').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><h3>Error Loading</h3><p>${err.message}</p></div>`;
             }
+            
+            isLoadingFeed = false;
         }
 
         function renderFeed() {
@@ -955,11 +1032,11 @@
             });
             
             // Load more when scrolling
-            container.addEventListener('scroll', () => {
+            container.onscroll = () => {
                 if (container.scrollTop + container.clientHeight >= container.scrollHeight - 500) {
                     loadFeed();
                 }
-            });
+            };
         }
 
         function createVideoCard(video, index) {
@@ -970,26 +1047,29 @@
             const isLiked = likedVideos.some(v => v.id === video.id);
             const isSaved = savedVideos.some(v => v.id === video.id);
             const isFollowing = followingChannels.some(c => c.id === video.channelId);
+            const cachedAvatar = channelAvatarCache[video.channelId];
+            const avatarContent = cachedAvatar ? `<img src="${cachedAvatar}" alt="">` : video.channelTitle[0].toUpperCase();
             
             card.innerHTML = `
                 <div class="video-wrapper">
-                    <iframe src="https://www.youtube.com/embed/${video.id}?autoplay=0&loop=1&controls=1&modestbranding=1&rel=0" 
+                    <iframe 
+                        src="https://www.youtube.com/embed/${video.id}?autoplay=1&mute=1&loop=1&playlist=${video.id}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=0&playsinline=1" 
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                         allowfullscreen></iframe>
                     <div class="video-overlay">
                         <div class="video-channel" data-channel-id="${video.channelId}">
-                            <div class="channel-avatar">
-                                <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelTitle)}&background=random" alt="">
+                            <div class="channel-avatar" data-channel-avatar="${video.channelId}">
+                                ${avatarContent}
                             </div>
-                            <span class="channel-name">${video.channelTitle}</span>
+                            <span class="channel-name">@${video.channelTitle}</span>
                         </div>
                         <div class="video-title">${video.title}</div>
                     </div>
                 </div>
                 <div class="action-buttons">
                     <div class="action-btn avatar-action" data-channel-id="${video.channelId}">
-                        <div class="channel-avatar">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(video.channelTitle)}&background=random" alt="">
+                        <div class="channel-avatar" data-channel-avatar="${video.channelId}">
+                            ${avatarContent}
                         </div>
                         <div class="follow-badge ${isFollowing ? 'following' : ''}" data-channel-id="${video.channelId}" data-channel-title="${video.channelTitle}">
                             <i class="fas ${isFollowing ? 'fa-check' : 'fa-plus'}"></i>
@@ -1005,7 +1085,7 @@
                     </div>
                     <div class="action-btn" data-action="save" data-video-id="${video.id}">
                         <button class="btn-circle ${isSaved ? 'active' : ''}"><i class="fas fa-bookmark"></i></button>
-                        <span>${formatCount(video.stats.viewCount || 0)}</span>
+                        <span>Save</span>
                     </div>
                     <div class="action-btn" data-action="share" data-video-id="${video.id}">
                         <button class="btn-circle"><i class="fas fa-share"></i></button>
@@ -1013,6 +1093,15 @@
                     </div>
                 </div>
             `;
+            
+            // Update URL when video is visible
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    updateURL('/video/id=' + video.id);
+                    addToHistory(video);
+                }
+            }, { threshold: 0.5 });
+            observer.observe(card);
             
             // Event listeners
             card.querySelector('.video-channel').addEventListener('click', (e) => {
@@ -1044,17 +1133,10 @@
             });
             
             card.querySelector('[data-action="share"]').addEventListener('click', () => {
-                navigator.share?.({ url: `https://www.youtube.com/shorts/${video.id}`, title: video.title }) || 
-                navigator.clipboard.writeText(`https://www.youtube.com/shorts/${video.id}`);
+                const shareUrl = window.location.origin + '/video/id=' + video.id;
+                navigator.share?.({ url: shareUrl, title: video.title }) || 
+                navigator.clipboard.writeText(shareUrl);
             });
-            
-            // Add to watch history when visible
-            const observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) {
-                    addToHistory(video);
-                }
-            }, { threshold: 0.5 });
-            observer.observe(card);
             
             return card;
         }
@@ -1064,6 +1146,33 @@
             const cards = container.querySelectorAll('.video-card');
             const cardHeight = cards[0]?.offsetHeight || 0;
             container.scrollBy({ top: direction * cardHeight, behavior: 'smooth' });
+        }
+
+        // Play video by ID (for URL routing)
+        async function playVideoById(videoId) {
+            try {
+                const res = await fetch(`${BASE_URL}/videos?part=snippet,statistics&id=${videoId}&key=${API_KEY}`);
+                const data = await res.json();
+                
+                if (data.items?.[0]) {
+                    const item = data.items[0];
+                    const video = {
+                        id: item.id,
+                        title: item.snippet.title,
+                        description: item.snippet.description,
+                        thumbnail: item.snippet.thumbnails.high?.url,
+                        channelId: item.snippet.channelId,
+                        channelTitle: item.snippet.channelTitle,
+                        stats: item.statistics
+                    };
+                    
+                    videos = [video, ...videos.filter(v => v.id !== videoId)];
+                    renderFeed();
+                    document.getElementById('feed-scroll').scrollTo(0, 0);
+                }
+            } catch (e) {
+                // Fail silently
+            }
         }
 
         // Channel functions
@@ -1079,9 +1188,21 @@
                 
                 if (data.items?.[0]) {
                     const channel = data.items[0];
-                    document.getElementById('channel-avatar').src = channel.snippet.thumbnails.high?.url || channel.snippet.thumbnails.default?.url;
+                    const avatarUrl = channel.snippet.thumbnails.high?.url || channel.snippet.thumbnails.default?.url;
+                    
+                    if (avatarUrl) {
+                        document.getElementById('channel-avatar').src = avatarUrl;
+                        document.getElementById('channel-avatar').style.display = 'block';
+                        document.getElementById('channel-avatar-letter').style.display = 'none';
+                        channelAvatarCache[channelId] = avatarUrl;
+                    } else {
+                        document.getElementById('channel-avatar').style.display = 'none';
+                        document.getElementById('channel-avatar-letter').style.display = 'block';
+                        document.getElementById('channel-avatar-letter').textContent = channel.snippet.title[0].toUpperCase();
+                    }
+                    
                     document.getElementById('channel-title').textContent = channel.snippet.title;
-                    document.getElementById('channel-handle').textContent = '@' + channel.snippet.customUrl?.replace('@', '') || channel.snippet.title.toLowerCase().replace(/\s/g, '');
+                    document.getElementById('channel-handle').textContent = '@' + (channel.snippet.customUrl?.replace('@', '') || channel.snippet.title.toLowerCase().replace(/\s/g, ''));
                     document.getElementById('channel-followers').textContent = formatCount(channel.statistics.subscriberCount);
                     document.getElementById('channel-following').textContent = Math.floor(Math.random() * 100);
                     document.getElementById('channel-likes').textContent = formatCount(channel.statistics.viewCount);
@@ -1113,14 +1234,10 @@
                     url += `&pageToken=${channelNextPageToken}`;
                 }
                 
-                console.log('[v0] Loading channel videos:', url);
                 const res = await fetch(url);
                 const data = await res.json();
                 
-                console.log('[v0] Channel videos response:', data);
-                
                 if (data.error) {
-                    console.error('[v0] Channel API Error:', data.error);
                     container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-circle"></i><h3>API Error</h3><p>${data.error.message}</p></div>`;
                     return;
                 }
@@ -1128,14 +1245,21 @@
                 if (!append) container.innerHTML = '';
                 channelNextPageToken = data.nextPageToken || '';
                 
-                if (data.items) {
+                if (data.items && data.items.length > 0) {
                     // Get video stats
-                    const videoIds = data.items.map(v => v.id.videoId).join(',');
+                    const videoIds = data.items.map(v => v.id.videoId).filter(Boolean).join(',');
                     const statsRes = await fetch(`${BASE_URL}/videos?part=statistics&id=${videoIds}&key=${API_KEY}`);
                     const statsData = await statsRes.json();
                     
-                    data.items.forEach((item, i) => {
-                        const stats = statsData.items?.[i]?.statistics || {};
+                    const statsMap = {};
+                    if (statsData.items) {
+                        statsData.items.forEach(item => {
+                            statsMap[item.id] = item.statistics;
+                        });
+                    }
+                    
+                    data.items.filter(item => item.id?.videoId).forEach((item) => {
+                        const stats = statsMap[item.id.videoId] || {};
                         const card = document.createElement('div');
                         card.className = 'channel-video-card';
                         card.innerHTML = `
@@ -1170,6 +1294,8 @@
                         });
                         container.appendChild(loadMoreBtn);
                     }
+                } else if (!append) {
+                    container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-video-slash"></i><h3>No TikToks</h3><p>This creator hasn't posted any TikToks yet</p></div>`;
                 }
             } catch (err) {
                 console.error('Error loading channel videos:', err);
@@ -1177,8 +1303,9 @@
         }
 
         function playVideoFromChannel(video) {
-            videos = [video, ...videos];
+            videos = [video, ...videos.filter(v => v.id !== video.id)];
             switchView('home');
+            updateURL('/video/id=' + video.id);
             renderFeed();
             document.getElementById('feed-scroll').scrollTo(0, 0);
             document.querySelectorAll('.nav-item').forEach(n => {
@@ -1200,7 +1327,12 @@
             const container = document.getElementById('comments-list');
             
             try {
-                const res = await fetch(`${BASE_URL}/commentThreads?part=snippet&videoId=${videoId}&maxResults=20&key=${API_KEY}${commentsNextPageToken ? '&pageToken=' + commentsNextPageToken : ''}`);
+                let url = `${BASE_URL}/commentThreads?part=snippet&videoId=${videoId}&maxResults=20&key=${API_KEY}`;
+                if (commentsNextPageToken) {
+                    url += `&pageToken=${commentsNextPageToken}`;
+                }
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 
                 if (!append) container.innerHTML = '';
@@ -1208,7 +1340,7 @@
                 
                 document.getElementById('comments-count').textContent = data.pageInfo?.totalResults || 0;
                 
-                if (data.items) {
+                if (data.items && data.items.length > 0) {
                     data.items.forEach(item => {
                         const comment = item.snippet.topLevelComment.snippet;
                         const div = document.createElement('div');
@@ -1256,23 +1388,19 @@
         async function searchVideos(query) {
             switchView('search');
             document.getElementById('search-title').textContent = `Results for "${query}"`;
-            document.getElementById('search-grid').innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
+            document.getElementById('search-grid').innerHTML = '<div class="loading" style="grid-column: 1 / -1;"><i class="fas fa-spinner"></i></div>';
             
             try {
-                const searchQuery = query + ' #shorts';
+                const searchQuery = query + ' shorts';
                 const url = `${BASE_URL}/search?part=snippet&type=video&videoDuration=short&maxResults=20&q=${encodeURIComponent(searchQuery)}&key=${API_KEY}`;
-                console.log('[v0] Search URL:', url);
                 
                 const res = await fetch(url);
                 const data = await res.json();
-                
-                console.log('[v0] Search response:', data);
                 
                 const container = document.getElementById('search-grid');
                 container.innerHTML = '';
                 
                 if (data.error) {
-                    console.error('[v0] Search API Error:', data.error);
                     container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-circle"></i><h3>API Error</h3><p>${data.error.message}</p></div>`;
                     return;
                 }
@@ -1318,7 +1446,6 @@
                     container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-search"></i><h3>No Results</h3><p>No TikToks found for "${query}"</p></div>`;
                 }
             } catch (err) {
-                console.error('[v0] Error searching:', err);
                 document.getElementById('search-grid').innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-exclamation-circle"></i><h3>Error</h3><p>${err.message}</p></div>`;
             }
         }
@@ -1330,8 +1457,6 @@
             const isLiked = likedVideos.some(v => v.id === video.id);
             
             if (isLiked) {
-                const key = Object.keys(likedVideos).find(k => likedVideos[k]?.id === video.id);
-                // Find the actual key in firebase
                 const snap = await fb.get(fb.ref(fb.db, `mattok/${uid}/liked`));
                 const data = snap.val();
                 for (const k in data) {
@@ -1401,6 +1526,7 @@
                 await fb.push(fb.ref(fb.db, `mattok/${uid}/following`), {
                     id: channelId,
                     title: channelTitle,
+                    avatar: channelAvatarCache[channelId] || '',
                     timestamp: Date.now()
                 });
             }
@@ -1514,11 +1640,15 @@
             
             container.innerHTML = '';
             followingChannels.forEach(channel => {
+                const avatarContent = channel.avatar ? 
+                    `<img src="${channel.avatar}" alt="">` : 
+                    channel.title[0].toUpperCase();
+                
                 const item = document.createElement('div');
                 item.className = 'following-item';
                 item.innerHTML = `
                     <div class="following-avatar">
-                        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(channel.title)}&background=random" alt="">
+                        ${avatarContent}
                     </div>
                     <div class="following-info">
                         <div class="following-name">${channel.title}</div>
