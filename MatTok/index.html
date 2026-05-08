@@ -102,8 +102,6 @@
         }
         .sidebar-header { padding: 20px 20px 8px; }
         .logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 700; text-decoration: none; color: var(--tx); }
-        
-        /* TikTok-style logo SVG */
         .tiktok-logo-icon { width: 34px; height: 34px; flex-shrink: 0; }
 
         .search-box { margin: 10px 16px 12px; position: relative; }
@@ -167,29 +165,24 @@
             align-items: center; justify-content: center; position: relative;
         }
 
-        /* Video wrapper — clips everything */
         .video-wrapper {
             position: relative; width: 100%; height: 100vh;
             background: #000; overflow: hidden;
         }
 
-        /* The iframe fills the container; we use CSS to hide YT chrome */
         .video-wrapper iframe {
             position: absolute;
-            /* Oversized to push YT UI off screen */
             top: -60px; left: -60px;
             width: calc(100% + 120px);
             height: calc(100% + 120px);
             border: none; pointer-events: auto;
         }
 
-        /* Invisible blocker overlay — stops YT logo / title clicks but passes scroll */
         .video-blocker {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             z-index: 2; pointer-events: none;
         }
 
-        /* Top-left YT logo area kill zone */
         .video-blocker::before {
             content: ''; position: absolute;
             top: 0; left: 0; width: 140px; height: 48px;
@@ -216,7 +209,7 @@
         .channel-name { font-weight: 600; font-size: 15px; }
         .video-title { font-size: 13px; line-height: 1.5; margin-bottom: 6px; max-width: 280px; }
 
-        /* ── Action Buttons (right side) ── */
+        /* ── Action Buttons ── */
         .action-buttons {
             position: absolute; right: 12px; bottom: 100px;
             display: flex; flex-direction: column; align-items: center; gap: 18px;
@@ -254,14 +247,28 @@
             z-index: 100; display: flex; align-items: center; gap: 14px;
             pointer-events: none;
         }
+
+        /* ── Progress Bar (white, draggable) ── */
         .progress-bar {
-            flex: 1; height: 3px; background: rgba(255,255,255,0.25); border-radius: 2px;
-            overflow: hidden; pointer-events: auto; cursor: pointer;
+            flex: 1; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px;
+            position: relative; pointer-events: auto; cursor: pointer;
+            transition: height 0.15s;
         }
+        .progress-bar:hover { height: 6px; }
         .progress-fill {
-            height: 100%; background: var(--pink); border-radius: 2px;
-            width: 0%; transition: width 0.5s linear;
+            height: 100%; background: #fff; border-radius: 2px;
+            width: 0%; position: relative; pointer-events: none;
+            transition: width 0.1s linear;
         }
+        /* Drag handle */
+        .progress-fill::after {
+            content: '';
+            position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
+            width: 12px; height: 12px; background: #fff; border-radius: 50%;
+            opacity: 0; transition: opacity 0.15s;
+        }
+        .progress-bar:hover .progress-fill::after { opacity: 1; }
+
         .ctrl-btn {
             background: none; border: none; color: rgba(255,255,255,0.85);
             font-size: 18px; cursor: pointer; padding: 4px; pointer-events: auto;
@@ -269,6 +276,14 @@
         }
         .ctrl-btn:hover { color: #fff; }
         .ctrl-time { font-size: 12px; color: rgba(255,255,255,0.6); white-space: nowrap; pointer-events: auto; }
+
+        /* ── Loading spinner for video ── */
+        .video-loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 4; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        .video-loading.show { opacity: 1; }
+        .video-loading i { font-size: 36px; color: rgba(255,255,255,0.6); animation: spin 0.8s linear infinite; }
 
         /* ── Comments Panel ── */
         .comments-panel {
@@ -305,7 +320,6 @@
         .comment-meta span:hover { color: var(--tx); }
         .comment-like { display: flex; align-items: center; gap: 4px; }
 
-        /* Replies section */
         .replies-toggle {
             font-size: 13px; color: var(--teal); cursor: pointer; font-weight: 500;
             margin-top: 8px; display: flex; align-items: center; gap: 6px;
@@ -493,16 +507,6 @@
         }
         .back-btn:hover { color: var(--tx); }
 
-        /* ── Mute indicator ── */
-        .mute-indicator {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.7); border-radius: 50%; width: 70px; height: 70px;
-            display: flex; align-items: center; justify-content: center; font-size: 28px;
-            z-index: 30; opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        }
-        .mute-indicator.show { opacity: 1; animation: fadeOut 0.8s forwards 0.4s; }
-        @keyframes fadeOut { to { opacity: 0; } }
-
         /* ── Responsive ── */
         @media (max-width: 900px) {
             .sidebar { width: 68px; }
@@ -607,7 +611,6 @@
                     <button class="nav-arrow" id="nav-down"><i class="fas fa-chevron-down"></i></button>
                 </div>
             </div>
-            <!-- Bottom control bar (fixed to screen) -->
             <div class="video-controls" id="video-controls">
                 <button class="ctrl-btn" id="ctrl-mute" title="Toggle mute"><i class="fas fa-volume-mute"></i></button>
                 <div class="progress-bar" id="progress-bar">
@@ -718,7 +721,7 @@
             </div>
         </div>
 
-        <!-- User Profile (from comment click) -->
+        <!-- User Profile -->
         <div class="view" id="view-user-profile">
             <button class="back-btn" id="back-from-user-profile"><i class="fas fa-arrow-left"></i> Back</button>
             <div class="user-profile-view" id="user-profile-content">
@@ -746,7 +749,20 @@
 ═══════════════════════════════════════════════════ */
 const API_KEY = 'AIzaSyC2BHotDLqX0iDHNaXAF7i6t3osmHkqglY';
 const BASE_URL = 'https://www.googleapis.com/youtube/v3';
-const BASE_PATH = '/MatTok'; // All routes prefixed here
+const BASE_PATH = '/MatTok';
+
+/* ═══════════════════════════════════════════════════
+   GITHUB PAGES SPA ROUTING FIX
+   Reads sessionStorage redirect set by 404.html
+═══════════════════════════════════════════════════ */
+(function() {
+    const redirect = sessionStorage.getItem('matTokRedirect');
+    if (redirect) {
+        sessionStorage.removeItem('matTokRedirect');
+        // Replace current history entry with the real path
+        history.replaceState(null, '', redirect);
+    }
+})();
 
 /* ═══════════════════════════════════════════════════
    STATE
@@ -763,19 +779,17 @@ let channelAvatarCache = {};
 let savedVideos = [], likedVideos = [], followingChannels = [], watchHistory = [];
 
 // Player state
-let isMuted = true; // start muted (autoplay policy)
+let isMuted = true;
 let currentIframe = null;
+let currentVideoEl = null; // the current active card's wrapper
 let progressInterval = null;
-let currentVideoStart = Date.now();
-let currentVideoDuration = 60; // seconds, estimated
+let currentVideoStart = null; // null = not started yet (waiting for load)
+let currentVideoDuration = 60;
+let videoDurations = {}; // cache video durations by id
+let isDraggingProgress = false;
 
 /* ═══════════════════════════════════════════════════
    ROUTING
-   Base: /MatTok
-   Feed: /MatTok/
-   Video: /MatTok/video/id=VIDEOID
-   Search: /MatTok/search/QUERY
-   User: /MatTok/users/@handle
 ═══════════════════════════════════════════════════ */
 function updateURL(subpath) {
     const path = BASE_PATH + (subpath ? '/' + subpath.replace(/^\//, '') : '');
@@ -799,7 +813,6 @@ function handleRoute() {
         const handle = sub.replace('users/@', '');
         openUserProfileByHandle(handle);
     }
-    // else: home — already loaded
 }
 
 /* ═══════════════════════════════════════════════════
@@ -897,18 +910,50 @@ async function loadUserData() {
     fb.onValue(fb.ref(fb.db, `mattok/${uid}/saved`), snap => {
         savedVideos = snap.val() ? Object.values(snap.val()) : [];
         renderSavedVideos();
+        // Update save button states in feed without re-rendering
+        updateActionButtonStates();
     });
     fb.onValue(fb.ref(fb.db, `mattok/${uid}/liked`), snap => {
         likedVideos = snap.val() ? Object.values(snap.val()) : [];
         renderLikedVideos();
+        // Update like button states in feed without re-rendering
+        updateActionButtonStates();
     });
     fb.onValue(fb.ref(fb.db, `mattok/${uid}/following`), snap => {
         followingChannels = snap.val() ? Object.values(snap.val()) : [];
         renderFollowing();
+        updateActionButtonStates();
     });
     fb.onValue(fb.ref(fb.db, `mattok/${uid}/history`), snap => {
         watchHistory = snap.val() ? Object.values(snap.val()).reverse().slice(0, 50) : [];
         renderHistory();
+    });
+}
+
+/* Update just the button states in the live feed cards, no re-render */
+function updateActionButtonStates() {
+    document.querySelectorAll('.video-card').forEach(card => {
+        const index = parseInt(card.dataset.index);
+        if (isNaN(index) || !videos[index]) return;
+        const video = videos[index];
+
+        const likeBtn = card.querySelector('[data-action="like"] .btn-circle');
+        const saveBtn = card.querySelector('[data-action="save"] .btn-circle');
+        const followBadge = card.querySelector('.follow-badge');
+
+        if (likeBtn) {
+            const isLiked = likedVideos.some(v => v.id === video.id);
+            likeBtn.classList.toggle('liked', isLiked);
+        }
+        if (saveBtn) {
+            const isSaved = savedVideos.some(v => v.id === video.id);
+            saveBtn.classList.toggle('saved', isSaved);
+        }
+        if (followBadge) {
+            const isFollowing = followingChannels.some(c => c.id === video.channelId);
+            followBadge.classList.toggle('following', isFollowing);
+            followBadge.innerHTML = `<i class="fas ${isFollowing ? 'fa-check' : 'fa-plus'}"></i>`;
+        }
     });
 }
 
@@ -952,7 +997,6 @@ function setActiveNav(view) {
 function switchView(view) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(`view-${view}`).classList.add('active');
-    // Show/hide bottom controls
     document.getElementById('video-controls').style.display = view === 'home' ? 'flex' : 'none';
 }
 
@@ -971,20 +1015,65 @@ function setupSearch() {
 }
 
 /* ═══════════════════════════════════════════════════
-   BOTTOM CONTROLS
+   PROGRESS BAR — draggable, white, synced to video load
 ═══════════════════════════════════════════════════ */
 function setupControls() {
     const muteBtn = document.getElementById('ctrl-mute');
     muteBtn.addEventListener('click', () => toggleMute());
 
-    document.getElementById('progress-bar').addEventListener('click', (e) => {
-        // Seek via postMessage to current iframe
+    const bar = document.getElementById('progress-bar');
+
+    function seekToFraction(fraction) {
+        fraction = Math.max(0, Math.min(1, fraction));
         if (!currentIframe) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const pct = (e.clientX - rect.left) / rect.width;
+        const seekSecs = fraction * currentVideoDuration;
+        // postMessage to YT iframe
         currentIframe.contentWindow.postMessage(JSON.stringify({
-            event: 'command', func: 'seekTo', args: [pct * currentVideoDuration, true]
+            event: 'command', func: 'seekTo', args: [seekSecs, true]
         }), '*');
+        // Update visual immediately
+        if (currentVideoStart !== null) {
+            currentVideoStart = Date.now() - seekSecs * 1000;
+            updateProgressDisplay(seekSecs);
+        }
+    }
+
+    function getFractionFromEvent(e) {
+        const rect = bar.getBoundingClientRect();
+        return (e.clientX - rect.left) / rect.width;
+    }
+
+    bar.addEventListener('mousedown', (e) => {
+        isDraggingProgress = true;
+        seekToFraction(getFractionFromEvent(e));
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDraggingProgress) return;
+        seekToFraction(getFractionFromEvent(e));
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDraggingProgress = false;
+    });
+
+    // Touch support
+    bar.addEventListener('touchstart', (e) => {
+        isDraggingProgress = true;
+        const touch = e.touches[0];
+        seekToFraction(getFractionFromEvent(touch));
+        e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isDraggingProgress) return;
+        const touch = e.touches[0];
+        seekToFraction(getFractionFromEvent(touch));
+    });
+
+    document.addEventListener('touchend', () => {
+        isDraggingProgress = false;
     });
 }
 
@@ -999,9 +1088,7 @@ function toggleMute() {
     }
 }
 
-function updateProgress() {
-    // Estimate progress based on time elapsed (YT iframe doesn't expose state easily without API)
-    const elapsed = (Date.now() - currentVideoStart) / 1000;
+function updateProgressDisplay(elapsed) {
     const pct = Math.min((elapsed / currentVideoDuration) * 100, 100);
     const fill = document.getElementById('progress-fill');
     if (fill) fill.style.width = pct + '%';
@@ -1009,7 +1096,16 @@ function updateProgress() {
     const secs = Math.floor(elapsed % 60);
     const mins = Math.floor(elapsed / 60);
     const timeEl = document.getElementById('ctrl-time');
-    if (timeEl) timeEl.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+    if (timeEl) timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function startProgressTicker() {
+    clearInterval(progressInterval);
+    progressInterval = setInterval(() => {
+        if (isDraggingProgress || currentVideoStart === null) return;
+        const elapsed = (Date.now() - currentVideoStart) / 1000;
+        updateProgressDisplay(elapsed);
+    }, 250);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1074,7 +1170,9 @@ async function loadFeed() {
             const statsMap = {}, durationMap = {};
             (statsData.items || []).forEach(i => { statsMap[i.id] = i.statistics; });
             (detailData.items || []).forEach(i => {
-                durationMap[i.id] = parseDuration(i.contentDetails.duration);
+                const dur = parseDuration(i.contentDetails.duration);
+                durationMap[i.id] = dur;
+                videoDurations[i.id] = dur;
             });
 
             const newVideos = data.items
@@ -1138,7 +1236,7 @@ function createVideoCard(video, index) {
 
     card.innerHTML = `
         <div class="video-wrapper" id="wrapper-${video.id}">
-            <div class="mute-indicator" id="mute-ind-${video.id}"><i class="fas fa-volume-mute"></i></div>
+            <div class="video-loading" id="loading-${video.id}"><i class="fas fa-spinner"></i></div>
             <div class="video-blocker"></div>
             <div class="video-overlay">
                 <div class="video-channel" data-channel-id="${video.channelId}">
@@ -1154,7 +1252,7 @@ function createVideoCard(video, index) {
                         <i class="fas ${isFollowing?'fa-check':'fa-plus'}"></i>
                     </div>
                 </div>
-                <div class="action-btn" data-action="like" data-video-id="${video.id}">
+                <div class="action-btn" data-action="like" data-video-index="${index}">
                     <button class="btn-circle ${isLiked?'liked':''}"><i class="fas fa-heart"></i></button>
                     <span>${fmtN(video.stats.likeCount||0)}</span>
                 </div>
@@ -1162,7 +1260,7 @@ function createVideoCard(video, index) {
                     <button class="btn-circle"><i class="fas fa-comment-dots"></i></button>
                     <span>${fmtN(video.stats.commentCount||0)}</span>
                 </div>
-                <div class="action-btn" data-action="save" data-video-id="${video.id}">
+                <div class="action-btn" data-action="save" data-video-index="${index}">
                     <button class="btn-circle ${isSaved?'saved':''}"><i class="fas fa-bookmark"></i></button>
                     <span>Save</span>
                 </div>
@@ -1174,7 +1272,7 @@ function createVideoCard(video, index) {
         </div>
     `;
 
-    // Intersection observer — autoplay/pause + URL + history
+    // Intersection observer — autoplay/pause
     const observer = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
             activateCard(card, video);
@@ -1184,7 +1282,7 @@ function createVideoCard(video, index) {
     }, { threshold: 0.6 });
     observer.observe(card);
 
-    // Event listeners
+    // Event listeners — NO renderFeed() calls here
     card.querySelector('.video-channel').addEventListener('click', e => {
         e.stopPropagation(); openChannel(video.channelId);
     });
@@ -1195,9 +1293,15 @@ function createVideoCard(video, index) {
         e.stopPropagation();
         toggleFollow(video.channelId, video.channelTitle, e.currentTarget);
     });
-    card.querySelector('[data-action="like"]').addEventListener('click', () => toggleLike(video));
+    card.querySelector('[data-action="like"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleLike(video, card);
+    });
     card.querySelector('[data-action="comment"]').addEventListener('click', () => openComments(video.id));
-    card.querySelector('[data-action="save"]').addEventListener('click', () => toggleSave(video));
+    card.querySelector('[data-action="save"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSave(video, card);
+    });
     card.querySelector('[data-action="share"]').addEventListener('click', () => {
         const url = `${location.origin}${BASE_PATH}/video/id=${video.id}`;
         navigator.share?.({ url, title: video.title }) || navigator.clipboard.writeText(url);
@@ -1207,12 +1311,21 @@ function createVideoCard(video, index) {
 }
 
 function activateCard(card, video) {
-    // Remove old iframe if exists
     const wrapper = card.querySelector('.video-wrapper');
     const existing = wrapper.querySelector('iframe');
     if (existing) existing.remove();
 
-    // Build iframe with YouTube player API enabled
+    // Show loading spinner
+    currentVideoStart = null; // Don't start progress until video loads
+    const loadingEl = document.getElementById(`loading-${video.id}`);
+    if (loadingEl) loadingEl.classList.add('show');
+
+    // Reset progress bar
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = '0%';
+    const timeEl = document.getElementById('ctrl-time');
+    if (timeEl) timeEl.textContent = '0:00';
+
     const iframe = document.createElement('iframe');
     iframe.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&mute=${isMuted?1:0}&loop=1&playlist=${video.id}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}&widgetid=1`;
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
@@ -1220,33 +1333,36 @@ function activateCard(card, video) {
     wrapper.insertBefore(iframe, wrapper.firstChild);
 
     currentIframe = iframe;
-    currentVideoStart = Date.now();
-    currentVideoDuration = video.duration || 60;
+    currentVideoEl = wrapper;
+    currentVideoDuration = videoDurations[video.id] || video.duration || 60;
 
-    // Update URL + history
+    // Start progress ticker when iframe has loaded (onload fires when video is ready to play)
+    iframe.addEventListener('load', () => {
+        if (loadingEl) loadingEl.classList.remove('show');
+        // Small delay to let autoplay actually kick in
+        setTimeout(() => {
+            if (currentIframe === iframe) {
+                currentVideoStart = Date.now();
+                startProgressTicker();
+            }
+        }, 800);
+    });
+
     updateURL(`video/id=${video.id}`);
     addToHistory(video);
-
-    // Progress ticker
-    clearInterval(progressInterval);
-    progressInterval = setInterval(updateProgress, 500);
-
-    // Reset progress
-    const fill = document.getElementById('progress-fill');
-    if (fill) fill.style.width = '0%';
-    const timeEl = document.getElementById('ctrl-time');
-    if (timeEl) timeEl.textContent = '0:00';
 }
 
 function deactivateCard(card, video) {
     const iframe = card.querySelector('iframe');
     if (iframe) iframe.remove();
+    if (currentIframe && currentIframe.closest && !document.body.contains(currentIframe)) {
+        currentIframe = null;
+        currentVideoStart = null;
+    }
 }
 
 function navigateVideo(dir) {
     const container = document.getElementById('feed-scroll');
-    const cards = container.querySelectorAll('.video-card');
-    if (!cards.length) return;
     container.scrollBy({ top: dir * window.innerHeight, behavior: 'smooth' });
 }
 
@@ -1259,6 +1375,8 @@ async function playVideoById(videoId) {
         const data = await res.json();
         if (data.items?.[0]) {
             const item = data.items[0];
+            const dur = parseDuration(item.contentDetails.duration);
+            videoDurations[item.id] = dur;
             const video = {
                 id: item.id,
                 title: item.snippet.title,
@@ -1266,7 +1384,7 @@ async function playVideoById(videoId) {
                 channelId: item.snippet.channelId,
                 channelTitle: item.snippet.channelTitle,
                 stats: item.statistics,
-                duration: parseDuration(item.contentDetails.duration)
+                duration: dur
             };
             videos = [video, ...videos.filter(v => v.id !== videoId)];
             renderFeed();
@@ -1427,7 +1545,6 @@ async function loadComments(videoId, append = false) {
                 div.querySelector('.comment-avatar').addEventListener('click', handleClick);
                 div.querySelector('.comment-author').addEventListener('click', handleClick);
 
-                // Replies toggle
                 const toggle = div.querySelector('.replies-toggle');
                 if (toggle) {
                     const repliesContainer = div.querySelector('.replies-list');
@@ -1506,12 +1623,9 @@ async function loadReplies(threadId, container, preloaded = [], pageToken = '') 
     } catch(e) {}
 }
 
-/* Comment user profile: YouTube comment authors don't have accessible channel pages via handle,
-   so we open the channel view if we can look up by display name */
 function openCommentUserProfile(displayName, avatarUrl) {
     const safeHandle = displayName.replace(/\s+/g, '').toLowerCase();
     updateURL(`users/@${safeHandle}`);
-    // Show a simple profile card for the comment author
     switchView('user-profile');
     const content = document.getElementById('user-profile-content');
     content.innerHTML = `
@@ -1535,7 +1649,6 @@ function openCommentUserProfile(displayName, avatarUrl) {
 
 async function openUserProfileByHandle(handle) {
     switchView('user-profile');
-    // Try to find channel by handle
     const content = document.getElementById('user-profile-content');
     content.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
     try {
@@ -1605,32 +1718,57 @@ async function searchVideos(query) {
 }
 
 /* ═══════════════════════════════════════════════════
-   USER ACTIONS
+   USER ACTIONS — no renderFeed() calls, just DOM updates
 ═══════════════════════════════════════════════════ */
-async function toggleLike(video) {
+async function toggleLike(video, card) {
     const fb = window._fb; const uid = currentUser.uid;
     const isLiked = likedVideos.some(v => v.id === video.id);
+
+    // Optimistically update button immediately
+    const btn = card.querySelector('[data-action="like"] .btn-circle');
+    if (btn) btn.classList.toggle('liked', !isLiked);
+
     if (isLiked) {
         const snap = await fb.get(fb.ref(fb.db, `mattok/${uid}/liked`));
         const data = snap.val(); if (!data) return;
-        for (const k in data) if (data[k].id === video.id) { await fb.remove(fb.ref(fb.db, `mattok/${uid}/liked/${k}`)); break; }
+        for (const k in data) {
+            if (data[k].id === video.id) {
+                await fb.remove(fb.ref(fb.db, `mattok/${uid}/liked/${k}`));
+                break;
+            }
+        }
     } else {
-        await fb.push(fb.ref(fb.db, `mattok/${uid}/liked`), { id: video.id, title: video.title, thumbnail: video.thumbnail, channelId: video.channelId, channelTitle: video.channelTitle, timestamp: Date.now() });
+        await fb.push(fb.ref(fb.db, `mattok/${uid}/liked`), {
+            id: video.id, title: video.title, thumbnail: video.thumbnail,
+            channelId: video.channelId, channelTitle: video.channelTitle, timestamp: Date.now()
+        });
     }
-    renderFeed();
+    // likedVideos will update via onValue listener — no renderFeed needed
 }
 
-async function toggleSave(video) {
+async function toggleSave(video, card) {
     const fb = window._fb; const uid = currentUser.uid;
     const isSaved = savedVideos.some(v => v.id === video.id);
+
+    // Optimistically update button immediately
+    const btn = card.querySelector('[data-action="save"] .btn-circle');
+    if (btn) btn.classList.toggle('saved', !isSaved);
+
     if (isSaved) {
         const snap = await fb.get(fb.ref(fb.db, `mattok/${uid}/saved`));
         const data = snap.val(); if (!data) return;
-        for (const k in data) if (data[k].id === video.id) { await fb.remove(fb.ref(fb.db, `mattok/${uid}/saved/${k}`)); break; }
+        for (const k in data) {
+            if (data[k].id === video.id) {
+                await fb.remove(fb.ref(fb.db, `mattok/${uid}/saved/${k}`));
+                break;
+            }
+        }
     } else {
-        await fb.push(fb.ref(fb.db, `mattok/${uid}/saved`), { id: video.id, title: video.title, thumbnail: video.thumbnail, channelId: video.channelId, channelTitle: video.channelTitle, timestamp: Date.now() });
+        await fb.push(fb.ref(fb.db, `mattok/${uid}/saved`), {
+            id: video.id, title: video.title, thumbnail: video.thumbnail,
+            channelId: video.channelId, channelTitle: video.channelTitle, timestamp: Date.now()
+        });
     }
-    renderFeed();
 }
 
 async function toggleFollow(channelId, channelTitle, element) {
@@ -1650,13 +1788,16 @@ async function toggleFollow(channelId, channelTitle, element) {
         element.textContent = isFollowing ? 'Follow' : 'Following';
         element.classList.toggle('following', !isFollowing);
     }
-    renderFeed();
+    // followingChannels will update via onValue listener
 }
 
 async function addToHistory(video) {
     const fb = window._fb; const uid = currentUser.uid;
     if (watchHistory.some(v => v.id === video.id)) return;
-    await fb.push(fb.ref(fb.db, `mattok/${uid}/history`), { id: video.id, title: video.title, thumbnail: video.thumbnail, channelId: video.channelId, channelTitle: video.channelTitle, timestamp: Date.now() });
+    await fb.push(fb.ref(fb.db, `mattok/${uid}/history`), {
+        id: video.id, title: video.title, thumbnail: video.thumbnail,
+        channelId: video.channelId, channelTitle: video.channelTitle, timestamp: Date.now()
+    });
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1746,7 +1887,6 @@ function escHtml(str) {
     return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Init controls visibility
 document.getElementById('video-controls').style.display = 'flex';
 </script>
 </body>
