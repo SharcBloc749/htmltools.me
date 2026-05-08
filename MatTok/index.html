@@ -752,17 +752,9 @@ const BASE_URL = 'https://www.googleapis.com/youtube/v3';
 const BASE_PATH = '/MatTok';
 
 /* ═══════════════════════════════════════════════════
-   GITHUB PAGES SPA ROUTING FIX
-   Reads sessionStorage redirect set by 404.html
+   QUERY PARAM ROUTING — no 404.html needed
+   ?video=VIDEOID  |  ?user=@handle  |  ?search=query
 ═══════════════════════════════════════════════════ */
-(function() {
-    const redirect = sessionStorage.getItem('matTokRedirect');
-    if (redirect) {
-        sessionStorage.removeItem('matTokRedirect');
-        // Replace current history entry with the real path
-        history.replaceState(null, '', redirect);
-    }
-})();
 
 /* ═══════════════════════════════════════════════════
    STATE
@@ -791,26 +783,29 @@ let isDraggingProgress = false;
 /* ═══════════════════════════════════════════════════
    ROUTING
 ═══════════════════════════════════════════════════ */
-function updateURL(subpath) {
-    const path = BASE_PATH + (subpath ? '/' + subpath.replace(/^\//, '') : '');
-    history.pushState({}, '', path);
+function updateURL(param, value) {
+    const base = window.location.pathname;
+    if (!param) {
+        history.pushState({}, '', base);
+    } else {
+        history.pushState({}, '', base + '?' + param + '=' + encodeURIComponent(value));
+    }
 }
 
 function handleRoute() {
-    const path = window.location.pathname;
-    const sub = path.replace(BASE_PATH, '').replace(/^\//, '');
+    const params = new URLSearchParams(window.location.search);
+    const videoId = params.get('video');
+    const user    = params.get('user');
+    const search  = params.get('search');
 
-    if (sub.startsWith('video/id=')) {
-        const videoId = sub.replace('video/id=', '');
-        if (videoId) playVideoById(videoId);
-    } else if (sub.startsWith('search/')) {
-        const query = decodeURIComponent(sub.replace('search/', ''));
-        if (query) {
-            document.getElementById('search-input').value = query;
-            searchVideos(query);
-        }
-    } else if (sub.startsWith('users/@')) {
-        const handle = sub.replace('users/@', '');
+    if (videoId) {
+        playVideoById(videoId);
+    } else if (search) {
+        const q = decodeURIComponent(search);
+        document.getElementById('search-input').value = q;
+        searchVideos(q);
+    } else if (user) {
+        const handle = user.replace(/^@/, '');
         openUserProfileByHandle(handle);
     }
 }
@@ -839,6 +834,7 @@ function init() {
     setupSearch();
     setupComments();
     setupControls();
+    setupYTMessageListener();
 }
 
 /* ═══════════════════════════════════════════════════
@@ -889,7 +885,7 @@ function setupAuth() {
 function showAuth() {
     document.getElementById('auth-overlay').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
-    updateURL('');
+    updateURL();
 }
 
 function showApp() {
@@ -967,9 +963,9 @@ function setupNavigation() {
             if (view === 'home') {
                 videos = []; nextPageToken = '';
                 loadFeed();
-                updateURL('');
+                updateURL();
             } else {
-                updateURL('');
+                updateURL();
             }
             switchView(view);
             setActiveNav(view);
@@ -986,7 +982,7 @@ function setupNavigation() {
 
 function goHome() {
     switchView('home');
-    updateURL('');
+    updateURL();
     setActiveNav('home');
 }
 
@@ -1008,7 +1004,7 @@ function setupSearch() {
     const btn = document.getElementById('search-btn');
     const doSearch = () => {
         const query = input.value.trim();
-        if (query) { updateURL('search/' + encodeURIComponent(query)); searchVideos(query); }
+        if (query) { updateURL('search', query); searchVideos(query); }
     };
     btn.addEventListener('click', doSearch);
     input.addEventListener('keypress', e => { if (e.key === 'Enter') doSearch(); });
@@ -1099,10 +1095,40 @@ function updateProgressDisplay(elapsed) {
     if (timeEl) timeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+// YT player states: -1=unstarted, 0=ended, 1=playing, 2=paused, 3=buffering
+let isVideoPlaying = false;
+let pausedAt = null; // timestamp when video was paused
+
+function setupYTMessageListener() {
+    window.addEventListener('message', (e) => {
+        if (!e.data) return;
+        let data;
+        try { data = JSON.parse(e.data); } catch { return; }
+        // YT sends {event:'infoDelivery', info:{playerState:N}}
+        const state = data?.info?.playerState;
+        if (state === undefined) return;
+
+        if (state === 1) {
+            // Playing — compensate for time spent paused
+            if (!isVideoPlaying && pausedAt !== null && currentVideoStart !== null) {
+                currentVideoStart += (Date.now() - pausedAt);
+            }
+            pausedAt = null;
+            isVideoPlaying = true;
+        } else if (state === 2 || state === 0) {
+            // Paused or ended
+            if (isVideoPlaying) { pausedAt = Date.now(); isVideoPlaying = false; }
+        } else if (state === 3) {
+            // Buffering — freeze progress
+            if (isVideoPlaying) { pausedAt = Date.now(); isVideoPlaying = false; }
+        }
+    });
+}
+
 function startProgressTicker() {
     clearInterval(progressInterval);
     progressInterval = setInterval(() => {
-        if (isDraggingProgress || currentVideoStart === null) return;
+        if (isDraggingProgress || currentVideoStart === null || !isVideoPlaying) return;
         const elapsed = (Date.now() - currentVideoStart) / 1000;
         updateProgressDisplay(elapsed);
     }, 250);
@@ -1303,7 +1329,7 @@ function createVideoCard(video, index) {
         toggleSave(video, card);
     });
     card.querySelector('[data-action="share"]').addEventListener('click', () => {
-        const url = `${location.origin}${BASE_PATH}/video/id=${video.id}`;
+        const url = location.origin + location.pathname + '?video=' + video.id;
         navigator.share?.({ url, title: video.title }) || navigator.clipboard.writeText(url);
     });
 
@@ -1315,7 +1341,9 @@ function activateCard(card, video) {
     const existing = wrapper.querySelector('iframe');
     if (existing) existing.remove();
 
-    // Show loading spinner
+    // Reset player state for new card
+    isVideoPlaying = false;
+    pausedAt = null;
     currentVideoStart = null; // Don't start progress until video loads
     const loadingEl = document.getElementById(`loading-${video.id}`);
     if (loadingEl) loadingEl.classList.add('show');
@@ -1339,25 +1367,30 @@ function activateCard(card, video) {
     // Start progress ticker when iframe has loaded (onload fires when video is ready to play)
     iframe.addEventListener('load', () => {
         if (loadingEl) loadingEl.classList.remove('show');
+        // Tell YT to start sending state postMessages
+        try { iframe.contentWindow.postMessage(JSON.stringify({event: 'listening'}), '*'); } catch(e) {}
         // Small delay to let autoplay actually kick in
         setTimeout(() => {
             if (currentIframe === iframe) {
                 currentVideoStart = Date.now();
+                isVideoPlaying = true;
                 startProgressTicker();
             }
         }, 800);
     });
 
-    updateURL(`video/id=${video.id}`);
+    updateURL('video', video.id);
     addToHistory(video);
 }
 
 function deactivateCard(card, video) {
     const iframe = card.querySelector('iframe');
     if (iframe) iframe.remove();
-    if (currentIframe && currentIframe.closest && !document.body.contains(currentIframe)) {
+    if (currentIframe && !document.body.contains(currentIframe)) {
         currentIframe = null;
         currentVideoStart = null;
+        isVideoPlaying = false;
+        pausedAt = null;
     }
 }
 
@@ -1408,7 +1441,7 @@ async function openChannel(channelId) {
             const ch = data.items[0];
             const av = ch.snippet.thumbnails.high?.url || ch.snippet.thumbnails.default?.url;
             const handle = ch.snippet.customUrl?.replace('@','') || ch.snippet.title.toLowerCase().replace(/\s/g,'');
-            updateURL(`users/@${handle}`);
+            updateURL('user', '@' + handle);
 
             if (av) {
                 document.getElementById('channel-avatar').src = av;
@@ -1625,7 +1658,7 @@ async function loadReplies(threadId, container, preloaded = [], pageToken = '') 
 
 function openCommentUserProfile(displayName, avatarUrl) {
     const safeHandle = displayName.replace(/\s+/g, '').toLowerCase();
-    updateURL(`users/@${safeHandle}`);
+    updateURL('user', '@' + safeHandle);
     switchView('user-profile');
     const content = document.getElementById('user-profile-content');
     content.innerHTML = `
