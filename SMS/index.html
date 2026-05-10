@@ -1,1 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTMLTools SMS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
 
+    #auth-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+    .auth-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px; }
+    .auth-card h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; text-align: center; }
+    .auth-card p { font-size: 14px; color: #666; text-align: center; margin-bottom: 1.5rem; }
+    .auth-tabs { display: flex; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden; }
+    .auth-tab { flex: 1; padding: 9px; font-size: 14px; background: none; border: none; cursor: pointer; font-family: inherit; color: #666; }
+    .auth-tab.active { background: #1a1a1a; color: #fff; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+    .field input { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; }
+    .field input:focus { border-color: #1a73e8; }
+    .auth-btn { width: 100%; padding: 11px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-family: inherit; cursor: pointer; }
+    .auth-error { font-size: 13px; color: #c62828; margin-top: 10px; text-align: center; min-height: 18px; }
+
+    #main-view { display: none; max-width: 700px; margin: 0 auto; padding: 2rem 1rem; }
+    .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+    .top-bar h1 { font-size: 22px; font-weight: 500; }
+    .signout-btn { background: none; border: 1px solid #e5e5e5; border-radius: 8px; padding: 7px 14px; font-size: 13px; color: #666; cursor: pointer; font-family: inherit; }
+
+    .number-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .number-label { font-size: 13px; color: #666; margin-bottom: 6px; }
+    .number-display { display: flex; align-items: center; justify-content: space-between; }
+    .number-text { font-size: 22px; font-weight: 500; letter-spacing: 1px; }
+    .copy-btn { background: #f5f5f3; border: 1px solid #e5e5e5; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+    .copy-btn:hover { background: #eee; }
+    .copy-btn.copied { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+
+    .messages-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .messages-header h2 { font-size: 16px; font-weight: 500; }
+    .live-dot { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #34a853; }
+    .live-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #34a853; display: inline-block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .messages-list { display: flex; flex-direction: column; gap: 10px; }
+    .message-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1rem 1.25rem; }
+    .message-from { font-size: 12px; color: #666; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .message-body { font-size: 15px; color: #1a1a1a; margin-bottom: 6px; line-height: 1.5; }
+    .message-code { background: #e8f0fe; border-radius: 6px; padding: 8px 12px; font-size: 20px; font-weight: 600; letter-spacing: 3px; color: #1a73e8; display: inline-block; margin: 6px 0; }
+    .message-time { font-size: 12px; color: #999; }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: #999; }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
+    .empty-state p { font-size: 14px; }
+
+    .info-banner { background: #e8f0fe; border: 1px solid #b3ccf5; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #1a56b0; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 8px; }
+
+    .clear-btn { background: none; border: 1px solid #e5e5e5; border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #999; cursor: pointer; font-family: inherit; }
+    .clear-btn:hover { color: #c62828; border-color: #f5c6c6; }
+  </style>
+</head>
+<body>
+
+  <!-- Auth -->
+  <div id="auth-view">
+    <div class="auth-card">
+      <h1><i class="ti ti-message" style="font-size:26px; vertical-align:-5px; margin-right:8px;"></i>HTMLTools SMS</h1>
+      <p>Sign in to receive SMS verifications</p>
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
+        <button class="auth-tab" onclick="switchTab('signup')">Sign up</button>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')handleAuth()" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleAuth()" />
+      </div>
+      <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Sign in</button>
+      <div class="auth-error" id="auth-error"></div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main-view">
+    <div class="top-bar">
+      <h1><i class="ti ti-message" style="font-size:24px; vertical-align:-4px; margin-right:8px;"></i>HTMLTools SMS</h1>
+      <button class="signout-btn" onclick="signOut()"><i class="ti ti-logout" style="vertical-align:-2px; margin-right:4px;"></i>Sign out</button>
+    </div>
+
+    <div class="info-banner">
+      <i class="ti ti-info-circle" style="flex-shrink:0; margin-top:1px;"></i>
+      <span>Use the number below when signing up for Google, WhatsApp, or any other service. Your verification code will appear here instantly.</span>
+    </div>
+
+    <div class="number-card">
+      <div class="number-label">Your temporary number</div>
+      <div class="number-display">
+        <div class="number-text" id="phone-number">Loading...</div>
+        <button class="copy-btn" id="copy-btn" onclick="copyNumber()">
+          <i class="ti ti-copy"></i> Copy
+        </button>
+      </div>
+    </div>
+
+    <div class="messages-header">
+      <h2>Incoming Messages</h2>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="live-dot">Live</span>
+        <button class="clear-btn" onclick="clearMessages()">Clear all</button>
+      </div>
+    </div>
+
+    <div class="messages-list" id="messages-list">
+      <div class="empty-state">
+        <i class="ti ti-inbox"></i>
+        <p>No messages yet. Send a verification code to your number and it'll appear here.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getDatabase, ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCAtRRv7hxrBKxeJdh4VsL7j0jh5kf2X1U",
+      authDomain: "htmltools-main.firebaseapp.com",
+      databaseURL: "https://htmltools-main-default-rtdb.firebaseio.com",
+      projectId: "htmltools-main",
+      storageBucket: "htmltools-main.firebasestorage.app",
+      messagingSenderId: "692809314189",
+      appId: "1:692809314189:web:c386a54b41af7c867657c4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // PUT YOUR TWILIO NUMBER HERE
+    const TWILIO_NUMBER = "+1(343) 800-1398
+";
+
+    document.getElementById('phone-number').textContent = TWILIO_NUMBER;
+
+    window.switchTab = (tab) => {
+      document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
+      window._authTab = tab;
+      document.getElementById('auth-btn').textContent = tab === 'login' ? 'Sign in' : 'Sign up';
+      document.getElementById('auth-error').textContent = '';
+    };
+    window._authTab = 'login';
+
+    window.handleAuth = async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const errEl = document.getElementById('auth-error');
+      errEl.textContent = '';
+      try {
+        if (window._authTab === 'login') {
+          await signInWithEmailAndPassword(auth, email, password);
+        } else {
+          await createUserWithEmailAndPassword(auth, email, password);
+        }
+      } catch (e) {
+        errEl.textContent = e.message.replace('Firebase: ', '').replace(/\(auth.*\)\.?/, '');
+      }
+    };
+
+    window.signOut = async () => await fbSignOut(auth);
+
+    window.copyNumber = () => {
+      navigator.clipboard.writeText(TWILIO_NUMBER);
+      const btn = document.getElementById('copy-btn');
+      btn.classList.add('copied');
+      btn.innerHTML = '<i class="ti ti-check"></i> Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<i class="ti ti-copy"></i> Copy';
+      }, 2000);
+    };
+
+    window.clearMessages = async () => {
+      await remove(ref(db, 'sms'));
+    };
+
+    function extractCode(text) {
+      const match = text.match(/\b\d{4,8}\b/);
+      return match ? match[0] : null;
+    }
+
+    function timeAgo(timestamp) {
+      const diff = Math.floor((Date.now() - timestamp) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      return `${Math.floor(diff / 3600)}h ago`;
+    }
+
+    function renderMessages(messages) {
+      const list = document.getElementById('messages-list');
+      if (!messages || Object.keys(messages).length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <i class="ti ti-inbox"></i>
+            <p>No messages yet. Send a verification code to your number and it'll appear here.</p>
+          </div>`;
+        return;
+      }
+
+      const sorted = Object.entries(messages).sort((a, b) => b[1].timestamp - a[1].timestamp);
+      list.innerHTML = sorted.map(([key, msg]) => {
+        const code = extractCode(msg.body);
+        return `
+          <div class="message-card">
+            <div class="message-from">
+              <i class="ti ti-device-mobile"></i>
+              From: ${msg.from}
+            </div>
+            <div class="message-body">${msg.body}</div>
+            ${code ? `<div class="message-code">${code}</div>` : ''}
+            <div class="message-time">${timeAgo(msg.timestamp)}</div>
+          </div>`;
+      }).join('');
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.getElementById('auth-view').style.display = 'none';
+        document.getElementById('main-view').style.display = 'block';
+        onValue(ref(db, 'sms'), (snap) => renderMessages(snap.val()));
+      } else {
+        document.getElementById('auth-view').style.display = 'flex';
+        document.getElementById('main-view').style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
