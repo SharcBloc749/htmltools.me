@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cloud PC – HTMLTools</title>
-  <link rel="icon" type="image/png" href="/logo3.png?v=2" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,80 +22,88 @@
     .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: #34a853; }
     .connect-btn { background: #fff; border: 1px solid #d0d0d0; border-radius: 8px; padding: 9px 22px; font-size: 14px; color: #1a1a1a; cursor: pointer; font-family: inherit; transition: background 0.15s; }
     .connect-btn:hover { background: #f5f5f3; }
-    .frame-container { display: none; border-radius: 12px; overflow: hidden; border: 1px solid #e5e5e5; background: #fff; }
-    .frame-header { padding: 12px 16px; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 12px; background: #f9f9f9; }
-    .back-btn { background: none; border: none; color: #666; font-size: 13px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 4px; }
-    .back-btn:hover { color: #1a1a1a; }
-    #vnc-frame { width: 100%; height: 620px; border: none; display: block; }
+    #frame-view { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 1000; flex-direction: column; }
+    #frame-view.active { display: flex; }
+    .frame-header { padding: 8px 16px; background: #1a1a1a; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .frame-header-left { display: flex; align-items: center; gap: 12px; }
+    .back-btn { background: none; border: none; color: #aaa; font-size: 13px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 4px; }
+    .back-btn:hover { color: #fff; }
+    #connected-label { font-size: 13px; color: #aaa; }
+    .icon-btn { background: none; border: 1px solid #444; border-radius: 6px; color: #aaa; font-size: 13px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; padding: 6px 12px; transition: all 0.15s; }
+    .icon-btn:hover { background: #333; color: #fff; border-color: #666; }
+    #vnc-frame { width: 100%; flex: 1; border: none; display: block; background: #000; }
     .note { text-align: center; font-size: 12px; color: #999; margin-top: 1.5rem; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div id="home-view">
-      <div class="header">
-        <h1><i class="ti ti-device-desktop" style="font-size:28px; vertical-align:-5px; margin-right:8px;"></i>Cloud PC</h1>
-        <p>Pick a server below and connect to a full browser in your browser</p>
-      </div>
-
-      <div class="warning">
-        <i class="ti ti-alert-triangle"></i>
-        Heads up: users on the same server share the same screen. Add more VMs for private sessions.
-      </div>
-
-      <div id="vm-list">
-        <div class="vm-card">
-          <div class="vm-info">
-            <div class="vm-icon"><i class="ti ti-server"></i></div>
-            <div>
-              <div class="vm-name">Server 1</div>
-              <div class="vm-status"><span class="status-dot"></span>Online · US</div>
-            </div>
-          </div>
-          <button class="connect-btn" onclick="connect('https://vm.htmltools.me/vnc.html', 'Server 1')">Connect</button>
-        </div>
-
-        <!-- Add more VM cards here when you set up more servers -->
-        <!-- Example:
-        <div class="vm-card">
-          <div class="vm-info">
-            <div class="vm-icon"><i class="ti ti-server"></i></div>
-            <div>
-              <div class="vm-name">Server 2</div>
-              <div class="vm-status"><span class="status-dot"></span>Online · US</div>
-            </div>
-          </div>
-          <button class="connect-btn" onclick="connect('http://YOUR_VM2_IP:6080/vnc.html', 'Server 2')">Connect</button>
-        </div>
-        -->
-      </div>
-
-      <p class="note">Powered by noVNC · Runs on Google Cloud</p>
+  <div class="container" id="home-view">
+    <div class="header">
+      <h1><i class="ti ti-device-desktop" style="font-size:28px; vertical-align:-5px; margin-right:8px;"></i>Cloud PC</h1>
+      <p>Pick a server below and connect to a full browser in your browser</p>
     </div>
+    <div class="warning">
+      <i class="ti ti-alert-triangle"></i>
+      Heads up: users on the same server share the same screen. Add more VMs for private sessions.
+    </div>
+    <div id="vm-list">
+      <div class="vm-card">
+        <div class="vm-info">
+          <div class="vm-icon"><i class="ti ti-server"></i></div>
+          <div>
+            <div class="vm-name">Server 1</div>
+            <div class="vm-status"><span class="status-dot"></span>Online · US</div>
+          </div>
+        </div>
+        <button class="connect-btn" onclick="connect('https://vm.htmltools.me/vnc.html', 'Server 1')">Connect</button>
+      </div>
+      <!-- Add more VM cards here -->
+    </div>
+    <p class="note">Powered by noVNC · Runs on Google Cloud</p>
+  </div>
 
-    <div id="frame-view" class="frame-container">
-      <div class="frame-header">
+  <div id="frame-view">
+    <div class="frame-header">
+      <div class="frame-header-left">
         <button class="back-btn" onclick="disconnect()">
-          <i class="ti ti-arrow-left"></i> Back to servers
+          <i class="ti ti-arrow-left"></i> Back
         </button>
-        <span style="font-size: 13px; color: #666;" id="connected-label"></span>
+        <span id="connected-label"></span>
       </div>
-      <iframe id="vnc-frame" src="" allowfullscreen></iframe>
+      <button class="icon-btn" onclick="toggleFullscreen()">
+        <i class="ti ti-maximize" id="fs-icon"></i> Fullscreen
+      </button>
     </div>
+    <iframe id="vnc-frame" src="" allowfullscreen></iframe>
   </div>
 
   <script>
     function connect(url, name) {
       document.getElementById('home-view').style.display = 'none';
-      document.getElementById('connected-label').textContent = 'Connected to ' + name;
+      document.getElementById('connected-label').textContent = name;
       document.getElementById('vnc-frame').src = url;
-      document.getElementById('frame-view').style.display = 'block';
+      document.getElementById('frame-view').classList.add('active');
     }
     function disconnect() {
+      if (document.fullscreenElement) document.exitFullscreen();
       document.getElementById('vnc-frame').src = '';
-      document.getElementById('frame-view').style.display = 'none';
+      document.getElementById('frame-view').classList.remove('active');
       document.getElementById('home-view').style.display = 'block';
     }
+    function toggleFullscreen() {
+      const frameView = document.getElementById('frame-view');
+      if (!document.fullscreenElement) {
+        frameView.requestFullscreen();
+        document.getElementById('fs-icon').className = 'ti ti-minimize';
+      } else {
+        document.exitFullscreen();
+        document.getElementById('fs-icon').className = 'ti ti-maximize';
+      }
+    }
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        document.getElementById('fs-icon').className = 'ti ti-maximize';
+      }
+    });
   </script>
 </body>
 </html>
