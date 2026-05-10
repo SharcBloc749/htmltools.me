@@ -3,14 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cloud PC – HTMLTools</title>
-  <link rel="icon" type="image/png" href="/logo3.png?v=2" />
+  <title>HTMLTools Browser</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
 
-    /* Auth */
     #auth-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
     .auth-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px; }
     .auth-card h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; text-align: center; }
@@ -26,14 +24,17 @@
     .auth-btn:hover { background: #333; }
     .auth-error { font-size: 13px; color: #c62828; margin-top: 10px; text-align: center; min-height: 18px; }
 
-    /* Home */
     #home-view { display: none; padding: 2rem 1rem; max-width: 860px; margin: 0 auto; }
     .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
     .top-bar h1 { font-size: 22px; font-weight: 500; }
     .signout-btn { background: none; border: 1px solid #e5e5e5; border-radius: 8px; padding: 7px 14px; font-size: 13px; color: #666; cursor: pointer; font-family: inherit; }
     .signout-btn:hover { background: #f5f5f3; color: #1a1a1a; }
     .user-info { font-size: 13px; color: #666; margin-bottom: 1.5rem; }
-    .vm-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; transition: opacity 0.2s; }
+
+    .already-connected-banner { background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #7a5c00; margin-bottom: 1.5rem; display: none; align-items: center; justify-content: space-between; gap: 12px; }
+    .already-connected-banner button { background: #1a1a1a; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+
+    .vm-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
     .vm-info { display: flex; align-items: center; gap: 12px; }
     .vm-icon { width: 42px; height: 42px; border-radius: 10px; background: #e8f0fe; display: flex; align-items: center; justify-content: center; }
     .vm-icon i { font-size: 22px; color: #1a73e8; }
@@ -45,11 +46,11 @@
     .status-dot.busy { background: #c62828; }
     .connect-btn { background: #fff; border: 1px solid #d0d0d0; border-radius: 8px; padding: 9px 22px; font-size: 14px; color: #1a1a1a; cursor: pointer; font-family: inherit; transition: background 0.15s; white-space: nowrap; }
     .connect-btn:hover:not(:disabled) { background: #f5f5f3; }
-    .connect-btn.busy { background: #fce8e8; border-color: #f5c6c6; color: #c62828; cursor: not-allowed; }
-    .connect-btn.active-session { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; cursor: not-allowed; }
+    .connect-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+    .connect-btn.busy { background: #fce8e8; border-color: #f5c6c6; color: #c62828; }
+    .connect-btn.mine { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
     .note { text-align: center; font-size: 12px; color: #999; margin-top: 1.5rem; }
 
-    /* Frame */
     #frame-view { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 1000; flex-direction: column; }
     #frame-view.active { display: flex; }
     .frame-header { padding: 8px 16px; background: #1a1a1a; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
@@ -60,6 +61,12 @@
     .icon-btn { background: none; border: 1px solid #444; border-radius: 6px; color: #aaa; font-size: 13px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; padding: 6px 12px; transition: all 0.15s; }
     .icon-btn:hover { background: #333; color: #fff; border-color: #666; }
     #vnc-frame { width: 100%; flex: 1; border: none; display: block; background: #000; }
+
+    #blocked-view { display: none; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+    .blocked-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px; text-align: center; }
+    .blocked-card h2 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+    .blocked-card p { font-size: 14px; color: #666; margin-bottom: 1.5rem; }
+    .blocked-card button { background: #1a1a1a; color: #fff; border: none; border-radius: 8px; padding: 10px 24px; font-size: 14px; cursor: pointer; font-family: inherit; }
   </style>
 </head>
 <body>
@@ -67,34 +74,48 @@
   <!-- Auth View -->
   <div id="auth-view">
     <div class="auth-card">
-      <h1><i class="ti ti-device-desktop" style="font-size:26px; vertical-align:-5px; margin-right:8px;"></i>Cloud PC</h1>
-      <p>Sign in to access a cloud desktop</p>
+      <h1><i class="ti ti-world-www" style="font-size:26px; vertical-align:-5px; margin-right:8px;"></i>HTMLTools Browser</h1>
+      <p>Sign in to access a cloud browser</p>
       <div class="auth-tabs">
         <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
         <button class="auth-tab" onclick="switchTab('signup')">Sign up</button>
       </div>
       <div class="field">
         <label>Email</label>
-        <input type="email" id="email" placeholder="you@example.com" />
+        <input type="email" id="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')handleAuth()" />
       </div>
       <div class="field">
         <label>Password</label>
-        <input type="password" id="password" placeholder="••••••••" />
+        <input type="password" id="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleAuth()" />
       </div>
-      <button class="auth-btn" onclick="handleAuth()">Sign in</button>
+      <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Sign in</button>
       <div class="auth-error" id="auth-error"></div>
+    </div>
+  </div>
+
+  <!-- Blocked View (already has session in another tab) -->
+  <div id="blocked-view">
+    <div class="blocked-card">
+      <i class="ti ti-alert-circle" style="font-size:40px; color:#c62828; margin-bottom:12px; display:block;"></i>
+      <h2>Session already active</h2>
+      <p>You are already using a server in another tab. Please close that tab first, then come back here.</p>
+      <button onclick="forceDisconnectAndContinue()">Disconnect other session</button>
     </div>
   </div>
 
   <!-- Home View -->
   <div id="home-view">
     <div class="top-bar">
-      <h1><i class="ti ti-device-desktop" style="font-size:24px; vertical-align:-4px; margin-right:8px;"></i>Cloud PC</h1>
+      <h1><i class="ti ti-world-www" style="font-size:24px; vertical-align:-4px; margin-right:8px;"></i>HTMLTools Browser</h1>
       <button class="signout-btn" onclick="signOut()"><i class="ti ti-logout" style="vertical-align:-2px; margin-right:4px;"></i>Sign out</button>
     </div>
     <div class="user-info" id="user-info"></div>
+    <div class="already-connected-banner" id="already-banner">
+      <span><i class="ti ti-alert-triangle" style="vertical-align:-2px; margin-right:6px;"></i>You already have an active session on another server. Disconnect it first.</span>
+      <button onclick="forceDisconnectAndContinue()">Disconnect</button>
+    </div>
     <div id="vm-list"></div>
-    <p class="note">Powered by noVNC · Runs on Google Cloud</p>
+    <p class="note">HTMLTools Cloud · htmltools.me/Browser</p>
   </div>
 
   <!-- Frame View -->
@@ -113,11 +134,10 @@
     <iframe id="vnc-frame" src="" allowfullscreen></iframe>
   </div>
 
-  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getDatabase, ref, set, onValue, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getDatabase, ref, set, get, onValue, remove, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCAtRRv7hxrBKxeJdh4VsL7j0jh5kf2X1U",
@@ -144,13 +164,12 @@
     let currentUser = null;
     let currentSession = null;
     let serverStates = {};
+    let userSessionRef = null;
 
     window.switchTab = (tab) => {
-      const tabs = document.querySelectorAll('.auth-tab');
-      tabs[0].classList.toggle('active', tab === 'login');
-      tabs[1].classList.toggle('active', tab === 'signup');
+      document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
       window._authTab = tab;
-      document.querySelector('.auth-btn').textContent = tab === 'login' ? 'Sign in' : 'Sign up';
+      document.getElementById('auth-btn').textContent = tab === 'login' ? 'Sign in' : 'Sign up';
       document.getElementById('auth-error').textContent = '';
     };
     window._authTab = 'login';
@@ -172,26 +191,72 @@
     };
 
     window.signOut = async () => {
-      if (currentSession) await releaseServer(currentSession);
+      await releaseAllUserSessions();
       await fbSignOut(auth);
     };
 
-    async function claimServer(vmId) {
-      const sessionRef = ref(db, `sessions/${vmId}`);
-      await set(sessionRef, { uid: currentUser.uid, email: currentUser.email, connectedAt: Date.now() });
-      onDisconnect(sessionRef).remove();
-      currentSession = vmId;
+    // Check if this user already has an active session on ANY server
+    async function getUserActiveSession(uid) {
+      const snap = await get(ref(db, 'sessions'));
+      const sessions = snap.val() || {};
+      for (const [vmId, session] of Object.entries(sessions)) {
+        if (session.uid === uid) return vmId;
+      }
+      return null;
     }
 
-    async function releaseServer(vmId) {
-      const sessionRef = ref(db, `sessions/${vmId}`);
-      await remove(sessionRef);
+    async function releaseAllUserSessions() {
+      if (!currentUser) return;
+      const snap = await get(ref(db, 'sessions'));
+      const sessions = snap.val() || {};
+      for (const [vmId, session] of Object.entries(sessions)) {
+        if (session.uid === currentUser.uid) {
+          await remove(ref(db, `sessions/${vmId}`));
+        }
+      }
+      // Also release user lock
+      await remove(ref(db, `userSessions/${currentUser.uid}`));
       currentSession = null;
     }
 
+    window.forceDisconnectAndContinue = async () => {
+      await releaseAllUserSessions();
+      document.getElementById('blocked-view').style.display = 'none';
+      document.getElementById('already-banner').style.display = 'none';
+      document.getElementById('home-view').style.display = 'block';
+    };
+
     window.connect = async (vmId, name, url) => {
-      if (currentSession) return;
-      await claimServer(vmId);
+      if (!currentUser) return;
+
+      // Check if user already has a session anywhere
+      const existingSession = await getUserActiveSession(currentUser.uid);
+      if (existingSession && existingSession !== vmId) {
+        document.getElementById('already-banner').style.display = 'flex';
+        return;
+      }
+
+      // Check if server is already taken by someone else
+      const snap = await get(ref(db, `sessions/${vmId}`));
+      const session = snap.val();
+      if (session && session.uid !== currentUser.uid) {
+        alert('This server is already in use. Please pick another one.');
+        return;
+      }
+
+      // Claim the server
+      const sessionRef = ref(db, `sessions/${vmId}`);
+      await set(sessionRef, { uid: currentUser.uid, email: currentUser.email, connectedAt: Date.now() });
+      onDisconnect(sessionRef).remove();
+
+      // Also write a user-level lock
+      const userRef = ref(db, `userSessions/${currentUser.uid}`);
+      await set(userRef, { vmId, connectedAt: Date.now() });
+      onDisconnect(userRef).remove();
+
+      currentSession = vmId;
+
+      document.getElementById('already-banner').style.display = 'none';
       document.getElementById('home-view').style.display = 'none';
       document.getElementById('connected-label').textContent = name;
       document.getElementById('vnc-frame').src = url;
@@ -200,16 +265,16 @@
 
     window.disconnect = async () => {
       if (document.fullscreenElement) document.exitFullscreen();
-      if (currentSession) await releaseServer(currentSession);
+      await releaseAllUserSessions();
       document.getElementById('vnc-frame').src = '';
       document.getElementById('frame-view').classList.remove('active');
       document.getElementById('home-view').style.display = 'block';
     };
 
     window.toggleFullscreen = () => {
-      const frameView = document.getElementById('frame-view');
+      const fv = document.getElementById('frame-view');
       if (!document.fullscreenElement) {
-        frameView.requestFullscreen();
+        fv.requestFullscreen();
         document.getElementById('fs-icon').className = 'ti ti-minimize';
       } else {
         document.exitFullscreen();
@@ -222,16 +287,18 @@
     });
 
     function renderServers() {
+      if (!currentUser) return;
       const list = document.getElementById('vm-list');
+      const userHasSession = Object.values(serverStates).some(s => s.uid === currentUser.uid);
+
       list.innerHTML = servers.map(s => {
         const state = serverStates[s.id];
-        const isBusy = state && state.uid !== currentUser?.uid;
-        const isMySession = state && state.uid === currentUser?.uid;
-        const hasAnySession = !!currentSession;
+        const isBusy = state && state.uid !== currentUser.uid;
+        const isMySession = state && state.uid === currentUser.uid;
 
         let btnClass = 'connect-btn';
         let btnText = 'Connect';
-        let btnDisabled = '';
+        let disabled = '';
         let dotClass = 'status-dot';
         let statusText = 'Available';
         let iconClass = 'vm-icon';
@@ -239,17 +306,17 @@
         if (isBusy) {
           btnClass += ' busy';
           btnText = 'In use';
-          btnDisabled = 'disabled';
+          disabled = 'disabled';
           dotClass += ' busy';
           statusText = 'In use';
           iconClass += ' busy';
         } else if (isMySession) {
-          btnClass += ' active-session';
+          btnClass += ' mine';
           btnText = 'Your session';
-          btnDisabled = 'disabled';
+          disabled = 'disabled';
           statusText = 'Your session';
-        } else if (hasAnySession && !isMySession) {
-          btnDisabled = 'disabled';
+        } else if (userHasSession) {
+          disabled = 'disabled';
         }
 
         return `
@@ -261,32 +328,40 @@
                 <div class="vm-status"><span class="${dotClass}"></span>${statusText}</div>
               </div>
             </div>
-            <button class="${btnClass}" ${btnDisabled} onclick="connect('${s.id}', '${s.name}', '${s.url}')">${btnText}</button>
-          </div>
-        `;
+            <button class="${btnClass}" ${disabled} onclick="connect('${s.id}','${s.name}','${s.url}')">${btnText}</button>
+          </div>`;
       }).join('');
     }
 
     function watchSessions() {
-      const sessionsRef = ref(db, 'sessions');
-      onValue(sessionsRef, (snapshot) => {
-        serverStates = snapshot.val() || {};
+      onValue(ref(db, 'sessions'), (snap) => {
+        serverStates = snap.val() || {};
         renderServers();
       });
     }
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUser = user;
         document.getElementById('auth-view').style.display = 'none';
-        document.getElementById('home-view').style.display = 'block';
         document.getElementById('user-info').textContent = `Signed in as ${user.email}`;
+
+        // Check if user already has a session open (from another tab)
+        const existingVm = await getUserActiveSession(user.uid);
+        if (existingVm) {
+          // They already have a session — show blocked view
+          document.getElementById('blocked-view').style.display = 'flex';
+        } else {
+          document.getElementById('home-view').style.display = 'block';
+        }
+
         watchSessions();
       } else {
         currentUser = null;
         currentSession = null;
         document.getElementById('auth-view').style.display = 'flex';
         document.getElementById('home-view').style.display = 'none';
+        document.getElementById('blocked-view').style.display = 'none';
         document.getElementById('frame-view').classList.remove('active');
       }
     });
