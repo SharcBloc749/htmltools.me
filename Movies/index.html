@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HT Movies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#e24b4a;
+  --red-dim:rgba(226,75,74,0.15);
+  --bg:#0c0c10;
+  --bg2:#13131a;
+  --bg3:#1a1a24;
+  --text:#f0f0f0;
+  --muted:rgba(240,240,240,0.42);
+  --border:rgba(255,255,255,0.08);
+  --radius:10px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden}
+
+/* ── TOPBAR ── */
+#topbar{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 22px;height:58px;
+  background:rgba(12,12,16,0.95);
+  border-bottom:0.5px solid var(--border);
+  backdrop-filter:blur(12px);
+  position:sticky;top:0;z-index:10;
+}
+#logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+#logo img{height:32px;width:auto;object-fit:contain}
+#logo-text{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:#fff;white-space:nowrap}
+#logo-text span{color:var(--red)}
+.search-wrap{flex:1;display:flex;align-items:center;gap:8px;background:var(--bg3);border:0.5px solid var(--border);border-radius:22px;padding:7px 16px;max-width:340px}
+.search-wrap svg{flex-shrink:0;opacity:.4}
+#q{background:transparent;border:none;outline:none;color:#fff;font-size:13px;width:100%;font-family:inherit}
+#q::placeholder{color:var(--muted)}
+#count-badge{background:var(--bg3);border:0.5px solid var(--border);border-radius:12px;padding:4px 12px;font-size:11px;color:var(--muted);white-space:nowrap;margin-left:auto}
+
+/* ── GENRE BAR ── */
+#genre-bar{display:flex;gap:7px;padding:10px 22px;overflow-x:auto;scrollbar-width:none;background:rgba(19,19,26,0.9);border-bottom:0.5px solid var(--border);flex-shrink:0}
+#genre-bar::-webkit-scrollbar{display:none}
+.pill{padding:5px 15px;border-radius:20px;font-size:12px;cursor:pointer;border:0.5px solid rgba(255,255,255,0.12);background:transparent;color:var(--muted);white-space:nowrap;font-family:inherit;transition:all .15s}
+.pill:hover{background:rgba(255,255,255,0.07);color:#fff}
+.pill.on{background:var(--red);border-color:var(--red);color:#fff}
+
+/* ── LAYOUT ── */
+#layout{display:flex;height:calc(100vh - 58px - 41px);overflow:hidden}
+#scroll-area{flex:1;overflow-y:auto;padding:18px 22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent}
+#scroll-area::-webkit-scrollbar{width:5px}
+#scroll-area::-webkit-scrollbar-track{background:transparent}
+#scroll-area::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+
+/* ── FEATURED BANNER ── */
+#featured{
+  border-radius:var(--radius);padding:18px 20px;margin-bottom:22px;
+  background:linear-gradient(120deg,rgba(226,75,74,0.18) 0%,rgba(19,19,26,0) 100%);
+  border:0.5px solid rgba(226,75,74,0.25);
+  display:flex;align-items:center;gap:16px;cursor:pointer;
+  transition:border-color .2s;
+}
+#featured:hover{border-color:rgba(226,75,74,0.5)}
+.feat-info{flex:1;min-width:0}
+.feat-tag{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--red);margin-bottom:5px}
+.feat-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:#fff;margin-bottom:4px}
+.feat-title span{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--muted);font-weight:400;letter-spacing:0}
+.feat-desc{font-size:12px;color:var(--muted);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feat-btn{background:var(--red);border:none;color:#fff;padding:9px 18px;border-radius:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;font-family:inherit;font-weight:500;transition:background .15s}
+.feat-btn:hover{background:#c73d3c}
+.feat-btn svg{flex-shrink:0}
+
+/* ── SECTION HEADER ── */
+.sec-head{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+
+/* ── GRID ── */
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:11px;margin-bottom:28px}
+.card{cursor:pointer;border-radius:8px;overflow:hidden;background:var(--bg3);border:0.5px solid var(--border);transition:transform .15s,border-color .15s}
+.card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,0.2)}
+.thumb{width:100%;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.thumb-bg{position:absolute;inset:0;opacity:.15}
+.thumb-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px;text-align:center}
+.thumb-icon{font-size:22px;opacity:.55}
+.thumb-label{font-size:10px;color:rgba(255,255,255,.65);line-height:1.3}
+.thumb-yr{font-size:9px;color:rgba(255,255,255,.3)}
+.accent-bar{position:absolute;bottom:0;left:0;right:0;height:3px}
+.card-info{padding:8px 10px}
+.card-title{font-size:11px;font-weight:500;color:rgba(255,255,255,.9);line-height:1.3;margin-bottom:2px}
+.card-meta{font-size:10px;color:var(--muted)}
+.badge{display:inline-block;background:rgba(226,75,74,0.2);color:#e87877;font-size:9px;padding:1px 5px;border-radius:3px;margin-right:3px}
+.empty{text-align:center;padding:50px 20px;color:rgba(255,255,255,.2);grid-column:1/-1;font-size:14px}
+
+/* ── PLAYER OVERLAY ── */
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:999;align-items:center;justify-content:center;padding:18px}
+#overlay.open{display:flex}
+.player-box{width:100%;max-width:860px}
+.player-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:12px}
+.player-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1px;color:#fff;line-height:1.2}
+.close-btn{background:rgba(255,255,255,.08);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+.close-btn:hover{background:rgba(255,255,255,.18)}
+iframe{width:100%;aspect-ratio:16/9;border:none;border-radius:9px}
+.player-meta{margin-top:10px;font-size:12px;color:rgba(255,255,255,.38);line-height:1.6}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <a id="logo" href="#">
+    <img src="https://htmltools.me/logo3.png" alt="HT Movies logo"/>
+    <span id="logo-text">HT <span>Movies</span></span>
+  </a>
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="q" placeholder="Search title, genre, actor…"/>
+  </div>
+  <span id="count-badge">40 films</span>
+</div>
+
+<div id="genre-bar"></div>
+
+<div id="layout">
+  <div id="scroll-area">
+    <div id="featured"></div>
+    <div class="sec-head" id="sec-head">All films</div>
+    <div id="grid"></div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="player-box">
+    <div class="player-top">
+      <div class="player-title" id="ptitle"></div>
+      <button class="close-btn" onclick="closePlayer()" aria-label="Close">&#x2715;</button>
+    </div>
+    <iframe id="frame" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+    <div class="player-meta" id="pmeta"></div>
+  </div>
+</div>
+
+<script>
+const MOVIES = [
+  {id:"RfinVKMcUvU",title:"Mr. Nice Guy",year:1997,genre:"Action",rating:"PG-13",desc:"Jackie Chan in high-octane Hong Kong action comedy.",stars:"Jackie Chan"},
+  {id:"5hOmzRDpKls",title:"The Condemned",year:2007,genre:"Action",rating:"R",desc:"Convicts fight to the death on an island streamed live online.",stars:"Steve Austin, Vinnie Jones"},
+  {id:"oPEteAs7WoA",title:"Universal Soldier",year:1992,genre:"Action",rating:"R",desc:"Two Vietnam soldiers are reactivated as unstoppable cyborg warriors.",stars:"Jean-Claude Van Damme, Dolph Lundgren"},
+  {id:"GBkNGnsZNqA",title:"Maximum Risk",year:1996,genre:"Action",rating:"R",desc:"A cop assumes his dead twin's identity and gets caught in FBI and mob chaos.",stars:"Jean-Claude Van Damme"},
+  {id:"Jf7IC01gjXA",title:"Street Fighter",year:1994,genre:"Action",rating:"PG-13",desc:"An Allied Nations colonel battles a dictator in a jungle compound.",stars:"Jean-Claude Van Damme, Raul Julia"},
+  {id:"GduMiNRSXgc",title:"Sudden Death",year:1995,genre:"Action",rating:"R",desc:"A fire marshal stops terrorists at the Stanley Cup finals.",stars:"Jean-Claude Van Damme"},
+  {id:"mF3iDCgPTkI",title:"Hard Target",year:1993,genre:"Action",rating:"R",desc:"John Woo's Hollywood debut — a drifter is hunted for sport.",stars:"Jean-Claude Van Damme, Lance Henriksen"},
+  {id:"OjZ4C25BCGM",title:"Barbershop 2",year:2004,genre:"Comedy",rating:"PG-13",desc:"Calvin's barbershop faces a corporate rival trying to gentrify the block.",stars:"Ice Cube, Queen Latifah"},
+  {id:"FBbOhTb5plA",title:"Mouse Hunt",year:1997,genre:"Comedy",rating:"PG",desc:"Two brothers battle a genius mouse for control of a crumbling mansion.",stars:"Nathan Lane, Lee Evans"},
+  {id:"b1UBHbAYHJ8",title:"The Return of the Pink Panther",year:1975,genre:"Comedy",rating:"G",desc:"Inspector Clouseau investigates the theft of the Pink Panther diamond.",stars:"Peter Sellers"},
+  {id:"dMxDLSe_-lw",title:"Super Size Me",year:2004,genre:"Documentary",rating:"PG-13",desc:"Morgan Spurlock eats nothing but McDonald's for 30 days straight.",stars:"Morgan Spurlock"},
+  {id:"OuG5BxV5kkY",title:"The Ghost Writer",year:2010,genre:"Thriller",rating:"PG-13",desc:"A ghostwriter uncovers a deadly secret in a former PM's memoirs.",stars:"Ewan McGregor, Pierce Brosnan"},
+  {id:"c3ufM3TJ_mU",title:"Ronin",year:1998,genre:"Thriller",rating:"R",desc:"Ex-spies gather in Paris for a mysterious heist.",stars:"Robert De Niro, Jean Reno"},
+  {id:"fphiHUCGECI",title:"All the President's Men",year:1976,genre:"Drama",rating:"PG",desc:"Woodward and Bernstein's legendary Watergate investigation.",stars:"Robert Redford, Dustin Hoffman"},
+  {id:"VUHQzQKFIJY",title:"What's Eating Gilbert Grape",year:1993,genre:"Drama",rating:"PG-13",desc:"A young man cares for his family in a small dying town.",stars:"Johnny Depp, Leonardo DiCaprio"},
+  {id:"BakGiqDCqF0",title:"The Mission",year:1986,genre:"Drama",rating:"PG",desc:"A Jesuit missionary defends a South American tribe with a reformed slave trader.",stars:"Robert De Niro, Jeremy Irons"},
+  {id:"7T_yxrufTWw",title:"Night of the Living Dead",year:1968,genre:"Horror",rating:"NR",desc:"George Romero's groundbreaking zombie horror that launched a genre.",stars:"Duane Jones"},
+  {id:"RptOaL3CXMs",title:"The Cabinet of Dr. Caligari",year:1920,genre:"Horror",rating:"NR",desc:"A hypnotist uses a sleepwalker to commit murders — German Expressionist landmark.",stars:"Werner Krauss"},
+  {id:"cRct5IHPhhU",title:"Nosferatu",year:1922,genre:"Horror",rating:"NR",desc:"The original vampire classic. Count Orlok brings plague to a German town.",stars:"Max Schreck"},
+  {id:"hkfHDCKbY6A",title:"Häxan",year:1922,genre:"Horror",rating:"NR",desc:"A pioneering docudrama exploring witchcraft through the ages.",stars:"Benjamin Christensen"},
+  {id:"PLHfn7MthAE",title:"Metropolis",year:1927,genre:"Sci-Fi",rating:"NR",desc:"Fritz Lang's vision of a dystopian futuristic city divided by class.",stars:"Brigitte Helm"},
+  {id:"xNMijCDCYx0",title:"A Trip to the Moon",year:1902,genre:"Sci-Fi",rating:"NR",desc:"Georges Méliès' pioneering 14-minute fantasy — cinema's first sci-fi film.",stars:"Georges Méliès"},
+  {id:"JuCp5KLqEUc",title:"Jiro Dreams of Sushi",year:2011,genre:"Documentary",rating:"G",desc:"Portrait of legendary sushi master Jiro Ono and his relentless pursuit of perfection.",stars:"Jiro Ono"},
+  {id:"B8EL6zw-3oY",title:"Searching for Sugar Man",year:2012,genre:"Documentary",rating:"PG",desc:"Two Cape Town fans investigate the mysterious disappearance of a 70s folk singer.",stars:"Rodriguez"},
+  {id:"D9o8B8JCHME",title:"The Gold Rush",year:1925,genre:"Comedy",rating:"NR",desc:"Chaplin's beloved comedy about a prospector seeking fortune in the Klondike.",stars:"Charlie Chaplin"},
+  {id:"2KIrMjHCrKQ",title:"The Kid",year:1921,genre:"Drama",rating:"NR",desc:"Chaplin's heartwarming debut feature — a tramp raises an abandoned child.",stars:"Charlie Chaplin"},
+  {id:"N9sBbGixbTY",title:"The Lodger",year:1927,genre:"Thriller",rating:"NR",desc:"Hitchcock's early thriller — a mysterious lodger may be a serial killer.",stars:"Ivor Novello"},
+  {id:"5k1G5FuMK-s",title:"Safety Last!",year:1923,genre:"Comedy",rating:"NR",desc:"Harold Lloyd's iconic clock-face hanging stunt — a defining silent comedy.",stars:"Harold Lloyd"},
+  {id:"e5pVivfCPt8",title:"Intolerance",year:1916,genre:"Drama",rating:"NR",desc:"D.W. Griffith's epic weaving four parallel stories of human intolerance.",stars:"Lillian Gish"},
+  {id:"yrmTBSEFmgU",title:"The Adventures of Pluto Nash",year:2002,genre:"Comedy",rating:"PG-13",desc:"A nightclub owner on the moon fights the mob in 2087.",stars:"Eddie Murphy, Randy Quaid"},
+  {id:"Bq2WWS0bJO4",title:"Phantom of the Opera",year:1925,genre:"Drama",rating:"NR",desc:"Lon Chaney haunts the Paris Opera House in the defining silent romance.",stars:"Lon Chaney"},
+  {id:"TGJy2pbCpIs",title:"Sherlock Jr.",year:1924,genre:"Comedy",rating:"NR",desc:"A projectionist dreams himself into the movie on screen to solve a mystery.",stars:"Buster Keaton"},
+  {id:"hUVuMTR-950",title:"Oh, God!",year:1977,genre:"Comedy",rating:"PG",desc:"God appears to a supermarket manager and asks him to spread the word.",stars:"George Burns, John Denver"},
+  {id:"zjIiApN6cfg",title:"Come and See",year:1985,genre:"Drama",rating:"NR",desc:"A devastating Soviet WWII film following a boy through Nazi atrocities.",stars:"Aleksei Kravchenko"},
+  {id:"GEY7lRBCRGo",title:"Airplane!",year:1980,genre:"Comedy",rating:"PG",desc:"The ultimate spoof — passengers must land a plane after the crew gets food poisoning.",stars:"Robert Hays, Julie Hagerty"},
+  {id:"4wdBKhTNWcc",title:"The Naked Gun",year:1988,genre:"Comedy",rating:"PG-13",desc:"Bumbling Lt. Frank Drebin foils a plot to assassinate the Queen.",stars:"Leslie Nielsen"},
+  {id:"hUOCBFmjFME",title:"Memento",year:2000,genre:"Thriller",rating:"R",desc:"A man with short-term memory loss hunts his wife's killer using notes and tattoos.",stars:"Guy Pearce, Carrie-Anne Moss"},
+  {id:"_FrdVdKlxUk",title:"The General",year:1926,genre:"Adventure",rating:"NR",desc:"Buster Keaton's masterpiece: a train engineer chases down his stolen locomotive.",stars:"Buster Keaton"},
+  {id:"kflzBJKq9Y4",title:"The Cameraman",year:1928,genre:"Comedy",rating:"NR",desc:"Buster Keaton tries to become a MGM newsreel cameraman to impress a girl.",stars:"Buster Keaton"},
+  {id:"PLHfn7MthAE",title:"Mutiny on the Bounty",year:1935,genre:"Adventure",rating:"NR",desc:"Fletcher Christian leads a mutiny against the tyrannical Captain Bligh.",stars:"Charles Laughton"},
+];
+
+const GENRES = ["All","Action","Comedy","Drama","Thriller","Horror","Sci-Fi","Documentary","Adventure"];
+const COLORS = ["#e24b4a","#378add","#1d9e75","#ba7517","#534ab7","#d4537e","#ef9f27","#1d9e75","#e24b4a"];
+let activeGenre = "All", query = "";
+
+function filtered() {
+  return MOVIES.filter(m => {
+    const gOk = activeGenre === "All" || m.genre === activeGenre;
+    const q2 = query.toLowerCase();
+    const sOk = !query ||
+      m.title.toLowerCase().includes(q2) ||
+      m.genre.toLowerCase().includes(q2) ||
+      (m.stars||"").toLowerCase().includes(q2) ||
+      String(m.year).includes(q2);
+    return gOk && sOk;
+  });
+}
+
+function renderGenres() {
+  document.getElementById("genre-bar").innerHTML = GENRES.map(g =>
+    `<button class="pill${g===activeGenre?" on":""}" onclick="setGenre('${g}')">${g}</button>`
+  ).join("");
+}
+
+function setGenre(g) { activeGenre = g; renderGenres(); renderGrid(); }
+
+function esc(s) { return (s||"").replace(/'/g,"\\'"); }
+
+function renderFeat() {
+  const m = MOVIES.find(x => x.id === "hUOCBFmjFME") || MOVIES[0];
+  const el = document.getElementById("featured");
+  el.innerHTML = `
+    <div class="feat-info">
+      <div class="feat-tag">&#9733; Editor's pick</div>
+      <div class="feat-title">${m.title} <span>${m.year}</span></div>
+      <div class="feat-desc">${m.desc}</div>
+    </div>
+    <button class="feat-btn" onclick="event.stopPropagation();play('${m.id}','${esc(m.title)}','${m.year} &middot; ${m.genre} &middot; ${esc(m.stars||'')}')">
+      &#9654; Watch now
+    </button>`;
+  el.onclick = () => play(m.id, m.title, `${m.year} · ${m.genre} · ${m.stars||''}`);
+}
+
+function renderGrid() {
+  const list = filtered();
+  document.getElementById("sec-head").textContent =
+    activeGenre === "All" ? "All films" : activeGenre + " films";
+  document.getElementById("count-badge").textContent =
+    list.length + " film" + (list.length !== 1 ? "s" : "");
+  const g = document.getElementById("grid");
+  if (!list.length) {
+    g.innerHTML = `<div class="empty">No films found for "${query || activeGenre}"</div>`;
+    return;
+  }
+  g.innerHTML = list.map((m, i) => {
+    const col = COLORS[i % COLORS.length];
+    return `<div class="card" onclick="play('${m.id}','${esc(m.title)}','${m.year} · ${m.genre}${m.stars ? ' · ' + esc(m.stars) : ''}')" title="${m.desc}">
+      <div class="thumb">
+        <div class="thumb-bg" style="background:${col}"></div>
+        <div class="thumb-content">
+          <div class="thumb-icon">&#9654;</div>
+          <div class="thumb-label">${m.title}</div>
+          <div class="thumb-yr">${m.year}</div>
+        </div>
+        <div class="accent-bar" style="background:${col}"></div>
+      </div>
+      <div class="card-info">
+        <div class="card-title">${m.title}</div>
+        <div class="card-meta"><span class="badge">${m.rating}</span>${m.year} &middot; ${m.genre}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function play(id, title, meta) {
+  document.getElementById("ptitle").textContent = title;
+  document.getElementById("pmeta").textContent = meta;
+  document.getElementById("frame").src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&modestbranding=1`;
+  document.getElementById("overlay").classList.add("open");
+}
+
+function closePlayer() {
+  document.getElementById("overlay").classList.remove("open");
+  document.getElementById("frame").src = "";
+}
+
+document.getElementById("q").addEventListener("input", e => {
+  query = e.target.value;
+  renderGrid();
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closePlayer();
+});
+
+renderGenres();
+renderFeat();
+renderGrid();
+</script>
+</body>
+</html>
