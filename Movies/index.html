@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>HT Movies</title>
-  <link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+<link rel="icon" type="image/png" href="/logo3.png?v=2"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
@@ -76,6 +76,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .rt{color:#f5c518}
 .empty{text-align:center;padding:50px;color:rgba(255,255,255,.2);grid-column:1/-1}
 
+/* placeholder shimmer while poster loads */
+.pw img.loading{opacity:0;transition:opacity .3s}
+.pw img.loaded{opacity:1}
+
 /* PLAYER */
 #ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:999;align-items:center;justify-content:center;padding:16px;flex-direction:column}
 #ov.open{display:flex}
@@ -144,7 +148,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 <script>
 // ── CATALOGUE ──────────────────────────────────────────
+// Format: {i: imdb_id, t: title, y: year, g: genre}
 const CAT = [
+  // ACTION
   {i:'tt1745960',t:'Top Gun: Maverick',y:2022,g:'Action'},
   {i:'tt10872600',t:'Spider-Man: No Way Home',y:2021,g:'Action'},
   {i:'tt9376612',t:'Shang-Chi',y:2021,g:'Action'},
@@ -156,30 +162,8 @@ const CAT = [
   {i:'tt9114286',t:'Black Adam',y:2022,g:'Action'},
   {i:'tt3480822',t:'Black Panther: Wakanda Forever',y:2022,g:'Action'},
   {i:'tt10648342',t:'Thor: Love and Thunder',y:2022,g:'Action'},
-  {i:'tt9288408',t:'The Father',y:2020,g:'Drama'},
   {i:'tt10160678',t:'The Gentlemen',y:2020,g:'Action'},
   {i:'tt10370822',t:'Nobody',y:2021,g:'Action'},
-  {i:'tt14444726',t:'Glass Onion',y:2022,g:'Thriller'},
-  {i:'tt9179892',t:'The Menu',y:2022,g:'Thriller'},
-  {i:'tt8946378',t:'Knives Out',y:2019,g:'Thriller'},
-  {i:'tt6751668',t:'Parasite',y:2019,g:'Thriller'},
-  {i:'tt6710474',t:'Everything Everywhere All at Once',y:2022,g:'Sci-Fi'},
-  {i:'tt1745016',t:'Dune',y:2021,g:'Sci-Fi'},
-  {i:'tt15239678',t:'Dune: Part Two',y:2024,g:'Sci-Fi'},
-  {i:'tt9603212',t:'Tenet',y:2020,g:'Sci-Fi'},
-  {i:'tt10954984',t:'Barbarian',y:2022,g:'Horror'},
-  {i:'tt7349950',t:'Nope',y:2022,g:'Horror'},
-  {i:'tt10720892',t:'Smile',y:2022,g:'Horror'},
-  {i:'tt6316138',t:'Midsommar',y:2019,g:'Horror'},
-  {i:'tt7286456',t:'Joker',y:2019,g:'Drama'},
-  {i:'tt10683552',t:'The Power of the Dog',y:2021,g:'Drama'},
-  {i:'tt8521718',t:'Marriage Story',y:2019,g:'Drama'},
-  {i:'tt7529770',t:'1917',y:2019,g:'Drama'},
-  {i:'tt6264654',t:'Free Guy',y:2021,g:'Comedy'},
-  {i:'tt9484998',t:'Palm Springs',y:2020,g:'Comedy'},
-  {i:'tt11951276',t:'The Unbearable Weight of Massive Talent',y:2022,g:'Comedy'},
-  {i:'tt2278388',t:'The Grand Budapest Hotel',y:2014,g:'Comedy'},
-  {i:'tt7131622',t:'Once Upon a Time in Hollywood',y:2019,g:'Drama'},
   {i:'tt4154796',t:'Avengers: Endgame',y:2019,g:'Action'},
   {i:'tt4154756',t:'Avengers: Infinity War',y:2018,g:'Action'},
   {i:'tt3501632',t:'Thor: Ragnarok',y:2017,g:'Action'},
@@ -189,9 +173,48 @@ const CAT = [
   {i:'tt0816711',t:'John Wick',y:2014,g:'Action'},
   {i:'tt4425200',t:'John Wick: Chapter 2',y:2017,g:'Action'},
   {i:'tt6146586',t:'John Wick: Chapter 3',y:2019,g:'Action'},
+  {i:'tt10326444',t:'John Wick: Chapter 4',y:2023,g:'Action'},
   {i:'tt3315342',t:'Logan',y:2017,g:'Action'},
   {i:'tt4912910',t:'Mission: Impossible – Fallout',y:2018,g:'Action'},
   {i:'tt2381249',t:'Mission: Impossible – Rogue Nation',y:2015,g:'Action'},
+  {i:'tt9362722',t:'Spider-Man: Across the Spider-Verse',y:2023,g:'Action'},
+  {i:'tt0468569',t:'The Dark Knight',y:2008,g:'Action'},
+  {i:'tt0371746',t:'Iron Man',y:2008,g:'Action'},
+  {i:'tt0800080',t:'Iron Man 2',y:2010,g:'Action'},
+  {i:'tt1300854',t:'Iron Man 3',y:2013,g:'Action'},
+  {i:'tt1825683',t:'Black Panther',y:2018,g:'Action'},
+  {i:'tt4154664',t:'Captain Marvel',y:2019,g:'Action'},
+  {i:'tt9032400',t:'Eternals',y:2021,g:'Action'},
+  {i:'tt13623148',t:'Ant-Man and the Wasp: Quantumania',y:2023,g:'Action'},
+  {i:'tt10954600',t:'Doctor Strange in the Multiverse of Madness',y:2022,g:'Action'},
+  {i:'tt9114286',t:'Black Adam',y:2022,g:'Action'},
+  {i:'tt5774060',t:'Justice League',y:2017,g:'Action'},
+  {i:'tt0413300',t:'Batman Begins',y:2005,g:'Action'},
+  {i:'tt1345836',t:'The Dark Knight Rises',y:2012,g:'Action'},
+  {i:'tt2975590',t:'Batman v Superman',y:2016,g:'Action'},
+  {i:'tt0120338',t:'Titanic',y:1997,g:'Action'},
+  {i:'tt0266543',t:'Finding Nemo',y:2003,g:'Action'},
+  {i:'tt1950186',t:'Ford v Ferrari',y:2019,g:'Action'},
+  {i:'tt6450804',t:'Transformers: The Last Knight',y:2017,g:'Action'},
+  {i:'tt5433138',t:'Fast & Furious 8',y:2017,g:'Action'},
+  {i:'tt5090568',t:'F9',y:2021,g:'Action'},
+  {i:'tt5884052',t:'Fast X',y:2023,g:'Action'},
+  {i:'tt0780504',t:'Drive',y:2011,g:'Action'},
+  {i:'tt1392190',t:'Mad Max: Fury Road',y:2015,g:'Action'},
+  {i:'tt2802144',t:'Kingsman: The Secret Service',y:2014,g:'Action'},
+  {i:'tt4649466',t:'Kingsman: The Golden Circle',y:2017,g:'Action'},
+  {i:'tt1229238',t:'The Expendables 2',y:2012,g:'Action'},
+  {i:'tt2102024',t:'Jack Reacher',y:2012,g:'Action'},
+  {i:'tt0816692',t:'Interstellar',y:2014,g:'Sci-Fi'},
+  {i:'tt1375666',t:'Inception',y:2010,g:'Sci-Fi'},
+
+  // DRAMA
+  {i:'tt9288408',t:'The Father',y:2020,g:'Drama'},
+  {i:'tt7286456',t:'Joker',y:2019,g:'Drama'},
+  {i:'tt10683552',t:'The Power of the Dog',y:2021,g:'Drama'},
+  {i:'tt8521718',t:'Marriage Story',y:2019,g:'Drama'},
+  {i:'tt7529770',t:'1917',y:2019,g:'Drama'},
+  {i:'tt7131622',t:'Once Upon a Time in Hollywood',y:2019,g:'Drama'},
   {i:'tt1270797',t:'The Revenant',y:2015,g:'Drama'},
   {i:'tt2562232',t:'Birdman',y:2014,g:'Drama'},
   {i:'tt3783958',t:'La La Land',y:2016,g:'Drama'},
@@ -201,30 +224,413 @@ const CAT = [
   {i:'tt4903820',t:'Hacksaw Ridge',y:2016,g:'Drama'},
   {i:'tt4729430',t:'The Florida Project',y:2017,g:'Drama'},
   {i:'tt1853728',t:'Django Unchained',y:2012,g:'Drama'},
+  {i:'tt0993846',t:'The Wolf of Wall Street',y:2013,g:'Drama'},
+  {i:'tt2278388',t:'The Grand Budapest Hotel',y:2014,g:'Comedy'},
+  {i:'tt0407887',t:'The Departed',y:2006,g:'Drama'},
+  {i:'tt0167404',t:'The Sixth Sense',y:1999,g:'Drama'},
+  {i:'tt0109830',t:'Forrest Gump',y:1994,g:'Drama'},
+  {i:'tt0111161',t:'The Shawshank Redemption',y:1994,g:'Drama'},
+  {i:'tt0068646',t:'The Godfather',y:1972,g:'Drama'},
+  {i:'tt0071562',t:'The Godfather Part II',y:1974,g:'Drama'},
+  {i:'tt0050083',t:'12 Angry Men',y:1957,g:'Drama'},
+  {i:'tt0108052',t:'Schindler\'s List',y:1993,g:'Drama'},
+  {i:'tt0317248',t:'City of God',y:2002,g:'Drama'},
+  {i:'tt0245429',t:'Spirited Away',y:2001,g:'Drama'},
+  {i:'tt0097576',t:'Indiana Jones and the Last Crusade',y:1989,g:'Adventure'},
+  {i:'tt1568346',t:'The Girl with the Dragon Tattoo',y:2011,g:'Drama'},
+  {i:'tt0118799',t:'Life Is Beautiful',y:1997,g:'Drama'},
+  {i:'tt0816711',t:'John Wick',y:2014,g:'Action'},
+  {i:'tt0361748',t:'Inglourious Basterds',y:2009,g:'Drama'},
+  {i:'tt0172495',t:'Gladiator',y:2000,g:'Drama'},
+  {i:'tt0120586',t:'American History X',y:1998,g:'Drama'},
+  {i:'tt1375670',t:'The Help',y:2011,g:'Drama'},
+  {i:'tt0264464',t:'Catch Me If You Can',y:2002,g:'Drama'},
+  {i:'tt0947798',t:'Black Swan',y:2010,g:'Drama'},
+  {i:'tt0477348',t:'No Country for Old Men',y:2007,g:'Drama'},
+  {i:'tt0075314',t:'Taxi Driver',y:1976,g:'Drama'},
+  {i:'tt0099685',t:'Goodfellas',y:1990,g:'Drama'},
+  {i:'tt0169547',t:'American Beauty',y:1999,g:'Drama'},
+  {i:'tt0114369',t:'Se7en',y:1995,g:'Drama'},
+  {i:'tt0435761',t:'Toy Story 3',y:2010,g:'Comedy'},
+  {i:'tt1798684',t:'Silver Linings Playbook',y:2012,g:'Drama'},
+  {i:'tt1305806',t:'The Secret in Their Eyes',y:2009,g:'Drama'},
+  {i:'tt1024648',t:'Argo',y:2012,g:'Drama'},
+  {i:'tt2024544',t:'12 Years a Slave',y:2013,g:'Drama'},
+  {i:'tt0338013',t:'Eternal Sunshine of the Spotless Mind',y:2004,g:'Drama'},
+  {i:'tt1065073',t:'Gran Torino',y:2008,g:'Drama'},
+  {i:'tt0401792',t:'Sin City',y:2005,g:'Drama'},
+  {i:'tt0910970',t:'WALL-E',y:2008,g:'Sci-Fi'},
+  {i:'tt14230458',t:'Belfast',y:2021,g:'Drama'},
+  {i:'tt10272386',t:'The Trial of the Chicago 7',y:2020,g:'Drama'},
+  {i:'tt11813216',t:'The Banshees of Inisherin',y:2022,g:'Drama'},
+  {i:'tt12037194',t:'All Quiet on the Western Front',y:2022,g:'Drama'},
+  {i:'tt15671028',t:'The Whale',y:2022,g:'Drama'},
+  {i:'tt1825683',t:'Black Panther',y:2018,g:'Action'},
+  {i:'tt13560574',t:'Tár',y:2022,g:'Drama'},
+  {i:'tt9376562',t:'Ambulance',y:2022,g:'Action'},
+  {i:'tt10954984',t:'Barbarian',y:2022,g:'Horror'},
+  {i:'tt15398776',t:'Oppenheimer',y:2023,g:'Drama'},
+  {i:'tt14929600',t:'Maestro',y:2023,g:'Drama'},
+  {i:'tt9764362',t:'The Holdovers',y:2023,g:'Drama'},
+  {i:'tt21823606',t:'American Fiction',y:2023,g:'Drama'},
+  {i:'tt1517268',t:'Barbie',y:2023,g:'Comedy'},
+  {i:'tt3450958',t:'Past Lives',y:2023,g:'Drama'},
+  {i:'tt14539740',t:'Poor Things',y:2023,g:'Drama'},
+  {i:'tt5278934',t:'The Zone of Interest',y:2023,g:'Drama'},
+  {i:'tt14221584',t:'Saltburn',y:2023,g:'Drama'},
+  {i:'tt0105236',t:'Reservoir Dogs',y:1992,g:'Drama'},
+  {i:'tt0110912',t:'Pulp Fiction',y:1994,g:'Drama'},
+  {i:'tt0382932',t:'Ratatouille',y:2007,g:'Comedy'},
+  {i:'tt0435761',t:'Toy Story 3',y:2010,g:'Comedy'},
+  {i:'tt2096673',t:'Inside Out',y:2015,g:'Comedy'},
+
+  // THRILLER
+  {i:'tt14444726',t:'Glass Onion',y:2022,g:'Thriller'},
+  {i:'tt9179892',t:'The Menu',y:2022,g:'Thriller'},
+  {i:'tt8946378',t:'Knives Out',y:2019,g:'Thriller'},
+  {i:'tt6751668',t:'Parasite',y:2019,g:'Thriller'},
+  {i:'tt3460252',t:'The Hateful Eight',y:2015,g:'Thriller'},
+  {i:'tt2737304',t:'Prisoners',y:2013,g:'Thriller'},
+  {i:'tt0209144',t:'Memento',y:2000,g:'Thriller'},
+  {i:'tt0137523',t:'Fight Club',y:1999,g:'Thriller'},
+  {i:'tt0133093',t:'The Matrix',y:1999,g:'Thriller'},
+  {i:'tt0482571',t:'The Prestige',y:2006,g:'Thriller'},
+  {i:'tt0816711',t:'John Wick',y:2014,g:'Action'},
+  {i:'tt1375670',t:'The Help',y:2011,g:'Drama'},
+  {i:'tt0457430',t:'Pan\'s Labyrinth',y:2006,g:'Thriller'},
+  {i:'tt0364569',t:'Oldboy',y:2003,g:'Thriller'},
+  {i:'tt0114814',t:'The Usual Suspects',y:1995,g:'Thriller'},
+  {i:'tt0088763',t:'Back to the Future',y:1985,g:'Sci-Fi'},
+  {i:'tt0120815',t:'Saving Private Ryan',y:1998,g:'Drama'},
+  {i:'tt1632708',t:'Gone Girl',y:2014,g:'Thriller'},
+  {i:'tt2267998',t:'Gone Girl',y:2014,g:'Thriller'},
+  {i:'tt1179933',t:'The Town',y:2010,g:'Thriller'},
+  {i:'tt1375670',t:'The Help',y:2011,g:'Drama'},
+  {i:'tt0110357',t:'The Lion King',y:1994,g:'Comedy'},
+  {i:'tt0253474',t:'The Pianist',y:2002,g:'Drama'},
+  {i:'tt1454029',t:'The Help',y:2011,g:'Drama'},
+  {i:'tt0455275',t:'Prison Break',y:2005,g:'Thriller'},
+  {i:'tt0878804',t:'The Hurt Locker',y:2008,g:'Thriller'},
+  {i:'tt0405094',t:'The Lives of Others',y:2006,g:'Thriller'},
+  {i:'tt1049413',t:'Up',y:2009,g:'Comedy'},
+  {i:'tt2737304',t:'Prisoners',y:2013,g:'Thriller'},
+  {i:'tt0947798',t:'Black Swan',y:2010,g:'Drama'},
+  {i:'tt1130884',t:'Shutter Island',y:2010,g:'Thriller'},
+  {i:'tt1535108',t:'Ender\'s Game',y:2013,g:'Sci-Fi'},
+  {i:'tt0816711',t:'John Wick',y:2014,g:'Action'},
+  {i:'tt1853728',t:'Django Unchained',y:2012,g:'Drama'},
+  {i:'tt2267998',t:'Gone Girl',y:2014,g:'Thriller'},
+  {i:'tt4287320',t:'Wind River',y:2017,g:'Thriller'},
+  {i:'tt0359950',t:'The Machinist',y:2004,g:'Thriller'},
+  {i:'tt2582782',t:'Nightcrawler',y:2014,g:'Thriller'},
+  {i:'tt3799694',t:'The Nice Guys',y:2016,g:'Thriller'},
+  {i:'tt6751668',t:'Parasite',y:2019,g:'Thriller'},
+  {i:'tt8772262',t:'Midsommar',y:2019,g:'Horror'},
+  {i:'tt7131622',t:'Once Upon a Time in Hollywood',y:2019,g:'Drama'},
+  {i:'tt9731534',t:'Promising Young Woman',y:2020,g:'Thriller'},
+  {i:'tt0816692',t:'Interstellar',y:2014,g:'Sci-Fi'},
+  {i:'tt9603212',t:'Tenet',y:2020,g:'Sci-Fi'},
+  {i:'tt11083552',t:'No Time to Die',y:2021,g:'Thriller'},
+  {i:'tt14369578',t:'Licorice Pizza',y:2021,g:'Drama'},
+  {i:'tt13560574',t:'Tár',y:2022,g:'Drama'},
+  {i:'tt1745016',t:'Dune',y:2021,g:'Sci-Fi'},
+
+  // HORROR
+  {i:'tt10954984',t:'Barbarian',y:2022,g:'Horror'},
+  {i:'tt7349950',t:'Nope',y:2022,g:'Horror'},
+  {i:'tt10720892',t:'Smile',y:2022,g:'Horror'},
+  {i:'tt6316138',t:'Midsommar',y:2019,g:'Horror'},
   {i:'tt5052448',t:'Get Out',y:2017,g:'Horror'},
   {i:'tt7784604',t:'Us',y:2019,g:'Horror'},
+  {i:'tt6751668',t:'Parasite',y:2019,g:'Thriller'},
+  {i:'tt0411008',t:'Lights Out',y:2016,g:'Horror'},
+  {i:'tt6226232',t:'Hereditary',y:2018,g:'Horror'},
+  {i:'tt7549996',t:'Halloween',y:2018,g:'Horror'},
+  {i:'tt9174558',t:'Doctor Sleep',y:2019,g:'Horror'},
+  {i:'tt0093773',t:'Predator',y:1987,g:'Horror'},
+  {i:'tt0076759',t:'Star Wars: A New Hope',y:1977,g:'Sci-Fi'},
+  {i:'tt0903624',t:'The Conjuring',y:2013,g:'Horror'},
+  {i:'tt3065204',t:'The Conjuring 2',y:2016,g:'Horror'},
+  {i:'tt5908022',t:'Annabelle: Creation',y:2017,g:'Horror'},
+  {i:'tt7936510',t:'The Nun',y:2018,g:'Horror'},
+  {i:'tt7132742',t:'Insidious: The Last Key',y:2018,g:'Horror'},
+  {i:'tt9288586',t:'The Invisible Man',y:2020,g:'Horror'},
+  {i:'tt11383506',t:'Malignant',y:2021,g:'Horror'},
+  {i:'tt11847842',t:'Scream',y:2022,g:'Horror'},
+  {i:'tt7014006',t:'It Chapter Two',y:2019,g:'Horror'},
+  {i:'tt4633694',t:'It',y:2017,g:'Horror'},
+  {i:'tt1959490',t:'The Witch',y:2015,g:'Horror'},
+  {i:'tt4046784',t:'A Quiet Place',y:2018,g:'Horror'},
+  {i:'tt8171718',t:'A Quiet Place Part II',y:2021,g:'Horror'},
+  {i:'tt8772262',t:'Midsommar',y:2019,g:'Horror'},
+  {i:'tt7131622',t:'Once Upon a Time in Hollywood',y:2019,g:'Drama'},
+  {i:'tt4972582',t:'Don\'t Breathe',y:2016,g:'Horror'},
+  {i:'tt9639470',t:'Don\'t Breathe 2',y:2021,g:'Horror'},
+  {i:'tt1179933',t:'The Town',y:2010,g:'Thriller'},
+  {i:'tt3513504',t:'Split',y:2016,g:'Horror'},
+  {i:'tt6823368',t:'Glass',y:2019,g:'Horror'},
+  {i:'tt7131622',t:'Once Upon a Time in Hollywood',y:2019,g:'Drama'},
+  {i:'tt7126948',t:'Sinister 2',y:2015,g:'Horror'},
+  {i:'tt9381244',t:'Candyman',y:2021,g:'Horror'},
+  {i:'tt14080462',t:'X',y:2022,g:'Horror'},
+  {i:'tt13345910',t:'Pearl',y:2022,g:'Horror'},
+  {i:'tt9603212',t:'Tenet',y:2020,g:'Sci-Fi'},
+  {i:'tt13433844',t:'Speak No Evil',y:2022,g:'Horror'},
+  {i:'tt15767482',t:'Talk to Me',y:2022,g:'Horror'},
+  {i:'tt9603212',t:'Tenet',y:2020,g:'Sci-Fi'},
+  {i:'tt14077056',t:'Smile 2',y:2024,g:'Horror'},
+
+  // SCI-FI
+  {i:'tt6710474',t:'Everything Everywhere All at Once',y:2022,g:'Sci-Fi'},
+  {i:'tt1745016',t:'Dune',y:2021,g:'Sci-Fi'},
+  {i:'tt15239678',t:'Dune: Part Two',y:2024,g:'Sci-Fi'},
+  {i:'tt9603212',t:'Tenet',y:2020,g:'Sci-Fi'},
   {i:'tt2543164',t:'Arrival',y:2016,g:'Sci-Fi'},
   {i:'tt3659388',t:'The Martian',y:2015,g:'Sci-Fi'},
   {i:'tt0816692',t:'Interstellar',y:2014,g:'Sci-Fi'},
   {i:'tt1375666',t:'Inception',y:2010,g:'Sci-Fi'},
   {i:'tt0910970',t:'WALL-E',y:2008,g:'Sci-Fi'},
-  {i:'tt3460252',t:'The Hateful Eight',y:2015,g:'Thriller'},
-  {i:'tt2737304',t:'Prisoners',y:2013,g:'Thriller'},
+  {i:'tt0133093',t:'The Matrix',y:1999,g:'Sci-Fi'},
+  {i:'tt1790864',t:'Oblivion',y:2013,g:'Sci-Fi'},
+  {i:'tt0076759',t:'Star Wars: A New Hope',y:1977,g:'Sci-Fi'},
+  {i:'tt0080684',t:'Star Wars: The Empire Strikes Back',y:1980,g:'Sci-Fi'},
+  {i:'tt0086190',t:'Star Wars: Return of the Jedi',y:1983,g:'Sci-Fi'},
+  {i:'tt2488496',t:'Star Wars: The Force Awakens',y:2015,g:'Sci-Fi'},
+  {i:'tt3748528',t:'Rogue One: A Star Wars Story',y:2016,g:'Sci-Fi'},
+  {i:'tt2527338',t:'Star Wars: The Last Jedi',y:2017,g:'Sci-Fi'},
+  {i:'tt2527336',t:'Star Wars: The Rise of Skywalker',y:2019,g:'Sci-Fi'},
+  {i:'tt0458339',t:'Captain America: The First Avenger',y:2011,g:'Action'},
+  {i:'tt0088763',t:'Back to the Future',y:1985,g:'Sci-Fi'},
+  {i:'tt0096874',t:'Back to the Future Part II',y:1989,g:'Sci-Fi'},
+  {i:'tt0096895',t:'Back to the Future Part III',y:1990,g:'Sci-Fi'},
+  {i:'tt1136608',t:'District 9',y:2009,g:'Sci-Fi'},
+  {i:'tt0816711',t:'John Wick',y:2014,g:'Action'},
+  {i:'tt1535109',t:'Ex Machina',y:2014,g:'Sci-Fi'},
+  {i:'tt2283362',t:'Pacific Rim',y:2013,g:'Sci-Fi'},
+  {i:'tt0116629',t:'Independence Day',y:1996,g:'Sci-Fi'},
+  {i:'tt0435761',t:'Toy Story 3',y:2010,g:'Comedy'},
+  {i:'tt1375666',t:'Inception',y:2010,g:'Sci-Fi'},
+  {i:'tt0181875',t:'Almost Famous',y:2000,g:'Drama'},
+  {i:'tt0796366',t:'Star Trek',y:2009,g:'Sci-Fi'},
+  {i:'tt1408101',t:'Star Trek Into Darkness',y:2013,g:'Sci-Fi'},
+  {i:'tt2660888',t:'Star Trek Beyond',y:2016,g:'Sci-Fi'},
+  {i:'tt1270797',t:'The Revenant',y:2015,g:'Drama'},
+  {i:'tt0756683',t:'Cloverfield',y:2008,g:'Sci-Fi'},
+  {i:'tt1483013',t:'10 Cloverfield Lane',y:2016,g:'Sci-Fi'},
+  {i:'tt0198781',t:'Monsters, Inc.',y:2001,g:'Comedy'},
+  {i:'tt2229499',t:'Gravity',y:2013,g:'Sci-Fi'},
+  {i:'tt3416532',t:'The Space Between Us',y:2017,g:'Sci-Fi'},
+  {i:'tt9603212',t:'Tenet',y:2020,g:'Sci-Fi'},
+  {i:'tt0381681',t:'Before Sunset',y:2004,g:'Drama'},
+  {i:'tt2872732',t:'Edge of Tomorrow',y:2014,g:'Sci-Fi'},
+  {i:'tt3890160',t:'Ready Player One',y:2018,g:'Sci-Fi'},
+  {i:'tt5164214',t:'Blade Runner 2049',y:2017,g:'Sci-Fi'},
+  {i:'tt0083658',t:'Blade Runner',y:1982,g:'Sci-Fi'},
+  {i:'tt4154796',t:'Avengers: Endgame',y:2019,g:'Action'},
+  {i:'tt0097165',t:'Dead Poets Society',y:1989,g:'Drama'},
+  {i:'tt2293640',t:'Minions',y:2015,g:'Comedy'},
+  {i:'tt0120382',t:'The Truman Show',y:1998,g:'Sci-Fi'},
+  {i:'tt0114709',t:'Toy Story',y:1995,g:'Comedy'},
+  {i:'tt11214580',t:'Don\'t Look Up',y:2021,g:'Sci-Fi'},
+  {i:'tt0162222',t:'Cast Away',y:2000,g:'Drama'},
+  {i:'tt0209144',t:'Memento',y:2000,g:'Thriller'},
+  {i:'tt14534594',t:'Everything Everywhere All at Once',y:2022,g:'Sci-Fi'},
+  {i:'tt0268978',t:'A Beautiful Mind',y:2001,g:'Drama'},
+  {i:'tt0361748',t:'Inglourious Basterds',y:2009,g:'Drama'},
+  {i:'tt1016150',t:'I Am Legend',y:2007,g:'Sci-Fi'},
+  {i:'tt7131622',t:'Once Upon a Time in Hollywood',y:2019,g:'Drama'},
+  {i:'tt7777802',t:'The Wandering Earth',y:2019,g:'Sci-Fi'},
+
+  // COMEDY
+  {i:'tt6264654',t:'Free Guy',y:2021,g:'Comedy'},
+  {i:'tt9484998',t:'Palm Springs',y:2020,g:'Comedy'},
+  {i:'tt11951276',t:'The Unbearable Weight of Massive Talent',y:2022,g:'Comedy'},
+  {i:'tt2278388',t:'The Grand Budapest Hotel',y:2014,g:'Comedy'},
   {i:'tt1843241',t:'The Lego Movie',y:2014,g:'Comedy'},
-  {i:'tt0468569',t:'The Dark Knight',y:2008,g:'Action'},
-  {i:'tt0371746',t:'Iron Man',y:2008,g:'Action'},
+  {i:'tt0892769',t:'How to Train Your Dragon',y:2010,g:'Comedy'},
+  {i:'tt0435761',t:'Toy Story 3',y:2010,g:'Comedy'},
+  {i:'tt0114709',t:'Toy Story',y:1995,g:'Comedy'},
+  {i:'tt0120363',t:'Toy Story 2',y:1999,g:'Comedy'},
+  {i:'tt1517268',t:'Barbie',y:2023,g:'Comedy'},
+  {i:'tt0382932',t:'Ratatouille',y:2007,g:'Comedy'},
+  {i:'tt1049413',t:'Up',y:2009,g:'Comedy'},
+  {i:'tt0198781',t:'Monsters, Inc.',y:2001,g:'Comedy'},
+  {i:'tt0266543',t:'Finding Nemo',y:2003,g:'Comedy'},
+  {i:'tt0317219',t:'Cars',y:2006,g:'Comedy'},
+  {i:'tt2096673',t:'Inside Out',y:2015,g:'Comedy'},
+  {i:'tt1727824',t:'Brave',y:2012,g:'Comedy'},
+  {i:'tt1228705',t:'Iron Man 2',y:2010,g:'Action'},
+  {i:'tt0110110',t:'The Lion King',y:1994,g:'Comedy'},
+  {i:'tt0325980',t:'Pirates of the Caribbean',y:2003,g:'Comedy'},
+  {i:'tt0449088',t:'Pirates of the Caribbean: At World\'s End',y:2007,g:'Comedy'},
+  {i:'tt2267998',t:'Gone Girl',y:2014,g:'Thriller'},
+  {i:'tt1981115',t:'The Internship',y:2013,g:'Comedy'},
+  {i:'tt0453562',t:'Blades of Glory',y:2007,g:'Comedy'},
+  {i:'tt0387764',t:'Wedding Crashers',y:2005,g:'Comedy'},
+  {i:'tt0816711',t:'John Wick',y:2014,g:'Action'},
+  {i:'tt0119217',t:'Good Will Hunting',y:1997,g:'Drama'},
+  {i:'tt2310332',t:'The Wolf of Wall Street',y:2013,g:'Drama'},
+  {i:'tt3501632',t:'Thor: Ragnarok',y:2017,g:'Action'},
+  {i:'tt3227904',t:'Superbad',y:2007,g:'Comedy'},
+  {i:'tt0441773',t:'Kung Fu Panda',y:2008,g:'Comedy'},
+  {i:'tt1230414',t:'Despicable Me',y:2010,g:'Comedy'},
+  {i:'tt1690953',t:'Despicable Me 2',y:2013,g:'Comedy'},
+  {i:'tt3521164',t:'Despicable Me 3',y:2017,g:'Comedy'},
+  {i:'tt2293640',t:'Minions',y:2015,g:'Comedy'},
+  {i:'tt0075148',t:'Rocky',y:1976,g:'Drama'},
+  {i:'tt6139732',t:'Aladdin',y:2019,g:'Comedy'},
+  {i:'tt6209470',t:'The Lion King',y:2019,g:'Comedy'},
+  {i:'tt1020532',t:'The Dictator',y:2012,g:'Comedy'},
+  {i:'tt1663662',t:'Pacific Rim',y:2013,g:'Sci-Fi'},
+  {i:'tt0107048',t:'Groundhog Day',y:1993,g:'Comedy'},
+  {i:'tt0756683',t:'Cloverfield',y:2008,g:'Sci-Fi'},
+  {i:'tt0098635',t:'When Harry Met Sally',y:1989,g:'Comedy'},
+  {i:'tt0116282',t:'Fargo',y:1996,g:'Thriller'},
+  {i:'tt0071853',t:'Monty Python and the Holy Grail',y:1975,g:'Comedy'},
+  {i:'tt0910970',t:'WALL-E',y:2008,g:'Sci-Fi'},
+  {i:'tt1211837',t:'Doctor Strange',y:2016,g:'Action'},
+  {i:'tt3501632',t:'Thor: Ragnarok',y:2017,g:'Action'},
+  {i:'tt0080455',t:'The Blues Brothers',y:1980,g:'Comedy'},
+  {i:'tt0092099',t:'Top Gun',y:1986,g:'Action'},
+  {i:'tt3480822',t:'Black Panther: Wakanda Forever',y:2022,g:'Action'},
+
+  // ADVENTURE
   {i:'tt0120737',t:'The Lord of the Rings: Fellowship',y:2001,g:'Adventure'},
   {i:'tt0167261',t:'The Lord of the Rings: Two Towers',y:2002,g:'Adventure'},
   {i:'tt0167260',t:'The Lord of the Rings: Return of the King',y:2003,g:'Adventure'},
+  {i:'tt0903624',t:'The Hobbit: An Unexpected Journey',y:2012,g:'Adventure'},
+  {i:'tt1170358',t:'The Hobbit: The Desolation of Smaug',y:2013,g:'Adventure'},
+  {i:'tt2310332',t:'The Hobbit: The Battle of the Five Armies',y:2014,g:'Adventure'},
+  {i:'tt0097576',t:'Indiana Jones and the Last Crusade',y:1989,g:'Adventure'},
+  {i:'tt0082971',t:'Raiders of the Lost Ark',y:1981,g:'Adventure'},
+  {i:'tt0172495',t:'Gladiator',y:2000,g:'Drama'},
+  {i:'tt0325980',t:'Pirates of the Caribbean',y:2003,g:'Adventure'},
+  {i:'tt0383574',t:'Pirates of the Caribbean: Dead Man\'s Chest',y:2006,g:'Adventure'},
+  {i:'tt0449088',t:'Pirates of the Caribbean: At World\'s End',y:2007,g:'Adventure'},
+  {i:'tt1298650',t:'Pirates of the Caribbean: On Stranger Tides',y:2011,g:'Adventure'},
+  {i:'tt1790809',t:'Pirates of the Caribbean: Dead Men Tell No Tales',y:2017,g:'Adventure'},
+  {i:'tt0266543',t:'Finding Nemo',y:2003,g:'Comedy'},
+  {i:'tt3606752',t:'Finding Dory',y:2016,g:'Comedy'},
+  {i:'tt0892769',t:'How to Train Your Dragon',y:2010,g:'Adventure'},
+  {i:'tt1646971',t:'How to Train Your Dragon 2',y:2014,g:'Adventure'},
+  {i:'tt2386490',t:'How to Train Your Dragon: The Hidden World',y:2019,g:'Adventure'},
+  {i:'tt2245084',t:'The Secret Life of Walter Mitty',y:2013,g:'Adventure'},
+  {i:'tt1979376',t:'Toy Story 4',y:2019,g:'Comedy'},
+  {i:'tt1049413',t:'Up',y:2009,g:'Adventure'},
+  {i:'tt0096283',t:'My Neighbor Totoro',y:1988,g:'Adventure'},
+  {i:'tt0245429',t:'Spirited Away',y:2001,g:'Adventure'},
+  {i:'tt0347149',t:'Howl\'s Moving Castle',y:2004,g:'Adventure'},
+  {i:'tt0289879',t:'Spirited Away',y:2001,g:'Adventure'},
+  {i:'tt0310775',t:'Princess Mononoke',y:1997,g:'Adventure'},
+  {i:'tt0119177',t:'The Game',y:1997,g:'Thriller'},
+  {i:'tt1979376',t:'Toy Story 4',y:2019,g:'Comedy'},
+  {i:'tt0120338',t:'Titanic',y:1997,g:'Drama'},
+  {i:'tt3521164',t:'Despicable Me 3',y:2017,g:'Comedy'},
+  {i:'tt0317219',t:'Cars',y:2006,g:'Comedy'},
+  {i:'tt2245084',t:'The Secret Life of Walter Mitty',y:2013,g:'Adventure'},
+  {i:'tt9022302',t:'Jungle Cruise',y:2021,g:'Adventure'},
+  {i:'tt2278388',t:'The Grand Budapest Hotel',y:2014,g:'Comedy'},
+  {i:'tt1853728',t:'Django Unchained',y:2012,g:'Drama'},
+  {i:'tt0266543',t:'Finding Nemo',y:2003,g:'Comedy'},
+  {i:'tt1375670',t:'The Help',y:2011,g:'Drama'},
+  {i:'tt2278404',t:'The Secret Life of Pets',y:2016,g:'Comedy'},
+  {i:'tt4857264',t:'Moana',y:2016,g:'Adventure'},
+  {i:'tt2948356',t:'Zootopia',y:2016,g:'Adventure'},
+  {i:'tt2294449',t:'Wreck-It Ralph',y:2012,g:'Comedy'},
+  {i:'tt3521164',t:'Despicable Me 3',y:2017,g:'Comedy'},
+  {i:'tt1655246',t:'The Croods',y:2013,g:'Adventure'},
+  {i:'tt1318514',t:'Rise of the Planet of the Apes',y:2011,g:'Sci-Fi'},
+  {i:'tt2103264',t:'Dawn of the Planet of the Apes',y:2014,g:'Sci-Fi'},
+  {i:'tt5011966',t:'War for the Planet of the Apes',y:2017,g:'Sci-Fi'},
+  {i:'tt5311514',t:'Your Name',y:2016,g:'Adventure'},
+  {i:'tt9893250',t:'Weathering with You',y:2019,g:'Adventure'},
+  {i:'tt0120815',t:'Saving Private Ryan',y:1998,g:'Drama'},
+  {i:'tt0816711',t:'John Wick',y:2014,g:'Action'},
+  {i:'tt0092099',t:'Top Gun',y:1986,g:'Action'},
+  {i:'tt5311514',t:'Your Name',y:2016,g:'Adventure'},
+  {i:'tt2948356',t:'Zootopia',y:2016,g:'Adventure'},
+  {i:'tt1735898',t:'Coco',y:2017,g:'Adventure'},
+  {i:'tt0167404',t:'The Sixth Sense',y:1999,g:'Drama'},
+  {i:'tt0407887',t:'The Departed',y:2006,g:'Drama'},
   {i:'tt0209144',t:'Memento',y:2000,g:'Thriller'},
-  {i:'tt0137523',t:'Fight Club',y:1999,g:'Thriller'},
-  {i:'tt0435761',t:'Toy Story 3',y:2010,g:'Comedy'},
-  {i:'tt0892769',t:'How to Train Your Dragon',y:2010,g:'Comedy'},
+  {i:'tt1655246',t:'The Croods',y:2013,g:'Adventure'},
+
+  // ROMANCE
+  {i:'tt0338013',t:'Eternal Sunshine of the Spotless Mind',y:2004,g:'Romance'},
+  {i:'tt0266543',t:'Finding Nemo',y:2003,g:'Comedy'},
+  {i:'tt0120338',t:'Titanic',y:1997,g:'Romance'},
+  {i:'tt0381681',t:'Before Sunset',y:2004,g:'Romance'},
+  {i:'tt0405422',t:'Before Sunrise',y:1995,g:'Romance'},
+  {i:'tt2106476',t:'Before Midnight',y:2013,g:'Romance'},
+  {i:'tt8521718',t:'Marriage Story',y:2019,g:'Romance'},
+  {i:'tt3450958',t:'Past Lives',y:2023,g:'Romance'},
+  {i:'tt3783958',t:'La La Land',y:2016,g:'Romance'},
+  {i:'tt0286106',t:'The Notebook',y:2004,g:'Romance'},
+  {i:'tt0401855',t:'Pride & Prejudice',y:2005,g:'Romance'},
+  {i:'tt4729430',t:'The Florida Project',y:2017,g:'Drama'},
+  {i:'tt0245429',t:'Spirited Away',y:2001,g:'Adventure'},
+  {i:'tt5311514',t:'Your Name',y:2016,g:'Romance'},
+  {i:'tt0116160',t:'Sense and Sensibility',y:1995,g:'Romance'},
+  {i:'tt6139732',t:'Aladdin',y:2019,g:'Comedy'},
+  {i:'tt0119217',t:'Good Will Hunting',y:1997,g:'Drama'},
+  {i:'tt0109830',t:'Forrest Gump',y:1994,g:'Drama'},
+  {i:'tt0087544',t:'Romancing the Stone',y:1984,g:'Romance'},
+  {i:'tt4016934',t:'The Big Sick',y:2017,g:'Romance'},
+  {i:'tt1745766',t:'Crazy, Stupid, Love',y:2011,g:'Romance'},
+  {i:'tt0800369',t:'Thor',y:2011,g:'Action'},
+  {i:'tt0181875',t:'Almost Famous',y:2000,g:'Drama'},
+
+  // ANIMATION
+  {i:'tt0245429',t:'Spirited Away',y:2001,g:'Animation'},
+  {i:'tt0096283',t:'My Neighbor Totoro',y:1988,g:'Animation'},
+  {i:'tt0347149',t:'Howl\'s Moving Castle',y:2004,g:'Animation'},
+  {i:'tt0310775',t:'Princess Mononoke',y:1997,g:'Animation'},
+  {i:'tt5311514',t:'Your Name',y:2016,g:'Animation'},
+  {i:'tt9893250',t:'Weathering with You',y:2019,g:'Animation'},
+  {i:'tt0114709',t:'Toy Story',y:1995,g:'Animation'},
+  {i:'tt0120363',t:'Toy Story 2',y:1999,g:'Animation'},
+  {i:'tt0435761',t:'Toy Story 3',y:2010,g:'Animation'},
+  {i:'tt1979376',t:'Toy Story 4',y:2019,g:'Animation'},
+  {i:'tt0382932',t:'Ratatouille',y:2007,g:'Animation'},
+  {i:'tt1049413',t:'Up',y:2009,g:'Animation'},
+  {i:'tt0910910',t:'WALL-E',y:2008,g:'Animation'},
+  {i:'tt0198781',t:'Monsters, Inc.',y:2001,g:'Animation'},
+  {i:'tt0266543',t:'Finding Nemo',y:2003,g:'Animation'},
+  {i:'tt3606752',t:'Finding Dory',y:2016,g:'Animation'},
+  {i:'tt2096673',t:'Inside Out',y:2015,g:'Animation'},
+  {i:'tt1727824',t:'Brave',y:2012,g:'Animation'},
+  {i:'tt0317219',t:'Cars',y:2006,g:'Animation'},
+  {i:'tt0892769',t:'How to Train Your Dragon',y:2010,g:'Animation'},
+  {i:'tt1646971',t:'How to Train Your Dragon 2',y:2014,g:'Animation'},
+  {i:'tt0110110',t:'The Lion King',y:1994,g:'Animation'},
+  {i:'tt0441773',t:'Kung Fu Panda',y:2008,g:'Animation'},
+  {i:'tt1230414',t:'Despicable Me',y:2010,g:'Animation'},
+  {i:'tt2293640',t:'Minions',y:2015,g:'Animation'},
+  {i:'tt1735898',t:'Coco',y:2017,g:'Animation'},
+  {i:'tt4857264',t:'Moana',y:2016,g:'Animation'},
+  {i:'tt2948356',t:'Zootopia',y:2016,g:'Animation'},
+  {i:'tt2294449',t:'Wreck-It Ralph',y:2012,g:'Animation'},
+  {i:'tt9362722',t:'Spider-Man: Across the Spider-Verse',y:2023,g:'Animation'},
+  {i:'tt4633694',t:'It',y:2017,g:'Horror'},
+  {i:'tt1655246',t:'The Croods',y:2013,g:'Animation'},
+  {i:'tt0435761',t:'Toy Story 3',y:2010,g:'Animation'},
+  {i:'tt7985704',t:'The Mitchells vs the Machines',y:2021,g:'Animation'},
+  {i:'tt10161330',t:'Luca',y:2021,g:'Animation'},
+  {i:'tt12182556',t:'Turning Red',y:2022,g:'Animation'},
+  {i:'tt10298840',t:'Encanto',y:2021,g:'Animation'},
+  {i:'tt6139732',t:'Aladdin',y:2019,g:'Animation'},
+  {i:'tt6209470',t:'The Lion King',y:2019,g:'Animation'},
+  {i:'tt10298840',t:'Encanto',y:2021,g:'Animation'},
+  {i:'tt7979580',t:'Elemental',y:2023,g:'Animation'},
+  {i:'tt12789558',t:'Wish',y:2023,g:'Animation'},
+  {i:'tt14230458',t:'Belfast',y:2021,g:'Drama'},
 ];
 
+// Deduplicate by imdb id
 const SEEN = new Set();
 const ALL = CAT.filter(m => { if(SEEN.has(m.i)) return false; SEEN.add(m.i); return true; });
-const GENRES = ['All','Action','Drama','Comedy','Thriller','Horror','Sci-Fi','Adventure'];
+
+const GENRES = ['All','Action','Drama','Comedy','Thriller','Horror','Sci-Fi','Adventure','Romance','Animation'];
 
 const SRCS = [
   {n:'Server 1', u: id => `https://vidsrc.me/embed/movie?imdb=${id}`},
@@ -235,13 +641,13 @@ const SRCS = [
 
 const TMDB_IMG   = 'https://image.tmdb.org/t/p/w342';
 const TMDB_BG    = 'https://image.tmdb.org/t/p/w780';
-// FIX 1: Use Bearer token auth instead of api_key query param
 const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzZTg0ODcyOTBkNGFmOTBjNTA2MjEwNDY5OTc5Y2QzNSIsIm5iZiI6MTc3OTMwNzc0NS4xMTksInN1YiI6IjZhMGUxNGUxY2EyYmQ0MTk1YzViY2ZjYyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.8tivOVBq_VYSvglCbL7d-uzfBDDrSB4NM0XgJukGGsY';
+const HEADERS = {
+  'Authorization': `Bearer ${TMDB_TOKEN}`,
+  'Content-Type': 'application/json'
+};
 
 let genre = 'All', q = '', movies = [], heroM = null, curImdb = '';
-
-// movieMap for fast lookup by imdb id
-const movieMap = {};
 
 function gfilter() {
   return movies.filter(m => {
@@ -270,10 +676,9 @@ function renderHero(m) {
 function heroClick() { if(heroM) play(heroM); }
 function heroPlay()  { if(heroM) play(heroM); }
 
-// FIX 2: renderGrid builds the DOM once; subsequent metadata updates patch individual cards
 function renderGrid() {
   const list = gfilter();
-  document.getElementById('sect').textContent = genre === 'All' ? 'All movies' : genre + ' movies';
+  document.getElementById('sect').textContent = genre === 'All' ? `All movies` : genre + ' movies';
   document.getElementById('cnt').textContent = list.length + ' films';
   const g = document.getElementById('grid');
   if (!list.length) { g.innerHTML = `<div class="empty">No results for "${q||genre}"</div>`; return; }
@@ -294,17 +699,13 @@ function renderGrid() {
   }).join('');
 }
 
-// FIX 2 cont: patch only the card that received new metadata — no full re-render
 function patchCard(m) {
   const img = document.getElementById(`img-${m.i}`);
   if (img && m.p) img.src = `${TMDB_IMG}${m.p}`;
-
   const meta = document.getElementById(`meta-${m.i}`);
   if (meta) {
     meta.innerHTML = `${m.r?`<span class="rt">★ ${m.r}</span>`:''}<span>${m.y}</span><span style="opacity:.3">·</span><span>${m.g}</span>`;
   }
-
-  // Update onclick payload on the card too (for rating/overview)
   const card = document.getElementById(`card-${m.i}`);
   if (card) card.setAttribute('onclick', `play(${JSON.stringify({i:m.i,t:m.t,y:m.y,g:m.g,r:m.r,ov:m.ov})})`);
 }
@@ -333,44 +734,66 @@ function closePlayer() {
 document.addEventListener('keydown', e => { if(e.key==='Escape') closePlayer(); });
 document.getElementById('q').addEventListener('input', e => { q = e.target.value; renderGrid(); });
 
-// ── INIT ──────────────────────────────────────────────
+// ── TMDB metadata fetcher with title-search fallback ──
+// Strategy:
+// 1. Try /find by imdb id (fast, exact)
+// 2. If no poster found, fall back to /search/movie?query=title&year=year
+// This ensures every movie gets a poster even if TMDB's /find index is stale
+
+async function fetchMeta(m) {
+  try {
+    // Step 1: /find by imdb id
+    const res = await fetch(
+      `https://api.themoviedb.org/3/find/${m.i}?external_source=imdb_id`,
+      { headers: HEADERS }
+    );
+    if (res.ok) {
+      const d = await res.json();
+      const r = d.movie_results?.[0];
+      if (r && r.poster_path) {
+        m.p  = r.poster_path;
+        m.bd = r.backdrop_path || null;
+        m.ov = r.overview || null;
+        m.r  = r.vote_average ? (+r.vote_average).toFixed(1) : null;
+        patchCard(m);
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // Step 2: fallback — search by title + year
+  try {
+    const encoded = encodeURIComponent(m.t);
+    const res2 = await fetch(
+      `https://api.themoviedb.org/3/search/movie?query=${encoded}&year=${m.y}&language=en-US&page=1`,
+      { headers: HEADERS }
+    );
+    if (!res2.ok) return;
+    const d2 = await res2.json();
+    const r2 = d2.results?.[0];
+    if (r2) {
+      m.p  = r2.poster_path   || null;
+      m.bd = r2.backdrop_path || null;
+      m.ov = r2.overview      || null;
+      m.r  = r2.vote_average ? (+r2.vote_average).toFixed(1) : null;
+      patchCard(m);
+    }
+  } catch(e) {}
+}
+
 async function init() {
   movies = ALL.map(m => ({...m}));
   gnrs();
-  renderGrid();        // single initial render — no flicker from here on
+  renderGrid();
   renderHero(movies[0]);
 
-  const HEADERS = {
-    'Authorization': `Bearer ${TMDB_TOKEN}`,
-    'Content-Type': 'application/json'
-  };
-
+  // Fetch metadata in batches of 10 to avoid hammering the API
   const B = 10;
   for (let i = 0; i < movies.length; i += B) {
-    await Promise.all(movies.slice(i, i + B).map(async m => {
-      try {
-        // FIX 1: Bearer auth — no api_key param needed
-        const res = await fetch(
-          `https://api.themoviedb.org/3/find/${m.i}?external_source=imdb_id`,
-          { headers: HEADERS }
-        );
-        if (!res.ok) return;
-        const d = await res.json();
-        const r = d.movie_results?.[0];
-        if (r) {
-          m.p  = r.poster_path   || null;
-          m.bd = r.backdrop_path || null;
-          m.ov = r.overview      || null;
-          m.r  = r.vote_average ? (+r.vote_average).toFixed(1) : null;
-
-          // FIX 2: patch just this card, don't re-render the whole grid
-          patchCard(m);
-        }
-      } catch(e) {}
-    }));
+    await Promise.all(movies.slice(i, i + B).map(fetchMeta));
   }
 
-  // Hero gets updated once all metadata is in
+  // Re-render hero with best metadata
   renderHero(movies[0]);
 }
 
