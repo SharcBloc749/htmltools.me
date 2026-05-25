@@ -127,16 +127,21 @@ nav::-webkit-scrollbar{height:0;}
 .log .c-badge{background:var(--panel);color:var(--tx-3);}
 .c-msg{flex:1;color:var(--tx-2);line-height:1.5;word-break:break-all;}
 .con-empty{padding:20px;text-align:center;color:var(--tx-3);font-size:12px;}
-.err-panel{display:none;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);max-height:200px;overflow-y:auto;flex-shrink:0;}
-.err-panel.show{display:flex;}
-.err-it{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;}
+.err-overlay{position:absolute;top:0;left:0;right:0;z-index:50;display:none;flex-direction:column;background:var(--surface);border-bottom:2px solid var(--border-2);box-shadow:0 8px 32px rgba(0,0,0,.7);max-height:260px;animation:slideDown .18s cubic-bezier(.22,1,.36,1);}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.err-overlay.show{display:flex;}
+.err-overlay-head{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;}
+.err-overlay-body{overflow-y:auto;flex:1;}
+.err-close-btn{background:transparent;border:1px solid var(--border);color:var(--tx-3);width:24px;height:24px;border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .13s;}
+.err-close-btn:hover{background:var(--red);border-color:var(--red);color:#fff;}
+.err-it{display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:12px;}
 .err-it:last-child{border-bottom:none;}
-.err-it i{margin-top:1px;flex-shrink:0;}
+.err-it i{margin-top:2px;flex-shrink:0;font-size:12px;}
 .err-error i{color:var(--red-hi);}
 .err-warn i{color:var(--yellow-hi);}
 .err-info i{color:var(--blue-hi);}
 .err-ok i{color:var(--green-hi);}
-.err-text{flex:1;color:var(--tx-2);line-height:1.5;}
+.err-text{flex:1;color:var(--tx-2);line-height:1.6;}
 .settings-page{flex:1;overflow-y:auto;padding:20px;}
 .settings-inner{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
 .s-sec{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
@@ -291,7 +296,7 @@ footer strong{color:var(--tx-2);font-weight:500;}
         <div class="tb-space"></div>
         <span style="font-size:11px;color:var(--tx-3);font-family:var(--mono)">HTML Runner Pro &middot; v1.0 &middot; built on HTMLTools by Matthew</span>
       </div>
-      <div class="err-panel" id="errPanel"></div>
+      
       <div class="editor-shell" id="editorShell">
         <div class="code-col" id="codeCol" style="flex:1;">
           <div class="code-tabs">
@@ -316,7 +321,27 @@ footer strong{color:var(--tx-2);font-weight:500;}
           </div>
         </div>
         <div class="v-res" id="vRes"></div>
-        <div class="preview-col" id="previewCol" style="flex:1;">
+        <div class="preview-col" id="previewCol" style="flex:1;position:relative;">
+          <div id="errPanel" class="err-overlay">
+            <div class="err-overlay-head">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fas fa-search" style="font-size:11px;color:var(--tx-3);"></i>
+                <span id="errPanelTitle" style="font-size:12.5px;font-weight:600;">Error Check</span>
+              </div>
+              <button onclick="document.getElementById('errPanel').classList.remove('show')" class="err-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="errPanelBody" class="err-overlay-body"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;">
+            <div style="display:flex;gap:5px;flex-shrink:0;">
+              <span style="width:10px;height:10px;border-radius:50%;background:#ff5f57;display:block;"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:#febc2e;display:block;"></span>
+              <span style="width:10px;height:10px;border-radius:50%;background:#28c840;display:block;"></span>
+            </div>
+            <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:3px 10px;font-family:var(--mono);font-size:10.5px;color:var(--tx-3);">preview</div>
+            <button onclick="document.getElementById('preview-frame').srcdoc=''" class="btn btn-ghost btn-icon btn-sm" title="Stop"><i class="fas fa-stop" style="font-size:8px;"></i></button>
+            <button onclick="runCode()" class="btn btn-ghost btn-icon btn-sm" title="Refresh"><i class="fas fa-redo" style="font-size:8px;"></i></button>
+          </div>
           <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals" style="flex:1;border:none;width:100%;display:block;min-height:0;background:#fff;"></iframe>
           <div class="h-res" id="hRes"></div>
           <div class="console-pane" id="conPane">
@@ -557,7 +582,7 @@ function doSync(){
 function syncScroll(){codeHl.scrollTop=ta.scrollTop;codeHl.scrollLeft=ta.scrollLeft;gutter.scrollTop=ta.scrollTop;}
 ta.addEventListener('scroll',syncScroll);
 function updateCursor(){const pos=ta.selectionStart,lines=ta.value.substring(0,pos).split('\n'),ln=lines.length,col=lines[ln-1].length+1;document.getElementById('sb-cur').textContent='Ln '+ln+', Col '+col;}
-ta.addEventListener('keyup',updateCursor);ta.addEventListener('click',updateCursor);
+// updateCursor called inside keyup belowta.addEventListener('click',updateCursor);
 ta.addEventListener('input',doSync);
 
 // ===== AUTO-RUN =====
@@ -578,7 +603,7 @@ function buildFull(){
   return html;
 }
 
-function runCode(){
+window.runCode=function runCode(){
   if(S.clearcon)clearCon();
   let full=buildFull();
   // Inject console bridge after <head> or at top
@@ -629,8 +654,10 @@ function runErrorCheck(){
   if(ob!==cb)errs.push({t:'error',msg:'CSS: '+ob+' opening { vs '+cb+' closing }.'});
   if(js.trim()){try{new Function(js);}catch(e){errs.push({t:'error',msg:'JS syntax error: '+e.message});}}
   const ico={error:'fa-times-circle',warn:'fa-exclamation-triangle',info:'fa-info-circle',ok:'fa-check-circle'};
-  if(!errs.length){panel.innerHTML='<div class="err-it err-ok"><i class="fas fa-check-circle"></i><span class="err-text">No issues found — looking good!</span></div>';}
-  else panel.innerHTML=errs.map(e=>'<div class="err-it err-'+e.t+'"><i class="fas '+ico[e.t]+'"></i><span class="err-text">'+escHtml(e.msg)+'</span></div>').join('');
+  const body=document.getElementById('errPanelBody');
+  const title=document.getElementById('errPanelTitle');
+  if(!errs.length){body.innerHTML='<div class="err-it err-ok"><i class="fas fa-check-circle"></i><span class="err-text">No issues found — looking good!</span></div>';title.textContent='Error Check — All clear!';}
+  else{body.innerHTML=errs.map(e=>'<div class="err-it err-'+e.t+'"><i class="fas '+ico[e.t]+'"></i><span class="err-text">'+escHtml(e.msg)+'</span></div>').join('');title.textContent='Error Check — '+errs.length+' issue(s)';}
   panel.classList.add('show');
 }
 
@@ -656,6 +683,7 @@ const VOID_TAGS=new Set(['area','base','br','col','embed','hr','img','input','li
 let lastClose={tag:'',pos:-1,text:'',ts:0};
 let lastClosedTag='';
 ta.addEventListener('keyup',function(e){
+  updateCursor();
   if(!S.autoclose||activeLang!=='html'||e.key!=='>')return;
   const val=ta.value,pos=ta.selectionStart;
   const before=val.substring(0,pos);
@@ -830,22 +858,25 @@ const REF=[
 
 // ===== RENDER REF =====
 let refCat='all';
+const REF_MAP={};
+REF.forEach((item,i)=>REF_MAP[i]=item);
 function renderRef(q,cat){
   const grid=document.getElementById('refGrid');
-  let items=REF;
+  let items=REF.map((item,i)=>({...item,_i:i}));
   if(cat&&cat!=='all')items=items.filter(i=>i.c===cat);
   if(q){const ql=q.toLowerCase();items=items.filter(i=>i.n.toLowerCase().includes(ql)||i.d.toLowerCase().includes(ql)||i.e.toLowerCase().includes(ql));}
   if(!items.length){grid.innerHTML='<div style="grid-column:1/-1;color:var(--tx-3);padding:40px;text-align:center;">No results found.</div>';return;}
   grid.innerHTML=items.map(item=>{
-    const prev=item.e.length>100?item.e.substring(0,100)+'...':item.e;
-    return '<div class="rcard" onclick="copyRef(this)"  data-code="'+escAttr(item.e)+'">'
+    const prev=item.e.length>120?item.e.substring(0,120)+'...':item.e;
+    return '<div class="rcard" onclick="copyRefIdx('+item._i+')">'
       +'<div class="rc-head"><span class="rc-tag">'+escHtml(item.n)+'</span><span class="rc-cat cat-'+item.c+'">'+item.c.toUpperCase()+'</span></div>'
       +'<div class="rc-body"><div class="rc-desc">'+escHtml(item.d)+'</div>'
       +'<div class="rc-code">'+escHtml(prev)+'</div>'
       +'<div class="rc-hint">Click to copy example</div></div></div>';
   }).join('');
 }
-window.copyRef=function(el){const code=el.dataset.code;navigator.clipboard.writeText(code).then(()=>toast('Copied!')).catch(()=>toast('Copy failed.'));};
+window.copyRefIdx=function(i){const code=REF[i].e;navigator.clipboard.writeText(code).then(()=>toast('Copied!')).catch(()=>toast('Copy failed.'));};
+window.copyRef=window.copyRefIdx;
 document.getElementById('refSearch').addEventListener('input',e=>renderRef(e.target.value,refCat));
 document.querySelectorAll('.rcat').forEach(btn=>{btn.addEventListener('click',function(){refCat=this.dataset.c;document.querySelectorAll('.rcat').forEach(b=>b.classList.remove('active'));this.classList.add('active');renderRef(document.getElementById('refSearch').value,refCat);});});
 
@@ -863,7 +894,12 @@ function renderWidgetList(q){
   if(q){const ql=q.toLowerCase();items=items.filter(i=>i.n.toLowerCase().includes(ql)||i.d.toLowerCase().includes(ql));}
   items=items.slice(0,50);
   if(!items.length){list.innerHTML='<div style="padding:16px;color:var(--tx-3);font-size:12px;text-align:center;">No results.</div>';return;}
-  list.innerHTML=items.map(item=>'<div class="w-item" onclick="copyRef(this)" data-code="'+escAttr(item.e)+'">'
+  const allItems=REF.map((item,i)=>({...item,_i:i}));
+  let wItems=allItems;
+  if(q){const ql=q.toLowerCase();wItems=allItems.filter(i=>i.n.toLowerCase().includes(ql)||i.d.toLowerCase().includes(ql));}
+  wItems=wItems.slice(0,50);
+  if(!wItems.length){list.innerHTML='<div style="padding:16px;color:var(--tx-3);font-size:12px;text-align:center;">No results.</div>';return;}
+  list.innerHTML=wItems.map(item=>'<div class="w-item" onclick="copyRefIdx('+item._i+')">'
     +'<div class="wi-tag">'+escHtml(item.n)+' <span style="font-size:9px;padding:1px 4px;border-radius:2px;background:var(--panel);color:var(--tx-3);text-transform:uppercase;">'+item.c+'</span></div>'
     +'<div class="wi-desc">'+escHtml(item.d)+'</div>'
     +'<div class="wi-code">'+escHtml(item.e.split('\n')[0])+'</div></div>').join('');
