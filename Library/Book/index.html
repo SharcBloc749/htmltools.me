@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Loading... — HTML Library</title>
+  <link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#080810;--surface:#0e0e1a;--panel:#131320;--panel-2:#191928;
+      --border:#1e1e32;--border-2:#262640;--border-hi:#3a3a60;
+      --tx:#e8e8f0;--tx-2:#8888aa;--tx-3:#44445a;
+      --neon:#00e5ff;--neon2:#a855f7;
+      --theme-grad:linear-gradient(135deg,#00e5ff,#a855f7);
+      --r:3px;--r-md:5px;--r-lg:8px;--nav-h:48px;
+      --font:'IBM Plex Sans',-apple-system,sans-serif;
+      --font-display:'Rajdhani','IBM Plex Sans',sans-serif;
+      --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;background:var(--bg);overflow:hidden;}
+    body{color:var(--tx);font-family:var(--font);font-size:13.5px;-webkit-font-smoothing:antialiased;}
+    button{font-family:inherit;cursor:pointer;}
+    a{color:inherit;text-decoration:none;}
+
+    /* ── LOADING SCREEN ─────────────────────────────────────── */
+    #loading-screen{
+      position:fixed;inset:0;background:var(--bg);z-index:9999;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;
+      transition:opacity .4s;
+    }
+    #loading-screen.hidden{opacity:0;pointer-events:none;}
+    .load-logo{
+      width:52px;height:52px;background:var(--theme-grad);border-radius:10px;
+      display:flex;align-items:center;justify-content:center;font-size:1.4rem;
+      animation:logopulse 1.5s ease-in-out infinite;
+    }
+    @keyframes logopulse{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.4)}50%{box-shadow:0 0 0 14px rgba(0,229,255,0)}}
+    .load-title{font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--tx-2);letter-spacing:.1em;text-transform:uppercase;}
+    .load-bar-wrap{width:180px;height:2px;background:var(--border);border-radius:1px;overflow:hidden;}
+    .load-bar{height:100%;background:var(--theme-grad);border-radius:1px;animation:loadbar 1.8s ease-in-out infinite;}
+    @keyframes loadbar{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+
+    /* ── NOT FOUND ──────────────────────────────────────────── */
+    #not-found{
+      position:fixed;inset:0;background:var(--bg);z-index:9998;
+      display:none;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;text-align:center;padding:2rem;
+    }
+    #not-found.show{display:flex;}
+    .nf-icon{font-size:2.5rem;}
+    .nf-title{font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:var(--tx);}
+    .nf-sub{font-size:.85rem;color:var(--tx-2);max-width:340px;line-height:1.6;}
+    .nf-btn{
+      margin-top:.5rem;background:var(--theme-grad);color:#080810;border:none;
+      border-radius:var(--r-md);padding:.6rem 1.4rem;font-family:var(--font-display);
+      font-size:.85rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+    }
+
+    /* ── TOP BAR ────────────────────────────────────────────── */
+    #top-bar{
+      position:fixed;top:0;left:0;right:0;height:var(--nav-h);z-index:500;
+      background:rgba(8,8,16,.96);backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border-2);
+      display:flex;align-items:center;padding:0 14px;gap:8px;
+      transform:translateY(-100%);transition:transform .3s ease;
+    }
+    #top-bar.visible{transform:translateY(0);}
+    #top-bar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:var(--theme-grad);opacity:.4;}
+    .tb-back{
+      background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);
+      height:28px;padding:0 10px;border-radius:var(--r);font-size:.75rem;font-weight:600;
+      display:flex;align-items:center;gap:5px;transition:all .13s;white-space:nowrap;flex-shrink:0;
+    }
+    .tb-back:hover{background:var(--panel-2);border-color:var(--border-hi);color:var(--tx);}
+    .tb-title{font-family:var(--font-display);font-size:.9rem;font-weight:700;letter-spacing:.04em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .tb-meta{font-size:.65rem;color:var(--tx-3);font-family:var(--mono);white-space:nowrap;}
+    .tb-btn{
+      background:var(--panel);border:1px solid var(--border-2);color:var(--tx-3);
+      height:28px;padding:0 9px;border-radius:var(--r);font-size:.72rem;font-weight:500;
+      display:flex;align-items:center;gap:4px;transition:all .13s;white-space:nowrap;flex-shrink:0;
+    }
+    .tb-btn:hover{background:var(--panel-2);border-color:var(--border-hi);color:var(--tx-2);}
+    .tb-btn.liked{border-color:rgba(248,113,113,.35);color:#f87171;background:rgba(248,113,113,.06);}
+    .tb-btn.prim{background:var(--theme-grad);color:#080810;border:none;font-weight:700;font-family:var(--font-display);font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;}
+    .tb-btn.prim:hover{opacity:.88;color:#080810;}
+    .live-timer{font-family:var(--mono);font-size:.7rem;color:#fbbf24;padding:0 8px;border:1px solid rgba(251,191,36,.2);background:rgba(251,191,36,.05);border-radius:var(--r);height:28px;display:flex;align-items:center;}
+
+    /* ── GAME FRAME ─────────────────────────────────────────── */
+    #game-frame-wrap{
+      position:fixed;inset:0;
+      padding-top:var(--nav-h);
+      transition:padding-top .3s;
+    }
+    #game-frame-wrap.bar-hidden{padding-top:0;}
+    #game-frame{
+      width:100%;height:100%;border:none;background:#fff;display:block;
+    }
+
+    /* ── HOVER TRIGGER ZONE ─────────────────────────────────── */
+    #hover-trigger{
+      position:fixed;top:0;left:0;right:0;height:6px;z-index:400;
+      cursor:default;
+    }
+
+    /* ── FLOATING CHAT ──────────────────────────────────────── */
+    #chat-widget{
+      position:fixed;bottom:1.25rem;right:1.25rem;z-index:600;
+      display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;
+    }
+    #chat-window{
+      width:300px;height:380px;background:var(--surface);
+      border:1px solid var(--border-2);border-radius:var(--r-lg);
+      box-shadow:0 16px 48px rgba(0,0,0,.9),0 0 0 1px rgba(0,229,255,.04);
+      display:none;flex-direction:column;overflow:hidden;
+      transform:scale(.9) translateY(12px);opacity:0;
+      transition:transform .2s ease,opacity .2s ease;
+      transform-origin:bottom right;
+    }
+    #chat-window.open{display:flex;transform:scale(1) translateY(0);opacity:1;}
+    .cw-header{
+      padding:.5rem .75rem;background:var(--panel);border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+    }
+    .cw-title{font-family:var(--font-display);font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:.35rem;}
+    .cw-dot{width:6px;height:6px;border-radius:50%;background:var(--neon);box-shadow:0 0 6px var(--neon);animation:cwpulse 2s infinite;}
+    @keyframes cwpulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .cw-close{background:none;border:none;color:var(--tx-3);font-size:.75rem;cursor:pointer;padding:.15rem .35rem;border-radius:2px;transition:color .13s;}
+    .cw-close:hover{color:var(--red-hi);}
+    .cw-mode-pills{display:flex;gap:3px;padding:.4rem .5rem;border-bottom:1px solid var(--border);flex-shrink:0;}
+    .cw-pill{flex:1;padding:.25rem;background:transparent;border:1px solid var(--border);color:var(--tx-3);border-radius:var(--r);font-family:var(--font);font-size:.6rem;font-weight:600;cursor:pointer;transition:all .13s;text-align:center;letter-spacing:.04em;text-transform:uppercase;}
+    .cw-pill.active{background:var(--theme-grad);color:#080810;border-color:transparent;}
+    .cw-messages{flex:1;overflow-y:auto;padding:.4rem .5rem;display:flex;flex-direction:column;gap:.35rem;}
+    .cw-messages::-webkit-scrollbar{width:3px;}
+    .cw-messages::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:1px;}
+    .cw-msg{display:flex;gap:.35rem;align-items:flex-end;}
+    .cw-msg.own{flex-direction:row-reverse;}
+    .cw-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#080810;flex-shrink:0;}
+    .cw-bubble{
+      background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);
+      padding:.35rem .55rem;font-size:.72rem;color:var(--tx);line-height:1.45;
+      max-width:200px;word-break:break-word;
+    }
+    .cw-msg.own .cw-bubble{background:rgba(0,229,255,.06);border-color:rgba(0,229,255,.18);}
+    .cw-sender{font-size:.55rem;color:var(--tx-3);padding:0 .2rem;font-family:var(--mono);}
+    .cw-bubble-img{max-width:140px;border-radius:var(--r);margin-top:.25rem;display:block;border:1px solid var(--border);cursor:pointer;}
+    .cw-empty{text-align:center;padding:2rem .5rem;color:var(--tx-3);font-size:.72rem;}
+    .cw-footer{padding:.4rem .5rem;border-top:1px solid var(--border);display:flex;gap:.3rem;flex-shrink:0;}
+    .cw-input{
+      flex:1;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);
+      font-family:var(--font);font-size:.72rem;padding:0 .5rem;border-radius:var(--r);
+      outline:none;height:28px;transition:border-color .13s;
+    }
+    .cw-input:focus{border-color:var(--neon);}
+    .cw-input::placeholder{color:var(--tx-3);}
+    .cw-input:disabled{opacity:.4;cursor:not-allowed;}
+    .cw-send{
+      background:var(--theme-grad);color:#080810;border:none;border-radius:var(--r);
+      width:28px;height:28px;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:opacity .13s;flex-shrink:0;
+    }
+    .cw-send:hover{opacity:.88;}
+    .cw-send:disabled{opacity:.35;cursor:not-allowed;}
+    .cw-login-notice{text-align:center;padding:.5rem;font-size:.7rem;color:var(--tx-3);}
+    .cw-login-notice a{color:var(--neon);}
+
+    #chat-fab{
+      width:42px;height:42px;border-radius:50%;background:var(--theme-grad);
+      color:#080810;border:none;cursor:pointer;font-size:1rem;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 16px rgba(0,229,255,.2);transition:transform .18s,box-shadow .18s;
+      position:relative;flex-shrink:0;
+    }
+    #chat-fab:hover{transform:scale(1.08);box-shadow:0 6px 22px rgba(0,229,255,.3);}
+    .cfab-badge{
+      position:absolute;top:-3px;right:-3px;background:#f87171;color:#fff;
+      font-size:.48rem;font-weight:700;min-width:15px;height:15px;border-radius:8px;
+      display:none;align-items:center;justify-content:center;border:1.5px solid var(--bg);padding:0 2px;
+    }
+    .cfab-badge.show{display:flex;}
+
+    /* ── RATINGS OVERLAY ────────────────────────────────────── */
+    #rate-overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);
+      z-index:800;display:none;align-items:center;justify-content:center;padding:1rem;
+    }
+    #rate-overlay.open{display:flex;}
+    .rate-modal{
+      background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r-lg);
+      padding:1.5rem;max-width:320px;width:100%;text-align:center;
+      box-shadow:0 24px 64px rgba(0,0,0,.95);
+    }
+    .rate-title{font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:.3rem;letter-spacing:.04em;}
+    .rate-sub{font-size:.73rem;color:var(--tx-2);margin-bottom:1rem;}
+    .stars-row{display:flex;justify-content:center;gap:.4rem;margin-bottom:1.1rem;}
+    .star-btn{
+      font-size:1.6rem;background:none;border:none;cursor:pointer;
+      transition:transform .15s,filter .15s;filter:grayscale(1) opacity(.35);
+    }
+    .star-btn.active,.star-btn:hover{filter:grayscale(0) opacity(1);transform:scale(1.15);}
+    .rate-submit{
+      width:100%;background:var(--theme-grad);color:#080810;border:none;
+      border-radius:var(--r-md);padding:.65rem;font-family:var(--font-display);
+      font-size:.88rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+      transition:opacity .13s;
+    }
+    .rate-submit:hover{opacity:.88;}
+    .rate-cancel{background:none;border:none;color:var(--tx-3);font-size:.72rem;cursor:pointer;margin-top:.6rem;display:block;width:100%;padding:.3rem;}
+    .rate-cancel:hover{color:var(--tx);}
+
+    /* ── TOAST ──────────────────────────────────────────────── */
+    #toast{
+      position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(16px);
+      background:var(--panel-2);border:1px solid var(--border-2);border-radius:var(--r-md);
+      padding:7px 14px;font-size:.78rem;color:var(--tx);opacity:0;transition:all .22s;
+      pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.7);z-index:9999;white-space:nowrap;
+    }
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    #toast.success{border-color:rgba(34,197,94,.35);color:#22c55e;}
+    #toast.error{border-color:rgba(248,113,113,.35);color:#f87171;}
+
+    /* light mode */
+    body.light-mode{--bg:#f0f0f8;--surface:#ffffff;--panel:#f4f4fc;--panel-2:#eaeaf4;--border:#dcdce8;--border-2:#ccccde;--border-hi:#aaaac0;--tx:#1a1a2e;--tx-2:#4a4a6a;--tx-3:#9090b0;--neon:#0066cc;--neon2:#7c3aed;}
+  </style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="load-logo">📚</div>
+  <div class="load-title">HTML Library</div>
+  <div class="load-bar-wrap"><div class="load-bar"></div></div>
+</div>
+
+<div id="not-found">
+  <div class="nf-icon">📭</div>
+  <div class="nf-title">Game Not Found</div>
+  <div class="nf-sub">This game doesn't exist or may have been deleted.</div>
+  <button class="nf-btn" onclick="goHome()">← Back to Library</button>
+</div>
+
+<!-- Top bar (auto-hides) -->
+<div id="top-bar">
+  <button class="tb-back" onclick="goHome()">← Library</button>
+  <span id="tb-title" class="tb-title"></span>
+  <span id="tb-meta" class="tb-meta"></span>
+  <div class="live-timer" id="live-timer">0s</div>
+  <button class="tb-btn liked" id="like-btn" onclick="toggleLike()" style="display:none">♥ <span id="like-count">0</span></button>
+  <button class="tb-btn" id="rate-btn" onclick="openRate()" style="display:none">⭐ Rate</button>
+  <button class="tb-btn" onclick="shareBook()">🔗 Share</button>
+  <button class="tb-btn" id="code-btn" onclick="viewCode()" style="display:none">⎘ Code</button>
+  <button class="tb-btn prim" onclick="toggleFullscreen()">⛶</button>
+</div>
+
+<div id="hover-trigger"></div>
+
+<div id="game-frame-wrap" class="bar-hidden">
+  <iframe id="game-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups" allow="autoplay"></iframe>
+</div>
+
+<!-- Floating chat -->
+<div id="chat-widget" style="display:none">
+  <div id="chat-window">
+    <div class="cw-header">
+      <div class="cw-title"><span class="cw-dot"></span><span id="cw-title-text">Chat</span></div>
+      <button class="cw-close" onclick="toggleChat()">✕</button>
+    </div>
+    <div class="cw-mode-pills" id="cw-mode-pills" style="display:none">
+      <button class="cw-pill active" id="pill-global" onclick="switchChatMode('global')">🌐 Global</button>
+      <button class="cw-pill" id="pill-book" onclick="switchChatMode('book')">📖 This Game</button>
+    </div>
+    <div class="cw-messages" id="cw-messages"><div class="cw-empty">Loading chat…</div></div>
+    <div id="cw-login-notice" class="cw-login-notice" style="display:none"><a href="/Library" onclick="goHome()">Sign in</a> to chat</div>
+    <div class="cw-footer" id="cw-footer">
+      <input class="cw-input" id="cw-input" placeholder="Say something…" maxlength="400" onkeydown="if(event.key==='Enter')sendChat()"/>
+      <button class="cw-send" id="cw-send" onclick="sendChat()">↑</button>
+    </div>
+  </div>
+  <button id="chat-fab" onclick="toggleChat()">💬<span class="cfab-badge" id="cfab-badge"></span></button>
+</div>
+
+<!-- Rate overlay -->
+<div id="rate-overlay">
+  <div class="rate-modal">
+    <div class="rate-title" id="rate-modal-title">Rate this Game</div>
+    <div class="rate-sub">How would you rate your experience?</div>
+    <div class="stars-row" id="stars-row">
+      <button class="star-btn" data-v="1" onclick="setStar(1)">⭐</button>
+      <button class="star-btn" data-v="2" onclick="setStar(2)">⭐</button>
+      <button class="star-btn" data-v="3" onclick="setStar(3)">⭐</button>
+      <button class="star-btn" data-v="4" onclick="setStar(4)">⭐</button>
+      <button class="star-btn" data-v="5" onclick="setStar(5)">⭐</button>
+    </div>
+    <button class="rate-submit" onclick="submitRate()">Submit Rating</button>
+    <button class="rate-cancel" onclick="closeRate()">Cancel</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,get,set,push,update,remove,onValue,query,orderByKey,limitToLast,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+
+// ── Firebase (same as main page) ─────────────────────────────
+const oldApp=initializeApp({apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"},'old');
+const auth=getAuth(oldApp);
+const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
+initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
+const db=getDatabase(newApp);
+
+const OWNER_EMAIL='matthewbozhe@gmail.com';
+
+// ── State ─────────────────────────────────────────────────────
+let currentUser=null;
+let bookId=null;
+let bookData=null;
+let chatMode='global'; // 'global' or 'book'
+let chatOpen=false;
+let chatUnread=0;
+let chatMessages={};
+let selectedStar=0;
+let playtimeStart=Date.now();
+let playtimeInterval=null;
+let barVisible=true;
+let barHideTimer=null;
+let countdownTimers={};
+let chatUnsub=null;
+
+// ── Helpers ───────────────────────────────────────────────────
+const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
+const timeAgo=ts=>{if(!ts)return'';const d=Date.now()-ts;if(d<60000)return'just now';if(d<3600000)return Math.floor(d/60000)+'m ago';if(d<86400000)return Math.floor(d/3600000)+'h ago';return Math.floor(d/86400000)+'d ago';};
+const fmtTime=s=>{if(!s||s<1)return'0s';if(s<60)return s+'s';const m=Math.floor(s/60);if(m<60)return m+'m';const h=Math.floor(m/60);return m%60>0?`${h}h ${m%60}m`:`${h}h`;};
+
+window.showToast=(msg,type='')=>{const t=document.getElementById('toast');t.textContent=msg;t.className='show '+(type||'');clearTimeout(window._tt);window._tt=setTimeout(()=>t.className='',3000);};
+window.goHome=()=>{window.location.href='/Library/';};
+
+// ── Read book ID from path: /Library/book/BOOKID ──────────────
+function getBookIdFromPath(){
+  // Path like /Library/book/abc123 or /Library/book/abc123/
+  const path=window.location.pathname;
+  const parts=path.replace(/\/+$/,'').split('/');
+  // Last non-empty segment after "book"
+  const bookIdx=parts.findIndex(p=>p==='book');
+  if(bookIdx!==-1&&parts[bookIdx+1]){return parts[bookIdx+1];}
+  // Fallback: last segment
+  const last=parts[parts.length-1];
+  return last&&last!=='book'?last:null;
+}
+
+// ── Load theme from localStorage ──────────────────────────────
+function loadTheme(){
+  try{const s=JSON.parse(localStorage.getItem('htmllib_theme')||'null');if(s&&s.a&&s.b){const r=document.documentElement;r.style.setProperty('--neon',s.a);r.style.setProperty('--neon2',s.b);r.style.setProperty('--theme-grad',`linear-gradient(135deg,${s.a},${s.b})`);}}catch(e){}
+  if(localStorage.getItem('htmllib_lightmode')==='1')document.body.classList.add('light-mode');
+}
+loadTheme();
+
+// ── Top bar auto-hide ─────────────────────────────────────────
+function showBar(){
+  document.getElementById('top-bar').classList.add('visible');
+  document.getElementById('game-frame-wrap').classList.remove('bar-hidden');
+  barVisible=true;clearTimeout(barHideTimer);
+  barHideTimer=setTimeout(hideBar,3500);
+}
+function hideBar(){
+  document.getElementById('top-bar').classList.remove('visible');
+  document.getElementById('game-frame-wrap').classList.add('bar-hidden');
+  barVisible=false;
+}
+document.getElementById('hover-trigger').addEventListener('mouseenter',showBar);
+document.getElementById('top-bar').addEventListener('mouseenter',()=>{clearTimeout(barHideTimer);});
+document.getElementById('top-bar').addEventListener('mouseleave',()=>{barHideTimer=setTimeout(hideBar,1800);});
+document.addEventListener('touchstart',()=>{if(!barVisible)showBar();});
+
+// Show bar initially for 3s
+showBar();
+
+// ── Fullscreen ────────────────────────────────────────────────
+window.toggleFullscreen=()=>{
+  const el=document.getElementById('game-frame-wrap');
+  if(!document.fullscreenElement)el.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+};
+
+// ── Main boot ─────────────────────────────────────────────────
+async function boot(){
+  bookId=getBookIdFromPath();
+  if(!bookId){showNotFound();return;}
+
+  // Load book metadata
+  try{
+    const snap=await get(ref(db,'books/'+bookId));
+    if(!snap.exists()||!snap.val()||!snap.val().title){showNotFound();return;}
+    bookData=snap.val();
+  }catch(e){showNotFound();return;}
+
+  // Check chat settings from book
+  const chatEnabled=bookData.chatEnabled!==false; // default true
+  const chatScope=bookData.chatScope||'global';   // 'global' or 'book'
+
+  // Update page title
+  document.title=bookData.title+' — HTML Library';
+  document.getElementById('tb-title').textContent=bookData.title;
+  document.getElementById('tb-meta').textContent='by '+(bookData.ownerName||'Unknown');
+  document.getElementById('cw-title-text').textContent=chatScope==='both'?'Chat':'Chat';
+
+  // Load game code
+  const code=await loadCode();
+  if(!code){showNotFound();return;}
+
+  // Inject into iframe
+  document.getElementById('game-frame').srcdoc=code;
+
+  // Increment view count
+  update(ref(db,'books/'+bookId),{views:(bookData.views||0)+1});
+
+  // Start playtime timer
+  playtimeStart=Date.now();
+  playtimeInterval=setInterval(()=>{
+    const secs=Math.floor((Date.now()-playtimeStart)/1000);
+    document.getElementById('live-timer').textContent=fmtTime(secs);
+  },1000);
+
+  // Hide loading
+  setTimeout(()=>{
+    const ls=document.getElementById('loading-screen');
+    ls.classList.add('hidden');
+    setTimeout(()=>ls.style.display='none',400);
+  },600);
+
+  // Setup UI buttons
+  updateLikeBtn();
+  document.getElementById('code-btn').style.display=bookData.allowViewCode?'flex':'none';
+
+  // Chat widget
+  if(chatEnabled){
+    document.getElementById('chat-widget').style.display='flex';
+    // Show mode pills if owner allows both or user can switch
+    if(chatScope==='both'){
+      document.getElementById('cw-mode-pills').style.display='flex';
+    }
+    initChat(chatScope==='both'?'global':chatScope);
+  }
+
+  // Rating button (only for non-owners)
+  if(currentUser&&currentUser.uid!==bookData.ownerId){
+    document.getElementById('rate-btn').style.display='flex';
+  }
+
+  // Like button
+  document.getElementById('like-btn').style.display='flex';
+  updateLikeBtn();
+
+  // Owner played achievement
+  if(currentUser&&currentUser.email&&currentUser.email.toLowerCase()===OWNER_EMAIL.toLowerCase()){
+    update(ref(db,'books/'+bookId),{ownerPlayed:true});
+  }
+}
+
+async function loadCode(){
+  try{const s=await get(ref(db,'bookCode/'+bookId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
+  try{const s=await get(ref(db,'books/'+bookId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
+  return null;
+}
+
+function showNotFound(){
+  document.getElementById('loading-screen').style.display='none';
+  document.getElementById('not-found').classList.add('show');
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+onAuthStateChanged(auth,user=>{
+  currentUser=user;
+  if(bookData){
+    updateLikeBtn();
+    const rateBtn=document.getElementById('rate-btn');
+    if(rateBtn)rateBtn.style.display=(user&&user.uid!==bookData.ownerId)?'flex':'none';
+  }
+  const footer=document.getElementById('cw-footer');
+  const loginNotice=document.getElementById('cw-login-notice');
+  if(user){if(footer)footer.style.display='flex';if(loginNotice)loginNotice.style.display='none';}
+  else{if(footer)footer.style.display='none';if(loginNotice)loginNotice.style.display='block';}
+});
+
+// ── Playtime save ─────────────────────────────────────────────
+async function savePlaytime(){
+  if(!bookId||!playtimeStart)return;
+  const secs=Math.floor((Date.now()-playtimeStart)/1000);
+  if(secs<2)return;
+  playtimeStart=Date.now();
+  if(currentUser){
+    await set(push(ref(db,'playSessions/'+bookId)),{uid:currentUser.uid,displayName:currentUser.displayName||currentUser.email||'User',seconds:secs,playedAt:Date.now()});
+  }
+  const cur=bookData?bookData.playtimeSeconds||0:0;
+  await update(ref(db,'books/'+bookId),{playtimeSeconds:cur+secs});
+  if(bookData)bookData.playtimeSeconds=(bookData.playtimeSeconds||0)+secs;
+}
+setInterval(()=>savePlaytime(),30000);
+window.addEventListener('beforeunload',()=>savePlaytime());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)savePlaytime();});
+
+// ── Like ──────────────────────────────────────────────────────
+window.toggleLike=async function(){
+  if(!currentUser){showToast('Sign in to like','error');return;}
+  if(!bookData)return;
+  const liked=bookData.likedBy&&bookData.likedBy[currentUser.uid];
+  const updates={};
+  updates[`books/${bookId}/likedBy/${currentUser.uid}`]=liked?null:true;
+  updates[`books/${bookId}/likes`]=Math.max(0,(bookData.likes||0)+(liked?-1:1));
+  await update(ref(db),updates);
+  if(!bookData.likedBy)bookData.likedBy={};
+  if(liked)delete bookData.likedBy[currentUser.uid];else bookData.likedBy[currentUser.uid]=true;
+  bookData.likes=Math.max(0,(bookData.likes||0)+(liked?-1:1));
+  updateLikeBtn();
+  if(!liked&&bookData.ownerId&&bookData.ownerId!==currentUser.uid){
+    await set(push(ref(db,'notifications/'+bookData.ownerId)),{type:'like',fromName:currentUser.displayName||currentUser.email,fromUid:currentUser.uid,bookTitle:bookData.title,bookId,createdAt:Date.now(),read:false});
+  }
+  if(!liked&&currentUser.email&&currentUser.email.toLowerCase()===OWNER_EMAIL.toLowerCase()){
+    update(ref(db,'books/'+bookId),{ownerLiked:true});
+  }
+};
+function updateLikeBtn(){
+  const btn=document.getElementById('like-btn');const cnt=document.getElementById('like-count');
+  if(!btn||!bookData)return;
+  const liked=currentUser&&bookData.likedBy&&bookData.likedBy[currentUser.uid];
+  btn.className='tb-btn'+(liked?' liked':'');
+  if(cnt)cnt.textContent=bookData.likes||0;
+}
+
+// ── Rating ────────────────────────────────────────────────────
+window.setStar=function(v){
+  selectedStar=v;
+  document.querySelectorAll('.star-btn').forEach((b,i)=>b.classList.toggle('active',i<v));
+};
+window.openRate=function(){
+  if(!currentUser){showToast('Sign in to rate','error');return;}
+  document.getElementById('rate-modal-title').textContent='Rate: '+((bookData&&bookData.title)||'');
+  selectedStar=0;document.querySelectorAll('.star-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('rate-overlay').classList.add('open');
+};
+window.closeRate=()=>document.getElementById('rate-overlay').classList.remove('open');
+window.submitRate=async function(){
+  if(!currentUser){showToast('Sign in first','error');return;}
+  if(!selectedStar){showToast('Pick a star rating','error');return;}
+  if(!bookId)return;
+  await set(ref(db,`ratings/${bookId}/${currentUser.uid}`),{rating:selectedStar,ratedAt:Date.now()});
+  // Recompute average
+  const snap=await get(ref(db,'ratings/'+bookId));
+  const ratings=snap.val()||{};const vals=Object.values(ratings).map(r=>r.rating||r||0).filter(Boolean);
+  const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10:0;
+  const count=vals.length;
+  await update(ref(db,'books/'+bookId),{ratingAvg:avg,ratingCount:count});
+  showToast(`Rated ${selectedStar} ⭐ — thank you!`,'success');
+  closeRate();
+};
+
+// ── Share ─────────────────────────────────────────────────────
+window.shareBook=function(){
+  const url=window.location.href;
+  navigator.clipboard.writeText(url).then(()=>showToast('Link copied! 🔗','success')).catch(()=>prompt('Copy:',url));
+};
+
+// ── Code viewer ───────────────────────────────────────────────
+window.viewCode=async function(){
+  if(!bookData||!bookData.allowViewCode)return;
+  const code=await loadCode();
+  const w=window.open('','_blank');
+  w.document.write(`<pre style="background:#0a0a14;color:#00e5ff;font-family:monospace;font-size:12px;padding:1.5rem;white-space:pre-wrap;word-break:break-all;min-height:100vh;margin:0">${code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>`);
+  w.document.close();
+};
+
+// ── Chat ──────────────────────────────────────────────────────
+function initChat(mode){
+  chatMode=mode||'global';
+  if(chatUnsub)chatUnsub();
+  const chatRef=chatMode==='book'?ref(db,'bookChat/'+bookId):ref(db,'chat');
+  const q=query(chatRef,orderByKey(),limitToLast(40));
+  chatUnsub=onValue(q,snap=>{
+    const data=snap.val()||{};chatMessages=data;
+    if(chatOpen)renderChatMsgs();
+    else{
+      const prev=Object.keys(chatMessages).length;
+      const nc=Object.keys(data).length;
+      if(nc>prev){chatUnread+=(nc-prev);updateBadge();}
+    }
+    // Handle auto-deletes
+    Object.entries(data).forEach(([mid,msg])=>{
+      if(msg&&msg.autoDelete&&!msg.deleted&&msg.sentAt){
+        const rem=30000-(Date.now()-msg.sentAt);
+        if(rem<=0){remove(ref(db,(chatMode==='book'?'bookChat/'+bookId:'')+'/'+mid));}
+        else if(!countdownTimers[mid]){countdownTimers[mid]=setTimeout(()=>{remove(ref(db,(chatMode==='book'?'bookChat/'+bookId:'chat')+'/'+mid));delete countdownTimers[mid];},rem);}
+      }
+    });
+  });
+}
+window.switchChatMode=function(mode){
+  chatMode=mode;
+  document.getElementById('pill-global').classList.toggle('active',mode==='global');
+  document.getElementById('pill-book').classList.toggle('active',mode==='book');
+  chatMessages={};
+  document.getElementById('cw-messages').innerHTML='<div class="cw-empty">Loading…</div>';
+  if(chatUnsub)chatUnsub();
+  initChat(mode);
+};
+window.toggleChat=function(){
+  chatOpen=!chatOpen;
+  const win=document.getElementById('chat-window');
+  if(chatOpen){
+    win.style.display='flex';requestAnimationFrame(()=>win.classList.add('open'));
+    chatUnread=0;updateBadge();renderChatMsgs();
+    setTimeout(()=>{const m=document.getElementById('cw-messages');if(m)m.scrollTop=m.scrollHeight;},100);
+    if(currentUser)document.getElementById('cw-input')?.focus();
+  }else{
+    win.classList.remove('open');setTimeout(()=>win.style.display='none',200);
+  }
+};
+function updateBadge(){
+  const b=document.getElementById('cfab-badge');
+  if(chatUnread>0){b.textContent=chatUnread>9?'9+':chatUnread;b.classList.add('show');}
+  else b.classList.remove('show');
+}
+function avatarGrad(uid){const c=[['#22c55e','#3b82f6'],['#ef4444','#f59e0b'],['#3b82f6','#a78bfa'],['#f59e0b','#22c55e'],['#a78bfa','#ef4444']];const i=uid?uid.charCodeAt(0)%c.length:0;return`linear-gradient(135deg,${c[i][0]},${c[i][1]})`;}
+function renderChatMsgs(){
+  const container=document.getElementById('cw-messages');
+  const entries=Object.entries(chatMessages).filter(([,m])=>m&&!m.deleted).sort((a,b)=>(a[1].sentAt||0)-(b[1].sentAt||0));
+  if(!entries.length){container.innerHTML='<div class="cw-empty">No messages yet 👋</div>';return;}
+  const wasBottom=container.scrollHeight-container.scrollTop-container.clientHeight<60;
+  container.innerHTML=entries.map(([mid,msg])=>{
+    const isOwn=currentUser&&msg.senderId===currentUser.uid;
+    const imgHtml=msg.imageB64?`<img src="${esc(msg.imageB64)}" class="cw-bubble-img" alt="" onclick="window.open(this.src)"/>`:''
+    return`<div class="cw-msg${isOwn?' own':''}"><div class="cw-avatar" style="background:${avatarGrad(msg.senderId||'')}">${(msg.senderName||'?').charAt(0).toUpperCase()}</div><div><div class="cw-sender">${esc(msg.senderName||'?')}</div><div class="cw-bubble">${msg.text?esc(msg.text):''}${imgHtml}</div></div></div>`;
+  }).join('');
+  if(wasBottom)container.scrollTop=container.scrollHeight;
+}
+window.sendChat=async function(){
+  if(!currentUser){showToast('Sign in to chat','error');return;}
+  const input=document.getElementById('cw-input');const text=input.value.trim();
+  if(!text)return;if(text.length>400)return;
+  input.value='';
+  const chatRefPath=chatMode==='book'?'bookChat/'+bookId:'chat';
+  await set(push(ref(db,chatRefPath)),{text,senderId:currentUser.uid,senderName:currentUser.displayName||currentUser.email,sentAt:Date.now(),autoDelete:false});
+};
+
+// Boot after auth resolves
+let authReady=false;
+onAuthStateChanged(auth,user=>{
+  currentUser=user;
+  const footer=document.getElementById('cw-footer');
+  const loginNotice=document.getElementById('cw-login-notice');
+  if(user){if(footer)footer.style.display='flex';if(loginNotice)loginNotice.style.display='none';}
+  else{if(footer)footer.style.display='none';if(loginNotice)loginNotice.style.display='block';}
+  if(!authReady){authReady=true;boot();}
+  else{updateLikeBtn();const rateBtn=document.getElementById('rate-btn');if(rateBtn&&bookData)rateBtn.style.display=(user&&user.uid!==bookData.ownerId)?'flex':'none';}
+});
+
+// Escape closes rate overlay
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){document.getElementById('rate-overlay').classList.remove('open');}
+});
+document.getElementById('rate-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('rate-overlay'))closeRate();});
+</script>
+</body>
+</html>
