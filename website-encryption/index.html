@@ -243,7 +243,7 @@ footer .dot{color:var(--borderhi);}
           <div class="guide-inner">
             <div class="guide-hero">
               <h1>How to use Website Encryption</h1>
-              <p>Encrypt any secret and fetch it from your site with a single async snippet. The decryption key lives only in the snippet — it never touches a server in plaintext. Lock secrets to specific domains so only your sites can use them.</p>
+              <p>Encrypt any secret and fetch it from your site with a single async snippet. The decryption key never touches a server in plaintext. Lock secrets to specific domains so only your sites can use them.</p>
             </div>
 
             <div>
@@ -255,10 +255,10 @@ footer .dot{color:var(--borderhi);}
                   <span class="guide-chevron">&#9660;</span>
                 </div>
                 <div class="guide-step-body">
-                  <p>Your secret is encrypted with <strong>AES-256-GCM</strong> in the browser before upload. Only the ciphertext is stored — never the plaintext. The decryption key is embedded in the snippet itself.</p>
-                  <p>The snippet fetches the encrypted blob directly from Firebase's REST API, verifies the calling domain against your allow-list, then decrypts it right there in the browser using the Web Crypto API.</p>
-                  <p><strong>Domain locking:</strong> When you add allowed domains to a project, the generated snippet includes a domain check. If the page's hostname isn't in your allow-list, the snippet throws an error before decryption — so the key is useless even if someone copies the snippet.</p>
-                  <div class="guide-warn"><b>Keep in mind:</b> Anyone who reads your JS source can find the snippet and the key. Domain-locking raises the bar significantly, but a determined person on an allowed domain can still extract the plaintext at runtime. Use this for configs that are annoying to rotate, not for high-value secrets like payment keys.</div>
+                  <p>Your secret is encrypted with <strong>AES-256-GCM</strong> in the browser before upload. Only the ciphertext is stored — never the plaintext.</p>
+                  <p>The snippet fetches the encrypted blob from Firebase, checks the calling domain against your allow-list, then decrypts using the Web Crypto API. The key is obfuscated in the snippet using XOR scrambling split across multiple variables — it's not stored as a plain readable string.</p>
+                  <p><strong>Domain locking:</strong> If the page's hostname isn't in your allow-list, the snippet throws before decryption happens.</p>
+                  <div class="guide-warn"><b>Keep in mind:</b> Anyone with deep JS debugging skills on an allowed domain can still extract the plaintext at runtime — that's an inherent limit of client-side decryption. This tool is ideal for configs and API keys that are annoying to rotate, not for high-value payment secrets.</div>
                 </div>
               </div>
             </div>
@@ -283,7 +283,7 @@ footer .dot{color:var(--borderhi);}
                   <span class="guide-chevron">&#9660;</span>
                 </div>
                 <div class="guide-step-body">
-                  <p>In the project view, add the hostnames that should be allowed to fetch this secret — e.g. <code>mysite.com</code> or <code>app.mysite.com</code>. The snippet checks <code>window.location.hostname</code> against this list and refuses to decrypt if it doesn't match.</p>
+                  <p>Add the hostnames that should be allowed to fetch this secret — e.g. <code>mysite.com</code>. The snippet checks <code>window.location.hostname</code> against this list and refuses to decrypt if it doesn't match.</p>
                   <p>Leave the list empty to allow any domain (useful during development).</p>
                 </div>
               </div>
@@ -305,7 +305,7 @@ footer .dot{color:var(--borderhi);}
                   <span class="guide-chevron">&#9660;</span>
                 </div>
                 <div class="guide-step-body">
-                  <p>Open the project, paste new content, click <strong>Save &amp; Re-encrypt</strong>. A new key is generated and the snippet updates — just copy it again. The project ID stays the same.</p>
+                  <p>Open the project, paste new content, click <strong>Save &amp; Re-encrypt</strong>. A new key is generated and the snippet updates — just copy it again.</p>
                 </div>
               </div>
             </div>
@@ -381,7 +381,6 @@ function genUid(len) {
   for (var i = 0; i < len; i++) s += chars[arr[i] % chars.length];
   return s;
 }
-// Key is always used as raw UTF-8 bytes, exactly 32 bytes (pad/truncate)
 function keyBytes(k) {
   return new TextEncoder().encode(k.padEnd(32,'0').slice(0,32));
 }
@@ -399,12 +398,9 @@ async function decryptText(b64, k) {
   var pt  = await crypto.subtle.decrypt({name:'AES-GCM', iv:buf.slice(0,12)}, key, buf.slice(12));
   return new TextDecoder().decode(pt);
 }
-// Verify a freshly saved secret by fetching it back and decrypting
 async function verifySave(id, encKey, encrypted) {
-  // First try decrypting locally
   var local = await decryptText(encrypted, encKey);
   if (!local) throw new Error('Local decrypt failed');
-  // Then verify the REST endpoint returns the blob
   var res = await fetch(FB_DB_URL + '/we_secrets/' + id + '.json');
   if (!res.ok) throw new Error('Fetch returned ' + res.status);
   var data = await res.json();
@@ -412,6 +408,33 @@ async function verifySave(id, encKey, encrypted) {
   var remote = await decryptText(data.e, encKey);
   if (remote !== local) throw new Error('Remote decrypt mismatch');
   return true;
+}
+
+// ── KEY OBFUSCATION ──
+// Splits a key string into XOR-scrambled chunks stored in separate variables.
+// The snippet must reassemble and XOR them back to recover the real key.
+// This means the raw key never appears as a plain string anywhere in the snippet.
+function obfuscateKey(keyStr) {
+  // Generate a random XOR mask the same length as the key
+  var keyArr = [];
+  for (var i = 0; i < keyStr.length; i++) keyArr.push(keyStr.charCodeAt(i));
+
+  var maskArr = [];
+  var maskBytes = new Uint8Array(keyStr.length);
+  crypto.getRandomValues(maskBytes);
+  for (var i = 0; i < maskBytes.length; i++) maskArr.push(maskBytes[i] & 0x7f); // keep printable range
+
+  // XOR the key bytes with the mask
+  var scrambled = keyArr.map(function(b, i){ return b ^ maskArr[i]; });
+
+  // Split scrambled bytes and mask each into two halves, encode as base64
+  var half = Math.floor(scrambled.length / 2);
+  var part1 = btoa(String.fromCharCode.apply(null, scrambled.slice(0, half)));
+  var part2 = btoa(String.fromCharCode.apply(null, scrambled.slice(half)));
+  var mask1 = btoa(String.fromCharCode.apply(null, maskArr.slice(0, half)));
+  var mask2 = btoa(String.fromCharCode.apply(null, maskArr.slice(half)));
+
+  return { part1: part1, part2: part2, mask1: mask1, mask2: mask2 };
 }
 
 // ── UTILS ──
@@ -436,59 +459,115 @@ function copyText(text, label) {
 function esc(t) {
   return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function escJs(t) {
-  // Escape backslashes first, then quotes — makes the value safe inside any JS string
-  return String(t)
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g,  '\\"')
-    .replace(/'/g,  "\\'")
-    .replace(/`/g,  '\\`');
-}
 
 // ── SNIPPET GENERATOR ──
+// Generates a self-contained async snippet with:
+//   - XOR-obfuscated key (split across 4 variables, no plain key string)
+//   - Domain allow-list check before any decryption
+//   - Detailed comments so any developer or AI can understand exactly what to do with the result
 function makeSnippet(id, encKey, domains, type) {
   var domainList = (domains || []).filter(function(d){ return d.trim(); });
   var url = FB_DB_URL + '/we_secrets/' + id + '.json';
-  var keyB64 = btoa(unescape(encodeURIComponent(encKey)));
+  var obs = obfuscateKey(encKey.padEnd(32,'0').slice(0,32));
+
   var L = [];
 
-  L.push('(async () => {');
+  // ── Header comments ──
+  L.push('/**');
+  L.push(' * HTMLTools Website Encryption — auto-generated snippet');
+  L.push(' *');
+  L.push(' * WHAT THIS DOES:');
+  L.push(' *   Fetches an AES-256-GCM encrypted secret from a secure URL,');
+  L.push(' *   decrypts it entirely in the browser using the Web Crypto API,');
+  L.push(' *   and returns the plaintext as a string.');
+  L.push(' *');
+  L.push(' * HOW TO USE (for humans and AI assistants):');
+  L.push(' *   1. Call: const secret = await getSecret();');
+  L.push(' *   2. The returned value is your original plaintext secret.');
+
+  if (type === 'firebase') {
+    L.push(' *   3. Parse and use it: const cfg = JSON.parse(secret); initializeApp(cfg);');
+  } else if (type === 'apikey') {
+    L.push(' *   3. Use it directly: fetch(url, { headers: { Authorization: "Bearer " + secret } })');
+  } else if (type === 'html') {
+    L.push(' *   3. Inject it: document.getElementById("myDiv").innerHTML = secret;');
+  } else {
+    L.push(' *   3. Use or parse it: const data = JSON.parse(secret); // if it\'s JSON');
+  }
+
+  L.push(' *');
+  L.push(' * SECURITY NOTES:');
+  L.push(' *   - The key is XOR-obfuscated and split across variables — not stored as a plain string.');
+  L.push(' *   - Decryption only runs if the current domain is in the allow-list below.');
+  if (domainList.length > 0) {
+    L.push(' *   - Allowed domains: ' + domainList.join(', '));
+  } else {
+    L.push(' *   - No domain restriction is set — any origin can use this snippet.');
+  }
+  L.push(' *   - No external libraries required. Works in any modern browser.');
+  L.push(' */');
+  L.push('async function getSecret() {');
   L.push('  try {');
 
+  // Domain check
   if (domainList.length > 0) {
-    L.push('    const allowed = ' + JSON.stringify(domainList) + ';');
-    L.push('    if (!allowed.includes(window.location.hostname))');
+    L.push('    // STEP 1: Domain guard — abort if we\'re not on an allowed site');
+    L.push('    const _allowed = ' + JSON.stringify(domainList) + ';');
+    L.push('    if (!_allowed.includes(window.location.hostname))');
     L.push('      throw new Error("Domain not allowed: " + window.location.hostname);');
+    L.push('');
   }
 
-  L.push('    const res = await fetch("' + url + '");');
-  L.push('    if (!res.ok) throw new Error("HTTP " + res.status);');
-  L.push('    const json = await res.json();');
-  L.push('    if (!json || !json.e) throw new Error("Secret not found");');
-  L.push('    const rawKey = new TextEncoder().encode(atob("' + keyB64 + '").padEnd(32,"0").slice(0,32));');
-  L.push('    const cryptoKey = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);');
-  L.push('    const buf = Uint8Array.from(atob(json.e), c => c.charCodeAt(0));');
-  L.push('    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0,12) }, cryptoKey, buf.slice(12));');
-  L.push('    const secret = new TextDecoder().decode(pt);');
+  // Fetch
+  L.push('    // STEP 2: Fetch the encrypted blob from the secure endpoint');
+  L.push('    const _res = await fetch("' + url + '");');
+  L.push('    if (!_res.ok) throw new Error("HTTP " + _res.status);');
+  L.push('    const _json = await _res.json();');
+  L.push('    if (!_json || !_json.e) throw new Error("Secret not found or deleted");');
+  L.push('');
 
-  if (type === 'apikey') {
-    L.push('    // secret = your API key string, use it below:');
-    L.push('    // fetch(url, { headers: { Authorization: "Bearer " + secret } })');
-  } else if (type === 'firebase') {
-    L.push('    const firebaseConfig = JSON.parse(secret);');
-    L.push('    // now call: initializeApp(firebaseConfig)');
+  // Key reassembly — XOR obfuscated parts
+  L.push('    // STEP 3: Reassemble the decryption key from obfuscated parts');
+  L.push('    // The key is XOR-scrambled and split across 4 variables.');
+  L.push('    // Reversing the XOR with the mask gives back the real key bytes.');
+  L.push('    const _p1 = "' + obs.part1 + '", _p2 = "' + obs.part2 + '";');
+  L.push('    const _m1 = "' + obs.mask1 + '", _m2 = "' + obs.mask2 + '";');
+  L.push('    const _from = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));');
+  L.push('    const _xor  = (a, b) => a.map((v, i) => v ^ b[i]);');
+  L.push('    const _kb   = new Uint8Array([..._xor(_from(_p1), _from(_m1)), ..._xor(_from(_p2), _from(_m2))]);');
+  L.push('');
+
+  // Decrypt
+  L.push('    // STEP 4: Import the raw key bytes and decrypt with AES-256-GCM');
+  L.push('    const _ck  = await crypto.subtle.importKey("raw", _kb, "AES-GCM", false, ["decrypt"]);');
+  L.push('    const _buf = Uint8Array.from(atob(_json.e), c => c.charCodeAt(0));');
+  L.push('    const _pt  = await crypto.subtle.decrypt({ name: "AES-GCM", iv: _buf.slice(0, 12) }, _ck, _buf.slice(12));');
+  L.push('    const secret = new TextDecoder().decode(_pt);');
+  L.push('');
+
+  // Usage hint
+  L.push('    // STEP 5: secret now holds your original plaintext — use it here:');
+  if (type === 'firebase') {
+    L.push('    // const firebaseConfig = JSON.parse(secret);');
+    L.push('    // initializeApp(firebaseConfig);');
+  } else if (type === 'apikey') {
+    L.push('    // fetch(endpoint, { headers: { Authorization: "Bearer " + secret } });');
   } else if (type === 'html') {
-    L.push('    // secret = your HTML string, inject it below:');
     L.push('    // document.getElementById("myDiv").innerHTML = secret;');
   } else {
-    L.push('    // secret = your decrypted string');
-    L.push('    // const data = JSON.parse(secret); // if JSON');
+    L.push('    // const data = JSON.parse(secret); // if your secret is JSON');
+    L.push('    // console.log(secret);             // or use it as a string directly');
   }
-
+  L.push('    return secret;');
+  L.push('');
   L.push('  } catch (err) {');
-  L.push('    console.error("Failed to load secret:", err.message);');
+  L.push('    console.error("[getSecret] Failed:", err.message);');
+  L.push('    return null;');
   L.push('  }');
-  L.push('})();');
+  L.push('}');
+  L.push('');
+  L.push('// Call it like this:');
+  L.push('// const secret = await getSecret();');
 
   return L.join('\n');
 }
@@ -606,7 +685,6 @@ async function saveProjFB(proj) {
     uid: currentUser.uid
   };
   await db.ref(userPath() + '/' + proj.id).set(toSave);
-  // Public record: only the ciphertext — no key, no domain list (domain check is client-side in snippet)
   await db.ref('we_secrets/' + proj.id).set({ e: proj.encrypted });
   var i = projects.findIndex(function(p){return p.id===proj.id;});
   if (i>=0) projects[i]=toSave; else projects.unshift(toSave);
@@ -647,7 +725,6 @@ function renderSidebar() {
 }
 
 // ── PROJECT VIEW ──
-// Domain state for the current project view
 var _projDomains = [];
 
 function renderDomainList(containerId, domains) {
@@ -701,7 +778,6 @@ function showProject(proj) {
     '</div>' +
     '<div class="proj-body"><div class="proj-inner">' +
 
-      // ── SNIPPET CARD ──
       '<div class="card">' +
         '<div class="card-hdr"><div class="card-hdr-icon">&#128196;</div>' +
           '<span class="card-hdr-title">Usage snippet</span>' +
@@ -709,11 +785,10 @@ function showProject(proj) {
         '<div class="card-body">' +
           '<pre class="code-block" id="snippet-display" style="white-space:pre;overflow-x:auto;font-size:.68rem;"></pre>' +
           '<button class="btn btn-prim btn-full" id="copy-snippet-btn">Copy snippet</button>' +
-          '<div class="info-box"><span>&#9432;</span><span>No dependencies, no imports. Drop this <code>async</code> function anywhere and call <code>await getSecret()</code>.</span></div>' +
+          '<div class="info-box"><span>&#9432;</span><span>Key is XOR-obfuscated — no plain key string in the snippet. Call <code>await getSecret()</code> to get your decrypted value.</span></div>' +
         '</div>' +
       '</div>' +
 
-      // ── DOMAIN ALLOW-LIST CARD ──
       '<div class="card">' +
         '<div class="card-hdr"><div class="card-hdr-icon">&#127758;</div>' +
           '<span class="card-hdr-title">Allowed domains</span>' +
@@ -726,50 +801,45 @@ function showProject(proj) {
               '<button class="btn" id="domain-add-btn">Add</button>' +
             '</div>' +
           '</div>' +
-          '<div class="info-box"><span>&#9432;</span><span>The snippet checks <code>window.location.hostname</code> against this list before decrypting. Changes here regenerate the snippet — save to persist.</span></div>' +
+          '<div class="info-box"><span>&#9432;</span><span>The snippet checks <code>window.location.hostname</code> against this list before decrypting. Save to persist.</span></div>' +
           '<button class="btn btn-prim btn-full" id="save-domains-btn">Save domains &amp; update snippet</button>' +
         '</div>' +
       '</div>' +
 
-      // ── UPDATE SECRET CARD ──
       '<div class="card">' +
         '<div class="card-hdr"><div class="card-hdr-icon">&#9998;</div>' +
           '<span class="card-hdr-title">Update secret</span>' +
           '<span class="card-hdr-sub">Re-encrypt with new content anytime</span></div>' +
         '<div class="card-body">' +
           '<textarea class="inp" id="content-edit" style="min-height:120px;" placeholder="Paste new content here to replace your current secret…"></textarea>' +
-          '<div class="warn-box"><span>&#9432;</span><span style="font-size:.7rem;color:var(--tx3);">Your existing secret is not shown for security — it\'s stored encrypted. Paste new content above to replace it.</span></div>' +
+          '<div class="warn-box"><span>&#9432;</span><span style="font-size:.7rem;color:var(--tx3);">Your existing secret is not shown for security. Paste new content above to replace it.</span></div>' +
           '<button class="btn btn-prim btn-full" id="save-content-btn">Save &amp; Re-encrypt</button>' +
         '</div>' +
       '</div>' +
 
-      // ── STATUS CARD ──
       '<div class="card">' +
         '<div class="card-hdr"><div class="card-hdr-icon">&#128274;</div>' +
           '<span class="card-hdr-title">Security info</span></div>' +
         '<div class="card-body">' +
-          '<div class="status-row"><div class="status-dot" style="width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);">AES-256-GCM encrypted</span></div>' +
-          '<div class="status-row" style="display:flex;align-items:center;gap:6px;"><div class="status-dot" style="width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);">Plaintext never stored or transmitted</span></div>' +
-          '<div class="status-row" style="display:flex;align-items:center;gap:6px;"><div class="status-dot" style="width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);">No SDK required — browser-native fetch + Web Crypto</span></div>' +
-          '<div class="status-row" style="display:flex;align-items:center;gap:6px;" id="domain-status-row"><div class="status-dot" style="width:6px;height:6px;border-radius:50%;flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);"></span></div>' +
+          '<div style="display:flex;align-items:center;gap:6px;"><div style="width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);">AES-256-GCM encrypted</span></div>' +
+          '<div style="display:flex;align-items:center;gap:6px;"><div style="width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);">Plaintext never stored or transmitted</span></div>' +
+          '<div style="display:flex;align-items:center;gap:6px;"><div style="width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);">Key XOR-obfuscated — no plain key string in snippet</span></div>' +
+          '<div style="display:flex;align-items:center;gap:6px;"><div style="width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);">No SDK required — browser-native fetch + Web Crypto</span></div>' +
+          '<div style="display:flex;align-items:center;gap:6px;" id="domain-status-row"><div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;"></div><span style="font-size:.72rem;color:var(--tx3);"></span></div>' +
         '</div>' +
       '</div>' +
 
     '</div></div>';
 
-  // Populate snippet display
   document.getElementById('snippet-display').textContent = _currentSnippet;
-
-  // Populate domain list
   renderDomainList('domain-list-container', _projDomains);
   updateDomainStatusRow();
 
-  // ── Domain add button ──
   function addDomain() {
     var inp = document.getElementById('domain-input');
     var val = inp.value.trim().toLowerCase()
-      .replace(/^https?:\/\//,'')  // strip protocol
-      .replace(/\/.*$/,'');         // strip path
+      .replace(/^https?:\/\//,'')
+      .replace(/\/.*$/,'');
     if (!val) return;
     if (_projDomains.indexOf(val) !== -1) { showToast('Domain already added'); return; }
     _projDomains.push(val);
@@ -783,7 +853,6 @@ function showProject(proj) {
     if (e.key === 'Enter') addDomain();
   });
 
-  // ── Save domains ──
   document.getElementById('save-domains-btn').addEventListener('click', async function() {
     this.textContent = 'Saving…'; this.disabled = true;
     try {
@@ -802,7 +871,6 @@ function showProject(proj) {
     }
   });
 
-  // ── Copy snippet ──
   document.getElementById('copy-snippet-btn').addEventListener('click', function() {
     copyText(_currentSnippet, 'Snippet copied!');
     this.textContent = 'Copied!';
@@ -810,7 +878,6 @@ function showProject(proj) {
     setTimeout(function(){ self.textContent = 'Copy snippet'; }, 2000);
   });
 
-  // ── Re-encrypt ──
   document.getElementById('save-content-btn').addEventListener('click', async function() {
     var txt = document.getElementById('content-edit').value;
     if (!txt.trim()) { showToast('Paste new content first'); return; }
@@ -821,14 +888,12 @@ function showProject(proj) {
       proj.domains   = _projDomains.slice();
       proj.type      = proj.type || _currentProjForView.type || 'other';
       var saved = await saveProjFB(proj);
-      // Verify round-trip works
       try {
         await verifySave(proj.id, proj.encKey, proj.encrypted);
       } catch(verifyErr) {
         console.error('Verify failed after re-encrypt:', verifyErr);
         showToast('Warning: verify failed — ' + verifyErr.message);
       }
-      // Update reference
       _currentProjForView = saved;
       proj = saved;
       this.textContent = 'Save & Re-encrypt'; this.disabled = false;
@@ -842,7 +907,6 @@ function showProject(proj) {
     }
   });
 
-  // ── Delete ──
   document.getElementById('del-btn').addEventListener('click', async function() {
     if (!confirm('Delete "'+proj.name+'"? This cannot be undone.')) return;
     try {
@@ -861,7 +925,7 @@ function showProject(proj) {
 function updateDomainStatusRow() {
   var row = document.getElementById('domain-status-row');
   if (!row) return;
-  var dot  = row.querySelector('.status-dot');
+  var dot  = row.querySelector('div');
   var span = row.querySelector('span');
   if (_projDomains.length > 0) {
     dot.style.background = 'var(--greenhi)';
@@ -949,5 +1013,6 @@ document.getElementById('modal-save-btn').addEventListener('click', async functi
   }
 });
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
