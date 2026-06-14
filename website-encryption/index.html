@@ -445,46 +445,59 @@ function escJs(t) {
 // Core fetch+decrypt is identical; usage lines differ by type.
 function makeSnippet(id, encKey, domains, type) {
   var domainList = (domains || []).filter(function(d){ return d.trim(); });
+  var url = FB_DB_URL + '/we_secrets/' + id + '.json';
+  var key = escJs(encKey);
   var L = [];
 
-  L.push('async function getSecret() {');
+  // The snippet is wrapped in an IIFE so bare await works in any <script> tag,
+  // no need for type="module". Just paste it and it runs.
+  L.push('(async () => {');
+  L.push('  try {');
 
+  // Domain check
   if (domainList.length > 0) {
-    L.push('  const allowed = ' + JSON.stringify(domainList) + ';');
-    L.push('  if (!allowed.includes(window.location.hostname))');
-    L.push('    throw new Error("Domain not allowed: " + window.location.hostname);');
+    L.push('    const allowed = ' + JSON.stringify(domainList) + ';');
+    L.push('    if (!allowed.includes(window.location.hostname))');
+    L.push('      throw new Error("Domain not allowed: " + window.location.hostname);');
   }
 
-  // Bare fetch — no API key in URL, no SDK, pure REST
-  L.push('  const res = await fetch("' + FB_DB_URL + '/we_secrets/' + escJs(id) + '.json");');
-  L.push('  if (!res.ok) throw new Error("Fetch failed: HTTP " + res.status);');
-  L.push('  const json = await res.json();');
-  L.push('  if (!json || !json.e) throw new Error("Secret not found (id: ' + escJs(id) + ')");');
-  L.push('  const raw = new TextEncoder().encode("' + escJs(encKey) + '".padEnd(32,"0").slice(0,32));');
-  L.push('  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);');
-  L.push('  const buf = Uint8Array.from(atob(json.e), c => c.charCodeAt(0));');
-  L.push('  const pt  = await crypto.subtle.decrypt({name:"AES-GCM",iv:buf.slice(0,12)}, key, buf.slice(12));');
-  L.push('  return new TextDecoder().decode(pt);');
-  L.push('}');
+  // Fetch — plain HTTPS, no Firebase SDK, no API key needed
+  L.push('    const res = await fetch("' + url + '");');
+  L.push('    if (!res.ok) throw new Error("Fetch failed: HTTP " + res.status);');
+  L.push('    const json = await res.json();');
+  L.push('    if (!json || !json.e) throw new Error("Secret not found");');
+
+  // Decrypt — Web Crypto AES-256-GCM, matches how it was encrypted
+  L.push('    const rawKey = new TextEncoder().encode("' + key + '".padEnd(32,"0").slice(0,32));');
+  L.push('    const cryptoKey = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);');
+  L.push('    const buf = Uint8Array.from(atob(json.e), c => c.charCodeAt(0));');
+  L.push('    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0,12) }, cryptoKey, buf.slice(12));');
+  L.push('    const secret = new TextDecoder().decode(pt);');
   L.push('');
 
-  // Type-specific usage
+  // Type-specific usage inside the IIFE
   if (type === 'apikey') {
-    L.push('// Usage — API key:');
-    L.push('const apiKey = await getSecret();');
-    L.push('// then e.g.: fetch(url, { headers: { Authorization: "Bearer " + apiKey } })');
+    L.push('    // secret is your API key — use it here:');
+    L.push('    console.log("Secret loaded:", secret);');
+    L.push('    // example: fetch(url, { headers: { Authorization: "Bearer " + secret } })');
   } else if (type === 'firebase') {
-    L.push('// Usage — Firebase config:');
-    L.push('const firebaseConfig = JSON.parse(await getSecret());');
-    L.push('// then: firebase.initializeApp(firebaseConfig)  (or modular initializeApp)');
+    L.push('    // secret is your Firebase config JSON — parse and init:');
+    L.push('    const firebaseConfig = JSON.parse(secret);');
+    L.push('    console.log("Config loaded:", firebaseConfig);');
+    L.push('    // firebase.initializeApp(firebaseConfig);');
   } else if (type === 'html') {
-    L.push('// Usage — inject HTML:');
-    L.push('document.getElementById("target").innerHTML = await getSecret();');
+    L.push('    // secret is HTML — inject it wherever you need:');
+    L.push('    document.getElementById("YOUR_TARGET_ID").innerHTML = secret;');
   } else {
-    L.push('// Usage — raw string / JSON:');
-    L.push('const secret = await getSecret();');
-    L.push('// parse if JSON: const data = JSON.parse(secret);');
+    L.push('    // secret is your decrypted string:');
+    L.push('    console.log("Secret loaded:", secret);');
+    L.push('    // const data = JSON.parse(secret); // if it's JSON');
   }
+
+  L.push('  } catch (err) {');
+  L.push('    console.error("Failed to load secret:", err.message);');
+  L.push('  }');
+  L.push('})();');
 
   return L.join('\n');
 }
