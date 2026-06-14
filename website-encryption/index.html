@@ -446,59 +446,43 @@ function escJs(t) {
 }
 
 // ── SNIPPET GENERATOR ──
-// Type-aware: generates a minimal, ready-to-use snippet per secret type.
-// Core fetch+decrypt is identical; usage lines differ by type.
 function makeSnippet(id, encKey, domains, type) {
   var domainList = (domains || []).filter(function(d){ return d.trim(); });
   var url = FB_DB_URL + '/we_secrets/' + id + '.json';
-  var key = escJs(encKey);
+  var keyB64 = btoa(unescape(encodeURIComponent(encKey)));
   var L = [];
 
-  // The snippet is wrapped in an IIFE so bare await works in any script tag,
-  // no need for type="module". Just paste it and it runs.
   L.push('(async () => {');
   L.push('  try {');
 
-  // Domain check
   if (domainList.length > 0) {
     L.push('    const allowed = ' + JSON.stringify(domainList) + ';');
     L.push('    if (!allowed.includes(window.location.hostname))');
     L.push('      throw new Error("Domain not allowed: " + window.location.hostname);');
   }
 
-  // Fetch — plain HTTPS, no Firebase SDK, no API key needed
   L.push('    const res = await fetch("' + url + '");');
-  L.push('    if (!res.ok) throw new Error("Fetch failed: HTTP " + res.status);');
+  L.push('    if (!res.ok) throw new Error("HTTP " + res.status);');
   L.push('    const json = await res.json();');
   L.push('    if (!json || !json.e) throw new Error("Secret not found");');
-
-  // Decrypt — Web Crypto AES-256-GCM, matches how it was encrypted
-  // Encode key as base64 so special chars can never break the snippet syntax
-  var keyB64 = btoa(unescape(encodeURIComponent(encKey)));
   L.push('    const rawKey = new TextEncoder().encode(atob("' + keyB64 + '").padEnd(32,"0").slice(0,32));');
   L.push('    const cryptoKey = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);');
   L.push('    const buf = Uint8Array.from(atob(json.e), c => c.charCodeAt(0));');
   L.push('    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0,12) }, cryptoKey, buf.slice(12));');
   L.push('    const secret = new TextDecoder().decode(pt);');
-  L.push('');
 
-  // Type-specific usage inside the IIFE
   if (type === 'apikey') {
-    L.push('    // secret is your API key — use it here:');
-    L.push('    console.log("Secret loaded:", secret);');
-    L.push('    // example: fetch(url, { headers: { Authorization: "Bearer " + secret } })');
+    L.push('    // secret = your API key string, use it below:');
+    L.push('    // fetch(url, { headers: { Authorization: "Bearer " + secret } })');
   } else if (type === 'firebase') {
-    L.push('    // secret is your Firebase config JSON — parse and init:');
     L.push('    const firebaseConfig = JSON.parse(secret);');
-    L.push('    console.log("Config loaded:", firebaseConfig);');
-    L.push('    // firebase.initializeApp(firebaseConfig);');
+    L.push('    // now call: initializeApp(firebaseConfig)');
   } else if (type === 'html') {
-    L.push('    // secret is HTML — inject it wherever you need:');
-    L.push('    document.getElementById("YOUR_TARGET_ID").innerHTML = secret;');
+    L.push('    // secret = your HTML string, inject it below:');
+    L.push('    // document.getElementById("myDiv").innerHTML = secret;');
   } else {
-    L.push('    // secret is your decrypted string:');
-    L.push('    console.log("Secret loaded:", secret);');
-    L.push('    // const data = JSON.parse(secret); // if it is JSON');
+    L.push('    // secret = your decrypted string');
+    L.push('    // const data = JSON.parse(secret); // if JSON');
   }
 
   L.push('  } catch (err) {');
