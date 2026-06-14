@@ -437,7 +437,12 @@ function esc(t) {
   return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function escJs(t) {
-  return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  // Escape backslashes first, then quotes — makes the value safe inside any JS string
+  return String(t)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g,  '\\"')
+    .replace(/'/g,  "\\'")
+    .replace(/`/g,  '\\`');
 }
 
 // ── SNIPPET GENERATOR ──
@@ -468,7 +473,9 @@ function makeSnippet(id, encKey, domains, type) {
   L.push('    if (!json || !json.e) throw new Error("Secret not found");');
 
   // Decrypt — Web Crypto AES-256-GCM, matches how it was encrypted
-  L.push('    const rawKey = new TextEncoder().encode("' + key + '".padEnd(32,"0").slice(0,32));');
+  // Encode key as base64 so special chars can never break the snippet syntax
+  var keyB64 = btoa(unescape(encodeURIComponent(encKey)));
+  L.push('    const rawKey = new TextEncoder().encode(atob("' + keyB64 + '").padEnd(32,"0").slice(0,32));');
   L.push('    const cryptoKey = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);');
   L.push('    const buf = Uint8Array.from(atob(json.e), c => c.charCodeAt(0));');
   L.push('    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0,12) }, cryptoKey, buf.slice(12));');
@@ -491,7 +498,7 @@ function makeSnippet(id, encKey, domains, type) {
   } else {
     L.push('    // secret is your decrypted string:');
     L.push('    console.log("Secret loaded:", secret);');
-    L.push('    // const data = JSON.parse(secret); // if it's JSON');
+    L.push('    // const data = JSON.parse(secret); // if it is JSON');
   }
 
   L.push('  } catch (err) {');
