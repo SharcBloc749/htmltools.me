@@ -56,6 +56,11 @@ body.light-mode #user-code{caret-color:#333!important;}
 .lg-fg input:focus{border-color:var(--border-hi);}
 .lg-btn{width:100%;padding:.68rem;background:var(--white);color:var(--wfg);font-family:var(--font);font-size:.82rem;font-weight:600;border:none;border-radius:var(--r);cursor:pointer;transition:opacity .15s;margin-top:.5rem;min-height:38px;}
 .lg-btn:hover{opacity:.9;}
+.lg-divider{display:flex;align-items:center;gap:.75rem;margin:.875rem 0;color:var(--tx-3);font-size:.7rem;}
+.lg-divider::before,.lg-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.lg-google-btn{width:100%;padding:.62rem;background:var(--panel);color:var(--tx);font-family:var(--font);font-size:.82rem;font-weight:500;border:1px solid var(--border-2);border-radius:var(--r);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:.6rem;min-height:38px;}
+.lg-google-btn:hover{background:var(--panel-2);border-color:var(--border-hi);}
+.lg-google-btn svg{width:16px;height:16px;flex-shrink:0;}
 .lg-forgot{text-align:center;margin-top:.875rem;font-size:.75rem;color:var(--tx-3);}
 .lg-forgot span{cursor:pointer;transition:color .15s;}
 .lg-forgot span:hover{color:var(--tx);}
@@ -337,6 +342,16 @@ footer .f-dot{color:var(--border-hi);}
       <div class="lg-fg"><label>Email</label><input type="email" id="lg-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')lgSubmit()"/></div>
       <div class="lg-fg" id="lg-password-group"><label>Password</label><input type="password" id="lg-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')lgSubmit()"/></div>
       <button class="lg-btn" id="lg-submit-btn" onclick="lgSubmit()">SIGN IN</button>
+      <div class="lg-divider">or</div>
+      <button class="lg-google-btn" id="lg-google-btn" onclick="lgGoogle()">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+      </button>
       <div class="lg-forgot" id="lg-forgot"><span onclick="lgForgot()">Forgot password?</span></div>
       <div class="lg-err" id="lg-err"></div><div class="lg-ok" id="lg-success"></div>
     </div>
@@ -573,7 +588,7 @@ footer .f-dot{color:var(--border-hi);}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, get, onValue, remove, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
   const OWNER_EMAIL = 'matthewbozhe@gmail.com';
   const authConfig = {apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",databaseURL:"https://htmltools-library-default-rtdb.firebaseio.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:7543f6caa2ed6742092f75"};
@@ -583,6 +598,7 @@ footer .f-dot{color:var(--border-hi);}
   const db = getDatabase(authApp);
   const dbData = getDatabase(dataApp);
   const auth = getAuth(authApp);
+  const googleProvider = new GoogleAuthProvider();
   let currentUser=null,loginDisabled=false,signupDisabled=false,_lgMode='login';
   window._db=db;window._auth=auth;window._ref=ref;window._get=get;window._onValue=onValue;
   const isOwner=u=>u&&u.email&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase();
@@ -614,27 +630,32 @@ footer .f-dot{color:var(--border-hi);}
   }
   function listenForceSignout(uid){onValue(ref(dbData,`forceSignout/${uid}`),async s=>{if(s.exists()&&s.val()&&!isOwner(currentUser)){addNotif('🚪','alert','Signed Out','An admin signed you out remotely.');await remove(ref(dbData,`forceSignout/${uid}`));await fbSignOut(auth);}});}
 
+  async function handleUserSignedIn(user){
+    currentUser=user;
+    const banSnap=await get(ref(dbData,`siteConfig/matthewBanned/${user.uid}`));
+    if(banSnap.exists()&&banSnap.val()&&!isOwner(user)){showBanScreen(user.email);return;}
+    document.getElementById('login-gate').classList.add('hidden');
+    document.getElementById('user-display').style.display='flex';
+    document.getElementById('user-name-label').textContent=user.displayName||user.email;
+    listenForceSignout(user.uid);listenUserNotifs(user.uid);
+    addNotif('👋','system','Welcome back!',`Signed in as ${user.displayName||user.email}`);
+    const existing=(await get(ref(db,`users/${user.uid}`))).val()||{};
+    const joinedAt=existing.joinedAt||Date.now();
+    window._joinedAt=joinedAt;
+    await set(ref(db,`users/${user.uid}`),{...existing,displayName:user.displayName||'',email:user.email,uid:user.uid,lastSignIn:Date.now(),joinedAt});
+    const el=n=>document.getElementById(n);
+    if(el('set-profile-name'))el('set-profile-name').textContent=user.displayName||user.email||'—';
+    if(el('set-profile-email'))el('set-profile-email').textContent=user.email||'';
+    if(el('set-profile-joined'))el('set-profile-joined').textContent='Joined '+new Date(joinedAt).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+    if(el('set-avatar'))el('set-avatar').textContent=(user.displayName||user.email||'?').charAt(0).toUpperCase();
+    if(el('set-display-name'))el('set-display-name').value=user.displayName||'';
+    await set(push(ref(db,'activityLog')),{type:'login',message:`${user.displayName||user.email} signed into Matthew.html`,uid:user.uid,site:'matthew',ts:Date.now()});
+  }
+
   onAuthStateChanged(auth,async user=>{
     currentUser=user;
     if(user){
-      const banSnap=await get(ref(dbData,`siteConfig/matthewBanned/${user.uid}`));
-      if(banSnap.exists()&&banSnap.val()&&!isOwner(user)){showBanScreen(user.email);return;}
-      document.getElementById('login-gate').classList.add('hidden');
-      document.getElementById('user-display').style.display='flex';
-      document.getElementById('user-name-label').textContent=user.displayName||user.email;
-      listenForceSignout(user.uid);listenUserNotifs(user.uid);
-      addNotif('👋','system','Welcome back!',`Signed in as ${user.displayName||user.email}`);
-      const existing=(await get(ref(db,`users/${user.uid}`))).val()||{};
-      const joinedAt=existing.joinedAt||Date.now();
-      window._joinedAt=joinedAt;
-      await set(ref(db,`users/${user.uid}`),{...existing,displayName:user.displayName||'',email:user.email,uid:user.uid,lastSignIn:Date.now(),joinedAt});
-      const el=n=>document.getElementById(n);
-      if(el('set-profile-name'))el('set-profile-name').textContent=user.displayName||user.email||'—';
-      if(el('set-profile-email'))el('set-profile-email').textContent=user.email||'';
-      if(el('set-profile-joined'))el('set-profile-joined').textContent='Joined '+new Date(joinedAt).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
-      if(el('set-avatar'))el('set-avatar').textContent=(user.displayName||user.email||'?').charAt(0).toUpperCase();
-      if(el('set-display-name'))el('set-display-name').value=user.displayName||'';
-      await set(push(ref(db,'activityLog')),{type:'login',message:`${user.displayName||user.email} signed into Matthew.html`,uid:user.uid,site:'matthew',ts:Date.now()});
+      await handleUserSignedIn(user);
     }else{document.getElementById('login-gate').classList.remove('hidden');document.getElementById('user-display').style.display='none';updateLgLocked();}
   });
 
@@ -643,6 +664,23 @@ footer .f-dot{color:var(--border-hi);}
   function updateLgLocked(){const ll=document.getElementById('lg-locked-login'),ls=document.getElementById('lg-locked-signup'),fw=document.getElementById('lg-form-wrap');if(_lgMode==='login'&&loginDisabled){ll.classList.add('show');ls.classList.remove('show');fw.style.display='none';}else if(_lgMode==='register'&&signupDisabled){ls.classList.add('show');ll.classList.remove('show');fw.style.display='none';}else{ll.classList.remove('show');ls.classList.remove('show');fw.style.display='block';}}
   window.lgSubmit=async function(){if(_lgMode==='login'&&loginDisabled||_lgMode==='register'&&signupDisabled)return;const email=document.getElementById('lg-email').value.trim(),pass=document.getElementById('lg-password').value,name=document.getElementById('lg-name').value.trim(),errEl=document.getElementById('lg-err'),btn=document.getElementById('lg-submit-btn');errEl.style.display='none';if(!email||!pass){errEl.textContent='Fill in all fields';errEl.style.display='block';return;}btn.disabled=true;btn.textContent='...';try{if(_lgMode==='register'){const c=await createUserWithEmailAndPassword(auth,email,pass);if(name)await updateProfile(c.user,{displayName:name});}else await signInWithEmailAndPassword(auth,email,pass);}catch(e){errEl.textContent=e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();errEl.style.display='block';btn.disabled=false;btn.textContent=_lgMode==='login'?'SIGN IN':'CREATE ACCOUNT';}};
   window.lgForgot=()=>window.location.href='https://htmltools.me/ForgotPassword';
+  window.lgGoogle=async function(){
+    if(loginDisabled&&signupDisabled)return;
+    const errEl=document.getElementById('lg-err'),btn=document.getElementById('lg-google-btn');
+    errEl.style.display='none';
+    btn.disabled=true;
+    btn.textContent='Signing in…';
+    try{
+      await signInWithPopup(auth,googleProvider);
+    }catch(e){
+      if(e.code!=='auth/popup-closed-by-user'){
+        errEl.textContent=e.message.replace('Firebase: ','').replace(/\(.*\)/,'').trim();
+        errEl.style.display='block';
+      }
+      btn.disabled=false;
+      btn.innerHTML='<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;flex-shrink:0"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>Continue with Google';
+    }
+  };
   window.doSignOut=async()=>await fbSignOut(auth);
 
   document.getElementById('btnSaveName').addEventListener('click',async function(){
@@ -733,7 +771,6 @@ var STATIC_TABS=[
   {label:'<i class="fas fa-gamepad tab-icon"></i> Game Studio'},
   {label:'<i class="fas fa-layer-group tab-icon"></i> Tab Creator'},
 ];
-// HT Movies and Geometry Dash removed per request
 var REDIRECT_TABS=[
   {label:'MatTube',icon:'fab fa-youtube',url:'https://mattube.htmltools.me/'},
   {label:'Make Your Own AI',icon:'fas fa-robot',url:'https://ai.htmltools.me'},
@@ -743,6 +780,7 @@ var REDIRECT_TABS=[
   {label:'Remove Background',icon:'fas fa-eraser',url:'https://htmltools.me/Removebg'},
   {label:'Proxy',icon:'fas fa-shield-alt',url:'https://htmltools.me/URL'},
   {label:'MatTok',icon:'fab fa-tiktok',url:'https://htmltools.me/MatTok/'},
+  {label:'Website Encryption',icon:'fas fa-lock',url:'https://htmltools.me/website-encryption'},
   {label:'Advanced HTML Runner',icon:'fas fa-rocket',url:'https://htmltools.me/Advanced',advanced:true},
 ];
 
@@ -1021,6 +1059,7 @@ window.addEventListener('load',function(){
 });
 </script>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
