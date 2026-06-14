@@ -154,6 +154,12 @@ footer .dot{color:var(--borderhi);}
 .info-box{background:rgba(37,99,235,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r);padding:9px 12px;font-size:.72rem;color:#93bbf8;line-height:1.6;display:flex;gap:7px;align-items:flex-start;}
 .warn-box{background:rgba(202,138,4,.06);border:1px solid rgba(202,138,4,.2);border-radius:var(--r);padding:9px 12px;font-size:.72rem;color:#fbbf24;line-height:1.6;display:flex;gap:7px;align-items:flex-start;}
 .domains-section{display:flex;flex-direction:column;gap:6px;}
+.type-tile{background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-md);padding:9px 11px;cursor:pointer;transition:all .13s;user-select:none;}
+.type-tile:hover{border-color:var(--borderhi);background:var(--panel2);}
+.type-tile.active{border-color:var(--white);background:var(--panel2);}
+.type-tile-icon{font-size:1.1rem;margin-bottom:3px;}
+.type-tile-label{font-size:.75rem;font-weight:600;color:var(--tx);}
+.type-tile-sub{font-size:.65rem;color:var(--tx3);margin-top:1px;}
 </style>
 </head>
 <body>
@@ -314,7 +320,7 @@ footer .dot{color:var(--borderhi);}
 
 <!-- CREATE MODAL -->
 <div class="modal-bg" id="modal-bg">
-  <div class="modal">
+  <div class="modal" style="max-width:460px;">
     <div class="modal-hdr">
       <h3>New Project</h3>
       <button class="modal-close-btn" id="modal-close-btn">&times;</button>
@@ -322,11 +328,15 @@ footer .dot{color:var(--borderhi);}
     <div class="modal-body">
       <div>
         <label class="lbl">Project name</label>
-        <input class="inp" type="text" id="modal-name" placeholder="e.g. Firebase Config"/>
+        <input class="inp" type="text" id="modal-name" placeholder="e.g. My Firebase Config"/>
+      </div>
+      <div>
+        <label class="lbl">What are you protecting?</label>
+        <div id="type-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px;"></div>
       </div>
       <div>
         <label class="lbl">Secret to protect</label>
-        <textarea class="inp" id="modal-content" placeholder="Paste your config, API key, HTML, anything..." style="min-height:120px;"></textarea>
+        <textarea class="inp" id="modal-content" placeholder="Paste your API key here..." style="min-height:100px;"></textarea>
       </div>
       <div class="info-box">
         <span>&#128274;</span>
@@ -431,54 +441,52 @@ function escJs(t) {
 }
 
 // ── SNIPPET GENERATOR ──
-// Generates a clean, self-contained async function.
-// - No Firebase SDK needed
-// - Domain allow-list check built in (if domains provided)
-// - Uses only browser-native fetch + Web Crypto
-function makeSnippet(id, encKey, domains) {
+// Type-aware: generates a minimal, ready-to-use snippet per secret type.
+// Core fetch+decrypt is identical; usage lines differ by type.
+function makeSnippet(id, encKey, domains, type) {
   var domainList = (domains || []).filter(function(d){ return d.trim(); });
-  var lines = [];
+  var L = [];
 
-  lines.push('async function getSecret() {');
+  L.push('async function getSecret() {');
 
-  // Domain check
   if (domainList.length > 0) {
-    var domainArr = JSON.stringify(domainList);
-    lines.push('  const allowed = ' + domainArr + ';');
-    lines.push('  const host = window.location.hostname;');
-    lines.push('  if (!allowed.includes(host)) {');
-    lines.push('    throw new Error("Domain not allowed: " + host);');
-    lines.push('  }');
+    L.push('  const allowed = ' + JSON.stringify(domainList) + ';');
+    L.push('  if (!allowed.includes(window.location.hostname))');
+    L.push('    throw new Error("Domain not allowed: " + window.location.hostname);');
   }
 
-  // Fetch encrypted blob from Firebase REST (CORS-friendly, no SDK needed)
-  lines.push('  const res = await fetch(');
-  lines.push('    "' + FB_DB_URL + '/we_secrets/' + escJs(id) + '.json"');
-  lines.push('  );');
-  lines.push('  if (!res.ok) throw new Error("Fetch failed: HTTP " + res.status);');
-  lines.push('  const data = await res.json();');
-  lines.push('  if (data === null) throw new Error("Secret not found — check the project ID or Firebase rules allow public reads on we_secrets/");');
-  lines.push('  if (!data.e) throw new Error("Unexpected response format from server");');
+  // Bare fetch — no API key in URL, no SDK, pure REST
+  L.push('  const res = await fetch("' + FB_DB_URL + '/we_secrets/' + escJs(id) + '.json");');
+  L.push('  if (!res.ok) throw new Error("Fetch failed: HTTP " + res.status);');
+  L.push('  const json = await res.json();');
+  L.push('  if (!json || !json.e) throw new Error("Secret not found (id: ' + escJs(id) + ')");');
+  L.push('  const raw = new TextEncoder().encode("' + escJs(encKey) + '".padEnd(32,"0").slice(0,32));');
+  L.push('  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);');
+  L.push('  const buf = Uint8Array.from(atob(json.e), c => c.charCodeAt(0));');
+  L.push('  const pt  = await crypto.subtle.decrypt({name:"AES-GCM",iv:buf.slice(0,12)}, key, buf.slice(12));');
+  L.push('  return new TextDecoder().decode(pt);');
+  L.push('}');
+  L.push('');
 
-  // Decrypt with Web Crypto (AES-256-GCM) — key must be exactly 32 bytes, padded/truncated to match encryption
-  lines.push('  const rawKey = new TextEncoder().encode("' + escJs(encKey) + '".padEnd(32,"0").slice(0,32));');
-  lines.push('  const cryptoKey = await crypto.subtle.importKey(');
-  lines.push('    "raw", rawKey, "AES-GCM", false, ["decrypt"]');
-  lines.push('  );');
-  lines.push('  const buf = Uint8Array.from(atob(data.e), c => c.charCodeAt(0));');
-  lines.push('  const decrypted = await crypto.subtle.decrypt(');
-  lines.push('    { name: "AES-GCM", iv: buf.slice(0, 12) },');
-  lines.push('    cryptoKey,');
-  lines.push('    buf.slice(12)');
-  lines.push('  );');
-  lines.push('  return new TextDecoder().decode(decrypted);');
-  lines.push('}');
-  lines.push('');
-  lines.push('// Usage:');
-  lines.push('const secret = await getSecret();');
-  lines.push('// `secret` is your decrypted string — parse it, use it, inject it.');
+  // Type-specific usage
+  if (type === 'apikey') {
+    L.push('// Usage — API key:');
+    L.push('const apiKey = await getSecret();');
+    L.push('// then e.g.: fetch(url, { headers: { Authorization: "Bearer " + apiKey } })');
+  } else if (type === 'firebase') {
+    L.push('// Usage — Firebase config:');
+    L.push('const firebaseConfig = JSON.parse(await getSecret());');
+    L.push('// then: firebase.initializeApp(firebaseConfig)  (or modular initializeApp)');
+  } else if (type === 'html') {
+    L.push('// Usage — inject HTML:');
+    L.push('document.getElementById("target").innerHTML = await getSecret();');
+  } else {
+    L.push('// Usage — raw string / JSON:');
+    L.push('const secret = await getSecret();');
+    L.push('// parse if JSON: const data = JSON.parse(secret);');
+  }
 
-  return lines.join('\n');
+  return L.join('\n');
 }
 
 // ── AUTH STATE ──
@@ -586,6 +594,7 @@ async function saveProjFB(proj) {
   var toSave = {
     id: proj.id,
     name: proj.name,
+    type: proj.type || 'other',
     encrypted: proj.encrypted,
     encKey: proj.encKey,
     domains: proj.domains || [],
@@ -663,7 +672,7 @@ function renderDomainList(containerId, domains) {
 function updateSnippetDisplay() {
   var el = document.getElementById('snippet-display');
   if (el && _currentProjForView) {
-    var s = makeSnippet(_currentProjForView.id, _currentProjForView.encKey, _projDomains);
+    var s = makeSnippet(_currentProjForView.id, _currentProjForView.encKey, _projDomains, _currentProjForView.type || 'other');
     el.textContent = s;
     _currentSnippet = s;
   }
@@ -678,7 +687,7 @@ function showProject(proj) {
   document.getElementById('welcome-screen').style.display = 'none';
   var pv = document.getElementById('proj-view');
   pv.style.display = 'flex';
-  _currentSnippet = makeSnippet(proj.id, proj.encKey, _projDomains);
+  _currentSnippet = makeSnippet(proj.id, proj.encKey, _projDomains, proj.type || 'other');
 
   pv.innerHTML =
     '<div class="proj-header">' +
@@ -806,6 +815,7 @@ function showProject(proj) {
       proj.encKey    = genUid(32);
       proj.encrypted = await encryptText(txt, proj.encKey);
       proj.domains   = _projDomains.slice();
+      proj.type      = proj.type || _currentProjForView.type || 'other';
       var saved = await saveProjFB(proj);
       // Verify round-trip works
       try {
@@ -818,7 +828,7 @@ function showProject(proj) {
       _currentProjForView = saved;
       proj = saved;
       this.textContent = 'Save & Re-encrypt'; this.disabled = false;
-      _currentSnippet = makeSnippet(proj.id, proj.encKey, _projDomains);
+      _currentSnippet = makeSnippet(proj.id, proj.encKey, _projDomains, proj.type || 'other');
       document.getElementById('snippet-display').textContent = _currentSnippet;
       document.getElementById('content-edit').value = '';
       showToast('Re-encrypted! Copy your new snippet.');
@@ -859,11 +869,43 @@ function updateDomainStatusRow() {
 }
 
 // ── MODAL ──
+var _modalType = 'apikey';
+var TYPE_META = {
+  apikey:   { icon:'🔑', label:'API Key',        sub:'Single key or token string',  ph:'Paste your API key or token here...' },
+  firebase: { icon:'🔥', label:'Firebase Config', sub:'JSON config object',           ph:'Paste your Firebase config JSON here...' },
+  html:     { icon:'📄', label:'HTML',            sub:'Inject into the DOM',          ph:'Paste your HTML here...' },
+  other:    { icon:'📦', label:'Other / JSON',    sub:'Any text or data',             ph:'Paste your secret here...' }
+};
+
+function buildTypeGrid() {
+  var grid = document.getElementById('type-grid');
+  if (!grid) return;
+  grid.innerHTML = Object.keys(TYPE_META).map(function(t) {
+    var m = TYPE_META[t];
+    return '<div class="type-tile' + (t===_modalType?' active':'') + '" data-type="'+t+'">' +
+      '<div class="type-tile-icon">'+m.icon+'</div>' +
+      '<div class="type-tile-label">'+m.label+'</div>' +
+      '<div class="type-tile-sub">'+m.sub+'</div>' +
+    '</div>';
+  }).join('');
+  grid.querySelectorAll('.type-tile').forEach(function(tile) {
+    tile.addEventListener('click', function() {
+      _modalType = tile.dataset.type;
+      grid.querySelectorAll('.type-tile').forEach(function(t){ t.classList.remove('active'); });
+      tile.classList.add('active');
+      document.getElementById('modal-content').placeholder = TYPE_META[_modalType].ph;
+    });
+  });
+}
+
 function openModal() {
-  document.getElementById('modal-name').value='';
-  document.getElementById('modal-content').value='';
+  _modalType = 'apikey';
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-content').value = '';
   document.getElementById('modal-bg').classList.add('open');
-  setTimeout(function(){document.getElementById('modal-name').focus();},80);
+  buildTypeGrid();
+  document.getElementById('modal-content').placeholder = TYPE_META[_modalType].ph;
+  setTimeout(function(){ document.getElementById('modal-name').focus(); }, 80);
 }
 function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
 
@@ -876,30 +918,30 @@ document.getElementById('modal-name').addEventListener('keydown', function(e){ i
 
 document.getElementById('modal-save-btn').addEventListener('click', async function() {
   var name    = document.getElementById('modal-name').value.trim();
-  var content = document.getElementById('modal-content').value;
-  if (!name)           { showToast('Enter a project name'); return; }
-  if (!content.trim()) { showToast('Paste something to protect'); return; }
+  var txt     = document.getElementById('modal-content').value;
+  if (!name)      { showToast('Enter a project name'); return; }
+  if (!txt.trim()){ showToast('Paste something to protect'); return; }
   this.textContent='Encrypting…'; this.disabled=true;
   try {
-    var id      = genUid(20);
-    var encKey  = genUid(32);
-    var encrypted = await encryptText(content, encKey);
-    var proj = { id:id, name:name, encKey:encKey, encrypted:encrypted, domains:[], created:Date.now(), uid:currentUser.uid };
+    var id        = genUid(20);
+    var encKey    = genUid(32);
+    var encrypted = await encryptText(txt, encKey);
+    var proj = { id:id, name:name, type:_modalType, encKey:encKey, encrypted:encrypted, domains:[], created:Date.now(), uid:currentUser.uid };
     await saveProjFB(proj);
-    // Verify the save actually worked end-to-end before declaring success
     try {
       await verifySave(id, encKey, encrypted);
-    } catch(verifyErr) {
-      showToast('Saved but verify failed: ' + verifyErr.message);
-      console.error('Verify failed:', verifyErr);
+    } catch(ve) {
+      console.error('Post-save verify failed:', ve);
+      showToast('Warning: ' + ve.message);
     }
     activeId=id; renderSidebar(); showProject(proj);
     this.textContent='Create & Encrypt'; this.disabled=false;
     closeModal();
-    showToast('Project created! Add domains, then copy your snippet.');
+    showToast('Created! Add allowed domains, then copy your snippet.');
   } catch(e) {
+    console.error('Create failed:', e);
     this.textContent='Create & Encrypt'; this.disabled=false;
-    showToast('Failed to create project. Try again.');
+    showToast('Failed: ' + e.message);
   }
 });
 </script>
