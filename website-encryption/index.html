@@ -371,14 +371,37 @@ function genUid(len) {
   for (var i = 0; i < len; i++) s += chars[arr[i] % chars.length];
   return s;
 }
+// Key is always used as raw UTF-8 bytes, exactly 32 bytes (pad/truncate)
+function keyBytes(k) {
+  return new TextEncoder().encode(k.padEnd(32,'0').slice(0,32));
+}
 async function encryptText(text, k) {
-  var raw = new TextEncoder().encode(k.padEnd(32,'0').slice(0,32));
-  var key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
+  var key = await crypto.subtle.importKey('raw', keyBytes(k), 'AES-GCM', false, ['encrypt']);
   var iv  = crypto.getRandomValues(new Uint8Array(12));
   var ct  = await crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, new TextEncoder().encode(text));
   var out = new Uint8Array(12 + ct.byteLength);
   out.set(iv, 0); out.set(new Uint8Array(ct), 12);
   return btoa(String.fromCharCode.apply(null, Array.from(out)));
+}
+async function decryptText(b64, k) {
+  var key = await crypto.subtle.importKey('raw', keyBytes(k), 'AES-GCM', false, ['decrypt']);
+  var buf = Uint8Array.from(atob(b64), function(c){ return c.charCodeAt(0); });
+  var pt  = await crypto.subtle.decrypt({name:'AES-GCM', iv:buf.slice(0,12)}, key, buf.slice(12));
+  return new TextDecoder().decode(pt);
+}
+// Verify a freshly saved secret by fetching it back and decrypting
+async function verifySave(id, encKey, encrypted) {
+  // First try decrypting locally
+  var local = await decryptText(encrypted, encKey);
+  if (!local) throw new Error('Local decrypt failed');
+  // Then verify the REST endpoint returns the blob
+  var res = await fetch(FB_DB_URL + '/we_secrets/' + id + '.json');
+  if (!res.ok) throw new Error('Fetch returned ' + res.status);
+  var data = await res.json();
+  if (!data || !data.e) throw new Error('Saved blob not found at REST endpoint');
+  var remote = await decryptText(data.e, encKey);
+  if (remote !== local) throw new Error('Remote decrypt mismatch');
+  return true;
 }
 
 // ── UTILS ──
@@ -432,14 +455,15 @@ function makeSnippet(id, encKey, domains) {
   lines.push('  const res = await fetch(');
   lines.push('    "' + FB_DB_URL + '/we_secrets/' + escJs(id) + '.json"');
   lines.push('  );');
-  lines.push('  if (!res.ok) throw new Error("Fetch failed: " + res.status);');
+  lines.push('  if (!res.ok) throw new Error("Fetch failed: HTTP " + res.status);');
   lines.push('  const data = await res.json();');
-  lines.push('  if (!data || !data.e) throw new Error("Secret not found");');
+  lines.push('  if (data === null) throw new Error("Secret not found — check the project ID or Firebase rules allow public reads on we_secrets/");');
+  lines.push('  if (!data.e) throw new Error("Unexpected response format from server");');
 
-  // Decrypt with Web Crypto (AES-256-GCM)
-  lines.push('  const keyBytes = new TextEncoder().encode("' + escJs(encKey) + '");');
+  // Decrypt with Web Crypto (AES-256-GCM) — key must be exactly 32 bytes, padded/truncated to match encryption
+  lines.push('  const rawKey = new TextEncoder().encode("' + escJs(encKey) + '".padEnd(32,"0").slice(0,32));');
   lines.push('  const cryptoKey = await crypto.subtle.importKey(');
-  lines.push('    "raw", keyBytes, "AES-GCM", false, ["decrypt"]');
+  lines.push('    "raw", rawKey, "AES-GCM", false, ["decrypt"]');
   lines.push('  );');
   lines.push('  const buf = Uint8Array.from(atob(data.e), c => c.charCodeAt(0));');
   lines.push('  const decrypted = await crypto.subtle.decrypt(');
@@ -783,6 +807,13 @@ function showProject(proj) {
       proj.encrypted = await encryptText(txt, proj.encKey);
       proj.domains   = _projDomains.slice();
       var saved = await saveProjFB(proj);
+      // Verify round-trip works
+      try {
+        await verifySave(proj.id, proj.encKey, proj.encrypted);
+      } catch(verifyErr) {
+        console.error('Verify failed after re-encrypt:', verifyErr);
+        showToast('Warning: verify failed — ' + verifyErr.message);
+      }
       // Update reference
       _currentProjForView = saved;
       proj = saved;
@@ -855,6 +886,13 @@ document.getElementById('modal-save-btn').addEventListener('click', async functi
     var encrypted = await encryptText(content, encKey);
     var proj = { id:id, name:name, encKey:encKey, encrypted:encrypted, domains:[], created:Date.now(), uid:currentUser.uid };
     await saveProjFB(proj);
+    // Verify the save actually worked end-to-end before declaring success
+    try {
+      await verifySave(id, encKey, encrypted);
+    } catch(verifyErr) {
+      showToast('Saved but verify failed: ' + verifyErr.message);
+      console.error('Verify failed:', verifyErr);
+    }
     activeId=id; renderSidebar(); showProject(proj);
     this.textContent='Create & Encrypt'; this.disabled=false;
     closeModal();
