@@ -498,101 +498,88 @@ Please write the code to fetch this link and use the result as [describe what yo
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
 <script>
+var _IS_SERVE_MODE = !!(new URLSearchParams(location.search).get('id') && location.hash.length > 1);
+
 // ═══════════════════════════════════════════════════
-// SERVE MODE — if ?id= is in the URL, serve content
-// This runs BEFORE Firebase auth / main app init.
+// SERVE MODE — if ?id= and #key are in the URL,
+// decrypt and serve content, then stop.
 // ═══════════════════════════════════════════════════
-(async function serveMode() {
-  var params = new URLSearchParams(location.search);
-  var id = params.get('id');
-  var encKey = location.hash.slice(1);
+if (_IS_SERVE_MODE) {
+  // Wipe the visible page immediately so nothing leaks while we fetch
+  document.body.style.display = 'none';
 
-  // Only activate serve mode when both params are present
-  if (!id || !encKey) return;
+  (async function serveMode() {
+    var id     = new URLSearchParams(location.search).get('id');
+    var encKey = location.hash.slice(1);
 
-  // Wipe the page immediately so nothing leaks
-  document.body.innerHTML = '';
-  document.head.querySelectorAll('style,link[rel=stylesheet]').forEach(function(el){el.remove();});
-
-  // We need Firebase to read the encrypted blob
-  // The SDK scripts have already loaded synchronously above
-  var _fb = firebase.initializeApp({
-    apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
-    authDomain: "htmltools2.firebaseapp.com",
-    databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
-    projectId: "htmltools2",
-    storageBucket: "htmltools2.firebasestorage.app",
-    messagingSenderId: "61467480060",
-    appId: "1:61467480060:web:4f964a671a5623d10e2c79"
-  }, 'serve');
-  var _db = _fb.database();
-
-  try {
-    var snap = await _db.ref('we_projects/' + id).get();
-    if (!snap.exists()) return; // no data → blank page
-
-    var data = snap.val();
-    var domains = Array.isArray(data.domains) ? data.domains : [];
-
-    // ── DOMAIN CHECK ──
-    // If domains list is non-empty, referrer MUST match one of them.
-    // Empty domains list = locked down (no referrer = no access). 
-    // We changed semantics: empty list now DENIES all, not allows all.
-    // This prevents accidental open access.
-    if (domains.length === 0) {
-      // No domains configured — deny access (owner should configure domains)
-      return;
+    // Crypto helpers
+    async function _getKey(k) {
+      var raw = new TextEncoder().encode(k.padEnd(32,'0').slice(0,32));
+      return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+    }
+    async function _decryptText(b64, k) {
+      try {
+        var key  = await _getKey(k);
+        var data = Uint8Array.from(atob(b64), function(c){return c.charCodeAt(0);});
+        var pt   = await crypto.subtle.decrypt({name:'AES-GCM', iv:data.slice(0,12)}, key, data.slice(12));
+        return new TextDecoder().decode(pt);
+      } catch(e) { return null; }
     }
 
-    var refHost = '';
-    try { refHost = new URL(document.referrer).hostname; } catch(e){}
-
-    // Strip www. for comparison
-    var normalise = function(h) { return h.replace(/^www\./, ''); };
-    var allowed = domains.some(function(d) {
-      var nd = normalise(d);
-      var nh = normalise(refHost);
-      return nh === nd || nh.endsWith('.' + nd);
-    });
-
-    if (!allowed) return; // wrong referrer → blank page
-
-    // ── DECRYPT ──
-    var plaintext = await _decryptText(data.encrypted, encKey);
-    if (!plaintext) return;
-
-    document.open();
-    document.write(plaintext);
-    document.close();
-  } catch(e) {
-    // Silent — blank page on any error
-  }
-
-  // Crypto helpers (self-contained for serve mode)
-  async function _getKey(k) {
-    var raw = new TextEncoder().encode(k.padEnd(32,'0').slice(0,32));
-    return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
-  }
-  async function _decryptText(b64, k) {
     try {
-      var key = await _getKey(k);
-      var data = Uint8Array.from(atob(b64), function(c){return c.charCodeAt(0);});
-      var pt = await crypto.subtle.decrypt({name:'AES-GCM',iv:data.slice(0,12)}, key, data.slice(12));
-      return new TextDecoder().decode(pt);
-    } catch(e) { return null; }
-  }
-})();
+      // Use the already-loaded compat SDK under a named instance so it
+      // doesn't conflict with the main app init below (which won't run).
+      var _fb = firebase.initializeApp({
+        apiKey: "AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",
+        authDomain: "htmltools2.firebaseapp.com",
+        databaseURL: "https://htmltools2-default-rtdb.firebaseio.com",
+        projectId: "htmltools2",
+        storageBucket: "htmltools2.firebasestorage.app",
+        messagingSenderId: "61467480060",
+        appId: "1:61467480060:web:4f964a671a5623d10e2c79"
+      }, 'serve');
+      var _db = _fb.database();
 
-// Stop here if we're in serve mode
-if (new URLSearchParams(location.search).get('id') && location.hash.length > 1) {
-  // The IIFE above has taken over; don't run the main app.
-  // (The page will be rewritten or left blank.)
-  throw new Error('serve-mode');
+      // Projects are stored under each user's UID path.
+      // For serve mode we use a public index: we_index/{projectId}
+      // which stores { uid, encrypted, domains } — written on save.
+      // Fall back to a direct scan approach: query we_index first.
+      var snap = await _db.ref('we_index/' + id).get();
+      if (!snap.exists()) { document.body.style.display = ''; return; }
+
+      var data    = snap.val();
+      var domains = Array.isArray(data.domains) ? data.domains : [];
+
+      // Deny if no domains configured
+      if (domains.length === 0) return;
+
+      // Check referrer against allowed domains
+      var refHost = '';
+      try { refHost = new URL(document.referrer).hostname; } catch(e){}
+      var norm = function(h){ return String(h).toLowerCase().replace(/^www\./, ''); };
+      var allowed = domains.some(function(d){
+        var nd = norm(d), nh = norm(refHost);
+        return nh === nd || nh.endsWith('.' + nd);
+      });
+      if (!allowed) return;
+
+      // Decrypt and serve
+      var plaintext = await _decryptText(data.encrypted, encKey);
+      if (!plaintext) return;
+
+      document.open();
+      document.write(plaintext);
+      document.close();
+    } catch(e) {
+      // Silent failure = blank page
+    }
+  })();
 }
 
 // ═══════════════════════════════════════════════════
-// MAIN APP
+// MAIN APP — only runs when NOT in serve mode
 // ═══════════════════════════════════════════════════
+if (!_IS_SERVE_MODE) {
 
 // ── FIREBASE INIT ──
 firebase.initializeApp({
@@ -825,7 +812,14 @@ async function saveProjFB(proj) {
     created: proj.created || Date.now(),
     uid: currentUser.uid
   };
+  // Save full record under user's private path
   await db.ref(userPath() + '/' + proj.id).set(toSave);
+  // Also write a minimal public index entry so serve mode can look up by id
+  // (encrypted blob + domains only — no name, no uid, no encKey)
+  await db.ref('we_index/' + proj.id).set({
+    encrypted: proj.encrypted,
+    domains: proj.domains || []
+  });
   var i = projects.findIndex(function(p){return p.id === proj.id;});
   if (i >= 0) projects[i] = toSave; else projects.unshift(toSave);
   projects.sort(function(a,b){ return (b.created||0) - (a.created||0); });
@@ -1025,6 +1019,7 @@ function showProject(proj) {
     if (!confirm('Delete "' + proj.name + '"? This cannot be undone.')) return;
     try {
       await db.ref(userPath() + '/' + proj.id).remove();
+      await db.ref('we_index/' + proj.id).remove();
       projects = projects.filter(function(p){return p.id !== proj.id;});
       activeId = null;
       renderSidebar();
@@ -1089,6 +1084,8 @@ document.getElementById('modal-save-btn').addEventListener('click', async functi
     showToast('Failed to create project. Try again.');
   }
 });
+
+} // end if (!_IS_SERVE_MODE)
 </script>
 </body>
 </html>
