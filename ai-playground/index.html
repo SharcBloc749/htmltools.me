@@ -1,121 +1,884 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Cloudflare AI Image Generator</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #111; color: #eee; min-height: 100vh; display: flex; justify-content: center; padding: 2rem 1rem; }
-    .container { width: 100%; max-width: 620px; }
-    h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 1.5rem; color: #fff; }
-    label { display: block; font-size: 13px; color: #aaa; margin-bottom: 5px; }
-    input, select, textarea {
-      width: 100%; padding: 10px 12px; border-radius: 8px;
-      border: 1px solid #333; background: #1e1e1e; color: #eee;
-      font-size: 14px; font-family: sans-serif; margin-bottom: 14px;
-    }
-    textarea { resize: vertical; }
-    button {
-      width: 100%; padding: 12px; background: #f6821f; color: #fff;
-      border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
-      cursor: pointer; margin-top: 4px;
-    }
-    button:hover { background: #d9700f; }
-    button:disabled { background: #444; cursor: not-allowed; }
-    #status { font-size: 13px; color: #aaa; margin: 12px 0; min-height: 18px; }
-    #result { display: none; margin-top: 1rem; }
-    #output { width: 100%; border-radius: 10px; border: 1px solid #333; }
-    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-    .btn-sm {
-      padding: 8px; background: #1e1e1e; border: 1px solid #333;
-      border-radius: 8px; color: #ccc; font-size: 13px;
-      text-align: center; text-decoration: none; display: block;
-    }
-    .btn-sm:hover { background: #2a2a2a; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AI Playground — HTMLTools</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png?v=2"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0c0c;--surface:#111;--panel:#171717;--panel2:#1e1e1e;
+  --border:#252525;--border2:#2e2e2e;--borderhi:#404040;
+  --tx:#e8e8e8;--tx2:#888;--tx3:#4a4a4a;
+  --white:#fff;--wfg:#0c0c0c;
+  --green:#16a34a;--greenhi:#22c55e;
+  --red:#dc2626;--redhi:#ef4444;
+  --blue:#3b82f6;--bluehi:#60a5fa;
+  --r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;
+  --nav-h:48px;
+  --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'IBM Plex Mono','SF Mono',Consolas,monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--font);font-size:13.5px;-webkit-font-smoothing:antialiased;}
+body{display:flex;flex-direction:column;overflow:hidden;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+::selection{background:rgba(255,255,255,.12);}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--borderhi);}
+
+/* NAV */
+nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:6px;flex-shrink:0;z-index:100;}
+.nav-brand{display:flex;align-items:center;gap:7px;padding-right:12px;margin-right:4px;border-right:1px solid var(--border);flex-shrink:0;}
+.nav-mark{width:24px;height:24px;border-radius:5px;overflow:hidden;flex-shrink:0;}
+.nav-mark img{width:24px;height:24px;object-fit:contain;display:block;}
+.nav-name{font-size:.78rem;font-weight:600;color:var(--tx2);}
+.nav-tab{padding:5px 10px;border-radius:var(--r);font-size:12.5px;font-weight:500;color:var(--tx3);cursor:pointer;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:6px;border:1px solid transparent;user-select:none;min-height:29px;background:transparent;}
+.nav-tab:hover{color:var(--tx2);background:var(--panel);}
+.nav-tab.active{color:var(--tx);background:var(--panel);border-color:var(--border);}
+.nav-spacer{flex:1;}
+.nav-user{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--tx3);}
+.nav-user-email{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* BUTTONS */
+.btn{background:var(--panel);border:1px solid var(--border2);color:var(--tx2);padding:0 10px;border-radius:var(--r);font-size:.75rem;font-weight:500;font-family:var(--font);transition:all .13s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;height:27px;cursor:pointer;}
+.btn:hover{background:var(--panel2);border-color:var(--borderhi);color:var(--tx);}
+.btn:active{opacity:.75;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-prim{background:var(--white);color:var(--wfg);border-color:var(--white);font-weight:600;}
+.btn-prim:hover{opacity:.88;background:var(--white);border-color:var(--white);color:var(--wfg);}
+.btn-danger{color:var(--redhi);border-color:rgba(220,38,38,.2);background:transparent;}
+.btn-danger:hover{background:rgba(220,38,38,.06);border-color:var(--redhi);}
+.btn-full{width:100%;justify-content:center;height:32px;font-size:.8rem;}
+
+/* LAYOUT */
+.viewport{flex:1;display:flex;overflow:hidden;}
+.page{flex:1;display:none;flex-direction:column;overflow:hidden;}
+.page.active{display:flex;}
+
+/* AUTH */
+.auth-page{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);}
+.auth-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);width:100%;max-width:380px;overflow:hidden;}
+.auth-hdr{padding:20px 22px 14px;border-bottom:1px solid var(--border);}
+.auth-hdr-brand{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.auth-hdr-mark{width:28px;height:28px;border-radius:6px;overflow:hidden;border:1px solid var(--border2);}
+.auth-hdr-mark img{width:28px;height:28px;object-fit:contain;display:block;}
+.auth-hdr h2{font-size:.95rem;font-weight:700;letter-spacing:-.02em;}
+.auth-hdr p{font-size:.75rem;color:var(--tx3);margin-top:3px;}
+.auth-body{padding:18px 22px;display:flex;flex-direction:column;gap:12px;}
+.auth-foot{padding:12px 22px;border-top:1px solid var(--border);font-size:.73rem;color:var(--tx3);text-align:center;}
+.auth-foot a{color:var(--tx2);text-decoration:underline;cursor:pointer;}
+.auth-foot a:hover{color:var(--tx);}
+.auth-err{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:var(--r);padding:8px 10px;font-size:.73rem;color:var(--redhi);display:none;}
+.auth-err.show{display:block;}
+.auth-google-btn{width:100%;height:34px;background:var(--panel);border:1px solid var(--border2);color:var(--tx2);border-radius:var(--r);font-family:var(--font);font-size:.78rem;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all .13s;}
+.auth-google-btn:hover{border-color:var(--borderhi);color:var(--tx);background:var(--panel2);}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:2px 0;}
+.auth-divider span{font-size:.65rem;color:var(--tx3);white-space:nowrap;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+label.lbl{display:block;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);margin-bottom:4px;}
+input.inp{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.82rem;padding:0 9px;height:30px;border-radius:var(--r);outline:none;transition:border-color .13s;-webkit-appearance:none;}
+input.inp:focus{border-color:var(--borderhi);}
+input.inp::placeholder{color:var(--tx3);}
+
+/* SIDEBAR */
+.sidebar{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sidebar-top{padding:12px;border-bottom:1px solid var(--border);}
+.sidebar-section{font-size:.6rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);padding:10px 12px 4px;}
+.sidebar-item{padding:7px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .13s;border-left:2px solid transparent;font-size:.78rem;color:var(--tx2);}
+.sidebar-item:hover{background:var(--panel);color:var(--tx);}
+.sidebar-item.active{background:var(--panel);color:var(--tx);border-left-color:var(--white);}
+.sidebar-item-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0;}
+.sidebar-item-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sidebar-item-badge{font-size:.6rem;padding:1px 5px;border-radius:3px;font-weight:600;background:var(--panel2);border:1px solid var(--border2);color:var(--tx3);}
+.sidebar-item-badge.high{color:#22c55e;border-color:rgba(34,197,94,.2);background:rgba(34,197,94,.06);}
+.sidebar-item-badge.med{color:#f59e0b;border-color:rgba(245,158,11,.2);background:rgba(245,158,11,.06);}
+.sidebar-item-badge.low{color:#f97316;border-color:rgba(249,115,22,.2);background:rgba(249,115,22,.06);}
+.sidebar-scroll{flex:1;overflow-y:auto;}
+
+/* MAIN CONTENT */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* CHAT */
+.chat-header{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.chat-header-info{flex:1;}
+.chat-header-model{font-size:.85rem;font-weight:600;}
+.chat-header-sub{font-size:.68rem;color:var(--tx3);margin-top:1px;}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.chat-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--tx3);text-align:center;padding:40px;}
+.chat-empty-icon{font-size:2rem;opacity:.3;}
+.chat-empty h3{font-size:.9rem;font-weight:600;color:var(--tx2);}
+.chat-empty p{font-size:.75rem;line-height:1.7;max-width:300px;}
+.msg{display:flex;flex-direction:column;gap:4px;max-width:100%;}
+.msg-user{align-items:flex-end;}
+.msg-assistant{align-items:flex-start;}
+.msg-bubble{padding:9px 12px;border-radius:var(--r-lg);font-size:.82rem;line-height:1.7;max-width:75%;}
+.msg-user .msg-bubble{background:var(--white);color:var(--wfg);border-radius:var(--r-lg) var(--r-lg) 3px var(--r-lg);}
+.msg-assistant .msg-bubble{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg) var(--r-lg) var(--r-lg) 3px;color:var(--tx);max-width:85%;}
+.msg-meta{font-size:.62rem;color:var(--tx3);padding:0 4px;}
+.code-block-wrap{background:var(--panel2);border:1px solid var(--border2);border-radius:var(--r-md);overflow:hidden;margin:6px 0;width:100%;}
+.code-block-header{padding:6px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;background:var(--panel);}
+.code-block-lang{font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);flex:1;}
+.code-block-actions{display:flex;gap:4px;}
+.code-block-btn{background:transparent;border:1px solid var(--border2);color:var(--tx3);font-size:.65rem;padding:2px 7px;border-radius:3px;cursor:pointer;font-family:var(--font);transition:all .13s;height:20px;display:flex;align-items:center;gap:3px;}
+.code-block-btn:hover{color:var(--tx);border-color:var(--borderhi);}
+.code-block-content{padding:10px 12px;font-family:var(--mono);font-size:.72rem;line-height:1.7;color:var(--tx2);overflow-x:auto;white-space:pre;max-height:400px;overflow-y:auto;}
+.chat-input-area{padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;}
+.chat-input-row{display:flex;gap:8px;align-items:flex-end;}
+.chat-textarea{flex:1;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.82rem;padding:8px 10px;border-radius:var(--r-md);outline:none;resize:none;min-height:38px;max-height:120px;line-height:1.5;transition:border-color .13s;}
+.chat-textarea:focus{border-color:var(--borderhi);}
+.chat-textarea::placeholder{color:var(--tx3);}
+.chat-send-btn{height:38px;width:38px;background:var(--white);color:var(--wfg);border:none;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:15px;transition:opacity .13s;flex-shrink:0;}
+.chat-send-btn:hover{opacity:.85;}
+.chat-send-btn:disabled{opacity:.35;cursor:not-allowed;}
+.chat-controls{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.chat-controls-left{flex:1;display:flex;gap:6px;align-items:center;}
+.token-count{font-size:.65rem;color:var(--tx3);}
+.clear-btn{background:transparent;border:none;color:var(--tx3);font-size:.68rem;cursor:pointer;padding:2px 6px;border-radius:3px;font-family:var(--font);transition:color .13s;}
+.clear-btn:hover{color:var(--redhi);}
+
+/* IMAGE GEN */
+.image-panel{flex:1;display:flex;overflow:hidden;}
+.image-config{width:260px;flex-shrink:0;border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
+.image-config label.lbl{margin-bottom:3px;}
+.image-config select,.image-config textarea,.image-config input[type=range]{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.78rem;padding:0 8px;height:28px;border-radius:var(--r);outline:none;-webkit-appearance:none;}
+.image-config select:focus,.image-config textarea:focus{border-color:var(--borderhi);}
+.image-config textarea{height:80px;padding:7px 8px;resize:vertical;font-size:.75rem;line-height:1.5;}
+.image-config input[type=range]{height:4px;padding:0;cursor:pointer;accent-color:var(--white);}
+.image-output{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:flex-start;}
+.image-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--tx3);text-align:center;height:300px;}
+.image-placeholder-icon{font-size:2.5rem;opacity:.2;}
+.image-placeholder h3{font-size:.85rem;color:var(--tx2);}
+.image-placeholder p{font-size:.72rem;line-height:1.6;max-width:260px;}
+.image-result{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;width:100%;max-width:600px;}
+.image-result img{width:100%;display:block;}
+.image-result-footer{padding:10px 12px;display:flex;align-items:center;gap:6px;border-top:1px solid var(--border);}
+.image-result-prompt{flex:1;font-size:.7rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* SECTION HEADERS */
+.section-divider{font-size:.6rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);padding:8px 12px 3px;display:flex;align-items:center;gap:6px;}
+.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* SPINNER */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--tx3);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--panel2);border:1px solid var(--border2);padding:7px 14px;border-radius:var(--r-md);font-size:.78rem;font-weight:500;z-index:9999;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* STATUS BADGE */
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--greenhi);flex-shrink:0;}
+
+/* FOOTER */
+footer{padding:5px 14px;font-size:.68rem;color:var(--tx3);background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.5rem;font-family:var(--mono);}
+footer strong{color:var(--tx2);font-weight:500;}
+footer .dot{color:var(--borderhi);}
+
+/* LOADING */
+#app-loading{position:fixed;inset:0;background:var(--bg);z-index:9000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;font-size:.75rem;color:var(--tx3);}
+#app-loading .spin{width:20px;height:20px;}
+#app-loading.hidden{display:none;}
+
+/* SYSTEM PROMPT */
+.sys-toggle{font-size:.68rem;color:var(--tx3);cursor:pointer;display:flex;align-items:center;gap:4px;padding:0 2px;transition:color .13s;background:none;border:none;font-family:var(--font);}
+.sys-toggle:hover{color:var(--tx2);}
+.sys-prompt-area{background:var(--panel2);border:1px solid var(--border);border-radius:var(--r);padding:8px;margin-top:6px;display:none;}
+.sys-prompt-area.open{display:block;}
+.sys-prompt-area textarea{width:100%;background:transparent;border:none;color:var(--tx2);font-family:var(--mono);font-size:.7rem;line-height:1.6;resize:none;outline:none;height:60px;}
+
+/* THINKING INDICATOR */
+.thinking{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);width:fit-content;}
+.thinking-dots{display:flex;gap:3px;}
+.thinking-dot{width:5px;height:5px;border-radius:50%;background:var(--tx3);animation:pulse 1.4s ease-in-out infinite;}
+.thinking-dot:nth-child(2){animation-delay:.2s;}
+.thinking-dot:nth-child(3){animation-delay:.4s;}
+@keyframes pulse{0%,80%,100%{opacity:.3;}40%{opacity:1;}}
+.thinking-label{font-size:.7rem;color:var(--tx3);}
+
+/* INLINE CODE */
+.msg-bubble code{font-family:var(--mono);font-size:.72rem;background:var(--panel2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;color:var(--tx);}
+.msg-bubble p{margin-bottom:6px;}
+.msg-bubble p:last-child{margin-bottom:0;}
+.msg-bubble ul,.msg-bubble ol{padding-left:16px;margin-bottom:6px;}
+.msg-bubble li{margin-bottom:2px;}
+.msg-bubble strong{font-weight:600;color:var(--tx);}
+.msg-bubble h1,.msg-bubble h2,.msg-bubble h3{font-weight:600;margin-bottom:4px;margin-top:8px;}
+.msg-bubble h1{font-size:.9rem;}
+.msg-bubble h2{font-size:.85rem;}
+.msg-bubble h3{font-size:.8rem;}
+
+/* MODEL QUALITY COLOR */
+.q-high{color:#22c55e;}
+.q-med{color:#f59e0b;}
+.q-low{color:#f97316;}
+</style>
 </head>
 <body>
-<div class="container">
-  <h1>☁️ Cloudflare AI Image Generator</h1>
 
-  <label>Prompt</label>
-  <textarea id="prompt" rows="3" placeholder="a futuristic city at night, cyberpunk style">a futuristic city at night, cyberpunk style</textarea>
+<div id="app-loading"><div class="spin"></div><span>Loading…</span></div>
 
-  <label>Model</label>
-  <select id="model">
-    <option value="@cf/stabilityai/stable-diffusion-xl-base-1.0">Stable Diffusion XL (best quality)</option>
-    <option value="@cf/runwayml/stable-diffusion-v1-5-inpainting">Stable Diffusion 1.5</option>
-    <option value="@cf/lykon/dreamshaper-8-lcm">Dreamshaper 8 (fast)</option>
-    <option value="@cf/bytedance/stable-diffusion-xl-lightning">SDXL Lightning (fastest)</option>
-  </select>
+<!-- NAV -->
+<nav id="main-nav" style="display:none;">
+  <div class="nav-brand">
+    <div class="nav-mark"><img src="https://htmltools.me/logo3.png" alt="HT"/></div>
+    <span class="nav-name">HTML Tools</span>
+  </div>
+  <div class="nav-tab active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</div>
+  <div class="nav-tab" id="tab-image" onclick="switchTab('image')">🎨 Image Gen</div>
+  <div class="nav-spacer"></div>
+  <div class="nav-user">
+    <div class="status-dot"></div>
+    <span class="nav-user-email" id="nav-email"></span>
+    <button class="btn btn-danger" id="signout-btn" style="height:25px;font-size:.7rem;">Sign out</button>
+  </div>
+</nav>
 
-  <button id="btn" onclick="generate()">Generate Image</button>
-  <div id="status"></div>
-
-  <div id="result">
-    <img id="output" alt="Generated image" />
-    <div class="btn-row">
-      <a id="downloadLink" class="btn-sm" download="image.png">⬇ Download</a>
-      <button class="btn-sm" onclick="generate()">🔄 Regenerate</button>
+<!-- AUTH PAGE -->
+<div id="auth-page" style="display:none;flex:1;overflow:hidden;">
+  <div class="auth-page">
+    <div class="auth-box">
+      <div class="auth-hdr">
+        <div class="auth-hdr-brand">
+          <div class="auth-hdr-mark"><img src="https://htmltools.me/logo3.png" alt="HT"/></div>
+          <span style="font-size:.8rem;font-weight:600;color:var(--tx2);">HTML Tools</span>
+        </div>
+        <h2 id="auth-title">Sign in to AI Playground</h2>
+        <p id="auth-subtitle">Access 10+ AI models, free forever</p>
+      </div>
+      <div class="auth-body">
+        <div class="auth-err" id="auth-err"></div>
+        <button class="auth-google-btn" id="google-signin-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continue with Google
+        </button>
+        <div class="auth-divider"><span>or use email</span></div>
+        <div>
+          <label class="lbl">Email</label>
+          <input class="inp" type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"/>
+        </div>
+        <div>
+          <label class="lbl">Password</label>
+          <input class="inp" type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password"/>
+        </div>
+        <button class="btn btn-prim btn-full" id="auth-submit-btn" style="height:34px;font-size:.82rem;">Sign in</button>
+      </div>
+      <div class="auth-foot">
+        <span id="auth-switch-text">Don't have an account? <a id="auth-switch-link">Create one</a></span>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- MAIN APP -->
+<div id="main-app" style="display:none;flex:1;overflow:hidden;flex-direction:column;">
+  <div class="viewport">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-top">
+        <div style="font-size:.72rem;color:var(--tx3);line-height:1.6;">Powered by <strong style="color:var(--tx2);">Cloudflare Workers AI</strong> · Free</div>
+      </div>
+      <div class="sidebar-scroll">
+
+        <!-- TEXT MODELS -->
+        <div class="section-divider">Text Models</div>
+
+        <div class="sidebar-item active" data-mode="chat" data-model="@cf/meta/llama-4-scout-17b-16e-instruct" data-name="Llama 4 Scout" data-sub="Meta · 17B · Multimodal" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">🦙</span>
+          <span class="sidebar-item-label">Llama 4 Scout</span>
+          <span class="sidebar-item-badge high">High</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="chat" data-model="@cf/meta/llama-3.3-70b-instruct-fp8-fast" data-name="Llama 3.3 70B" data-sub="Meta · 70B · Fast" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">🦙</span>
+          <span class="sidebar-item-label">Llama 3.3 70B</span>
+          <span class="sidebar-item-badge high">High</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="chat" data-model="@cf/deepseek-ai/deepseek-r1-distill-llama-70b" data-name="DeepSeek R1" data-sub="DeepSeek · Reasoning" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">🧠</span>
+          <span class="sidebar-item-label">DeepSeek R1</span>
+          <span class="sidebar-item-badge high">High</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="chat" data-model="@cf/google/gemma-3-12b-it" data-name="Gemma 3 12B" data-sub="Google · 12B" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">💎</span>
+          <span class="sidebar-item-label">Gemma 3 12B</span>
+          <span class="sidebar-item-badge med">Med</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="chat" data-model="@cf/mistral/mistral-7b-instruct-v0.2" data-name="Mistral 7B" data-sub="Mistral · Fast · Lightweight" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">💨</span>
+          <span class="sidebar-item-label">Mistral 7B</span>
+          <span class="sidebar-item-badge med">Med</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="chat" data-model="@cf/qwen/qwen2.5-coder-32b-instruct" data-name="Qwen 2.5 Coder" data-sub="Alibaba · 32B · Code specialist" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">💻</span>
+          <span class="sidebar-item-label">Qwen 2.5 Coder</span>
+          <span class="sidebar-item-badge high">High</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="chat" data-model="@cf/meta/llama-3.1-8b-instruct" data-name="Llama 3.1 8B" data-sub="Meta · 8B · Fastest" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">⚡</span>
+          <span class="sidebar-item-label">Llama 3.1 8B</span>
+          <span class="sidebar-item-badge low">Low</span>
+        </div>
+
+        <!-- IMAGE MODELS -->
+        <div class="section-divider">Image Models</div>
+
+        <div class="sidebar-item" data-mode="image" data-model="@cf/stabilityai/stable-diffusion-xl-base-1.0" data-name="Stable Diffusion XL" data-sub="Best quality" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">🖼️</span>
+          <span class="sidebar-item-label">SDXL</span>
+          <span class="sidebar-item-badge high">High</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="image" data-model="@cf/bytedance/stable-diffusion-xl-lightning" data-name="SDXL Lightning" data-sub="ByteDance · Very fast" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">⚡</span>
+          <span class="sidebar-item-label">SDXL Lightning</span>
+          <span class="sidebar-item-badge med">Med</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="image" data-model="@cf/lykon/dreamshaper-8-lcm" data-name="Dreamshaper 8" data-sub="Great for art & fantasy" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">🎨</span>
+          <span class="sidebar-item-label">Dreamshaper 8</span>
+          <span class="sidebar-item-badge med">Med</span>
+        </div>
+
+        <div class="sidebar-item" data-mode="image" data-model="@cf/runwayml/stable-diffusion-v1-5-inpainting" data-name="SD 1.5" data-sub="Classic, reliable" onclick="selectModel(this)">
+          <span class="sidebar-item-icon">🖌️</span>
+          <span class="sidebar-item-label">SD 1.5</span>
+          <span class="sidebar-item-badge low">Low</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MAIN AREA -->
+    <div class="main">
+
+      <!-- CHAT PAGE -->
+      <div class="page active" id="page-chat">
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <div class="chat-header-model" id="chat-model-name">Llama 4 Scout</div>
+            <div class="chat-header-sub" id="chat-model-sub">Meta · 17B · Multimodal</div>
+          </div>
+          <button class="btn" onclick="clearChat()" style="font-size:.7rem;">🗑 Clear chat</button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-empty" id="chat-empty">
+            <div class="chat-empty-icon">💬</div>
+            <h3>Start a conversation</h3>
+            <p>Ask anything — code, writing, analysis, math. Switch models anytime from the sidebar.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;">
+              <button class="btn" onclick="quickPrompt('Write me a responsive navbar in HTML and CSS')">Write a navbar</button>
+              <button class="btn" onclick="quickPrompt('Explain how CSS Grid works with examples')">CSS Grid explained</button>
+              <button class="btn" onclick="quickPrompt('Write a JavaScript fetch API example')">Fetch API example</button>
+              <button class="btn" onclick="quickPrompt('What is the best way to center a div in CSS?')">Center a div</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="sys-prompt-area" id="sys-prompt-area">
+            <textarea id="sys-prompt-input" placeholder="System prompt (optional): e.g. You are an expert HTML developer who writes clean, minimal code..."></textarea>
+          </div>
+          <div class="chat-input-row">
+            <textarea class="chat-textarea" id="chat-input" placeholder="Message the AI…" rows="1"></textarea>
+            <button class="chat-send-btn" id="send-btn" onclick="sendMessage()">↑</button>
+          </div>
+          <div class="chat-controls">
+            <div class="chat-controls-left">
+              <button class="sys-toggle" onclick="toggleSysPrompt()">⚙ System prompt</button>
+              <span class="token-count" id="token-count"></span>
+            </div>
+            <span class="token-count" id="msg-count"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- IMAGE PAGE -->
+      <div class="page" id="page-image">
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <div class="chat-header-model" id="img-model-name">Stable Diffusion XL</div>
+            <div class="chat-header-sub" id="img-model-sub">Best quality · Free via Cloudflare</div>
+          </div>
+        </div>
+        <div class="image-panel">
+          <div class="image-config">
+            <div>
+              <label class="lbl">Prompt</label>
+              <textarea id="img-prompt" placeholder="a futuristic city at night, cyberpunk style, neon lights, photorealistic...">a futuristic city at night, cyberpunk style, neon lights, photorealistic</textarea>
+            </div>
+            <div>
+              <label class="lbl">Negative prompt</label>
+              <textarea id="img-negative" placeholder="blurry, low quality, bad anatomy..." style="height:55px;">blurry, low quality, watermark, text</textarea>
+            </div>
+            <div>
+              <label class="lbl">Steps: <span id="steps-val">20</span></label>
+              <input type="range" min="4" max="30" value="20" id="img-steps" oninput="document.getElementById('steps-val').textContent=this.value"/>
+            </div>
+            <div>
+              <label class="lbl">Guidance: <span id="guidance-val">7.5</span></label>
+              <input type="range" min="1" max="15" step="0.5" value="7.5" id="img-guidance" oninput="document.getElementById('guidance-val').textContent=this.value"/>
+            </div>
+            <div>
+              <label class="lbl">Size</label>
+              <select id="img-size">
+                <option value="512x512">512 × 512</option>
+                <option value="768x768" selected>768 × 768</option>
+                <option value="1024x1024">1024 × 1024</option>
+                <option value="1024x576">1024 × 576 (Wide)</option>
+                <option value="576x1024">576 × 1024 (Portrait)</option>
+              </select>
+            </div>
+            <button class="btn btn-prim btn-full" id="img-generate-btn" onclick="generateImage()" style="margin-top:4px;">✦ Generate</button>
+            <div id="img-status" style="font-size:.72rem;color:var(--tx3);min-height:16px;text-align:center;"></div>
+          </div>
+          <div class="image-output" id="image-output">
+            <div class="image-placeholder">
+              <div class="image-placeholder-icon">🎨</div>
+              <h3>Ready to generate</h3>
+              <p>Write a prompt, pick a model from the sidebar, and hit Generate.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<footer><strong>HTML Tools</strong><span class="dot">·</span><span>AI Playground</span><span class="dot">·</span><span>Powered by Cloudflare Workers AI</span><span class="dot">·</span><span>built by Matthew</span></footer>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
-  const ACCOUNT_ID = "b0ac0676bf0675c799a564aaed1eda73";
-  const API_TOKEN = "cfut_70U6YuBMjMnW02sGpE6RiWBpZbcGsuMUb2lnM0cyf983d071";
+// ── CONFIG ──
+const WORKER_URL = "https://divine-art-8fbc.bozhetarnikmatthew.workers.dev/";
 
-  async function generate() {
-    const prompt = document.getElementById('prompt').value.trim();
-    const model = document.getElementById('model').value;
-    const status = document.getElementById('status');
-    const btn = document.getElementById('btn');
-    const result = document.getElementById('result');
+const FB_CONFIG = {
+  apiKey: "AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
+  authDomain: "website-encryption-htmltools.firebaseapp.com",
+  projectId: "website-encryption-htmltools",
+  storageBucket: "website-encryption-htmltools.firebasestorage.app",
+  messagingSenderId: "211271935323",
+  appId: "1:211271935323:web:1abb9d416087ea89c0e67e"
+};
 
-    if (!prompt) { status.textContent = 'Please enter a prompt.'; return; }
+firebase.initializeApp(FB_CONFIG);
+const auth = firebase.auth();
 
-    btn.disabled = true;
-    btn.textContent = 'Generating...';
-    result.style.display = 'none';
-    status.textContent = 'Generating your image... ⏳';
+// ── STATE ──
+let currentModel = "@cf/meta/llama-4-scout-17b-16e-instruct";
+let currentMode  = "chat";
+let messages     = [];
+let isGenerating = false;
 
-    try {
-      const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/${model}`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${API_TOKEN}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ prompt })
-        }
-      );
+// ── AUTH ──
+let authMode = 'signin';
 
-      if (!response.ok) {
-        const err = await response.json();
-        status.textContent = '❌ Error: ' + (err?.errors?.[0]?.message || response.statusText);
-        btn.disabled = false;
-        btn.textContent = 'Generate Image';
-        return;
-      }
-
-      const blob = await response.blob();
-      const imageUrl = URL.createObjectURL(blob);
-
-      document.getElementById('output').src = imageUrl;
-      document.getElementById('downloadLink').href = imageUrl;
-      result.style.display = 'block';
-      status.textContent = '✅ Done!';
-
-    } catch (err) {
-      status.textContent = '❌ Error: ' + err.message;
-    }
-
-    btn.disabled = false;
-    btn.textContent = 'Generate Again';
+auth.onAuthStateChanged(user => {
+  document.getElementById('app-loading').classList.add('hidden');
+  if (user) {
+    document.getElementById('auth-page').style.display  = 'none';
+    document.getElementById('main-app').style.display   = 'flex';
+    document.getElementById('main-nav').style.display   = 'flex';
+    document.getElementById('nav-email').textContent    = user.email || user.displayName || 'User';
+  } else {
+    document.getElementById('auth-page').style.display  = 'flex';
+    document.getElementById('main-app').style.display   = 'none';
+    document.getElementById('main-nav').style.display   = 'none';
   }
+});
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const errEl = document.getElementById('auth-err');
+  errEl.classList.remove('show');
+  if (mode === 'signup') {
+    document.getElementById('auth-title').textContent      = 'Create your account';
+    document.getElementById('auth-subtitle').textContent   = 'Free access to 10+ AI models';
+    document.getElementById('auth-submit-btn').textContent = 'Create account';
+    document.getElementById('auth-switch-text').innerHTML  = 'Already have an account? <a id="auth-switch-link">Sign in</a>';
+  } else {
+    document.getElementById('auth-title').textContent      = 'Sign in to AI Playground';
+    document.getElementById('auth-subtitle').textContent   = 'Access 10+ AI models, free forever';
+    document.getElementById('auth-submit-btn').textContent = 'Sign in';
+    document.getElementById('auth-switch-text').innerHTML  = "Don't have an account? <a id=\"auth-switch-link\">Create one</a>";
+  }
+  document.getElementById('auth-switch-link').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
+}
+
+document.getElementById('auth-submit-btn').addEventListener('click', async function() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-err');
+  errEl.classList.remove('show');
+  if (!email || !pass) { errEl.textContent='Please enter your email and password.'; errEl.classList.add('show'); return; }
+  this.disabled = true;
+  this.textContent = authMode === 'signup' ? 'Creating account…' : 'Signing in…';
+  try {
+    if (authMode === 'signup') await auth.createUserWithEmailAndPassword(email, pass);
+    else                       await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e) {
+    const map = {
+      'auth/wrong-password':'Incorrect email or password.','auth/user-not-found':'Incorrect email or password.',
+      'auth/invalid-credential':'Incorrect email or password.','auth/email-already-in-use':'An account with this email already exists.',
+      'auth/weak-password':'Password must be at least 6 characters.','auth/invalid-email':'Please enter a valid email address.',
+    };
+    errEl.textContent = map[e.code] || 'Authentication failed.';
+    errEl.classList.add('show');
+    this.disabled = false;
+    this.textContent = authMode === 'signup' ? 'Create account' : 'Sign in';
+  }
+});
+
+document.getElementById('auth-email').addEventListener('keydown',    e => { if(e.key==='Enter') document.getElementById('auth-password').focus(); });
+document.getElementById('auth-password').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('auth-submit-btn').click(); });
+document.getElementById('auth-switch-link').addEventListener('click', () => setAuthMode(authMode==='signin'?'signup':'signin'));
+document.getElementById('google-signin-btn').addEventListener('click', async () => {
+  try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch(e) { if(e.code !== 'auth/popup-closed-by-user') { const el=document.getElementById('auth-err'); el.textContent=e.message; el.classList.add('show'); } }
+});
+document.getElementById('signout-btn').addEventListener('click', () => auth.signOut());
+
+// ── TAB SWITCHING ──
+function switchTab(tab) {
+  document.getElementById('tab-chat').classList.toggle('active', tab==='chat');
+  document.getElementById('tab-image').classList.toggle('active', tab==='image');
+  document.getElementById('page-chat').classList.toggle('active', tab==='chat');
+  document.getElementById('page-image').classList.toggle('active', tab==='image');
+}
+
+// ── MODEL SELECTION ──
+function selectModel(el) {
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  currentModel = el.dataset.model;
+  currentMode  = el.dataset.mode;
+  const name = el.dataset.name;
+  const sub  = el.dataset.sub;
+
+  if (currentMode === 'chat') {
+    switchTab('chat');
+    document.getElementById('chat-model-name').textContent = name;
+    document.getElementById('chat-model-sub').textContent  = sub;
+    clearChat();
+  } else {
+    switchTab('image');
+    document.getElementById('img-model-name').textContent = name;
+    document.getElementById('img-model-sub').textContent  = sub;
+  }
+}
+
+// ── UTILS ──
+let _toastTimer;
+function showToast(msg, dur) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), dur||2200);
+}
+
+function copyText(text, label) {
+  navigator.clipboard.writeText(text).then(() => showToast(label||'Copied!')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText='position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    showToast(label||'Copied!');
+  });
+}
+
+function downloadText(text, filename) {
+  const a = document.createElement('a');
+  a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
+  a.download = filename;
+  a.click();
+}
+
+function downloadImage(url, filename) {
+  fetch(url).then(r=>r.blob()).then(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download=filename||'image.png';
+    a.click();
+  });
+}
+
+// ── MARKDOWN / CODE PARSER ──
+function parseMessage(text) {
+  // Extract code blocks first
+  const parts = [];
+  const codeRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  let lastIndex = 0, match;
+
+  while ((match = codeRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'code', lang: match[1] || 'code', content: match[2].trim() });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', content: text.slice(lastIndex) });
+  }
+
+  return parts.map(part => {
+    if (part.type === 'code') {
+      const id = 'cb_' + Math.random().toString(36).slice(2);
+      const ext = part.lang === 'html' ? 'html' : part.lang === 'css' ? 'css' : part.lang === 'javascript' || part.lang === 'js' ? 'js' : 'txt';
+      return `<div class="code-block-wrap">
+        <div class="code-block-header">
+          <span class="code-block-lang">${part.lang || 'code'}</span>
+          <div class="code-block-actions">
+            <button class="code-block-btn" onclick="copyText(document.getElementById('${id}').textContent,'Copied!')">📋 Copy</button>
+            <button class="code-block-btn" onclick="downloadText(document.getElementById('${id}').textContent,'code.${ext}')">⬇ Download</button>
+          </div>
+        </div>
+        <div class="code-block-content" id="${id}">${escHtml(part.content)}</div>
+      </div>`;
+    } else {
+      return renderMarkdown(part.content);
+    }
+  }).join('');
+}
+
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/^\- (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>')
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>')
+    .replace(/^(?!<[hul])(.+)$/gm,'<p>$1</p>')
+    .replace(/<p><\/p>/g,'');
+}
+
+function escHtml(t) {
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── CHAT ──
+function clearChat() {
+  messages = [];
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = `<div class="chat-empty" id="chat-empty">
+    <div class="chat-empty-icon">💬</div>
+    <h3>Start a conversation</h3>
+    <p>Ask anything — code, writing, analysis, math. Switch models anytime from the sidebar.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;">
+      <button class="btn" onclick="quickPrompt('Write me a responsive navbar in HTML and CSS')">Write a navbar</button>
+      <button class="btn" onclick="quickPrompt('Explain how CSS Grid works with examples')">CSS Grid explained</button>
+      <button class="btn" onclick="quickPrompt('Write a JavaScript fetch API example')">Fetch API example</button>
+      <button class="btn" onclick="quickPrompt('What is the best way to center a div in CSS?')">Center a div</button>
+    </div>
+  </div>`;
+  updateMsgCount();
+}
+
+function quickPrompt(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+
+function toggleSysPrompt() {
+  document.getElementById('sys-prompt-area').classList.toggle('open');
+}
+
+function addMessage(role, content, isThinking) {
+  const container = document.getElementById('chat-messages');
+  const empty = document.getElementById('chat-empty');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + role;
+
+  if (isThinking) {
+    div.id = 'thinking-indicator';
+    div.innerHTML = `<div class="thinking">
+      <div class="thinking-dots">
+        <div class="thinking-dot"></div>
+        <div class="thinking-dot"></div>
+        <div class="thinking-dot"></div>
+      </div>
+      <span class="thinking-label">Thinking…</span>
+    </div>`;
+  } else {
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    if (role === 'user') {
+      div.innerHTML = `<div class="msg-bubble">${escHtml(content)}</div><div class="msg-meta">${time}</div>`;
+    } else {
+      div.innerHTML = `<div class="msg-bubble">${parseMessage(content)}</div><div class="msg-meta">${document.getElementById('chat-model-name').textContent} · ${time}</div>`;
+    }
+  }
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function updateMsgCount() {
+  const el = document.getElementById('msg-count');
+  if (el) el.textContent = messages.length ? messages.length + ' messages' : '';
+}
+
+async function sendMessage() {
+  if (isGenerating) return;
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  const sysPrompt = document.getElementById('sys-prompt-input').value.trim();
+
+  input.value = '';
+  input.style.height = 'auto';
+  isGenerating = true;
+  document.getElementById('send-btn').disabled = true;
+
+  messages.push({ role: 'user', content: text });
+  addMessage('user', text);
+  updateMsgCount();
+
+  const thinking = addMessage('assistant', '', true);
+
+  try {
+    const payload = {
+      model: currentModel,
+      messages: [
+        ...(sysPrompt ? [{ role: 'system', content: sysPrompt }] : []),
+        ...messages
+      ]
+    };
+
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    thinking.remove();
+
+    if (!res.ok) {
+      const err = await res.text();
+      addMessage('assistant', '❌ Error: ' + err);
+    } else {
+      const data = await res.json();
+      // Handle different response formats
+      let reply = '';
+      if (data?.result?.response) reply = data.result.response;
+      else if (data?.response) reply = data.response;
+      else if (typeof data === 'string') reply = data;
+      else reply = JSON.stringify(data);
+
+      messages.push({ role: 'assistant', content: reply });
+      addMessage('assistant', reply);
+      updateMsgCount();
+    }
+  } catch(err) {
+    thinking.remove();
+    addMessage('assistant', '❌ Request failed: ' + err.message);
+  }
+
+  isGenerating = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('chat-messages').scrollTop = 9999;
+}
+
+// Auto-resize textarea
+document.getElementById('chat-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+document.getElementById('chat-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+// ── IMAGE GENERATION ──
+async function generateImage() {
+  if (isGenerating) return;
+  const prompt   = document.getElementById('img-prompt').value.trim();
+  const negative = document.getElementById('img-negative').value.trim();
+  const steps    = parseInt(document.getElementById('img-steps').value);
+  const guidance = parseFloat(document.getElementById('img-guidance').value);
+  const size     = document.getElementById('img-size').value.split('x');
+  const width    = parseInt(size[0]);
+  const height   = parseInt(size[1]);
+
+  if (!prompt) { showToast('Enter a prompt first'); return; }
+
+  isGenerating = true;
+  const btn    = document.getElementById('img-generate-btn');
+  const status = document.getElementById('img-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating…';
+  status.textContent = 'Sending to Cloudflare Workers AI…';
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: currentModel,
+        prompt,
+        negative_prompt: negative,
+        num_steps: steps,
+        guidance,
+        width,
+        height
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      status.textContent = '❌ ' + err;
+    } else {
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const out  = document.getElementById('image-output');
+      const imgId = 'img_' + Date.now();
+
+      const card = document.createElement('div');
+      card.className = 'image-result';
+      card.innerHTML = `<img src="${url}" alt="${escHtml(prompt)}" id="${imgId}"/>
+        <div class="image-result-footer">
+          <span class="image-result-prompt">${escHtml(prompt)}</span>
+          <button class="btn" onclick="copyText('${escHtml(prompt)}','Prompt copied!')">📋 Prompt</button>
+          <button class="btn" onclick="downloadImage('${url}','ai-image-${Date.now()}.png')">⬇ Save</button>
+        </div>`;
+
+      // Clear placeholder if present
+      const placeholder = out.querySelector('.image-placeholder');
+      if (placeholder) placeholder.remove();
+
+      out.insertBefore(card, out.firstChild);
+      status.textContent = '✅ Done!';
+      setTimeout(() => { status.textContent = ''; }, 2000);
+    }
+  } catch(err) {
+    status.textContent = '❌ ' + err.message;
+  }
+
+  isGenerating = false;
+  btn.disabled = false;
+  btn.textContent = '✦ Generate';
+}
 </script>
 </body>
 </html>
