@@ -239,7 +239,7 @@ input.inp::placeholder{color:var(--tx3);}
 
 /* Image output area */
 .image-output-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-.image-output{flex:1;overflow-y:auto;padding:28px;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;}
+.image-output{flex:1;overflow-y:auto;padding:28px;display:flex;flex-direction:column;gap:16px;align-items:center;}
 .img-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--tx3);text-align:center;width:100%;}
 .img-placeholder-icon{font-size:2.5rem;opacity:.15;}
 .img-placeholder h3{font-size:.84rem;color:var(--tx2);font-weight:600;}
@@ -279,6 +279,13 @@ input.inp::placeholder{color:var(--tx3);}
 .modal-head{padding:14px 16px;border-bottom:1px solid var(--border);font-size:.84rem;font-weight:600;}
 .modal-body{padding:16px;}
 .modal-foot{padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px;}
+
+/* ── FULLSCREEN VIEWER ── */
+.fullscreen-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:600;display:flex;align-items:center;justify-content:center;cursor:zoom-out;}
+.fullscreen-overlay.hidden{display:none;}
+.fullscreen-overlay img{max-width:94vw;max-height:94vh;object-fit:contain;border-radius:6px;cursor:default;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.fullscreen-close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .13s;}
+.fullscreen-close:hover{background:rgba(255,255,255,.2);}
 
 /* ── FOOTER ── */
 footer{padding:5px 14px;font-size:.65rem;color:var(--tx3);background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.4rem;font-family:var(--mono);}
@@ -514,6 +521,13 @@ footer .dot{color:var(--borderhi);}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- FULLSCREEN IMAGE VIEWER -->
+<div class="fullscreen-overlay hidden" id="fullscreen-modal" onclick="if(event.target===this) closeFullscreen()">
+  <button class="fullscreen-close" onclick="closeFullscreen()" title="Close">✕</button>
+  <img id="fullscreen-img" src="" alt="Full size preview"/>
+</div>
+
 <footer><strong>HTML Tools</strong><span class="dot">·</span><span>AI Playground</span><span class="dot">·</span><span>built by Matthew</span></footer>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -539,7 +553,10 @@ let isGenerating = false;
 // ── STORAGE HELPERS ──
 const SK = k => 'aiplay_' + k;
 const loadLS = (k, def={}) => { try { return JSON.parse(localStorage.getItem(SK(k))) || def; } catch { return def; } };
-const saveLS = (k, v) => { try { localStorage.setItem(SK(k), JSON.stringify(v)); } catch(e){ console.warn('Storage full',e); } };
+const saveLS = (k, v) => {
+  try { localStorage.setItem(SK(k), JSON.stringify(v)); return true; }
+  catch(e){ console.warn('Storage write failed', e); return false; }
+};
 const genId  = () => Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 
 // ── CHAT CONVERSATIONS ──
@@ -640,7 +657,7 @@ function renderChatUI() {
   }
   nameEl.textContent = conv.title;
   container.innerHTML = '';
-  conv.messages.forEach(m => appendMsgDOM(m.role, m.content, false));
+  conv.messages.forEach(m => appendMsgDOM(m.role, m.content, false, m.timestamp || conv.createdAt));
   updateMsgCount(conv.messages.length);
   container.scrollTop = container.scrollHeight;
 }
@@ -739,7 +756,7 @@ function renderImgSessions() {
   scroll.innerHTML = sorted.map(s => {
     const isActive = s.id === activeId;
     const thumbHTML = s.image
-      ? `<img class="img-sess-thumb" src="${s.image.url}" alt=""/>`
+      ? `<img class="img-sess-thumb" src="${s.image.url}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'img-sess-thumb-empty',textContent:'🎨'}))"/>`
       : `<div class="img-sess-thumb-empty">🎨</div>`;
     const sub = s.image ? fmtTime(s.image.timestamp) : 'No image yet';
     return `<div class="img-sess-item ${isActive?'active':''}" onclick="switchImgSession('${s.id}')">
@@ -765,7 +782,7 @@ function renderImgOutput() {
   const img = sess.image;
   out.innerHTML = `
     <div class="img-display">
-      <img src="${img.url}" alt="${escHtml(img.prompt)}"/>
+      <img src="${img.url}" alt="${escHtml(img.prompt)}" onerror="handleImageLoadError(this)" onclick="openFullscreen()" style="cursor:zoom-in;" title="Click to view fullscreen"/>
       <div class="img-display-foot">
         <div>
           <div class="img-display-prompt-label">Prompt</div>
@@ -776,12 +793,35 @@ function renderImgOutput() {
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M13.5 2.5C12.1 1.1 10.1.5 8 .5 4 .5.5 4 .5 8s3.5 7.5 7.5 7.5c3.5 0 6.4-2.4 7.2-5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M13.5 2.5V6H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Replace image
           </button>
-          <button class="btn" onclick="copyText('${escHtml(img.prompt).replace(/'/g,"\\'")}')">📋 Copy prompt</button>
-          <button class="btn" onclick="downloadImg('${img.url}')">⬇ Save</button>
+          <button class="btn" onclick="openFullscreen()">⛶ Fullscreen</button>
+          <button class="btn" onclick="copyCurrentPrompt()">📋 Copy prompt</button>
+          <button class="btn" onclick="downloadImg()">⬇ Save</button>
         </div>
       </div>
     </div>`;
 }
+
+function copyCurrentPrompt(){
+  const sess=getCurrentImgSess();
+  if(sess && sess.image) copyText(sess.image.prompt);
+}
+
+function openFullscreen(){
+  const sess=getCurrentImgSess();
+  if(!sess || !sess.image) return;
+  document.getElementById('fullscreen-img').src=sess.image.url;
+  document.getElementById('fullscreen-modal').classList.remove('hidden');
+}
+function closeFullscreen(){
+  document.getElementById('fullscreen-modal').classList.add('hidden');
+  document.getElementById('fullscreen-img').src='';
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const fm=document.getElementById('fullscreen-modal');
+    if(fm && !fm.classList.contains('hidden')) closeFullscreen();
+  }
+});
 
 // Replace: regenerate with current settings into same session slot
 async function replaceImage() {
@@ -911,9 +951,52 @@ function copyText(text){
   });
 }
 function downloadText(text,filename){const a=document.createElement('a');a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text);a.download=filename;a.click();}
-function downloadImg(url){fetch(url).then(r=>r.blob()).then(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ai-image.png';a.click();});}
+function downloadImg(){
+  const sess=getCurrentImgSess();
+  if(!sess || !sess.image) return;
+  const a=document.createElement('a');
+  a.href=sess.image.url;
+  a.download='ai-image.jpg';
+  a.click();
+}
 function escHtml(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function updateMsgCount(n){const el=document.getElementById('msg-count');if(el)el.textContent=n?n+' messages':'';}
+
+// ── IMAGE PERSISTENCE HELPERS ──
+// The bug: generated images were stored as blob: URLs (URL.createObjectURL).
+// Blob URLs only exist in memory for the current page session — the instant the
+// tab reloads or is discarded, the URL points at nothing and the image breaks.
+// Fix: convert to a base64 data URL (which IS just text, so it survives a
+// localStorage round-trip) and downscale/recompress it so a handful of images
+// don't blow through the ~5-10MB localStorage quota.
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+function compressDataURL(dataURL, maxDim=1024, quality=0.85){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1, maxDim/Math.max(img.width,img.height));
+      const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      try { resolve(canvas.toDataURL('image/jpeg', quality)); }
+      catch(e){ reject(e); }
+    };
+    img.onerror=()=>reject(new Error('Could not decode generated image'));
+    img.src=dataURL;
+  });
+}
+function handleImageLoadError(imgEl){
+  const wrap=imgEl.closest('.image-output');
+  if(wrap) wrap.innerHTML=`<div class="img-placeholder"><div class="img-placeholder-icon">⚠️</div><h3>This image expired</h3><p>It was saved in a way that didn't survive a reload (that's now fixed). Please regenerate it.</p></div>`;
+}
 
 // ── MARKDOWN + CODE PARSER ──
 function parseMessage(text) {
@@ -978,14 +1061,14 @@ function previewHTML(code){
 }
 
 // ── CHAT DOM ──
-function appendMsgDOM(role, content, scroll=true){
+function appendMsgDOM(role, content, scroll=true, timestamp=Date.now()){
   const container=document.getElementById('chat-messages');
   const empty=document.getElementById('chat-empty');
   if(empty) empty.remove();
 
   const div=document.createElement('div');
   div.className='msg msg-'+role;
-  const time=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const time=new Date(timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 
   if(role==='user'){
     div.innerHTML=`<div class="msg-bubble">${escHtml(content)}</div>
@@ -1029,14 +1112,14 @@ async function sendMessage(){
   isGenerating=true;
   document.getElementById('send-btn').disabled=true;
 
-  conv.messages.push({role:'user',content:text});
+  conv.messages.push({role:'user',content:text,timestamp:Date.now()});
   conv.updatedAt=Date.now();
   if(conv.messages.length===1){
     conv.title=text.slice(0,42)+(text.length>42?'…':'');
     document.getElementById('conv-name-display').textContent=conv.title;
   }
   saveLS('chat',chatConvs);
-  appendMsgDOM('user',text);
+  appendMsgDOM('user',text,true,conv.messages[conv.messages.length-1].timestamp);
   updateMsgCount(conv.messages.length);
   renderConvList();
 
@@ -1061,8 +1144,12 @@ async function sendMessage(){
     if(!res.ok){
       const err=await res.text();
       const msg='❌ Error: '+err;
-      conv.messages.push({role:'assistant',content:msg});
-      appendMsgDOM('assistant',msg);
+      const errTs=Date.now();
+      conv.messages.push({role:'assistant',content:msg,timestamp:errTs});
+      conv.updatedAt=Date.now();
+      saveLS('chat',chatConvs);
+      appendMsgDOM('assistant',msg,true,errTs);
+      renderConvList();
     } else {
       const data=await res.json();
       let reply='';
@@ -1073,16 +1160,23 @@ async function sendMessage(){
 
       reply=reply.replace(/<think>[\s\S]*?<\/think>/g,'').trim();
 
-      conv.messages.push({role:'assistant',content:reply});
+      const replyTs=Date.now();
+      conv.messages.push({role:'assistant',content:reply,timestamp:replyTs});
       conv.updatedAt=Date.now();
       saveLS('chat',chatConvs);
-      appendMsgDOM('assistant',reply);
+      appendMsgDOM('assistant',reply,true,replyTs);
       updateMsgCount(conv.messages.length);
       renderConvList();
     }
   } catch(err){
     thinking.remove();
-    appendMsgDOM('assistant','❌ Request failed: '+err.message);
+    const msg='❌ Request failed: '+err.message;
+    const ts=Date.now();
+    conv.messages.push({role:'assistant',content:msg,timestamp:ts});
+    conv.updatedAt=Date.now();
+    saveLS('chat',chatConvs);
+    appendMsgDOM('assistant',msg,true,ts);
+    renderConvList();
   }
 
   isGenerating=false;
@@ -1130,16 +1224,25 @@ async function generateImage(isReplace=false){
       showToast('Generation failed');
     } else {
       const blob=await res.blob();
-      const url=URL.createObjectURL(blob);
+      const rawDataUrl=await blobToDataURL(blob);
+      let finalUrl;
+      try { finalUrl = await compressDataURL(rawDataUrl); }
+      catch(e){ finalUrl = rawDataUrl; } // fall back to the uncompressed image if the canvas step fails
+
       const sess=getCurrentImgSess();
       // Replace the single image (not append to array)
-      sess.image = {url, prompt, timestamp:Date.now()};
+      sess.image = {url: finalUrl, prompt, timestamp:Date.now()};
       if (!isReplace) sess.title = prompt.slice(0,26)+(prompt.length>26?'…':'');
-      saveLS('img', imgSessions);
+
+      const saved = saveLS('img', imgSessions);
       renderImgSessions();
       renderImgOutput();
       status.textContent='';
-      showToast(isReplace ? 'Image replaced!' : 'Done!');
+      if (saved) {
+        showToast(isReplace ? 'Image replaced!' : 'Done!');
+      } else {
+        showToast("Generated, but storage is full — delete an old session to keep saving images", 4200);
+      }
     }
   } catch(err){
     status.textContent='❌ '+err.message;
