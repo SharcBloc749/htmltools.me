@@ -751,7 +751,17 @@ function loadConversations() {
   db.ref('codeai_convs/' + currentUser.uid).on('value', function(snap) {
     var data = snap.val() || {};
     conversations = {};
-    Object.keys(data).forEach(function(k) { conversations[k] = data[k]; });
+    Object.keys(data).forEach(function(k) {
+      var conv = data[k];
+      // restore html from separate html nodes back onto messages
+      if (conv.html && conv.messages) {
+        conv.messages.forEach(function(m, i) {
+          if (conv.html[i]) m.html = conv.html[i];
+        });
+      }
+      delete conv.html;
+      conversations[k] = conv;
+    });
     renderConvList();
     if (activeConvId && conversations[activeConvId]) renderMessages(activeConvId);
   });
@@ -759,13 +769,16 @@ function loadConversations() {
 
 function saveConv(conv) {
   if (!currentUser) return;
-  // don't save full HTML to Firebase — too large. Save messages without html payload.
+  // save messages without html inline (Firebase has 10MB limit per node, HTML blobs are large)
+  // store html separately as conv.html[index] so it's still persisted
   var toSave = Object.assign({}, conv);
-  toSave.messages = (conv.messages || []).map(function(m) {
+  var htmlMap = {};
+  toSave.messages = (conv.messages || []).map(function(m, i) {
+    if (m.html) htmlMap[i] = m.html;
     return { role: m.role, content: m.content, modelUsed: m.modelUsed || null, modelReason: m.modelReason || null };
   });
+  if (Object.keys(htmlMap).length) toSave.html = htmlMap;
   db.ref('codeai_convs/' + currentUser.uid + '/' + conv.id).set(toSave);
-  // keep full HTML in memory only
 }
 
 function deleteConvFB(id) {
