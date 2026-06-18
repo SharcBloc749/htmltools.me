@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Code AI — HTMLTools</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0e0e0e; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
+
+    nav { padding: 14px 20px; border-bottom: 1px solid #1e1e1e; display: flex; align-items: center; gap: 10px; }
+    nav .logo { font-weight: 700; color: #fff; }
+    nav .logo span { color: #4f8ef7; }
+    nav .tag { font-size: 0.7rem; background: #1a1a2e; color: #4f8ef7; border: 1px solid #2a2a4e; padding: 2px 8px; border-radius: 20px; }
+
+    .wrap { flex: 1; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
+
+    .left { display: flex; flex-direction: column; border-right: 1px solid #1e1e1e; }
+    textarea {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #e0e0e0; font-family: inherit; font-size: 0.9rem;
+      padding: 20px; resize: none; line-height: 1.6;
+    }
+    textarea::placeholder { color: #333; }
+
+    .bar { padding: 12px 16px; border-top: 1px solid #1e1e1e; display: flex; gap: 8px; align-items: center; }
+    .bar span { font-size: 0.78rem; color: #444; }
+    button {
+      margin-left: auto; background: #4f8ef7; color: #fff;
+      border: none; padding: 9px 22px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    }
+    button:disabled { background: #1e3a6e; color: #4a6a9a; cursor: not-allowed; }
+
+    .right { display: flex; flex-direction: column; }
+    .tabs { display: flex; border-bottom: 1px solid #1e1e1e; }
+    .tab { padding: 12px 18px; font-size: 0.75rem; font-weight: 600; color: #555; cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 0.06em; }
+    .tab.active { color: #4f8ef7; border-bottom-color: #4f8ef7; }
+
+    .pane { flex: 1; display: none; overflow: hidden; }
+    .pane.active { display: flex; flex-direction: column; }
+    iframe { flex: 1; border: none; background: #fff; }
+    pre { flex: 1; overflow: auto; padding: 20px; font-family: monospace; font-size: 0.8rem; color: #c9d1d9; background: #0a0a0a; white-space: pre-wrap; word-break: break-word; }
+
+    .empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #2a2a2a; font-size: 0.88rem; }
+
+    .actions { padding: 10px 14px; border-top: 1px solid #1e1e1e; display: flex; gap: 8px; }
+    .btn2 { background: #161616; border: 1px solid #2a2a2a; color: #aaa; padding: 7px 14px; border-radius: 7px; font-size: 0.8rem; cursor: pointer; }
+    .btn2:hover { color: #fff; border-color: #444; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">HTML<span>Tools</span></div>
+  <div class="tag">Code AI</div>
+</nav>
+
+<div class="wrap">
+  <div class="left">
+    <textarea id="prompt" placeholder="Describe what you want to build...&#10;&#10;e.g. A dark login page with email, password fields and a sign in button"></textarea>
+    <div class="bar">
+      <span id="status">Ready</span>
+      <button id="btn" onclick="generate()">Generate ⚡</button>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('preview', this)">Preview</div>
+      <div class="tab" onclick="switchTab('code', this)">Code</div>
+    </div>
+
+    <div class="pane active" id="pane-preview">
+      <div class="empty" id="empty">Your page will appear here</div>
+      <iframe id="frame" style="display:none"></iframe>
+    </div>
+
+    <div class="pane" id="pane-code">
+      <pre id="code">// code will appear here</pre>
+    </div>
+
+    <div class="actions">
+      <button class="btn2" onclick="copyCode()">Copy HTML</button>
+      <button class="btn2" onclick="newTab()">Open in tab</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Point this to wherever you deploy your Worker
+  const WORKER_URL = "https://your-worker.your-subdomain.workers.dev";
+
+  let result = "";
+
+  async function generate() {
+    const prompt = document.getElementById("prompt").value.trim();
+    if (!prompt) return;
+
+    const btn = document.getElementById("btn");
+    const status = document.getElementById("status");
+    btn.disabled = true;
+    status.textContent = "Generating...";
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
+      });
+
+      const data = await res.json();
+      result = data.html || "";
+
+      // strip code fences just in case
+      result = result.replace(/^```html\n?/i, "").replace(/^```\n?/, "").replace(/\n?```$/, "").trim();
+
+      document.getElementById("empty").style.display = "none";
+      const frame = document.getElementById("frame");
+      frame.style.display = "block";
+      frame.srcdoc = result;
+      document.getElementById("code").textContent = result;
+      status.textContent = "Done!";
+    } catch (e) {
+      status.textContent = "Error: " + e.message;
+    }
+
+    btn.disabled = false;
+  }
+
+  function switchTab(name, el) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".pane").forEach(p => p.classList.remove("active"));
+    el.classList.add("active");
+    document.getElementById("pane-" + name).classList.add("active");
+  }
+
+  function copyCode() {
+    if (result) navigator.clipboard.writeText(result);
+  }
+
+  function newTab() {
+    if (!result) return;
+    const w = window.open();
+    w.document.write(result);
+    w.document.close();
+  }
+
+  document.getElementById("prompt").addEventListener("keydown", e => {
+    if (e.ctrlKey && e.key === "Enter") generate();
+  });
+</script>
+
+</body>
+</html>
