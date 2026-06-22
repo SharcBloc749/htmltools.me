@@ -133,6 +133,8 @@ input, textarea { font-family: inherit; }
 .msg-human { display: flex; justify-content: flex-end; margin-bottom: 6px; }
 .msg-human-col { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; max-width: 86%; }
 .msg-human-bubble { background: var(--user-bubble); border-radius: var(--r-lg) var(--r-lg) 4px var(--r-lg); padding: 10px 15px; font-size: .875rem; line-height: 1.65; color: var(--tx); word-break: break-word; white-space: pre-wrap; font-family: var(--font-sans); }
+.msg-human-imgs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.msg-human-img { width: 80px; height: 80px; object-fit: cover; border-radius: var(--r); border: 1px solid var(--border2); cursor: pointer; }
 .msg-ai { display: flex; }
 .msg-ai-content { flex: 1; min-width: 0; }
 .msg-ai-body { font-size: .94rem; line-height: 1.75; color: var(--tx); font-family: var(--font-serif); }
@@ -178,11 +180,28 @@ input, textarea { font-family: inherit; }
 .input-area.in-welcome { padding: 0; max-width: 640px; margin: 0 auto; }
 .input-box { background: var(--input-bg); border: 1px solid var(--border2); border-radius: var(--r-xl); overflow: hidden; transition: border-color .15s, box-shadow .15s; }
 .input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+
+/* ATTACHMENT PREVIEWS */
+.attach-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 0; }
+.attach-thumb { position: relative; width: 56px; height: 56px; border-radius: var(--r); overflow: hidden; border: 1px solid var(--border2); flex-shrink: 0; }
+.attach-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.attach-thumb-remove { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: rgba(0,0,0,.75); color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; }
+.attach-thumb-remove:hover { background: #f87171; }
+
 textarea#prompt { width: 100%; min-height: 54px; max-height: 220px; background: transparent; border: none; outline: none; color: var(--tx); font-size: .9rem; resize: none; padding: 15px 17px 4px; line-height: 1.65; font-family: var(--font-sans); }
 textarea#prompt::placeholder { color: var(--tx3); }
 .input-footer { display: flex; align-items: center; gap: 6px; padding: 6px 9px 10px; }
 .model-pill { height: 27px; padding: 0 10px; border-radius: 20px; font-size: .69rem; font-weight: 500; color: var(--tx3); border: 1px solid var(--border); display: flex; align-items: center; gap: 4px; transition: all .12s; }
 .model-pill:hover { border-color: var(--border2); color: var(--tx2); background: var(--hover); }
+
+/* ATTACH BUTTON */
+.attach-btn { width: 27px; height: 27px; border-radius: var(--r); color: var(--tx3); display: flex; align-items: center; justify-content: center; transition: all .12s; flex-shrink: 0; position: relative; }
+.attach-btn:hover { background: var(--hover); color: var(--tx2); }
+.attach-btn.has-files { color: var(--accent); }
+.attach-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+/* hide attach button when Haiku selected */
+.attach-btn.hidden { display: none; }
+
 .input-sp { flex: 1; }
 .send-btn { width: 31px; height: 31px; border-radius: 9px; background: var(--tx); color: var(--bg); display: flex; align-items: center; justify-content: center; transition: all .14s; flex-shrink: 0; }
 .send-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
@@ -203,6 +222,12 @@ textarea#prompt::placeholder { color: var(--tx3); }
 .mpill-desc { font-size: .65rem; color: var(--tx3); margin-top: 1px; }
 .mpill-sep { height: 1px; background: var(--border); margin: 4px 0; }
 .mpill-label { padding: 5px 10px 2px; font-size: .59rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--tx3); }
+.mpill-vision-badge { font-size: .55rem; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(204,120,92,.25); padding: 1px 5px; border-radius: 20px; margin-left: 4px; font-weight: 600; letter-spacing: .04em; }
+
+/* IMAGE LIGHTBOX */
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 900; display: none; align-items: center; justify-content: center; cursor: zoom-out; backdrop-filter: blur(4px); }
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 90vw; max-height: 90vh; border-radius: var(--r-md); box-shadow: 0 32px 80px rgba(0,0,0,.7); }
 
 /* PREVIEW PANEL */
 .preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 400; display: none; backdrop-filter: blur(2px); }
@@ -357,6 +382,8 @@ textarea#prompt::placeholder { color: var(--tx3); }
 
   <div class="input-area" id="input-area">
     <div class="input-box" id="input-box">
+      <!-- Attachment thumbnails appear here -->
+      <div class="attach-row" id="attach-row" style="display:none;"></div>
       <textarea id="prompt" placeholder="How can I help you today?" rows="1"></textarea>
       <div class="input-footer">
         <button class="model-pill" id="model-pill" onclick="toggleModelMenu(event)">
@@ -364,6 +391,13 @@ textarea#prompt::placeholder { color: var(--tx3); }
           <span id="model-pill-txt">Haiku 4.5</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:8px;height:8px"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
+
+        <!-- Paperclip / attach button — only visible when Sonnet is selected -->
+        <button class="attach-btn hidden" id="attach-btn" title="Attach images (up to 10)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <input type="file" id="file-input" accept="image/*" multiple onchange="handleFileSelect(event)"/>
+        </button>
+
         <div class="input-sp"></div>
         <button class="send-btn" id="send-btn" onclick="sendMessage()" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
@@ -377,14 +411,25 @@ textarea#prompt::placeholder { color: var(--tx3); }
 <!-- MODEL MENU -->
 <div class="mpill-menu" id="mpill-menu">
   <div class="mpill-label">Anthropic via Bedrock</div>
-  <div class="mpill-item sel" data-model="us.anthropic.claude-haiku-4-5-20251001-v1:0" data-label="Haiku 4.5" onclick="pickModel(this)">
+  <div class="mpill-item sel" data-model="us.anthropic.claude-haiku-4-5-20251001-v1:0" data-label="Haiku 4.5" data-vision="false" onclick="pickModel(this)">
     <span class="mpill-check">✓</span>
-    <div><div class="mpill-name">Claude Haiku 4.5</div><div class="mpill-desc">Fastest · most cost-efficient</div></div>
+    <div>
+      <div class="mpill-name">Claude Haiku 4.5</div>
+      <div class="mpill-desc">Fastest · most cost-efficient</div>
+    </div>
   </div>
-  <div class="mpill-item" data-model="us.anthropic.claude-sonnet-4-6-20250514-v1:0" data-label="Sonnet 4.6" onclick="pickModel(this)">
+  <div class="mpill-item" data-model="us.anthropic.claude-sonnet-4-6-20250514-v1:0" data-label="Sonnet 4.6" data-vision="true" onclick="pickModel(this)">
     <span class="mpill-check" style="opacity:0">✓</span>
-    <div><div class="mpill-name">Claude Sonnet 4.6</div><div class="mpill-desc">Smarter · great for complex tasks</div></div>
+    <div>
+      <div class="mpill-name">Claude Sonnet 4.6 <span class="mpill-vision-badge">Vision</span></div>
+      <div class="mpill-desc">Smarter · supports image attachments</div>
+    </div>
   </div>
+</div>
+
+<!-- IMAGE LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt=""/>
 </div>
 
 <!-- PREVIEW PANEL -->
@@ -478,12 +523,16 @@ marked.setOptions({ breaks: true, gfm: true });
 var convos = {};
 var activeId = null;
 var currentModel = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+var currentModelVision = false;
 var currentHtml = null;
 var isGenerating = false;
 var sidebarOpen = true;
 var currentUser = null;
 var settings = { memory: true, sysOn: false, sysText: '' };
 var SETTINGS_KEY = 'cai_settings_v2';
+
+// Pending attachments: array of { dataUrl, mediaType, base64 }
+var pendingAttachments = [];
 
 var ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M4 16V5a1 1 0 0 1 1-1h11"></path></svg>';
 var ICON_PLAY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5l12 7-12 7V5z"></path></svg>';
@@ -497,6 +546,55 @@ var SUGGESTIONS = [
 ];
 
 var BASE_SYSTEM = 'You are Claude, a helpful AI assistant made by Anthropic. Be conversational, concise, and genuinely helpful.\n\nWhen the user explicitly asks you to build, create, generate, or make a webpage, HTML app, game, or any visual/interactive project, output a SINGLE complete self-contained HTML file starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation before or after — just the raw file.\n\nFor everything else: respond naturally in plain text or markdown. Do not produce HTML unless asked.';
+
+// ── FILE ATTACHMENTS ──
+function handleFileSelect(e) {
+  var files = Array.from(e.target.files);
+  if (!files.length) return;
+  var remaining = 10 - pendingAttachments.length;
+  if (remaining <= 0) { showToast('Maximum 10 images per message'); e.target.value = ''; return; }
+  files = files.slice(0, remaining);
+  var promises = files.map(function(file) {
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var dataUrl = ev.target.result;
+        var base64 = dataUrl.split(',')[1];
+        var mediaType = file.type || 'image/jpeg';
+        resolve({ dataUrl: dataUrl, base64: base64, mediaType: mediaType, name: file.name });
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  Promise.all(promises).then(function(results) {
+    results.forEach(function(r) { pendingAttachments.push(r); });
+    renderAttachPreviews();
+    updateSendBtn();
+    e.target.value = '';
+  });
+}
+
+function renderAttachPreviews() {
+  var row = document.getElementById('attach-row');
+  if (!pendingAttachments.length) { row.style.display = 'none'; row.innerHTML = ''; return; }
+  row.style.display = 'flex';
+  row.innerHTML = pendingAttachments.map(function(a, i) {
+    return '<div class="attach-thumb"><img src="' + a.dataUrl + '" alt=""/>' +
+      '<span class="attach-thumb-remove" onclick="removeAttachment(' + i + ')">✕</span></div>';
+  }).join('');
+  document.getElementById('attach-btn').classList.toggle('has-files', pendingAttachments.length > 0);
+}
+
+function removeAttachment(i) {
+  pendingAttachments.splice(i, 1);
+  renderAttachPreviews();
+  updateSendBtn();
+}
+
+function clearAttachments() {
+  pendingAttachments = [];
+  renderAttachPreviews();
+}
 
 // ── AUTH ──
 var authMode = 'signin';
@@ -631,10 +729,14 @@ async function persistConvo(id) {
     var toSave = Object.assign({}, c);
     var msgs = (c.msgs || []).slice();
     if (msgs.length > 30) msgs = msgs.slice(-30);
+    // Strip image base64 from older messages to keep Firebase size down
     var aiCount = 0;
     for (var i = msgs.length - 1; i >= 0; i--) {
       if (msgs[i].role === 'ai') aiCount++;
-      if (aiCount > 5 && msgs[i].html) msgs[i] = Object.assign({}, msgs[i], { html: null });
+      if (aiCount > 5) {
+        if (msgs[i].html) msgs[i] = Object.assign({}, msgs[i], { html: null });
+        if (msgs[i].images) msgs[i] = Object.assign({}, msgs[i], { images: null });
+      }
     }
     toSave.msgs = msgs;
     await db.ref(userConvosPath() + '/' + id).set(toSave);
@@ -705,6 +807,7 @@ function stopSpeech() {
 }
 function newConv() {
   stopSpeech();
+  clearAttachments();
   var id = 'c' + Date.now();
   convos[id] = { id: id, name: 'New conversation', msgs: [], created: Date.now() };
   setActive(id);
@@ -713,6 +816,7 @@ function newConv() {
 }
 function setActive(id) {
   stopSpeech();
+  clearAttachments();
   activeId = id;
   renderList();
   renderConvo(id);
@@ -722,7 +826,7 @@ function delConvo(e, id) {
   e.stopPropagation();
   delete convos[id];
   deleteConvoFromFirebase(id);
-  if (activeId === id) { activeId = null; showWelcome(); closePreview(); }
+  if (activeId === id) { activeId = null; showWelcome(); closePreview(); clearAttachments(); }
   renderList();
   showToast('Conversation deleted');
 }
@@ -781,16 +885,25 @@ function renderConvo(id) {
   if (!c.msgs || !c.msgs.length) { document.getElementById('welcome').style.display = 'flex'; placeComposerWelcome(); return; }
   document.getElementById('welcome').style.display = 'none';
   placeComposerBottom();
-  c.msgs.forEach(function(m, i){ appendMsgEl(m.role, m.content, m.html || null, i); });
+  c.msgs.forEach(function(m, i){ appendMsgEl(m.role, m.content, m.html || null, i, m.images || null); });
   scrollBot();
 }
-function appendMsgEl(role, content, html, msgIndex) {
+
+function appendMsgEl(role, content, html, msgIndex, images) {
   document.getElementById('welcome').style.display = 'none';
   var inner = document.getElementById('chat-inner');
   var grp = document.createElement('div');
   grp.className = 'msg-group';
   if (role === 'user') {
-    grp.innerHTML = '<div class="msg-human"><div class="msg-human-col"><div class="msg-human-bubble">' + esc(content) + '</div></div></div>';
+    var imgsHtml = '';
+    if (images && images.length) {
+      imgsHtml = '<div class="msg-human-imgs">' +
+        images.map(function(img) {
+          return '<img class="msg-human-img" src="' + img.dataUrl + '" alt="" onclick="openLightbox(\'' + img.dataUrl + '\')" title="Click to enlarge"/>';
+        }).join('') +
+      '</div>';
+    }
+    grp.innerHTML = '<div class="msg-human"><div class="msg-human-col">' + imgsHtml + '<div class="msg-human-bubble">' + esc(content) + '</div></div></div>';
   } else {
     var cardHtml = '';
     if (html) {
@@ -814,12 +927,22 @@ function appendMsgEl(role, content, html, msgIndex) {
   inner.appendChild(grp);
   return grp;
 }
+
 function appendTyping() {
   var tg = document.createElement('div');
   tg.className = 'msg-group';
   tg.innerHTML = '<div class="msg-ai"><div class="msg-ai-content"><div class="typing"><span></span><span></span><span></span></div></div></div>';
   document.getElementById('chat-inner').appendChild(tg);
   return tg;
+}
+
+// ── LIGHTBOX ──
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
 }
 
 // ── PREVIEW ──
@@ -852,6 +975,25 @@ function pvDownload() {
   a.download = 'page_' + Date.now() + '.html'; a.click();
 }
 function pvOpen() { if (!currentHtml) return; var w = window.open(); w.document.write(currentHtml); w.document.close(); }
+
+// ── BUILD API MESSAGE WITH OPTIONAL IMAGES ──
+function buildUserContent(text, images) {
+  // If no images, just send a string (backward compatible)
+  if (!images || !images.length) return text;
+  // Build a multipart content array: images first, then text
+  var parts = images.map(function(img) {
+    return {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: img.mediaType,
+        data: img.base64
+      }
+    };
+  });
+  parts.push({ type: 'text', text: text });
+  return parts;
+}
 
 // ── AI CALL via Cloudflare Worker → AWS Bedrock ──
 async function generateAIResponse(apiMsgs) {
@@ -892,11 +1034,13 @@ async function generateAIResponse(apiMsgs) {
 async function sendMessage() {
   if (isGenerating) { stopGeneration(); return; }
   var text = promptEl.value.trim();
-  if (!text) return;
+  var hasAttachments = pendingAttachments.length > 0;
+  if (!text && !hasAttachments) return;
+  if (!text) text = ''; // allow image-only messages
 
   if (!activeId) {
     var id = 'c' + Date.now();
-    var title = text.slice(0, 52) + (text.length > 52 ? '…' : '');
+    var title = (text || 'Image').slice(0, 52) + ((text.length > 52) ? '…' : '');
     convos[id] = { id: id, name: title, msgs: [], created: Date.now() };
     activeId = id;
     document.getElementById('topbar-title').textContent = title;
@@ -906,25 +1050,43 @@ async function sendMessage() {
   var conv = convos[activeId];
   if (!conv.msgs) conv.msgs = [];
   if (!conv.msgs.length) {
-    conv.name = text.slice(0, 52) + (text.length > 52 ? '…' : '');
+    conv.name = (text || 'Image').slice(0, 52) + (text.length > 52 ? '…' : '');
     document.getElementById('topbar-title').textContent = conv.name;
     renderList();
   }
+
+  // Snapshot and clear attachments
+  var attachSnapshot = pendingAttachments.slice();
+  clearAttachments();
 
   promptEl.value = ''; promptEl.style.height = 'auto'; updateSendBtn();
   document.getElementById('welcome').style.display = 'none';
   placeComposerBottom();
 
-  conv.msgs.push({ role: 'user', content: text });
-  appendMsgEl('user', text, null, conv.msgs.length - 1);
+  // Store message — images stored as lightweight refs (dataUrl for display, base64 for API)
+  var imagesForStorage = attachSnapshot.map(function(a) {
+    return { dataUrl: a.dataUrl, mediaType: a.mediaType, base64: a.base64 };
+  });
+
+  conv.msgs.push({ role: 'user', content: text, images: imagesForStorage.length ? imagesForStorage : null });
+  appendMsgEl('user', text, null, conv.msgs.length - 1, imagesForStorage);
 
   isGenerating = true; setSendState(true);
   var tg = appendTyping();
   scrollBot();
 
-  var apiMsgs = settings.memory
-    ? conv.msgs.map(function(m){ return { role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }; })
-    : [{ role: 'user', content: text }];
+  // Build API messages
+  var apiMsgs;
+  if (settings.memory) {
+    apiMsgs = conv.msgs.map(function(m) {
+      return {
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: buildUserContent(m.content, m.role === 'user' ? m.images : null)
+      };
+    });
+  } else {
+    apiMsgs = [{ role: 'user', content: buildUserContent(text, imagesForStorage) }];
+  }
 
   try {
     var result = await generateAIResponse(apiMsgs);
@@ -934,11 +1096,11 @@ async function sendMessage() {
     if (result.isHtml) {
       var label = "Here's your page — click the card to preview it.";
       conv.msgs.push({ role: 'ai', content: label, html: result.raw, model: currentModel });
-      appendMsgEl('ai', label, result.raw, aiIndex);
+      appendMsgEl('ai', label, result.raw, aiIndex, null);
       openPreview(result.raw);
     } else {
       conv.msgs.push({ role: 'ai', content: result.raw, html: null, model: currentModel });
-      appendMsgEl('ai', result.raw, null, aiIndex);
+      appendMsgEl('ai', result.raw, null, aiIndex, null);
     }
     scheduleConvoSave(activeId);
     renderList();
@@ -949,7 +1111,7 @@ async function sendMessage() {
       var em = 'Something went wrong: ' + (err.message || String(err));
       var aiIndex2 = conv.msgs.length;
       conv.msgs.push({ role: 'ai', content: em });
-      appendMsgEl('ai', em, null, aiIndex2);
+      appendMsgEl('ai', em, null, aiIndex2, null);
       scheduleConvoSave(activeId);
       scrollBot();
     }
@@ -967,9 +1129,18 @@ async function retryMessage(msgIndex) {
   isGenerating = true; setSendState(true);
   var tg = appendTyping();
   scrollBot();
-  var apiMsgs = settings.memory
-    ? conv.msgs.map(function(m){ return { role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }; })
-    : (conv.msgs.length ? [{ role: 'user', content: conv.msgs[conv.msgs.length - 1].content }] : []);
+  var apiMsgs;
+  if (settings.memory) {
+    apiMsgs = conv.msgs.map(function(m) {
+      return {
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: buildUserContent(m.content, m.role === 'user' ? m.images : null)
+      };
+    });
+  } else {
+    var last = conv.msgs.length ? conv.msgs[conv.msgs.length - 1] : null;
+    apiMsgs = last ? [{ role: 'user', content: buildUserContent(last.content, last.images) }] : [];
+  }
   try {
     var result = await generateAIResponse(apiMsgs);
     tg.remove();
@@ -1037,7 +1208,11 @@ promptEl.addEventListener('keydown', function(e){
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 function updateSendBtn() {
-  if (!isGenerating) document.getElementById('send-btn').disabled = !promptEl.value.trim();
+  if (!isGenerating) {
+    var hasText = promptEl.value.trim().length > 0;
+    var hasFiles = pendingAttachments.length > 0;
+    document.getElementById('send-btn').disabled = !(hasText || hasFiles);
+  }
 }
 
 // ── MODEL MENU ──
@@ -1053,10 +1228,28 @@ function toggleModelMenu(e) {
 document.addEventListener('click', function(){ mpMenu.classList.remove('open'); });
 function pickModel(el) {
   currentModel = el.dataset.model;
+  currentModelVision = el.dataset.vision === 'true';
   document.querySelectorAll('.mpill-item').forEach(function(i){ i.classList.remove('sel'); i.querySelector('.mpill-check').style.opacity = '0'; });
   el.classList.add('sel'); el.querySelector('.mpill-check').style.opacity = '1';
   document.getElementById('model-pill-txt').textContent = el.dataset.label;
   mpMenu.classList.remove('open');
+
+  // Show/hide attach button based on vision support
+  var attachBtn = document.getElementById('attach-btn');
+  if (currentModelVision) {
+    attachBtn.classList.remove('hidden');
+  } else {
+    attachBtn.classList.add('hidden');
+    clearAttachments();
+  }
+
+  // Update hint bar
+  var hint = document.querySelector('.input-hint-bar');
+  if (currentModelVision) {
+    hint.textContent = 'Sonnet 4.6 · Vision enabled · attach up to 10 images';
+  } else {
+    hint.textContent = 'Claude can make mistakes. Please double-check responses.';
+  }
 }
 
 // ── TOAST ──
@@ -1073,5 +1266,6 @@ function esc(t) {
 // ── INIT ──
 placeComposerWelcome();
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
