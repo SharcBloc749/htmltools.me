@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Upload — Studio</title>
+<link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#0c0c0c;--surface:#111111;--panel:#171717;--panel-2:#1e1e1e;
+  --border:#252525;--border-2:#2e2e2e;--border-hi:#404040;
+  --tx:#e8e8e8;--tx-2:#888;--tx-3:#4a4a4a;--muted:#3a3a3a;
+  --white:#fff;--wfg:#0c0c0c;
+  --green:#16a34a;--green-hi:#22c55e;
+  --blue:#2563eb;--blue-hi:#3b82f6;
+  --red:#dc2626;--red-hi:#ef4444;
+  --yellow:#ca8a04;--yellow-hi:#f59e0b;
+  --purple:#7c3aed;--purple-hi:#a78bfa;
+  --r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;
+  --nav-h:48px;
+  --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+body.light-mode{
+  --bg:#f5f5f4;--surface:#fafaf9;--panel:#efefed;--panel-2:#e8e8e5;
+  --border:#d8d8d5;--border-2:#c8c8c4;--border-hi:#a0a09c;
+  --tx:#1a1a18;--tx-2:#5a5a56;--tx-3:#9a9a95;--muted:#b8b8b4;
+  --white:#1a1a18;--wfg:#fafaf9;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{height:100%;}
+body{min-height:100%;background:var(--bg);color:var(--tx);font-family:var(--font);font-size:13.5px;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;transition:background .2s,color .2s;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+::selection{background:rgba(255,255,255,.12);}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--border-hi);}
+
+/* NAV */
+#topnav{height:var(--nav-h);flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;position:sticky;top:0;z-index:100;}
+.nav-brand{display:flex;align-items:center;gap:8px;padding-right:14px;margin-right:2px;border-right:1px solid var(--border);flex-shrink:0;}
+.nav-mark{width:26px;height:26px;background:var(--white);color:var(--wfg);border-radius:5px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+.nav-mark img{width:26px;height:26px;object-fit:contain;display:block;}
+.nav-name{font-size:.8rem;font-weight:600;color:var(--tx-2);letter-spacing:-.01em;white-space:nowrap;}
+.nav-title{font-size:12.5px;font-weight:600;color:var(--tx);letter-spacing:-.015em;}
+.nav-spacer{flex:1;}
+.nav-user-name{font-size:.75rem;color:var(--tx-3);}
+
+/* BUTTONS */
+.btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);padding:0 11px;border-radius:var(--r);font-size:12px;font-weight:500;font-family:var(--font);transition:all .13s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;height:28px;cursor:pointer;}
+.btn:hover{background:var(--panel-2);border-color:var(--border-hi);color:var(--tx);}
+.btn:active{opacity:.7;}
+.btn i{font-size:9.5px;opacity:.7;}
+.btn-prim{background:var(--white);color:var(--wfg);border-color:var(--white);font-weight:600;}
+.btn-prim:hover{opacity:.88;color:var(--wfg);}
+.btn-prim i{opacity:1;}
+.btn-prim:disabled{opacity:.4;cursor:not-allowed;}
+.btn-danger{color:var(--red-hi);border-color:rgba(220,38,38,.2);background:transparent;}
+.btn-danger:hover{background:rgba(220,38,38,.07);border-color:var(--red-hi);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--tx-3);}
+.btn-ghost:hover{background:var(--panel);border-color:var(--border);color:var(--tx-2);}
+.btn-sm{height:24px;font-size:11px;padding:0 8px;}
+.btn-back{background:transparent;border:1px solid var(--border);color:var(--tx-3);padding:0 10px;border-radius:var(--r);font-size:12px;font-weight:500;height:28px;display:inline-flex;align-items:center;gap:5px;transition:all .13s;cursor:pointer;}
+.btn-back:hover{background:var(--panel);border-color:var(--border-hi);color:var(--tx);}
+.btn-back i{font-size:9px;}
+.btn-purple{background:rgba(124,58,237,.15);color:var(--purple-hi);border-color:rgba(124,58,237,.3);font-weight:600;}
+.btn-purple:hover{background:rgba(124,58,237,.25);border-color:var(--purple-hi);color:var(--purple-hi);}
+
+/* PAGE */
+#page{flex:1;display:flex;flex-direction:column;align-items:center;padding:24px 16px 60px;}
+.page-inner{width:100%;max-width:640px;}
+
+/* MODE TABS */
+.mode-tabs{display:flex;gap:0;border:1px solid var(--border-2);border-radius:var(--r-md);overflow:hidden;margin-bottom:20px;background:var(--panel);}
+.mode-tab{flex:1;padding:.55rem .5rem;border:none;background:transparent;color:var(--tx-3);font-family:var(--font);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;border-right:1px solid var(--border-2);}
+.mode-tab:last-child{border-right:none;}
+.mode-tab:hover{color:var(--tx-2);background:var(--panel-2);}
+.mode-tab.active{background:var(--white);color:var(--wfg);font-weight:700;}
+.mode-tab.active-purple{background:rgba(124,58,237,.2);color:var(--purple-hi);font-weight:700;}
+.mode-tab i{font-size:10px;}
+
+/* SECTION CARD */
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;}
+.section-hdr{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;}
+.section-hdr i{font-size:10px;color:var(--tx-3);}
+.section-hdr span{font-size:.68rem;font-weight:700;color:var(--tx-2);text-transform:uppercase;letter-spacing:.07em;}
+.section-hdr-right{margin-left:auto;}
+.section-body{padding:14px;}
+
+/* FORM */
+.f-group{margin-bottom:12px;}
+.f-group:last-child{margin-bottom:0;}
+.f-label{display:block;margin-bottom:5px;color:var(--tx-3);font-size:.63rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;}
+.f-input{width:100%;padding:0 10px;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r);color:var(--tx);font-size:12.5px;height:30px;font-family:var(--font);outline:none;transition:border-color .13s;-webkit-appearance:none;}
+.f-input::placeholder{color:var(--tx-3);}
+.f-input:focus{border-color:var(--border-hi);}
+textarea.f-input{height:auto;padding:8px 10px;font-size:12px;line-height:1.6;resize:vertical;min-height:90px;}
+.f-code{font-family:var(--mono)!important;font-size:11.5px!important;min-height:180px;}
+.f-note{font-size:.65rem;color:var(--tx-3);margin-top:.3rem;line-height:1.5;}
+.f-note.warn{color:var(--yellow-hi);}
+.f-note.err{color:var(--red-hi);}
+.f-check{display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);font-size:12px;color:var(--tx-2);}
+.f-check input[type=checkbox]{width:13px;height:13px;accent-color:var(--white);cursor:pointer;}
+.f-check label{cursor:pointer;user-select:none;}
+
+/* IMAGE UPLOAD */
+.img-drop{border:1px dashed var(--border-2);border-radius:var(--r);padding:.65rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--panel);position:relative;overflow:hidden;}
+.img-drop:hover{border-color:var(--border-hi);background:var(--panel-2);}
+.img-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:1;}
+.img-drop .drop-label{font-size:.67rem;color:var(--tx-3);pointer-events:none;}
+.img-drop .drop-prev{width:100%;max-height:52px;object-fit:contain;border-radius:2px;display:none;margin-top:.3rem;pointer-events:none;}
+.img-drop.has-img{border-color:var(--border-hi);}
+.img-drop .rm-img{position:absolute;top:.3rem;right:.3rem;background:var(--red);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:.5rem;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:10;line-height:1;}
+.img-drop.has-img .rm-img{display:flex;}
+.img-drop.has-img .drop-label{display:none;}
+
+/* PLATFORM */
+.platform-row{display:flex;gap:4px;}
+.plat-opt{flex:1;padding:.45rem .3rem;border:1px solid var(--border);border-radius:var(--r);background:var(--panel);color:var(--tx-3);font-family:var(--font);font-size:.7rem;font-weight:500;cursor:pointer;transition:all .13s;text-align:center;}
+.plat-opt:hover{border-color:var(--border-hi);color:var(--tx-2);}
+.plat-opt.sel-both{border-color:var(--border-hi);color:var(--tx);}
+.plat-opt.sel-mobile{border-color:var(--green-hi);color:var(--green-hi);}
+.plat-opt.sel-computer{border-color:var(--blue-hi);color:var(--blue-hi);}
+
+/* COLLABS */
+.collab-row{display:flex;gap:4px;margin-bottom:.4rem;}
+.collab-row input{flex:1;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);font-family:var(--font);font-size:.78rem;padding:0 10px;border-radius:var(--r);outline:none;height:28px;transition:border-color .13s;}
+.collab-row input:focus{border-color:var(--border-hi);}
+.collab-row input::placeholder{color:var(--tx-3);}
+.collab-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;}
+.ctag{display:inline-flex;align-items:center;gap:.3rem;background:var(--panel-2);border:1px solid var(--border-2);color:var(--tx-2);font-size:.6rem;font-weight:600;padding:.14rem .44rem;border-radius:2px;font-family:var(--mono);}
+.ctag-rm{background:none;border:none;color:var(--tx-3);cursor:pointer;font-size:.68rem;padding:0;line-height:1;transition:color .13s;}
+.ctag-rm:hover{color:var(--red-hi);}
+
+/* TOGGLE */
+.toggle{position:relative;width:34px;height:19px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-track{position:absolute;inset:0;background:var(--border-2);border-radius:20px;cursor:pointer;transition:background .2s;}
+.toggle input:checked+.toggle-track{background:var(--green);}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:13px;height:13px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none;}
+.toggle input:checked~.toggle-thumb{transform:translateX(15px);}
+
+/* SCOPE PILLS */
+.scope-pills{display:flex;gap:3px;}
+.scope-pill{background:var(--panel);border:1px solid var(--border);color:var(--tx-3);font-size:.6rem;font-weight:600;padding:.14rem .44rem;border-radius:2px;cursor:pointer;transition:all .13s;letter-spacing:.03em;text-transform:uppercase;}
+.scope-pill:hover{border-color:var(--border-hi);color:var(--tx-2);}
+.scope-pill.active{background:var(--white);color:var(--wfg);border-color:var(--white);}
+
+/* CHAT BOX */
+.chat-box{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:.8rem;}
+.chat-box-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;}
+.chat-box-toggle{display:flex;align-items:center;gap:6px;}
+.chat-box-label{font-size:11px;color:var(--tx-3);}
+.chat-scope-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.chat-scope-label{font-size:11px;color:var(--tx-2);}
+
+/* SPEED SELECTOR */
+.speed-row{display:flex;gap:7px;}
+.speed-opt{flex:1;padding:.65rem .5rem;border:1px solid var(--border-2);border-radius:var(--r-md);background:var(--panel);cursor:pointer;text-align:center;transition:all .14s;}
+.speed-opt:hover{border-color:var(--border-hi);}
+.speed-opt.sel{border-color:var(--border-hi);background:var(--panel-2);}
+.speed-opt .sp-icon{font-size:1.3rem;line-height:1;margin-bottom:4px;}
+.speed-opt .sp-title{font-weight:700;font-size:13px;letter-spacing:-.015em;color:var(--tx);}
+.speed-opt .sp-desc{font-size:11px;color:var(--tx-3);margin-top:3px;line-height:1.4;}
+
+/* AI GENERATE STATE */
+.ai-gen-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:3rem 2rem;text-align:center;}
+.ai-gen-icon{font-size:2.2rem;margin-bottom:1rem;animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.4;transform:scale(.95)}50%{opacity:1;transform:scale(1.07)}}
+.ai-gen-title{font-size:15px;font-weight:700;letter-spacing:-.02em;}
+.ai-gen-sub{font-size:12px;color:var(--tx-3);margin-top:.35rem;}
+.prog-bar{width:200px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin:16px auto 0;}
+.prog-fill{height:100%;background:var(--white);border-radius:2px;transition:width .55s cubic-bezier(.22,1,.36,1);}
+
+/* AI RESULT ACTIONS */
+.ai-result-bar{display:flex;align-items:center;gap:6px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:12px;flex-wrap:wrap;}
+.ai-result-bar-label{font-size:11.5px;color:var(--tx-2);flex:1;min-width:100px;}
+
+/* LINE COUNT BADGE */
+.line-count-badge{display:inline-flex;align-items:center;gap:4px;font-size:.65rem;font-weight:700;padding:.15rem .45rem;border-radius:2px;font-family:var(--mono);}
+.line-count-badge.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green-hi);}
+.line-count-badge.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:var(--yellow-hi);}
+.line-count-badge.over{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);color:var(--red-hi);}
+
+/* REFINE ROW */
+.refine-row{display:flex;gap:5px;}
+.refine-row input{flex:1;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);font-family:var(--font);font-size:.8rem;padding:0 10px;border-radius:var(--r);outline:none;height:29px;transition:border-color .13s;}
+.refine-row input:focus{border-color:var(--border-hi);}
+.refine-row input::placeholder{color:var(--tx-3);}
+
+/* AI EDIT BANNER */
+.ai-edit-banner{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.ai-edit-banner i{color:var(--purple-hi);font-size:14px;flex-shrink:0;}
+.ai-edit-banner-text{flex:1;min-width:0;}
+.ai-edit-banner-title{font-size:13px;font-weight:700;color:var(--purple-hi);}
+.ai-edit-banner-sub{font-size:11.5px;color:var(--tx-3);margin-top:2px;}
+
+/* PREVIEW */
+.prev-container{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;}
+.prev-toolbar{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;background:var(--panel);flex-wrap:wrap;}
+.prev-toolbar-title{font-size:11.5px;color:var(--tx-3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);}
+.prev-frame-wrap{position:relative;}
+iframe.prev-frame{width:100%;height:400px;border:none;background:#fff;display:block;}
+.code-view-wrap{overflow:auto;background:var(--bg);padding:14px;font-family:var(--mono);font-size:11.5px;line-height:1.7;color:var(--tx-2);white-space:pre-wrap;word-break:break-all;max-height:400px;display:none;}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0;}
+.divider-label{font-size:.6rem;font-weight:700;color:var(--tx-3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono);text-align:center;margin:-8px 0 14px;position:relative;}
+.divider-label span{background:var(--bg);padding:0 10px;}
+
+/* SIGN-IN GATE */
+#signin-gate{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;gap:1rem;}
+#signin-gate.show{display:flex;}
+
+/* LOADING */
+.spin{display:inline-block;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(18px);background:var(--panel-2);border:1px solid var(--border-2);padding:8px 15px;border-radius:var(--r-md);color:var(--tx);font-size:12.5px;font-weight:500;z-index:9999;opacity:0;transition:all .22s cubic-bezier(.22,1,.36,1);box-shadow:0 8px 30px rgba(0,0,0,.6);pointer-events:none;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.ok{border-color:rgba(34,197,94,.35);color:var(--green-hi);}
+#toast.err{border-color:rgba(220,38,38,.3);color:var(--red-hi);}
+
+@media(max-width:600px){.speed-row{flex-direction:column;}.platform-row{flex-wrap:wrap;}}
+</style>
+</head>
+<body>
+
+<div id="topnav">
+  <div class="nav-brand">
+    <div class="nav-mark"><img src="/logo3.png?v=2" alt="HT"/></div>
+    <span class="nav-name">HTML Tools</span>
+  </div>
+  <button class="btn-back" onclick="window.location.href='/Studio/'">
+    <i class="fas fa-arrow-left"></i> Studio
+  </button>
+  <span class="nav-title" id="nav-title" style="margin-left:4px">New Game</span>
+  <div class="nav-spacer"></div>
+  <span class="nav-user-name" id="nav-uname"></span>
+</div>
+
+<div id="signin-gate">
+  <div style="font-size:2rem;opacity:.3"><i class="fas fa-lock"></i></div>
+  <div style="font-size:17px;font-weight:700">Sign in required</div>
+  <div style="font-size:12.5px;color:var(--tx-2);max-width:280px;line-height:1.6">Sign in through the Library to access Studio.</div>
+  <button class="btn btn-prim" onclick="window.location.href='/Library/'"><i class="fas fa-arrow-right"></i> Go to Library</button>
+</div>
+
+<div id="page" style="display:none">
+  <div class="page-inner">
+
+    <!-- MODE TABS (hidden in AI Edit mode) -->
+    <div class="mode-tabs" id="mode-tabs">
+      <button class="mode-tab active" id="tab-manual" onclick="setMode('manual')">
+        <i class="fas fa-code"></i> Manual Upload
+      </button>
+      <button class="mode-tab" id="tab-ai" onclick="setMode('ai')">
+        <i class="fas fa-magic"></i> Generate with AI
+      </button>
+    </div>
+
+    <!-- ══════════ MANUAL PANEL ══════════ -->
+    <div id="panel-manual">
+      <div class="section-card">
+        <div class="section-hdr"><i class="fas fa-code"></i><span>Game Code</span></div>
+        <div class="section-body">
+          <div class="f-group">
+            <label class="f-label">Title *</label>
+            <input type="text" class="f-input" id="bk-title" placeholder="Game name…"/>
+          </div>
+          <div class="f-group">
+            <label class="f-label">HTML Code *</label>
+            <textarea class="f-input f-code" id="bk-code" placeholder="Paste your complete HTML here…" oninput="updateManualLineCount()"></textarea>
+            <div class="f-note" id="manual-line-note"></div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Description</label>
+            <input type="text" class="f-input" id="bk-desc" placeholder="Short description…"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-hdr"><i class="fas fa-image"></i><span>Branding</span></div>
+        <div class="section-body">
+          <div class="f-group">
+            <label class="f-label">Game Logo</label>
+            <div class="img-drop" id="logo-drop">
+              <button type="button" class="rm-img" id="logo-rm">✕</button>
+              <input type="file" id="logo-file" accept="image/*"/>
+              <div class="drop-label"><i class="fas fa-camera" style="margin-right:4px"></i>Click to upload (max 2MB)</div>
+              <img id="logo-prev" class="drop-prev" alt=""/>
+            </div>
+            <input type="text" class="f-input" id="logo-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="prevUrl('logo',this.value)"/>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Card Background</label>
+            <div class="img-drop" id="bg-drop">
+              <button type="button" class="rm-img" id="bg-rm">✕</button>
+              <input type="file" id="bg-file" accept="image/*"/>
+              <div class="drop-label"><i class="fas fa-image" style="margin-right:4px"></i>Click to upload</div>
+              <img id="bg-prev" class="drop-prev" alt=""/>
+            </div>
+            <input type="text" class="f-input" id="bg-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="prevUrl('bg',this.value)"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-hdr"><i class="fas fa-sliders-h"></i><span>Settings</span></div>
+        <div class="section-body">
+          <div class="f-group">
+            <label class="f-label">Platform</label>
+            <div class="platform-row" id="plat-row">
+              <button type="button" class="plat-opt sel-both" data-p="both" onclick="selPlat('both')">🌐 Both</button>
+              <button type="button" class="plat-opt" data-p="mobile" onclick="selPlat('mobile')">📱 Mobile</button>
+              <button type="button" class="plat-opt" data-p="computer" onclick="selPlat('computer')">💻 PC</button>
+            </div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Collaborators</label>
+            <div class="collab-row">
+              <input type="text" id="collab-email" placeholder="Add by email…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCollab();}"/>
+              <button type="button" class="btn btn-prim btn-sm" onclick="addCollab()">Add</button>
+            </div>
+            <div class="collab-tags" id="collab-tags"></div>
+          </div>
+          <div class="f-group">
+            <div class="chat-box">
+              <div class="chat-box-hdr">
+                <span class="f-label" style="margin:0">In-Game Chat</span>
+                <div class="chat-box-toggle">
+                  <label class="toggle"><input type="checkbox" id="chat-chk" onchange="toggleChat()"/><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+                  <span class="chat-box-label" id="chat-lbl">Disabled</span>
+                </div>
+              </div>
+              <div id="scope-row" style="display:none" class="chat-scope-row">
+                <span class="chat-scope-label">Scope:</span>
+                <div class="scope-pills">
+                  <button class="scope-pill active" id="sc-global" onclick="setScope('global')">🌐 Global</button>
+                  <button class="scope-pill" id="sc-book" onclick="setScope('book')">📖 This Game</button>
+                  <button class="scope-pill" id="sc-both" onclick="setScope('both')">🔀 Both</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="f-check"><input type="checkbox" id="allow-code" checked/><label for="allow-code">Allow others to view &amp; copy source code</label></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
+        <button class="btn btn-ghost" onclick="saveDraft('manual')"><i class="fas fa-save"></i> Save Draft</button>
+        <button class="btn btn-prim" id="upload-btn" onclick="submitBook()"><i class="fas fa-rocket"></i> <span id="upload-btn-label">Publish</span></button>
+      </div>
+    </div>
+
+    <!-- ══════════ AI GENERATE PANEL ══════════ -->
+    <div id="panel-ai" style="display:none">
+      <!-- Step 1: Prompt -->
+      <div id="ai-s1">
+        <div class="section-card">
+          <div class="section-hdr"><i class="fas fa-magic"></i><span>AI Generator</span></div>
+          <div class="section-body">
+            <div class="f-group">
+              <label class="f-label">Speed</label>
+              <div class="speed-row">
+                <div class="speed-opt sel" id="sp-fast" onclick="selSpeed('fast')">
+                  <div class="sp-icon">⚡</div>
+                  <div class="sp-title">Quick</div>
+                  <div class="sp-desc">Fast — great for simple games</div>
+                </div>
+                <div class="speed-opt" id="sp-smart" onclick="selSpeed('smart')">
+                  <div class="sp-icon">🧠</div>
+                  <div class="sp-title">Smart</div>
+                  <div class="sp-desc">Stronger — for complex projects</div>
+                </div>
+              </div>
+            </div>
+            <div class="f-group">
+              <label class="f-label">Describe your game *</label>
+              <textarea class="f-input" id="ai-prompt" style="min-height:120px" placeholder="e.g. A Snake game with neon colours and a high score counter. Include keyboard and touch controls."></textarea>
+              <div class="f-note">Be specific — colours, mechanics, features, controls. Output is capped at 2,000 lines.</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-prim" onclick="aiGenerate()"><i class="fas fa-magic"></i> Generate</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Generating -->
+      <div id="ai-s2" style="display:none">
+        <div class="ai-gen-card">
+          <div class="ai-gen-icon">✨</div>
+          <div class="ai-gen-title" id="ai-gen-title">Building your game…</div>
+          <div class="ai-gen-sub" id="ai-gen-sub">This usually takes 10–30 seconds</div>
+          <div class="prog-bar"><div class="prog-fill" id="ai-prog" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Step 3: Result -->
+      <div id="ai-s3" style="display:none">
+        <!-- Preview -->
+        <div class="prev-container">
+          <div class="prev-toolbar">
+            <span class="prev-toolbar-title" id="ai-prev-label">Generated Game</span>
+            <span id="ai-line-badge" class="line-count-badge ok" style="margin-right:4px"></span>
+            <button class="btn btn-sm" onclick="prevFullscreen('ai-prev-frame')"><i class="fas fa-expand"></i></button>
+            <button class="btn btn-sm" onclick="prevOpenTab('ai')"><i class="fas fa-external-link-alt"></i> New Tab</button>
+            <button class="btn btn-sm" onclick="prevDownload('ai')"><i class="fas fa-download"></i></button>
+            <button class="btn btn-sm" onclick="prevCopyCode('ai')"><i class="fas fa-copy"></i></button>
+            <button class="btn btn-sm" id="ai-view-code-btn" onclick="prevToggleCode('ai')"><i class="fas fa-code"></i> Code</button>
+          </div>
+          <div class="prev-frame-wrap">
+            <iframe id="ai-prev-frame" class="prev-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
+            <div id="ai-code-view" class="code-view-wrap"></div>
+          </div>
+        </div>
+
+        <!-- Refine -->
+        <div class="section-card">
+          <div class="section-hdr"><i class="fas fa-edit"></i><span>Refine</span></div>
+          <div class="section-body">
+            <div class="f-group">
+              <label class="f-label">Ask for changes</label>
+              <div class="refine-row">
+                <input type="text" id="ai-refine" placeholder="e.g. Make the background dark, add a pause button…" onkeydown="if(event.key==='Enter')aiRefine()"/>
+                <button class="btn btn-prim" onclick="aiRefine()"><i class="fas fa-magic"></i> Apply</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost" style="font-size:11.5px" onclick="saveDraft('ai')"><i class="fas fa-save"></i> Save Draft</button>
+              <button class="btn btn-ghost" style="font-size:11.5px" onclick="resetAI()"><i class="fas fa-redo"></i> Start Over</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Publish Details -->
+        <div style="margin:4px 0 10px;font-size:.6rem;font-weight:700;color:var(--tx-3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono)">Publish Details</div>
+        <div class="section-card">
+          <div class="section-hdr"><i class="fas fa-info-circle"></i><span>Info</span></div>
+          <div class="section-body">
+            <div class="f-group"><label class="f-label">Title *</label><input type="text" class="f-input" id="ai-title" placeholder="Game name…"/></div>
+            <div class="f-group"><label class="f-label">Description</label><input type="text" class="f-input" id="ai-desc" placeholder="Short description…"/></div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-hdr"><i class="fas fa-image"></i><span>Branding</span></div>
+          <div class="section-body">
+            <div class="f-group">
+              <label class="f-label">Game Logo</label>
+              <div class="img-drop" id="ai-logo-drop">
+                <button type="button" class="rm-img" id="ai-logo-rm">✕</button>
+                <input type="file" id="ai-logo-file" accept="image/*"/>
+                <div class="drop-label"><i class="fas fa-camera" style="margin-right:4px"></i>Click to upload (max 2MB)</div>
+                <img id="ai-logo-prev" class="drop-prev" alt=""/>
+              </div>
+              <input type="text" class="f-input" id="ai-logo-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="aiPrevUrl('logo',this.value)"/>
+            </div>
+            <div class="f-group">
+              <label class="f-label">Card Background</label>
+              <div class="img-drop" id="ai-bg-drop">
+                <button type="button" class="rm-img" id="ai-bg-rm">✕</button>
+                <input type="file" id="ai-bg-file" accept="image/*"/>
+                <div class="drop-label"><i class="fas fa-image" style="margin-right:4px"></i>Click to upload</div>
+                <img id="ai-bg-prev" class="drop-prev" alt=""/>
+              </div>
+              <input type="text" class="f-input" id="ai-bg-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="aiPrevUrl('bg',this.value)"/>
+            </div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-hdr"><i class="fas fa-sliders-h"></i><span>Settings</span></div>
+          <div class="section-body">
+            <div class="f-group">
+              <label class="f-label">Platform</label>
+              <div class="platform-row" id="ai-plat-row">
+                <button type="button" class="plat-opt sel-both" data-p="both" onclick="aiSelPlat('both')">🌐 Both</button>
+                <button type="button" class="plat-opt" data-p="mobile" onclick="aiSelPlat('mobile')">📱 Mobile</button>
+                <button type="button" class="plat-opt" data-p="computer" onclick="aiSelPlat('computer')">💻 PC</button>
+              </div>
+            </div>
+            <div class="f-group">
+              <label class="f-label">Collaborators</label>
+              <div class="collab-row">
+                <input type="text" id="ai-collab-email" placeholder="Add by email…" onkeydown="if(event.key==='Enter'){event.preventDefault();aiAddCollab();}"/>
+                <button type="button" class="btn btn-prim btn-sm" onclick="aiAddCollab()">Add</button>
+              </div>
+              <div class="collab-tags" id="ai-collab-tags"></div>
+            </div>
+            <div class="f-group">
+              <div class="chat-box">
+                <div class="chat-box-hdr">
+                  <span class="f-label" style="margin:0">In-Game Chat</span>
+                  <div class="chat-box-toggle">
+                    <label class="toggle"><input type="checkbox" id="ai-chat-chk" checked onchange="aiToggleChat()"/><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+                    <span class="chat-box-label" id="ai-chat-lbl">Enabled</span>
+                  </div>
+                </div>
+                <div id="ai-scope-row" class="chat-scope-row">
+                  <span class="chat-scope-label">Scope:</span>
+                  <div class="scope-pills">
+                    <button class="scope-pill active" id="ai-sc-global" onclick="aiSetScope('global')">🌐 Global</button>
+                    <button class="scope-pill" id="ai-sc-book" onclick="aiSetScope('book')">📖 This Game</button>
+                    <button class="scope-pill" id="ai-sc-both" onclick="aiSetScope('both')">🔀 Both</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="f-check"><input type="checkbox" id="ai-allow-code" checked/><label for="ai-allow-code">Allow others to view &amp; copy source code</label></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+          <button class="btn btn-prim" id="ai-pub-btn" onclick="aiPublish()"><i class="fas fa-rocket"></i> Publish Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ AI EDIT PANEL ══════════ -->
+    <div id="panel-aiedit" style="display:none">
+      <div class="ai-edit-banner">
+        <i class="fas fa-magic"></i>
+        <div class="ai-edit-banner-text">
+          <div class="ai-edit-banner-title">AI Edit Mode</div>
+          <div class="ai-edit-banner-sub" id="aiedit-banner-sub">Editing: <strong id="aiedit-game-name">…</strong> — describe what to change and AI will update the code while keeping your title, description, logo, and settings.</div>
+        </div>
+      </div>
+
+      <!-- Step 1: Prompt -->
+      <div id="aiedit-s1">
+        <div class="section-card">
+          <div class="section-hdr"><i class="fas fa-magic"></i><span id="aiedit-section-title">Edit Game with AI</span></div>
+          <div class="section-body">
+            <div class="f-group">
+              <label class="f-label">Speed</label>
+              <div class="speed-row">
+                <div class="speed-opt sel" id="aiedit-sp-fast" onclick="aieditSelSpeed('fast')">
+                  <div class="sp-icon">⚡</div>
+                  <div class="sp-title">Quick</div>
+                  <div class="sp-desc">Fast edits</div>
+                </div>
+                <div class="speed-opt" id="aiedit-sp-smart" onclick="aieditSelSpeed('smart')">
+                  <div class="sp-icon">🧠</div>
+                  <div class="sp-title">Smart</div>
+                  <div class="sp-desc">Better for complex changes</div>
+                </div>
+              </div>
+            </div>
+            <div class="f-group">
+              <label class="f-label">What to change? *</label>
+              <textarea class="f-input" id="aiedit-prompt" style="min-height:110px" placeholder="e.g. Change the background to dark purple, add a lives system, make the player move faster…"></textarea>
+              <div class="f-note">Describe the changes you want. The rest of the game stays intact. Output is capped at 2,000 lines.</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-purple" onclick="aieditGenerate()"><i class="fas fa-magic"></i> Apply AI Changes</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Processing -->
+      <div id="aiedit-s2" style="display:none">
+        <div class="ai-gen-card">
+          <div class="ai-gen-icon">🎨</div>
+          <div class="ai-gen-title">Applying changes…</div>
+          <div class="ai-gen-sub">Reading your game and making edits</div>
+          <div class="prog-bar"><div class="prog-fill" id="aiedit-prog" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Step 3: Result -->
+      <div id="aiedit-s3" style="display:none">
+        <!-- Preview -->
+        <div class="prev-container">
+          <div class="prev-toolbar">
+            <span class="prev-toolbar-title" id="aiedit-prev-label">Edited Game</span>
+            <span id="aiedit-line-badge" class="line-count-badge ok" style="margin-right:4px"></span>
+            <button class="btn btn-sm" onclick="prevFullscreen('aiedit-prev-frame')"><i class="fas fa-expand"></i></button>
+            <button class="btn btn-sm" onclick="prevOpenTab('aiedit')"><i class="fas fa-external-link-alt"></i> New Tab</button>
+            <button class="btn btn-sm" onclick="prevDownload('aiedit')"><i class="fas fa-download"></i></button>
+            <button class="btn btn-sm" onclick="prevCopyCode('aiedit')"><i class="fas fa-copy"></i></button>
+            <button class="btn btn-sm" id="aiedit-view-code-btn" onclick="prevToggleCode('aiedit')"><i class="fas fa-code"></i> Code</button>
+          </div>
+          <div class="prev-frame-wrap">
+            <iframe id="aiedit-prev-frame" class="prev-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
+            <div id="aiedit-code-view" class="code-view-wrap"></div>
+          </div>
+        </div>
+
+        <!-- Further edits -->
+        <div class="section-card">
+          <div class="section-hdr"><i class="fas fa-edit"></i><span>Refine More</span></div>
+          <div class="section-body">
+            <div class="f-group">
+              <div class="refine-row">
+                <input type="text" id="aiedit-refine" placeholder="Describe another change…" onkeydown="if(event.key==='Enter')aieditRefine()"/>
+                <button class="btn btn-purple" onclick="aieditRefine()"><i class="fas fa-magic"></i> Apply</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost" style="font-size:11.5px" onclick="saveDraft('ai-edit')"><i class="fas fa-save"></i> Save Draft</button>
+              <button class="btn btn-ghost" style="font-size:11.5px" onclick="aieditReset()"><i class="fas fa-undo"></i> Start Over</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+          <button class="btn btn-purple" id="aiedit-save-btn" onclick="aieditSave()"><i class="fas fa-save"></i> Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,push,set,get,update}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+
+const WORKER='https://aged-heart-d9b9.bozhetarnikmatthew.workers.dev/';
+const MAX_LINES=2000;
+const oldApp=initializeApp({apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"},'old');
+const auth=getAuth(oldApp);
+const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
+initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
+const db=getDatabase(newApp);
+
+const AI_MODELS={fast:'us.anthropic.claude-haiku-4-5-20251001-v1:0',smart:'us.anthropic.claude-sonnet-4-6'};
+const AI_SYS=`You are an expert HTML5 game developer.\nRULES (STRICT — no exceptions):\n1. Respond with ONLY a single complete self-contained HTML file.\n2. Start with <!DOCTYPE html>, end with </html>.\n3. No markdown, no explanations, no code fences.\n4. All CSS and JS inside <style> and <script> tags.\n5. Make it visually polished and fun.\n6. IMPORTANT: Keep your output under ${MAX_LINES} lines total. Be concise but complete.`;
+const AI_EDIT_SYS=`You are an expert HTML5 game developer making targeted edits.\nRULES (STRICT — no exceptions):\n1. You will receive existing game code and a description of changes to make.\n2. Apply the requested changes and return the COMPLETE updated HTML file.\n3. Respond with ONLY the updated HTML file — no markdown, no explanations, no code fences.\n4. Start with <!DOCTYPE html>, end with </html>.\n5. Keep ALL existing features, styles, images, titles, and logic unless explicitly told to change them.\n6. IMPORTANT: Keep your output under ${MAX_LINES} lines total.`;
+
+let CU=null;
+// Manual state
+let _logo=null,_bg=null,_plat='both',_chatOn=false,_chatScope='global',_collabs=[],_editId=null,_submitting=false;
+// AI generate state
+let _aiSpd='fast',_aiCode='',_aiConv=[],_aiLogo=null,_aiBg=null,_aiPlat='both',_aiChatOn=true,_aiScope='global',_aiCollabs=[],_aiPublishing=false,_progT=null;
+// AI edit state
+let _aieditId=null,_aieditBk=null,_aieditOrigCode='',_aieditCode='',_aieditConv=[],_aieditSpd='fast',_aieditSaving=false,_aieditProgT=null;
+
+const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
+const countLines=s=>s?s.split('\n').length:0;
+
+window.showToast=(m,t='')=>{const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+(t||'');clearTimeout(window._tt);window._tt=setTimeout(()=>el.className='toast',3200);};
+
+// DRAFTS
+const getDrafts=()=>{try{return JSON.parse(localStorage.getItem('studio_drafts')||'[]');}catch{return[];}};
+const saveDraftsLS=d=>localStorage.setItem('studio_drafts',JSON.stringify(d));
+
+// AUTH
+onAuthStateChanged(auth,async u=>{
+  CU=u;
+  if(u){
+    document.getElementById('signin-gate').style.display='none';
+    document.getElementById('page').style.display='flex';
+    document.getElementById('nav-uname').textContent=u.displayName||u.email;
+    if(localStorage.getItem('studio_lightmode')==='1')document.body.classList.add('light-mode');
+    await handleUrlParams();
+  } else {
+    document.getElementById('signin-gate').style.display='flex';
+    document.getElementById('signin-gate').classList.add('show');
+    document.getElementById('page').style.display='none';
+  }
+});
+
+async function handleUrlParams(){
+  const p=new URLSearchParams(location.search);
+  const editId=p.get('edit');
+  const aieditId=p.get('aiedit');
+  const draftId=p.get('draft');
+
+  if(aieditId){
+    // AI Edit mode
+    document.getElementById('mode-tabs').style.display='none';
+    document.getElementById('panel-manual').style.display='none';
+    document.getElementById('panel-ai').style.display='none';
+    document.getElementById('panel-aiedit').style.display='';
+    document.getElementById('nav-title').textContent='AI Edit';
+    await loadAIEdit(aieditId);
+  } else if(editId){
+    // Manual edit mode
+    document.getElementById('mode-tabs').style.display='none';
+    document.getElementById('nav-title').textContent='Edit Game';
+    document.getElementById('upload-btn-label').textContent='Save Changes';
+    await loadManualEdit(editId);
+  } else if(draftId){
+    // Restore draft
+    const draft=getDrafts().find(d=>d.id===parseInt(draftId));
+    if(draft)restoreDraftInPage(draft);
+  } else {
+    // Default: new game, show manual tab
+    setMode('manual');
+  }
+}
+
+async function fetchCode(id){
+  try{const s=await get(ref(db,'bookCode/'+id+'/code'));if(s.exists()&&s.val())return s.val();}catch{}
+  try{const s=await get(ref(db,'books/'+id+'/code'));if(s.exists()&&s.val())return s.val();}catch{}
+  return'';
+}
+
+// ── MODE SWITCHING ──────────────────────────────────────────────────────────
+window.setMode=function(mode){
+  document.getElementById('panel-manual').style.display=mode==='manual'?'':'none';
+  document.getElementById('panel-ai').style.display=mode==='ai'?'':'none';
+  document.getElementById('tab-manual').className='mode-tab'+(mode==='manual'?' active':'');
+  document.getElementById('tab-ai').className='mode-tab'+(mode==='ai'?' active':'');
+};
+
+// ── LINE COUNT HELPERS ──────────────────────────────────────────────────────
+function lineBadgeClass(n){if(n>MAX_LINES)return'over';if(n>MAX_LINES*0.85)return'warn';return'ok';}
+function updateLineBadge(badgeId,n){
+  const el=document.getElementById(badgeId);if(!el)return;
+  const cls=lineBadgeClass(n);
+  el.className='line-count-badge '+cls;
+  el.textContent=n+' / '+MAX_LINES+' lines';
+}
+window.updateManualLineCount=function(){
+  const code=document.getElementById('bk-code').value;
+  const n=countLines(code);
+  const note=document.getElementById('manual-line-note');
+  if(!code){note.textContent='';return;}
+  const cls=lineBadgeClass(n);
+  note.className='f-note'+(cls==='over'?' err':cls==='warn'?' warn':'');
+  note.textContent=n+' lines'+(cls==='over'?' — over the 2,000 line limit':cls==='warn'?' — approaching the 2,000 line limit':'');
+};
+
+// ── IFRAME HELPERS ──────────────────────────────────────────────────────────
+function loadIframe(frameId,html){
+  const old=document.getElementById(frameId);if(!old)return;
+  const parent=old.parentNode;
+  const neo=document.createElement('iframe');
+  neo.id=frameId;neo.className=old.className;neo.style.cssText=old.style.cssText;
+  neo.setAttribute('sandbox','allow-scripts allow-forms allow-modals allow-popups allow-same-origin');
+  parent.replaceChild(neo,old);
+  requestAnimationFrame(()=>{neo.srcdoc=html;});
+}
+window.prevFullscreen=function(frameId){
+  const f=document.getElementById(frameId);if(!f)return;
+  (f.requestFullscreen||f.webkitRequestFullscreen||f.mozRequestFullScreen||function(){}).call(f);
+};
+window.prevOpenTab=function(which){
+  const code=which==='ai'?_aiCode:which==='aiedit'?_aieditCode:'';
+  if(!code){showToast('No code to open.','err');return;}
+  const w=window.open('about:blank','_blank');
+  if(w){w.document.open();w.document.write(code);w.document.close();}
+  else showToast('Pop-up blocked.','err');
+};
+window.prevDownload=function(which){
+  const code=which==='ai'?_aiCode:which==='aiedit'?_aieditCode:'';
+  const title=which==='ai'?(document.getElementById('ai-title').value.trim()||'game'):(_aieditBk?.title||'game');
+  if(!code){showToast('No code.','err');return;}
+  const blob=new Blob([code],{type:'text/html'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(title.replace(/[^a-z0-9_\-]/gi,'_')||'game')+'.html';
+  a.click();URL.revokeObjectURL(a.href);
+};
+window.prevCopyCode=function(which){
+  const code=which==='ai'?_aiCode:which==='aiedit'?_aieditCode:'';
+  if(!code){showToast('No code.','err');return;}
+  navigator.clipboard.writeText(code).then(()=>showToast('Copied!','ok')).catch(()=>showToast('Copy failed.','err'));
+};
+window.prevToggleCode=function(which){
+  const frameId=which==='ai'?'ai-prev-frame':'aiedit-prev-frame';
+  const viewId=which==='ai'?'ai-code-view':'aiedit-code-view';
+  const btnId=which==='ai'?'ai-view-code-btn':'aiedit-view-code-btn';
+  const code=which==='ai'?_aiCode:_aieditCode;
+  const frame=document.getElementById(frameId);
+  const view=document.getElementById(viewId);
+  const btn=document.getElementById(btnId);
+  const isCode=view.style.display==='block';
+  if(isCode){
+    view.style.display='none';frame.style.display='block';
+    btn.innerHTML='<i class="fas fa-code"></i> Code';
+  } else {
+    view.textContent=code||'(no code)';
+    view.style.display='block';frame.style.display='none';
+    btn.innerHTML='<i class="fas fa-eye"></i> Preview';
+  }
+};
+
+// ── AI CALL ─────────────────────────────────────────────────────────────────
+async function callAI(msgs,spd,sys){
+  const model=AI_MODELS[spd]||AI_MODELS.fast;
+  const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system:sys,messages:msgs,max_tokens:6000})});
+  if(!r.ok){const t=await r.text().catch(()=>r.status);throw new Error('Error '+r.status+': '+t);}
+  const data=await r.json();
+  let raw='';
+  if(Array.isArray(data.content))raw=data.content.map(x=>x.text||'').join('');
+  else if(data.content)raw=String(data.content);
+  return raw.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+}
+
+function enforceLineLimit(code){
+  const lines=code.split('\n');
+  if(lines.length>MAX_LINES){
+    // Truncate and close HTML properly
+    const truncated=lines.slice(0,MAX_LINES);
+    // Ensure </html> at end
+    const last=truncated[truncated.length-1].trim();
+    if(last!=='</html>')truncated.push('</html>');
+    return{code:truncated.join('\n'),truncated:true,count:lines.length};
+  }
+  return{code,truncated:false,count:lines.length};
+}
+
+// ── PROGRESS BAR ────────────────────────────────────────────────────────────
+function startProg(fillId){
+  let p=0;const b=document.getElementById(fillId);if(b)b.style.width='0%';
+  return setInterval(()=>{p=Math.min(p+Math.random()*2.5,88);if(b)b.style.width=p+'%';},450);
+}
+function stopProg(t,fillId){
+  clearInterval(t);const b=document.getElementById(fillId);if(b)b.style.width='100%';
+}
+
+// ── AI GENERATE ─────────────────────────────────────────────────────────────
+window.selSpeed=function(s){
+  _aiSpd=s;
+  document.getElementById('sp-fast').classList.toggle('sel',s==='fast');
+  document.getElementById('sp-smart').classList.toggle('sel',s==='smart');
+};
+
+window.aiGenerate=async function(){
+  const prompt=(document.getElementById('ai-prompt').value||'').trim();
+  if(!prompt){showToast('Describe your game first.','err');return;}
+  document.getElementById('ai-s1').style.display='none';
+  document.getElementById('ai-s2').style.display='';
+  document.getElementById('ai-gen-title').textContent=_aiSpd==='smart'?'Thinking carefully…':'Building your game…';
+  document.getElementById('ai-gen-sub').textContent=_aiSpd==='smart'?'Smart mode may take 30–60s':'Usually 10–30 seconds';
+  _progT=startProg('ai-prog');
+  _aiConv=[{role:'user',content:prompt}];
+  try{
+    let code=await callAI(_aiConv,_aiSpd,AI_SYS);
+    if(!code||!code.includes('<html'))throw new Error('AI did not return valid HTML. Try rephrasing.');
+    const{code:finalCode,truncated,count}=enforceLineLimit(code);
+    _aiCode=finalCode;
+    _aiConv.push({role:'assistant',content:finalCode});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines (was ${count}).`,'');
+    if(!document.getElementById('ai-title').value){
+      const w=prompt.split(' ').slice(0,5).join(' ');
+      document.getElementById('ai-title').value=w.charAt(0).toUpperCase()+w.slice(1);
+    }
+    stopProg(_progT,'ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s3').style.display='';
+    document.getElementById('ai-prev-label').textContent=document.getElementById('ai-title').value||'Generated Game';
+    updateLineBadge('ai-line-badge',countLines(_aiCode));
+    loadIframe('ai-prev-frame',_aiCode);
+    autoSave('ai');
+  }catch(e){
+    stopProg(_progT,'ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s1').style.display='';
+    showToast('Error: '+e.message,'err');
+  }
+};
+
+window.aiRefine=async function(){
+  const txt=(document.getElementById('ai-refine').value||'').trim();
+  if(!txt){showToast('Describe the changes you want.','err');return;}
+  if(!_aiCode){showToast('Generate first.','err');return;}
+  document.getElementById('ai-s3').style.display='none';
+  document.getElementById('ai-s2').style.display='';
+  document.getElementById('ai-gen-title').textContent='Applying changes…';
+  document.getElementById('ai-gen-sub').textContent='Refining your game…';
+  _progT=startProg('ai-prog');
+  _aiConv.push({role:'user',content:txt});
+  try{
+    let code=await callAI(_aiConv,_aiSpd,AI_SYS);
+    if(!code||!code.includes('<html'))throw new Error('AI returned invalid HTML.');
+    const{code:finalCode,truncated,count}=enforceLineLimit(code);
+    _aiCode=finalCode;
+    _aiConv.push({role:'assistant',content:finalCode});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    document.getElementById('ai-refine').value='';
+    stopProg(_progT,'ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s3').style.display='';
+    updateLineBadge('ai-line-badge',countLines(_aiCode));
+    loadIframe('ai-prev-frame',_aiCode);
+    showToast('Updated! 🎉','ok');autoSave('ai');
+  }catch(e){
+    stopProg(_progT,'ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s3').style.display='';
+    showToast('Error: '+e.message,'err');
+  }
+};
+
+window.resetAI=function(){
+  _aiSpd='fast';_aiCode='';_aiConv=[];_aiLogo=null;_aiBg=null;_aiPlat='both';
+  _aiChatOn=true;_aiScope='global';_aiCollabs=[];_aiPublishing=false;
+  document.getElementById('ai-prompt').value='';
+  document.getElementById('ai-refine').value='';
+  document.getElementById('ai-title').value='';
+  document.getElementById('ai-desc').value='';
+  document.getElementById('ai-allow-code').checked=true;
+  aiClearImg('logo');aiClearImg('bg');
+  document.getElementById('ai-collab-tags').innerHTML='';
+  document.getElementById('ai-collab-email').value='';
+  selSpeed('fast');
+  document.getElementById('ai-chat-chk').checked=true;
+  document.getElementById('ai-chat-lbl').textContent='Enabled';
+  document.getElementById('ai-scope-row').style.display='flex';
+  ['global','book','both'].forEach(s=>document.getElementById('ai-sc-'+s).classList.toggle('active',s==='global'));
+  aiSelPlat('both');
+  document.getElementById('ai-s1').style.display='';
+  document.getElementById('ai-s2').style.display='none';
+  document.getElementById('ai-s3').style.display='none';
+};
+
+window.aiPublish=async function(){
+  if(_aiPublishing)return;
+  const title=(document.getElementById('ai-title').value||'').trim();
+  if(!title){showToast('Add a title.','err');return;}
+  if(!_aiCode){showToast('No code.','err');return;}
+  _aiPublishing=true;
+  const btn=document.getElementById('ai-pub-btn');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Publishing…';btn.disabled=true;
+  const co={};_aiCollabs.forEach((c,i)=>{co['c'+i]={email:c.email};});
+  const meta={title,desc:(document.getElementById('ai-desc').value||'').trim(),allowViewCode:document.getElementById('ai-allow-code').checked,platform:_aiPlat,chatEnabled:_aiChatOn,chatScope:_aiScope,collaborators:Object.keys(co).length?co:null,generatedByAI:true,updatedAt:Date.now(),ownerId:CU.uid,ownerName:CU.displayName||CU.email,createdAt:Date.now(),likes:0,views:0};
+  if(_aiLogo)meta.logoImage=_aiLogo;if(_aiBg)meta.bgImage=_aiBg;
+  try{
+    const nr=push(ref(db,'books'));await set(nr,meta);await set(ref(db,'bookCode/'+nr.key+'/code'),_aiCode);
+    saveDraftsLS(getDrafts().filter(d=>!(d.auto&&d.type==='ai')));
+    showToast('Published! 🎉','ok');
+    setTimeout(()=>window.location.href='/Studio/',1200);
+  }catch(e){showToast('Error: '+e.message,'err');}
+  btn.innerHTML='<i class="fas fa-rocket"></i> Publish Game';btn.disabled=false;_aiPublishing=false;
+};
+
+// AI image helpers
+window.aiPrevUrl=function(t,url){if(!url||!url.startsWith('http'))return;aiSetImg(t,url);};
+function aiHandleFile(t,inp){const f=inp.files[0];if(!f)return;if(f.size>2e6){showToast('Max 2MB.','err');inp.value='';return;}const r=new FileReader();r.onload=e=>aiSetImg(t,e.target.result);r.readAsDataURL(f);}
+function aiSetImg(t,src){if(t==='logo')_aiLogo=src;else _aiBg=src;const a=document.getElementById('ai-'+t+'-drop'),p=document.getElementById('ai-'+t+'-prev');p.src=src;p.style.display='block';a.classList.add('has-img');const l=a.querySelector('.drop-label');if(l)l.style.display='none';}
+function aiClearImg(t){if(t==='logo')_aiLogo=null;else _aiBg=null;const a=document.getElementById('ai-'+t+'-drop'),p=document.getElementById('ai-'+t+'-prev'),fi=document.getElementById('ai-'+t+'-file'),ui=document.getElementById('ai-'+t+'-url');if(p){p.style.display='none';p.src='';}if(fi)fi.value='';if(ui)ui.value='';if(a){a.classList.remove('has-img');const l=a.querySelector('.drop-label');if(l)l.style.display='';}}
+document.getElementById('ai-logo-file').addEventListener('change',function(){aiHandleFile('logo',this);});
+document.getElementById('ai-bg-file').addEventListener('change',function(){aiHandleFile('bg',this);});
+document.getElementById('ai-logo-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();aiClearImg('logo');});
+document.getElementById('ai-bg-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();aiClearImg('bg');});
+window.aiSelPlat=function(p){_aiPlat=p;document.querySelectorAll('#ai-plat-row .plat-opt').forEach(b=>{b.className='plat-opt';if(b.dataset.p===p)b.classList.add('sel-'+p);});};
+window.aiToggleChat=function(){_aiChatOn=document.getElementById('ai-chat-chk').checked;document.getElementById('ai-chat-lbl').textContent=_aiChatOn?'Enabled':'Disabled';document.getElementById('ai-scope-row').style.display=_aiChatOn?'flex':'none';};
+window.aiSetScope=function(s){_aiScope=s;['global','book','both'].forEach(x=>document.getElementById('ai-sc-'+x).classList.toggle('active',x===s));};
+window.aiAddCollab=function(){const inp=document.getElementById('ai-collab-email'),email=(inp.value||'').trim().toLowerCase();if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Valid email required.','err');return;}if(CU&&email===CU.email.toLowerCase()){showToast("That's your own email.",'err');return;}if(_aiCollabs.some(c=>c.email===email)){showToast('Already added.','err');return;}if(_aiCollabs.length>=10){showToast('Max 10.','err');return;}_aiCollabs.push({email});inp.value='';renderAiCollabs();};
+window.aiRemoveCollab=function(e){_aiCollabs=_aiCollabs.filter(c=>c.email!==e);renderAiCollabs();};
+function renderAiCollabs(){const l=document.getElementById('ai-collab-tags');if(!l)return;l.innerHTML=_aiCollabs.map(c=>`<span class="ctag">${esc(c.email)}<button class="ctag-rm" onclick="aiRemoveCollab('${esc(c.email)}')">✕</button></span>`).join('');}
+
+// ── AI EDIT ─────────────────────────────────────────────────────────────────
+async function loadAIEdit(id){
+  document.getElementById('aiedit-game-name').textContent='Loading…';
+  try{
+    // Load book metadata
+    const snap=await get(ref(db,'books/'+id));
+    if(!snap.exists()){showToast('Game not found.','err');return;}
+    const bk=snap.val();
+    // Permission check
+    if(bk.ownerId!==CU.uid){showToast('You can only AI-edit your own games.','err');return;}
+    _aieditId=id;_aieditBk=bk;
+    document.getElementById('aiedit-game-name').textContent=bk.title||'Untitled';
+    document.getElementById('aiedit-prev-label').textContent=bk.title||'Edited Game';
+    // Load existing code
+    _aieditOrigCode=await fetchCode(id);
+    if(!_aieditOrigCode){showToast('Could not load game code.','err');return;}
+    _aieditConv=[];_aieditCode='';
+  }catch(e){showToast('Error loading game: '+e.message,'err');}
+}
+
+window.aieditSelSpeed=function(s){
+  _aieditSpd=s;
+  document.getElementById('aiedit-sp-fast').classList.toggle('sel',s==='fast');
+  document.getElementById('aiedit-sp-smart').classList.toggle('sel',s==='smart');
+};
+
+window.aieditGenerate=async function(){
+  const prompt=(document.getElementById('aiedit-prompt').value||'').trim();
+  if(!prompt){showToast('Describe what to change.','err');return;}
+  if(!_aieditOrigCode){showToast('Game code not loaded yet.','err');return;}
+  document.getElementById('aiedit-s1').style.display='none';
+  document.getElementById('aiedit-s2').style.display='';
+  _aieditProgT=startProg('aiedit-prog');
+  // Build conversation: give the AI the existing code plus the instruction
+  const baseCode=_aieditConv.length>0?_aieditCode:_aieditOrigCode;
+  const userMsg=`Here is the current game code:\n\n${baseCode}\n\n---\n\nChanges to make: ${prompt}`;
+  _aieditConv.push({role:'user',content:userMsg});
+  try{
+    let code=await callAI(_aieditConv,_aieditSpd,AI_EDIT_SYS);
+    if(!code||!code.includes('<html'))throw new Error('AI returned invalid HTML. Try rephrasing.');
+    const{code:finalCode,truncated,count}=enforceLineLimit(code);
+    _aieditCode=finalCode;
+    _aieditConv.push({role:'assistant',content:finalCode});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    stopProg(_aieditProgT,'aiedit-prog');
+    document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s3').style.display='';
+    updateLineBadge('aiedit-line-badge',countLines(_aieditCode));
+    loadIframe('aiedit-prev-frame',_aieditCode);
+    showToast('Changes applied! 🎨','ok');
+    saveDraft('ai-edit');
+  }catch(e){
+    stopProg(_aieditProgT,'aiedit-prog');
+    document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s1').style.display='';
+    showToast('Error: '+e.message,'err');
+  }
+};
+
+window.aieditRefine=async function(){
+  const txt=(document.getElementById('aiedit-refine').value||'').trim();
+  if(!txt){showToast('Describe another change.','err');return;}
+  if(!_aieditCode){showToast('Apply changes first.','err');return;}
+  document.getElementById('aiedit-s3').style.display='none';
+  document.getElementById('aiedit-s2').style.display='';
+  _aieditProgT=startProg('aiedit-prog');
+  const userMsg=`Here is the current game code:\n\n${_aieditCode}\n\n---\n\nChanges to make: ${txt}`;
+  _aieditConv.push({role:'user',content:userMsg});
+  try{
+    let code=await callAI(_aieditConv,_aieditSpd,AI_EDIT_SYS);
+    if(!code||!code.includes('<html'))throw new Error('AI returned invalid HTML.');
+    const{code:finalCode,truncated}=enforceLineLimit(code);
+    _aieditCode=finalCode;
+    _aieditConv.push({role:'assistant',content:finalCode});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    document.getElementById('aiedit-refine').value='';
+    stopProg(_aieditProgT,'aiedit-prog');
+    document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s3').style.display='';
+    updateLineBadge('aiedit-line-badge',countLines(_aieditCode));
+    loadIframe('aiedit-prev-frame',_aieditCode);
+    showToast('Updated! 🎉','ok');saveDraft('ai-edit');
+  }catch(e){
+    stopProg(_aieditProgT,'aiedit-prog');
+    document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s3').style.display='';
+    showToast('Error: '+e.message,'err');
+  }
+};
+
+window.aieditReset=function(){
+  _aieditCode='';_aieditConv=[];
+  document.getElementById('aiedit-prompt').value='';
+  document.getElementById('aiedit-refine').value='';
+  document.getElementById('aiedit-s1').style.display='';
+  document.getElementById('aiedit-s2').style.display='none';
+  document.getElementById('aiedit-s3').style.display='none';
+};
+
+window.aieditSave=async function(){
+  if(_aieditSaving)return;
+  if(!_aieditCode){showToast('No changes to save.','err');return;}
+  if(!_aieditId){showToast('No game loaded.','err');return;}
+  _aieditSaving=true;
+  const btn=document.getElementById('aiedit-save-btn');btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving…';btn.disabled=true;
+  try{
+    // Only update the code — keep all existing metadata (title, desc, logo, bg, etc.)
+    await set(ref(db,'bookCode/'+_aieditId+'/code'),_aieditCode);
+    await update(ref(db,'books/'+_aieditId),{updatedAt:Date.now()});
+    showToast('Game updated! 🎉','ok');
+    setTimeout(()=>window.location.href='/Studio/',1400);
+  }catch(e){showToast('Error saving: '+e.message,'err');}
+  btn.innerHTML='<i class="fas fa-save"></i> Save Changes';btn.disabled=false;_aieditSaving=false;
+};
+
+// ── MANUAL UPLOAD / EDIT ─────────────────────────────────────────────────────
+async function loadManualEdit(id){
+  _editId=id;
+  try{
+    const snap=await get(ref(db,'books/'+id));
+    if(!snap.exists()){showToast('Game not found.','err');return;}
+    const bk=snap.val();
+    if(bk.ownerId!==CU.uid){showToast('Permission denied.','err');return;}
+    document.getElementById('bk-title').value=bk.title||'';
+    document.getElementById('bk-desc').value=bk.desc||'';
+    document.getElementById('allow-code').checked=!!bk.allowViewCode;
+    const code=await fetchCode(id);
+    document.getElementById('bk-code').value=code;
+    updateManualLineCount();
+    if(bk.logoImage){_logo=bk.logoImage;setImg('logo',bk.logoImage);document.getElementById('logo-url').value=bk.logoImage.startsWith('http')?bk.logoImage:'';}
+    if(bk.bgImage){_bg=bk.bgImage;setImg('bg',bk.bgImage);document.getElementById('bg-url').value=bk.bgImage.startsWith('http')?bk.bgImage:'';}
+    selPlat(bk.platform||'both');
+    _collabs=bk.collaborators?Object.values(bk.collaborators).filter(Boolean):[];renderCollabs();
+    _chatOn=bk.chatEnabled!==false;_chatScope=bk.chatScope||'global';
+    document.getElementById('chat-chk').checked=_chatOn;document.getElementById('chat-lbl').textContent=_chatOn?'Enabled':'Disabled';
+    document.getElementById('scope-row').style.display=_chatOn?'flex':'none';
+    ['global','book','both'].forEach(s=>document.getElementById('sc-'+s).classList.toggle('active',s===_chatScope));
+  }catch(e){showToast('Error loading: '+e.message,'err');}
+}
+
+function restoreDraftInPage(d){
+  if(d.type==='ai'||d.type==='ai-edit'){
+    // Can't fully restore AI edit from studio.html's restoreDraft — just restore what we can
+    if(d.type==='ai'){
+      resetAI();setMode('ai');
+      _aiCode=d.code||'';_aiConv=d.conv||[];_aiSpd=d.spd||'fast';selSpeed(_aiSpd);
+      document.getElementById('ai-prompt').value=d.prompt||'';
+      document.getElementById('ai-title').value=d.name||'';
+      document.getElementById('ai-desc').value=d.desc||'';
+      if(d.logo){_aiLogo=d.logo;aiSetImg('logo',d.logo);}
+      if(d.bg){_aiBg=d.bg;aiSetImg('bg',d.bg);}
+      aiSelPlat(d.plat||'both');
+      _aiChatOn=d.chatOn!==false;_aiScope=d.scope||'global';
+      document.getElementById('ai-chat-chk').checked=_aiChatOn;
+      document.getElementById('ai-chat-lbl').textContent=_aiChatOn?'Enabled':'Disabled';
+      document.getElementById('ai-scope-row').style.display=_aiChatOn?'flex':'none';
+      ['global','book','both'].forEach(s=>document.getElementById('ai-sc-'+s).classList.toggle('active',s===_aiScope));
+      _aiCollabs=d.collabs||[];renderAiCollabs();
+      if(_aiCode){
+        document.getElementById('ai-s1').style.display='none';
+        document.getElementById('ai-s3').style.display='';
+        updateLineBadge('ai-line-badge',countLines(_aiCode));
+        loadIframe('ai-prev-frame',_aiCode);
+      }
+    }
+  } else {
+    setMode('manual');
+    document.getElementById('bk-title').value=d.name||'';
+    document.getElementById('bk-code').value=d.code||'';
+    document.getElementById('bk-desc').value=d.desc||'';
+    if(d.logo){_logo=d.logo;setImg('logo',d.logo);}
+    if(d.bg){_bg=d.bg;setImg('bg',d.bg);}
+    selPlat(d.plat||'both');
+    _chatOn=d.chatOn||false;_chatScope=d.scope||'global';
+    document.getElementById('chat-chk').checked=_chatOn;
+    document.getElementById('chat-lbl').textContent=_chatOn?'Enabled':'Disabled';
+    document.getElementById('scope-row').style.display=_chatOn?'flex':'none';
+    ['global','book','both'].forEach(s=>document.getElementById('sc-'+s).classList.toggle('active',s===_chatScope));
+    _collabs=d.collabs||[];renderCollabs();
+    document.getElementById('allow-code').checked=d.allowCode!==false;
+    updateManualLineCount();
+  }
+  showToast('Draft restored!','ok');
+}
+
+// Image upload (manual)
+document.getElementById('logo-file').addEventListener('change',function(){handleFile('logo',this);});
+document.getElementById('bg-file').addEventListener('change',function(){handleFile('bg',this);});
+document.getElementById('logo-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();clearImg('logo');});
+document.getElementById('bg-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();clearImg('bg');});
+function handleFile(t,inp){const f=inp.files[0];if(!f)return;if(f.size>2e6){showToast('Max 2MB.','err');inp.value='';return;}const r=new FileReader();r.onload=e=>setImg(t,e.target.result);r.readAsDataURL(f);}
+function setImg(t,src){if(t==='logo')_logo=src;else _bg=src;const a=document.getElementById(t+'-drop'),p=document.getElementById(t+'-prev');p.src=src;p.style.display='block';a.classList.add('has-img');const l=a.querySelector('.drop-label');if(l)l.style.display='none';}
+function clearImg(t){if(t==='logo')_logo=null;else _bg=null;const a=document.getElementById(t+'-drop'),p=document.getElementById(t+'-prev'),fi=document.getElementById(t+'-file'),ui=document.getElementById(t+'-url');if(p){p.style.display='none';p.src='';}if(fi)fi.value='';if(ui)ui.value='';if(a){a.classList.remove('has-img');const l=a.querySelector('.drop-label');if(l)l.style.display='';}}
+window.prevUrl=function(t,url){if(!url||!url.startsWith('http'))return;if(t==='logo'){_logo=url;setImg('logo',url);}else{_bg=url;setImg('bg',url);}};
+window.toggleChat=function(){_chatOn=document.getElementById('chat-chk').checked;document.getElementById('chat-lbl').textContent=_chatOn?'Enabled':'Disabled';document.getElementById('scope-row').style.display=_chatOn?'flex':'none';};
+window.setScope=function(s){_chatScope=s;['global','book','both'].forEach(x=>document.getElementById('sc-'+x).classList.toggle('active',x===s));};
+window.addCollab=function(){const inp=document.getElementById('collab-email'),email=(inp.value||'').trim().toLowerCase();if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Valid email required.','err');return;}if(CU&&email===CU.email.toLowerCase()){showToast("That's your own email.",'err');return;}if(_collabs.some(c=>c.email===email)){showToast('Already added.','err');return;}if(_collabs.length>=10){showToast('Max 10.','err');return;}_collabs.push({email});inp.value='';renderCollabs();};
+window.removeCollab=function(e){_collabs=_collabs.filter(c=>c.email!==e);renderCollabs();};
+function renderCollabs(){const l=document.getElementById('collab-tags');if(!l)return;l.innerHTML=_collabs.map(c=>`<span class="ctag">${esc(c.email)}<button class="ctag-rm" onclick="removeCollab('${esc(c.email)}')">✕</button></span>`).join('');}
+window.selPlat=function(p){_plat=p;document.querySelectorAll('#plat-row .plat-opt').forEach(b=>{b.className='plat-opt';if(b.dataset.p===p)b.classList.add('sel-'+p);});};
+
+window.submitBook=async function(){
+  if(_submitting)return;_submitting=true;
+  const title=document.getElementById('bk-title').value.trim();
+  const code=document.getElementById('bk-code').value.trim();
+  if(!title){showToast('Add a title.','err');_submitting=false;return;}
+  if(!code){showToast('Add HTML code.','err');_submitting=false;return;}
+  const lines=countLines(code);
+  if(lines>MAX_LINES){showToast(`Code exceeds ${MAX_LINES} lines (${lines} lines). Please trim it.`,'err');_submitting=false;return;}
+  const btn=document.getElementById('upload-btn');const origTxt=btn.innerHTML;
+  btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving…';btn.disabled=true;
+  const co={};_collabs.forEach((c,i)=>{co['c'+i]={email:c.email};});
+  const desc=document.getElementById('bk-desc').value.trim();
+  const allowCode=document.getElementById('allow-code').checked;
+  const meta={title,desc,allowViewCode:allowCode,platform:_plat,chatEnabled:_chatOn,chatScope:_chatScope,collaborators:Object.keys(co).length?co:null,updatedAt:Date.now()};
+  if(_logo!==undefined)meta.logoImage=_logo||null;if(_bg!==undefined)meta.bgImage=_bg||null;
+  try{
+    if(_editId){
+      await update(ref(db,'books/'+_editId),meta);
+      await set(ref(db,'bookCode/'+_editId+'/code'),code);
+      showToast('Saved!','ok');
+    } else {
+      const nr=push(ref(db,'books'));
+      await set(nr,{...meta,ownerId:CU.uid,ownerName:CU.displayName||CU.email,createdAt:Date.now(),likes:0,views:0});
+      await set(ref(db,'bookCode/'+nr.key+'/code'),code);
+      saveDraftsLS(getDrafts().filter(d=>!(d.auto&&d.type==='manual')));
+      showToast('Published! 🎉','ok');
+    }
+    setTimeout(()=>window.location.href='/Studio/',1200);
+  }catch(e){showToast('Error: '+e.message,'err');}
+  btn.innerHTML=origTxt;btn.disabled=false;_submitting=false;
+};
+
+// ── DRAFTS ──────────────────────────────────────────────────────────────────
+window.saveDraft=function(type){
+  const drafts=getDrafts();
+  const draft={id:Date.now(),type,savedAt:Date.now()};
+  if(type==='ai'){
+    if(!_aiCode){showToast('No code yet.','err');return;}
+    draft.name=document.getElementById('ai-title').value.trim()||'Untitled AI Game';
+    draft.prompt=document.getElementById('ai-prompt').value.trim();
+    draft.code=_aiCode;draft.desc=document.getElementById('ai-desc').value.trim();
+    draft.logo=_aiLogo;draft.bg=_aiBg;draft.plat=_aiPlat;
+    draft.chatOn=_aiChatOn;draft.scope=_aiScope;
+    draft.collabs=[..._aiCollabs];draft.allowCode=document.getElementById('ai-allow-code').checked;
+    draft.spd=_aiSpd;draft.conv=[..._aiConv];
+  } else if(type==='ai-edit'){
+    if(!_aieditCode){showToast('No edits yet.','err');return;}
+    draft.name=(_aieditBk?.title||'Untitled')+' (AI Edit)';
+    draft.code=_aieditCode;draft.gameId=_aieditId;
+    draft.prompt=document.getElementById('aiedit-prompt').value.trim();
+    draft.conv=[..._aieditConv];draft.spd=_aieditSpd;
+    if(_aieditBk){draft.logo=_aieditBk.logoImage||null;}
+  } else {
+    const code=document.getElementById('bk-code').value.trim();
+    draft.name=document.getElementById('bk-title').value.trim()||'Untitled Game';
+    draft.code=code;draft.desc=document.getElementById('bk-desc').value.trim();
+    draft.logo=_logo;draft.bg=_bg;draft.plat=_plat;
+    draft.chatOn=_chatOn;draft.scope=_chatScope;
+    draft.collabs=[..._collabs];draft.allowCode=document.getElementById('allow-code').checked;
+  }
+  drafts.unshift(draft);if(drafts.length>20)drafts.pop();
+  saveDraftsLS(drafts);showToast('Draft saved!','ok');
+};
+
+function autoSave(type){
+  const drafts=getDrafts();
+  const idx=drafts.findIndex(d=>d.auto&&d.type===type);
+  const draft={id:idx>=0?drafts[idx].id:Date.now(),type,auto:true,savedAt:Date.now()};
+  if(type==='ai'){
+    if(!_aiCode)return;
+    draft.name=document.getElementById('ai-title').value.trim()||'Auto-saved AI Game';
+    draft.prompt=document.getElementById('ai-prompt').value.trim();
+    draft.code=_aiCode;draft.desc=document.getElementById('ai-desc').value.trim();
+    draft.logo=_aiLogo;draft.bg=_aiBg;draft.plat=_aiPlat;
+    draft.chatOn=_aiChatOn;draft.scope=_aiScope;
+    draft.collabs=[..._aiCollabs];draft.allowCode=document.getElementById('ai-allow-code').checked;
+    draft.spd=_aiSpd;draft.conv=[..._aiConv];
+  } else if(type==='ai-edit'){
+    if(!_aieditCode)return;
+    draft.name=(_aieditBk?.title||'Untitled')+' (AI Edit)';
+    draft.code=_aieditCode;draft.gameId=_aieditId;
+    draft.prompt=document.getElementById('aiedit-prompt').value.trim();
+    draft.conv=[..._aieditConv];draft.spd=_aieditSpd;
+  } else {
+    const code=document.getElementById('bk-code').value.trim();if(!code)return;
+    draft.name=document.getElementById('bk-title').value.trim()||'Auto-saved Game';
+    draft.code=code;draft.desc=document.getElementById('bk-desc').value.trim();
+    draft.logo=_logo;draft.bg=_bg;draft.plat=_plat;
+    draft.chatOn=_chatOn;draft.scope=_chatScope;
+    draft.collabs=[..._collabs];draft.allowCode=document.getElementById('allow-code').checked;
+  }
+  if(idx>=0)drafts[idx]=draft;else drafts.unshift(draft);
+  if(drafts.length>25)drafts.pop();
+  saveDraftsLS(drafts);
+}
+setInterval(()=>{
+  const p=new URLSearchParams(location.search);
+  if(p.get('aiedit'))autoSave('ai-edit');
+  else if(document.getElementById('panel-ai').style.display!=='none')autoSave('ai');
+  else autoSave('manual');
+},30000);
+</script>
+</body>
+</html>
