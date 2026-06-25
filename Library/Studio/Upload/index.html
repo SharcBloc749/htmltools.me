@@ -1,1254 +1,1491 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HTML Library</title>
-  <link rel="icon" type="image/png" href="/logo3.png?v=2"/>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --bg:#080810;--surface:#0e0e1a;--panel:#131320;--panel-2:#191928;
-      --border:#1e1e32;--border-2:#262640;--border-hi:#3a3a60;
-      --tx:#e8e8f0;--tx-2:#8888aa;--tx-3:#44445a;--muted:#2a2a44;
-      --green-hi:#22c55e;--blue-hi:#60a5fa;--red-hi:#f87171;
-      --yellow-hi:#fbbf24;--purple-hi:#a78bfa;
-      --theme-a:#00e5ff;--theme-b:#a855f7;
-      --theme-grad:linear-gradient(135deg,#00e5ff,#a855f7);
-      --neon:#00e5ff;--neon2:#a855f7;
-      --r:3px;--r-md:5px;--r-lg:8px;--r-xl:10px;
-      --nav-h:48px;
-      --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
-      --font-display:'Rajdhani','IBM Plex Sans',sans-serif;
-      --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
-    }
-    *{box-sizing:border-box;margin:0;padding:0;}
-    html,body{height:100%;background:var(--bg);}
-    body{color:var(--tx);font-family:var(--font);font-size:13.5px;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;
-      background-image:linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
-      background-size:32px 32px;}
-    button{font-family:inherit;cursor:pointer;}
-    a{color:inherit;text-decoration:none;}
-    ::selection{background:rgba(0,229,255,.18);}
-    ::-webkit-scrollbar{width:5px;height:5px;}
-    ::-webkit-scrollbar-track{background:transparent;}
-    ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:2px;}
-    ::-webkit-scrollbar-thumb:hover{background:var(--border-hi);}
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Upload — Studio</title>
+<link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0c0c0c;--surface:#111;--panel:#171717;--panel-2:#1e1e1e;
+  --border:#252525;--border-2:#2e2e2e;--border-hi:#404040;
+  --tx:#e8e8e8;--tx-2:#888;--tx-3:#4a4a4a;--muted:#3a3a3a;
+  --white:#fff;--wfg:#0c0c0c;
+  --green:#16a34a;--green-hi:#22c55e;
+  --blue:#2563eb;--blue-hi:#3b82f6;
+  --red:#dc2626;--red-hi:#ef4444;
+  --yellow:#ca8a04;--yellow-hi:#f59e0b;
+  --purple:#7c3aed;--purple-hi:#a78bfa;
+  --r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;
+  --nav-h:48px;
+  --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+body.light-mode{
+  --bg:#f5f5f4;--surface:#fafaf9;--panel:#efefed;--panel-2:#e8e8e5;
+  --border:#d8d8d5;--border-2:#c8c8c4;--border-hi:#a0a09c;
+  --tx:#1a1a18;--tx-2:#5a5a56;--tx-3:#9a9a95;--muted:#b8b8b4;
+  --white:#1a1a18;--wfg:#fafaf9;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{height:100%;}
+body{min-height:100%;background:var(--bg);color:var(--tx);font-family:var(--font);font-size:13.5px;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;}
+button,input,textarea,select{font-family:inherit;}
+button{cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px;}
 
-    /* BAN SCREEN */
-    #ban-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;}
-    #ban-screen.show{display:flex;}
-    .ban-icon{font-size:2rem;margin-bottom:1rem;color:var(--red-hi);}
-    .ban-title{font-size:1.4rem;font-weight:700;margin-bottom:.5rem;font-family:var(--font-display);}
-    .ban-sub{color:var(--tx-2);max-width:380px;line-height:1.7;font-size:.85rem;}
+/* NAV */
+#topnav{height:var(--nav-h);flex-shrink:0;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:8px;position:sticky;top:0;z-index:100;}
+.nav-brand{display:flex;align-items:center;gap:8px;padding-right:14px;border-right:1px solid var(--border);flex-shrink:0;}
+.nav-mark{width:26px;height:26px;background:var(--white);color:var(--wfg);border-radius:5px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+.nav-mark img{width:26px;height:26px;object-fit:contain;display:block;}
+.nav-name{font-size:.8rem;font-weight:600;color:var(--tx-2);letter-spacing:-.01em;white-space:nowrap;}
+.nav-title{font-size:12.5px;font-weight:600;color:var(--tx);letter-spacing:-.015em;}
+.nav-spacer{flex:1;}
+.nav-uname{font-size:.75rem;color:var(--tx-3);}
 
-    /* ANNOUNCE */
-    #announce-banner{background:rgba(251,191,36,.05);border-bottom:1px solid rgba(251,191,36,.15);padding:.4rem 1rem;display:none;align-items:center;gap:.75rem;font-size:.73rem;flex-shrink:0;}
-    #announce-banner.show{display:flex;}
-    .ann-pill{background:rgba(251,191,36,.12);color:var(--yellow-hi);font-size:.6rem;font-weight:700;padding:.12rem .45rem;border-radius:2px;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0;}
-    #announce-text{flex:1;color:var(--tx-2);}
-    #announce-dismiss{background:none;border:none;color:var(--tx-3);cursor:pointer;padding:.2rem .4rem;font-size:.85rem;}
-    #announce-dismiss:hover{color:var(--tx);}
+/* BUTTONS */
+.btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);padding:0 11px;border-radius:var(--r);font-size:12px;font-weight:500;transition:all .13s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;height:28px;cursor:pointer;}
+.btn:hover{background:var(--panel-2);border-color:var(--border-hi);color:var(--tx);}
+.btn:active{opacity:.75;}
+.btn i{font-size:9.5px;opacity:.7;}
+.btn-prim{background:var(--white);color:var(--wfg);border-color:var(--white);font-weight:600;}
+.btn-prim:hover{opacity:.88;color:var(--wfg);}
+.btn-prim i{opacity:1;}
+.btn-prim:disabled{opacity:.4;cursor:not-allowed;}
+.btn-danger{color:var(--red-hi);border-color:rgba(220,38,38,.2);background:transparent;}
+.btn-danger:hover{background:rgba(220,38,38,.07);border-color:var(--red-hi);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--tx-3);}
+.btn-ghost:hover{background:var(--panel);border-color:var(--border);color:var(--tx-2);}
+.btn-sm{height:24px;font-size:11px;padding:0 8px;}
+.btn-back{background:transparent;border:1px solid var(--border);color:var(--tx-3);padding:0 10px;border-radius:var(--r);font-size:12px;font-weight:500;height:28px;display:inline-flex;align-items:center;gap:5px;transition:all .13s;cursor:pointer;}
+.btn-back:hover{background:var(--panel);border-color:var(--border-hi);color:var(--tx);}
+.btn-purple{background:rgba(124,58,237,.12);color:var(--purple-hi);border:1px solid rgba(124,58,237,.28);font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:0 11px;height:28px;border-radius:var(--r);font-size:12px;cursor:pointer;transition:all .13s;}
+.btn-purple:hover{background:rgba(124,58,237,.22);border-color:var(--purple-hi);}
+.btn-purple:disabled{opacity:.4;cursor:not-allowed;}
 
-    /* HEADER */
-    header{position:sticky;top:0;z-index:100;background:rgba(8,8,16,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--border-2);height:var(--nav-h);display:flex;align-items:center;padding:0 14px;gap:6px;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;}
-    header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:var(--theme-grad);opacity:.4;pointer-events:none;}
-    header::-webkit-scrollbar{height:0;}
-    .h-brand{display:flex;align-items:center;gap:7px;padding-right:12px;margin-right:4px;border-right:1px solid var(--border);flex-shrink:0;}
-    .h-mark{width:24px;height:24px;background:var(--theme-grad);color:#080810;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;font-family:var(--mono);flex-shrink:0;overflow:hidden;}
-    .h-mark img{width:100%;height:100%;object-fit:cover;}
-    .h-name{font-size:.82rem;font-weight:700;color:var(--tx-2);letter-spacing:.08em;white-space:nowrap;font-family:var(--font-display);text-transform:uppercase;}
-    .h-btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);padding:0 10px;border-radius:var(--r);font-size:11.5px;font-weight:500;height:27px;display:inline-flex;align-items:center;gap:5px;transition:all .13s;white-space:nowrap;flex-shrink:0;cursor:pointer;}
-    .h-btn:hover{background:var(--panel-2);border-color:var(--border-hi);color:var(--tx);}
-    .h-btn-prim{background:var(--theme-grad);color:#080810;border:none;font-weight:700;font-family:var(--font-display);letter-spacing:.04em;}
-    .h-btn-prim:hover{opacity:.88;color:#080810;}
-    .h-spacer{flex:1;}
-    .h-icon-btn{width:28px;height:28px;border-radius:var(--r);background:transparent;border:1px solid var(--border);color:var(--tx-3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:all .15s;flex-shrink:0;position:relative;}
-    .h-icon-btn:hover{border-color:var(--neon);color:var(--tx);background:var(--panel);}
-    #user-display{display:none;align-items:center;gap:.4rem;flex-shrink:0;}
-    .user-pip{width:5px;height:5px;border-radius:50%;background:var(--neon);flex-shrink:0;box-shadow:0 0 6px var(--neon);}
-    #username-label{max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem;font-weight:600;color:var(--tx-2);cursor:pointer;}
-    #username-label:hover{color:var(--tx);}
-    .owner-chip{font-size:.58rem;font-weight:700;letter-spacing:.08em;padding:.1rem .38rem;border-radius:2px;background:rgba(251,191,36,.1);color:var(--yellow-hi);border:1px solid rgba(251,191,36,.3);text-transform:uppercase;flex-shrink:0;}
-    .admin-chip{font-size:.58rem;font-weight:700;letter-spacing:.08em;padding:.1rem .38rem;border-radius:2px;background:rgba(248,113,113,.08);color:var(--red-hi);border:1px solid rgba(248,113,113,.25);text-transform:uppercase;flex-shrink:0;}
-    #notif-badge{position:absolute;top:-4px;right:-4px;background:var(--red-hi);color:#fff;font-size:.5rem;font-weight:700;border-radius:10px;min-width:14px;height:14px;display:none;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--bg);}
-    #notif-badge.show{display:flex;}
+/* LAYOUT */
+#page{flex:1;display:flex;flex-direction:column;align-items:center;padding:22px 16px 60px;}
+.page-inner{width:100%;max-width:660px;}
 
-    /* NOTIF PANEL */
-    #notif-panel{position:fixed;top:calc(var(--nav-h)+6px);right:10px;width:300px;max-height:420px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.9);z-index:500;display:none;flex-direction:column;overflow:hidden;}
-    #notif-panel.open{display:flex;}
-    .np-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-    .np-head h4{font-size:12px;font-weight:600;font-family:var(--font-display);text-transform:uppercase;letter-spacing:.06em;}
-    .np-clear{background:transparent;border:none;color:var(--tx-3);font-size:10.5px;cursor:pointer;}
-    .np-clear:hover{color:var(--red-hi);}
-    .np-list{overflow-y:auto;flex:1;padding:.3rem;}
-    .notif-item{padding:8px 10px;border-radius:var(--r);}
-    .notif-item.unread{background:rgba(0,229,255,.04);border-left:2px solid var(--neon);padding-left:8px;}
-    .ni-body{font-size:11.5px;color:var(--tx-2);line-height:1.5;}
-    .ni-body strong{color:var(--tx);}
-    .ni-time{font-size:9.5px;color:var(--tx-3);font-family:var(--mono);margin-top:2px;}
-    .np-empty{text-align:center;padding:2rem 1rem;color:var(--tx-3);font-size:11.5px;}
+/* MODE TABS */
+.mode-tabs{display:flex;border:1px solid var(--border-2);border-radius:var(--r-md);overflow:hidden;margin-bottom:20px;background:var(--panel);}
+.mode-tab{flex:1;padding:.55rem .5rem;border:none;background:transparent;color:var(--tx-3);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;border-right:1px solid var(--border-2);}
+.mode-tab:last-child{border-right:none;}
+.mode-tab:hover{color:var(--tx-2);background:var(--panel-2);}
+.mode-tab.active{background:var(--white);color:var(--wfg);font-weight:700;}
 
-    /* MAIN */
-    main{max-width:1200px;margin:0 auto;padding:1.25rem 14px;}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;}
+.card-hdr{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;font-size:.68rem;font-weight:700;color:var(--tx-2);text-transform:uppercase;letter-spacing:.07em;}
+.card-hdr-icon{font-size:10px;color:var(--tx-3);}
+.card-hdr-right{margin-left:auto;}
+.card-body{padding:14px;}
 
-    /* TOOLBAR */
-    .toolbar{display:flex;align-items:center;gap:5px;margin-bottom:1rem;flex-wrap:wrap;}
-    .search-wrap{flex:1;min-width:180px;position:relative;}
-    .search-wrap input{width:100%;background:var(--surface);border:1px solid var(--border-2);color:var(--tx);font-family:var(--font);font-size:.8rem;padding:.45rem .75rem .45rem 2.1rem;border-radius:var(--r);outline:none;transition:border-color .15s;height:28px;}
-    .search-wrap input:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(0,229,255,.07);}
-    .search-wrap input::placeholder{color:var(--tx-3);}
-    .search-icon{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);color:var(--tx-3);font-size:.75rem;pointer-events:none;}
-    .filters{display:flex;gap:3px;flex-wrap:wrap;}
-    .filter-btn{background:var(--surface);border:1px solid var(--border);color:var(--tx-3);font-size:.68rem;font-weight:500;padding:0 9px;height:26px;border-radius:var(--r);cursor:pointer;transition:all .13s;letter-spacing:.02em;white-space:nowrap;}
-    .filter-btn:hover{border-color:var(--border-hi);color:var(--tx-2);background:var(--panel);}
-    .filter-btn.active{background:var(--theme-grad);color:#080810;border-color:transparent;font-weight:700;}
+/* FORM */
+.f-group{margin-bottom:12px;}
+.f-group:last-child{margin-bottom:0;}
+.f-label{display:block;margin-bottom:5px;color:var(--tx-3);font-size:.63rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;}
+.f-input{width:100%;padding:0 10px;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r);color:var(--tx);font-size:12.5px;height:30px;outline:none;transition:border-color .13s;-webkit-appearance:none;}
+.f-input::placeholder{color:var(--tx-3);}
+.f-input:focus{border-color:var(--border-hi);}
+textarea.f-input{height:auto;padding:8px 10px;font-size:12px;line-height:1.6;resize:vertical;min-height:90px;}
+.f-code{font-family:var(--mono)!important;font-size:11.5px!important;min-height:180px;}
+.f-note{font-size:.65rem;color:var(--tx-3);margin-top:.3rem;line-height:1.5;}
+.f-note.warn{color:var(--yellow-hi);}
+.f-note.err{color:var(--red-hi);}
+.f-check{display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);font-size:12px;color:var(--tx-2);}
+.f-check input[type=checkbox]{width:13px;height:13px;accent-color:var(--white);cursor:pointer;}
+.f-check label{cursor:pointer;user-select:none;}
 
-    /* PINS */
-    #pin-banner{margin-bottom:1rem;display:none;}
-    #pin-banner.show{display:block;}
-    .pin-banner-label{font-size:.65rem;font-weight:700;color:var(--neon);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.6rem;font-family:var(--mono);}
-    .pin-divider{height:1px;background:linear-gradient(90deg,var(--neon),var(--neon2),transparent);opacity:.2;margin:1rem 0 .25rem;}
-    .pin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;}
+/* IMAGE UPLOAD */
+.img-drop{border:1px dashed var(--border-2);border-radius:var(--r);padding:.65rem;text-align:center;cursor:pointer;transition:all .15s;background:var(--panel);position:relative;overflow:hidden;}
+.img-drop:hover{border-color:var(--border-hi);background:var(--panel-2);}
+.img-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:1;}
+.img-drop .drop-label{font-size:.67rem;color:var(--tx-3);pointer-events:none;}
+.img-drop .drop-prev{width:100%;max-height:52px;object-fit:contain;border-radius:2px;display:none;margin-top:.3rem;pointer-events:none;}
+.img-drop.has-img{border-color:var(--border-hi);}
+.img-drop .rm-img{position:absolute;top:.3rem;right:.3rem;background:var(--red);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:.5rem;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:10;line-height:1;}
+.img-drop.has-img .rm-img{display:flex;}
+.img-drop.has-img .drop-label{display:none;}
 
-    /* GRID */
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;}
-    .empty-state{grid-column:1/-1;text-align:center;padding:4rem 2rem;color:var(--tx-3);}
-    .empty-state .big{font-size:1.5rem;margin-bottom:.5rem;}
-    .empty-state p{font-size:.8rem;}
-    .loading{grid-column:1/-1;text-align:center;padding:3rem;color:var(--tx-3);font-size:.8rem;}
-    .spin{display:inline-block;animation:spin 1s linear infinite;}
-    @keyframes spin{to{transform:rotate(360deg);}}
+/* PLATFORM */
+.platform-row{display:flex;gap:4px;}
+.plat-opt{flex:1;padding:.45rem .3rem;border:1px solid var(--border);border-radius:var(--r);background:var(--panel);color:var(--tx-3);font-size:.7rem;font-weight:500;cursor:pointer;transition:all .13s;text-align:center;}
+.plat-opt:hover{border-color:var(--border-hi);color:var(--tx-2);}
+.plat-opt.sel-both{border-color:var(--border-hi);color:var(--tx);}
+.plat-opt.sel-mobile{border-color:var(--green-hi);color:var(--green-hi);}
+.plat-opt.sel-computer{border-color:var(--blue-hi);color:var(--blue-hi);}
 
-    /* BOOK CARD */
-    .book-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;display:flex;flex-direction:column;gap:8px;transition:border-color .18s,transform .18s,box-shadow .18s;position:relative;overflow:visible;animation:cardIn .25s ease both;}
-    @keyframes cardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-    .book-card:hover{border-color:rgba(0,229,255,.3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 1px rgba(0,229,255,.06);}
-    .book-card.pinned{border-color:rgba(251,191,36,.25);box-shadow:0 0 16px rgba(251,191,36,.05);}
-    .book-card.undeletable{border-color:rgba(96,165,250,.2);}
-    .book-card-bg{position:absolute;inset:0;background-size:cover;background-position:center;border-radius:var(--r-md);opacity:.08;pointer-events:none;z-index:0;transition:opacity .2s;}
-    .book-card:hover .book-card-bg{opacity:.14;}
-    .book-card>*:not(.book-card-bg){position:relative;z-index:1;}
-    .pin-badge{position:absolute;top:8px;right:8px;font-size:.55rem;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--yellow-hi);padding:.1rem .35rem;border-radius:2px;font-weight:700;letter-spacing:.08em;z-index:2;pointer-events:none;text-transform:uppercase;}
-    .book-header{display:flex;align-items:flex-start;gap:8px;}
-    .book-icon{width:34px;height:34px;background:var(--panel-2);border:1px solid var(--border-2);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;overflow:hidden;}
-    .book-icon img{width:100%;height:100%;object-fit:cover;}
-    .book-title{font-weight:700;font-size:.9rem;line-height:1.3;flex:1;word-break:break-word;font-family:var(--font-display);}
-    .book-desc{font-size:.73rem;color:var(--tx-2);line-height:1.4;}
-    .remix-of{font-size:.62rem;color:var(--purple-hi);font-family:var(--mono);display:flex;align-items:center;gap:.25rem;margin-top:.15rem;}
-    .remix-of-link{color:var(--purple-hi);text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
-    .remix-of-link:hover{color:var(--neon);}
-    .book-meta{font-size:.65rem;color:var(--tx-3);display:flex;gap:.65rem;flex-wrap:wrap;font-family:var(--mono);}
-    .book-meta span{display:flex;align-items:center;gap:.2rem;}
-    .platform-badge{font-size:.55rem;font-weight:700;padding:.1rem .35rem;border-radius:2px;letter-spacing:.06em;text-transform:uppercase;}
-    .platform-badge.mobile{background:rgba(34,197,94,.07);color:var(--green-hi);border:1px solid rgba(34,197,94,.2);}
-    .platform-badge.computer{background:rgba(96,165,250,.07);color:var(--blue-hi);border:1px solid rgba(96,165,250,.2);}
-    .platform-badge.both{background:rgba(0,229,255,.06);color:var(--neon);border:1px solid rgba(0,229,255,.2);}
-    .badge{font-size:.55rem;padding:.1rem .35rem;border-radius:2px;background:rgba(34,197,94,.07);color:var(--green-hi);border:1px solid rgba(34,197,94,.2);font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
-    .collab-badge{font-size:.55rem;font-weight:700;padding:.1rem .35rem;border-radius:2px;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.15);color:var(--neon);letter-spacing:.04em;display:inline-flex;align-items:center;gap:.2rem;}
+/* COLLABS */
+.collab-row{display:flex;gap:4px;margin-bottom:.4rem;}
+.collab-row input{flex:1;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);font-size:.78rem;padding:0 10px;border-radius:var(--r);outline:none;height:28px;transition:border-color .13s;}
+.collab-row input:focus{border-color:var(--border-hi);}
+.collab-row input::placeholder{color:var(--tx-3);}
+.collab-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;}
+.ctag{display:inline-flex;align-items:center;gap:.3rem;background:var(--panel-2);border:1px solid var(--border-2);color:var(--tx-2);font-size:.6rem;font-weight:600;padding:.14rem .44rem;border-radius:2px;font-family:var(--mono);}
+.ctag-rm{background:none;border:none;color:var(--tx-3);cursor:pointer;font-size:.68rem;padding:0;line-height:1;}
+.ctag-rm:hover{color:var(--red-hi);}
 
-    /* RATING */
-    .rating-display{display:flex;align-items:center;gap:.3rem;font-size:.68rem;}
-    .stars-mini{color:var(--yellow-hi);letter-spacing:-.05em;font-size:.7rem;}
-    .rating-val{font-family:var(--mono);color:var(--yellow-hi);font-weight:700;}
-    .rating-cnt{color:var(--tx-3);}
+/* TOGGLE */
+.toggle{position:relative;width:34px;height:19px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-track{position:absolute;inset:0;background:var(--border-2);border-radius:20px;cursor:pointer;transition:background .2s;}
+.toggle input:checked+.toggle-track{background:var(--green);}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:13px;height:13px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none;}
+.toggle input:checked~.toggle-thumb{transform:translateX(15px);}
 
-    /* ACTIONS */
-    .book-actions{display:flex;align-items:center;gap:3px;flex-wrap:wrap;}
-    .act-btn{background:var(--panel);border:1px solid var(--border);color:var(--tx-3);font-size:.65rem;font-weight:500;padding:0 8px;height:25px;border-radius:var(--r);cursor:pointer;transition:all .13s;display:flex;align-items:center;gap:4px;white-space:nowrap;}
-    .act-btn:hover{background:var(--panel-2);border-color:var(--border-hi);color:var(--tx-2);}
-    .act-btn.liked{border-color:rgba(248,113,113,.35);color:var(--red-hi);background:rgba(248,113,113,.06);}
-    .act-btn.liked:hover{background:rgba(248,113,113,.1);}
-    .act-btn.saved{border-color:rgba(251,191,36,.35);color:var(--yellow-hi);background:rgba(251,191,36,.06);}
-    .act-btn-remix{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.2);color:var(--purple-hi);font-size:.65rem;font-weight:600;padding:0 8px;height:25px;border-radius:var(--r);cursor:pointer;transition:all .13s;display:flex;align-items:center;gap:4px;white-space:nowrap;}
-    .act-btn-remix:hover{background:rgba(168,85,247,.15);border-color:var(--purple-hi);}
-    .play-btn{background:var(--theme-grad);color:#080810;border:none;font-family:var(--font-display);font-size:.72rem;font-weight:700;padding:0 10px;height:25px;border-radius:var(--r);cursor:pointer;transition:opacity .13s;flex:1;display:flex;align-items:center;justify-content:center;gap:4px;letter-spacing:.05em;text-transform:uppercase;}
-    .play-btn:hover{opacity:.88;}
-    .owner-actions{display:flex;gap:3px;margin-top:4px;padding-top:8px;border-top:1px solid var(--border);flex-wrap:wrap;}
+/* SCOPE PILLS */
+.scope-pills{display:flex;gap:3px;}
+.scope-pill{background:var(--panel);border:1px solid var(--border);color:var(--tx-3);font-size:.6rem;font-weight:600;padding:.14rem .44rem;border-radius:2px;cursor:pointer;transition:all .13s;letter-spacing:.03em;text-transform:uppercase;}
+.scope-pill:hover{border-color:var(--border-hi);color:var(--tx-2);}
+.scope-pill.active{background:var(--white);color:var(--wfg);border-color:var(--white);}
 
-    /* OVERLAYS */
-    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .18s;}
-    .overlay.open{opacity:1;pointer-events:all;}
-    .modal{background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r-xl);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;transform:scale(.96);transition:transform .18s;box-shadow:0 24px 80px rgba(0,0,0,.95),0 0 0 1px rgba(0,229,255,.04);}
-    .overlay.open .modal{transform:scale(1);}
-    @media(max-width:599px){.overlay{align-items:flex-end;padding:0;}.modal{border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:92vh;max-width:100%;}}
-    .modal-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1;}
-    .modal-hdr h3{font-size:13px;font-weight:700;letter-spacing:.06em;font-family:var(--font-display);text-transform:uppercase;}
-    .modal-close{background:transparent;border:none;color:var(--tx-3);cursor:pointer;font-size:14px;padding:3px 7px;border-radius:2px;transition:all .13s;line-height:1;}
-    .modal-close:hover{color:var(--tx);background:var(--panel);}
-    .modal-body{padding:15px;}
-    .modal-foot{padding:10px 15px;border-top:1px solid var(--border);display:flex;gap:5px;justify-content:flex-end;}
-    .f-group{margin-bottom:11px;}
-    .f-label{display:block;margin-bottom:5px;color:var(--tx-3);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;}
-    .f-input{width:100%;padding:0 10px;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r);color:var(--tx);font-size:.82rem;height:30px;font-family:var(--font);outline:none;transition:border-color .13s;}
-    .f-input::placeholder{color:var(--tx-3);}
-    .f-input:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(0,229,255,.07);}
+/* CHAT BOX */
+.chat-box{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:.8rem;}
+.chat-box-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;}
+.chat-box-toggle{display:flex;align-items:center;gap:6px;}
+.chat-scope-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
 
-    /* COMMENTS */
-    .comments-list{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;margin-bottom:10px;}
-    .comment-item{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;display:flex;gap:8px;}
-    .comment-avatar{width:27px;height:27px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border-2);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;}
-    .comment-body{flex:1;min-width:0;}
-    .comment-header{display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-bottom:.2rem;}
-    .comment-author{font-size:.72rem;font-weight:700;color:var(--tx);}
-    .comment-time{font-size:.6rem;color:var(--tx-3);font-family:var(--mono);}
-    .comment-text{font-size:.78rem;color:var(--tx-2);line-height:1.5;word-break:break-word;}
-    .comment-del{background:none;border:1px solid transparent;color:var(--tx-3);cursor:pointer;font-size:.6rem;padding:.12rem .3rem;border-radius:2px;transition:all .13s;flex-shrink:0;}
-    .comment-del:hover{color:var(--red-hi);border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.06);}
-    .no-comments{text-align:center;padding:1.5rem;color:var(--tx-3);font-size:.75rem;}
-    .comment-input-wrap{display:flex;flex-direction:column;gap:6px;}
-    .comment-input-row{display:flex;gap:5px;}
-    .comment-input-row input{flex:1;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);font-family:var(--font);font-size:.78rem;padding:0 10px;border-radius:var(--r);outline:none;height:30px;}
-    .comment-input-row input:focus{border-color:var(--neon);}
-    .comment-input-row input::placeholder{color:var(--tx-3);}
+/* SPEED */
+.speed-row{display:flex;gap:7px;}
+.speed-opt{flex:1;padding:.65rem .5rem;border:1px solid var(--border-2);border-radius:var(--r-md);background:var(--panel);cursor:pointer;text-align:center;transition:all .14s;}
+.speed-opt:hover{border-color:var(--border-hi);}
+.speed-opt.sel{border-color:var(--border-hi);background:var(--panel-2);}
+.sp-icon{font-size:1.3rem;line-height:1;margin-bottom:4px;}
+.sp-title{font-weight:700;font-size:13px;letter-spacing:-.015em;color:var(--tx);}
+.sp-desc{font-size:11px;color:var(--tx-3);margin-top:3px;line-height:1.4;}
 
-    /* STAR RATING */
-    .stars-row{display:flex;justify-content:center;gap:.5rem;margin:.75rem 0;}
-    .star-btn{font-size:1.8rem;background:none;border:none;cursor:pointer;transition:transform .13s,filter .13s;filter:grayscale(1) opacity(.3);}
-    .star-btn.active{filter:grayscale(0) opacity(1);transform:scale(1.1);}
+/* AI GENERATING */
+.gen-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:3rem 2rem;text-align:center;}
+.gen-icon{font-size:2.2rem;margin-bottom:1rem;animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.4;transform:scale(.95)}50%{opacity:1;transform:scale(1.07)}}
+.gen-title{font-size:15px;font-weight:700;letter-spacing:-.02em;}
+.gen-sub{font-size:12px;color:var(--tx-3);margin-top:.35rem;}
+.prog-bar{width:200px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin:16px auto 0;}
+.prog-fill{height:100%;background:var(--white);border-radius:2px;transition:width .55s cubic-bezier(.22,1,.36,1);}
 
-    /* LEADERBOARD */
-    .lb-tabs{display:flex;gap:2px;margin-bottom:1rem;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:3px;}
-    .lb-tab{flex:1;padding:.38rem;background:transparent;border:none;color:var(--tx-3);font-family:var(--font-display);font-size:.68rem;font-weight:700;cursor:pointer;transition:all .13s;letter-spacing:.08em;text-transform:uppercase;border-radius:2px;min-height:28px;}
-    .lb-tab.active{background:var(--theme-grad);color:#080810;}
-    .lb-row{display:flex;align-items:center;gap:.6rem;padding:7px 10px;border-radius:var(--r);margin-bottom:3px;background:var(--panel);border:1px solid var(--border);cursor:pointer;transition:border-color .13s;}
-    .lb-row:hover{border-color:rgba(0,229,255,.25);}
-    .lb-rank{font-family:var(--mono);font-weight:700;font-size:.85rem;width:22px;text-align:center;flex-shrink:0;}
-    .lb-rank.gold{color:#ffd700;}.lb-rank.silver{color:#c0c0c0;}.lb-rank.bronze{color:#cd7f32;}
-    .lb-info{flex:1;min-width:0;}
-    .lb-name{font-size:.82rem;font-weight:700;color:var(--tx);font-family:var(--font-display);}
-    .lb-author{font-size:.62rem;color:var(--tx-3);font-family:var(--mono);margin-top:.1rem;}
-    .lb-stat{font-family:var(--mono);font-weight:700;font-size:.82rem;flex-shrink:0;}
+/* LINE BADGE */
+.line-badge{display:inline-flex;align-items:center;gap:4px;font-size:.65rem;font-weight:700;padding:.15rem .45rem;border-radius:2px;font-family:var(--mono);}
+.line-badge.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green-hi);}
+.line-badge.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:var(--yellow-hi);}
+.line-badge.over{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);color:var(--red-hi);}
 
-    /* PROFILE */
-    .profile-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:1rem;}
-    .profile-stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:.75rem;text-align:center;}
-    .profile-stat-num{font-family:var(--mono);font-weight:700;font-size:1.2rem;}
-    .profile-stat-label{font-size:.58rem;color:var(--tx-3);margin-top:.2rem;letter-spacing:.1em;text-transform:uppercase;}
+/* REFINE */
+.refine-row{display:flex;gap:5px;}
+.refine-row input{flex:1;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);font-size:.8rem;padding:0 10px;border-radius:var(--r);outline:none;height:29px;transition:border-color .13s;}
+.refine-row input:focus{border-color:var(--border-hi);}
+.refine-row input::placeholder{color:var(--tx-3);}
 
-    /* SETTINGS */
-    .settings-section{margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border);}
-    .settings-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
-    .settings-section-title{font-size:.7rem;font-weight:700;color:var(--neon);margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.1em;font-family:var(--font-display);}
-    .settings-signout-btn{width:100%;padding:.7rem;background:transparent;border:1px solid rgba(248,113,113,.3);color:var(--red-hi);font-family:var(--font-display);font-size:.85rem;font-weight:700;border-radius:var(--r);cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:.4rem;text-transform:uppercase;letter-spacing:.06em;}
-    .settings-signout-btn:hover{background:rgba(248,113,113,.06);border-color:var(--red-hi);}
-    .f-check{display:flex;align-items:center;gap:7px;padding:7px 9px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);font-size:.78rem;color:var(--tx-2);margin-bottom:10px;}
-    .f-check input[type=checkbox]{width:13px;height:13px;accent-color:var(--neon);cursor:pointer;}
-    .f-check label{cursor:pointer;user-select:none;}
+/* BANNERS */
+.banner{border-radius:var(--r-lg);padding:12px 14px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;}
+.banner-purple{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.22);}
+.banner-blue{background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.22);}
+.banner-icon{font-size:14px;flex-shrink:0;margin-top:1px;}
+.banner-purple .banner-icon{color:var(--purple-hi);}
+.banner-blue .banner-icon{color:var(--blue-hi);}
+.banner-title{font-size:13px;font-weight:700;}
+.banner-purple .banner-title{color:var(--purple-hi);}
+.banner-blue .banner-title{color:var(--blue-hi);}
+.banner-sub{font-size:11.5px;color:var(--tx-3);margin-top:2px;line-height:1.5;}
 
-    /* THEME */
-    .color-picker-row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;}
-    .color-pick-group{display:flex;flex-direction:column;gap:.35rem;align-items:center;}
-    .color-pick-group label{font-size:.6rem;color:var(--tx-3);letter-spacing:.1em;font-weight:700;text-transform:uppercase;}
-    .color-swatch-input{width:50px;height:50px;border-radius:var(--r-md);border:1px solid var(--border-2);cursor:pointer;padding:3px;background:var(--panel);}
-    .theme-preview{flex:1;min-width:140px;height:50px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;border:1px solid var(--border);font-family:var(--font-display);text-transform:uppercase;}
-    .preset-colors{display:flex;gap:4px;flex-wrap:wrap;margin-top:.6rem;}
-    .preset-swatch{width:28px;height:28px;border-radius:var(--r);cursor:pointer;border:2px solid transparent;transition:all .13s;flex-shrink:0;}
-    .preset-swatch:hover{transform:scale(1.12);border-color:var(--border-hi);}
+/* PREVIEW */
+.prev-container{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px;}
+.prev-toolbar{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;background:var(--panel);flex-wrap:wrap;}
+.prev-toolbar-title{font-size:11.5px;color:var(--tx-3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);}
+iframe.prev-frame{width:100%;height:400px;border:none;background:#fff;display:block;}
+.code-view{overflow:auto;background:var(--bg);padding:14px;font-family:var(--mono);font-size:11.5px;line-height:1.7;color:var(--tx-2);white-space:pre-wrap;word-break:break-all;max-height:400px;display:none;}
 
-    /* SAVED */
-    .saved-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);margin-bottom:4px;gap:8px;}
-    .saved-item:hover{border-color:rgba(0,229,255,.2);}
-    .saved-item-title{font-weight:700;font-size:.82rem;font-family:var(--font-display);}
-    .saved-item-sub{font-size:.63rem;color:var(--tx-3);margin-top:.1rem;font-family:var(--mono);}
+/* SIGN-IN GATE */
+#signin-gate{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;gap:1rem;}
+#signin-gate.show{display:flex;}
 
-    /* STATS */
-    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
-    .stat-box{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:.75rem;text-align:center;}
-    .stat-box-num{font-family:var(--mono);font-weight:700;font-size:1.1rem;}
-    .stat-box-label{font-size:.58rem;color:var(--tx-3);margin-top:.2rem;letter-spacing:.1em;text-transform:uppercase;}
+/* MISC */
+.spin{display:inline-block;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.section-divider-label{font-size:.6rem;font-weight:700;color:var(--tx-3);text-transform:uppercase;letter-spacing:.1em;font-family:var(--mono);margin:4px 0 10px;}
 
-    /* CHAT */
-    #chat-fab{position:fixed;bottom:1.5rem;left:1.5rem;z-index:400;width:46px;height:46px;border-radius:50%;background:var(--theme-grad);color:#080810;border:none;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,229,255,.2);transition:all .18s;}
-    #chat-fab:hover{transform:scale(1.07);}
-    .chat-fab-badge{position:absolute;top:-3px;right:-3px;background:var(--red-hi);color:#fff;font-size:.48rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;border:1.5px solid var(--bg);padding:0 2px;}
-    .chat-fab-badge.show{display:flex;}
-    #chat-window{position:fixed;bottom:5.5rem;left:1.5rem;z-index:401;width:320px;height:420px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r-lg);box-shadow:0 16px 48px rgba(0,0,0,.9);display:none;flex-direction:column;overflow:hidden;}
-    #chat-window.open{display:flex;}
-    .cw-header{padding:.5rem .75rem;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-    .cw-title{font-family:var(--font-display);font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:.35rem;}
-    .cw-dot{width:6px;height:6px;border-radius:50%;background:var(--neon);box-shadow:0 0 6px var(--neon);animation:cwpulse 2s infinite;}
-    @keyframes cwpulse{0%,100%{opacity:1}50%{opacity:.3}}
-    .cw-close{background:none;border:none;color:var(--tx-3);font-size:.75rem;cursor:pointer;padding:.15rem .35rem;border-radius:2px;transition:color .13s;}
-    .cw-close:hover{color:var(--red-hi);}
-    .cw-messages{flex:1;overflow-y:auto;padding:.4rem .5rem;display:flex;flex-direction:column;gap:.35rem;}
-    .cw-messages::-webkit-scrollbar{width:3px;}
-    .cw-messages::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:1px;}
-    .cw-msg{display:flex;gap:.35rem;align-items:flex-end;}
-    .cw-msg.own{flex-direction:row-reverse;}
-    .cw-avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#080810;flex-shrink:0;}
-    .cw-bubble{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:.35rem .55rem;font-size:.72rem;color:var(--tx);line-height:1.45;max-width:200px;word-break:break-word;}
-    .cw-msg.own .cw-bubble{background:rgba(0,229,255,.06);border-color:rgba(0,229,255,.18);}
-    .cw-sender{font-size:.55rem;color:var(--tx-3);padding:0 .2rem;font-family:var(--mono);}
-    .cw-empty{text-align:center;padding:2rem .5rem;color:var(--tx-3);font-size:.72rem;}
-    .cw-ai-tag{font-size:.5rem;background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.3);color:var(--purple-hi);padding:.05rem .25rem;border-radius:2px;display:inline-flex;align-items:center;gap:.15rem;margin-left:.25rem;}
-    .cw-footer{padding:.4rem .5rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.3rem;flex-shrink:0;}
-    .cw-autodel-row{display:flex;align-items:center;gap:.35rem;}
-    .cw-autodel-check{accent-color:var(--yellow-hi);width:12px;height:12px;cursor:pointer;}
-    .cw-autodel-label{font-size:.62rem;color:var(--tx-3);cursor:pointer;}
-    .cw-autodel-label.on{color:var(--yellow-hi);}
-    .cw-input-row{display:flex;gap:.3rem;}
-    .cw-input{flex:1;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);font-family:var(--font);font-size:.72rem;padding:0 .5rem;border-radius:var(--r);outline:none;height:28px;transition:border-color .13s;}
-    .cw-input:focus{border-color:var(--neon);}
-    .cw-input::placeholder{color:var(--tx-3);}
-    .cw-send{background:var(--theme-grad);color:#080810;border:none;border-radius:var(--r);width:28px;height:28px;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .13s;flex-shrink:0;}
-    .cw-send:hover{opacity:.88;}
-    .cw-login-notice{text-align:center;padding:.6rem;font-size:.7rem;color:var(--tx-3);}
-    .cw-login-notice a{color:var(--neon);}
-    .cw-ai-hint{font-size:.62rem;color:var(--purple-hi);font-family:var(--mono);padding:.15rem .4rem;display:none;}
-    .cw-ai-hint.show{display:block;}
-    .cw-del-btn{background:none;border:1px solid transparent;color:var(--tx-3);cursor:pointer;font-size:.55rem;padding:.08rem .28rem;border-radius:2px;transition:all .13s;}
-    .cw-del-btn:hover{color:var(--red-hi);border-color:rgba(248,113,113,.2);}
+/* TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(18px);background:var(--panel-2);border:1px solid var(--border-2);padding:8px 16px;border-radius:var(--r-md);color:var(--tx);font-size:12.5px;font-weight:500;z-index:9999;opacity:0;transition:all .22s cubic-bezier(.22,1,.36,1);box-shadow:0 8px 30px rgba(0,0,0,.6);pointer-events:none;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.ok{border-color:rgba(34,197,94,.35);color:var(--green-hi);}
+#toast.err{border-color:rgba(220,38,38,.3);color:var(--red-hi);}
 
-    /* TOAST */
-    #toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;background:var(--panel-2);border:1px solid var(--border-2);border-radius:var(--r-md);padding:7px 13px;font-size:.78rem;color:var(--tx);transform:translateY(16px);opacity:0;transition:all .22s;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.7);}
-    #toast.show{transform:translateY(0);opacity:1;}
-    #toast.success{border-color:rgba(34,197,94,.35);color:var(--green-hi);}
-    #toast.error{border-color:rgba(248,113,113,.35);color:var(--red-hi);}
-
-    /* LIGHT MODE */
-    body.light-mode{--bg:#f0f0f8;--surface:#ffffff;--panel:#f4f4fc;--panel-2:#eaeaf4;--border:#dcdce8;--border-2:#ccccde;--border-hi:#aaaac0;--tx:#1a1a2e;--tx-2:#4a4a6a;--tx-3:#9090b0;--muted:#d0d0e4;--neon:#0055cc;--neon2:#7c3aed;}
-    body.light-mode{background-image:linear-gradient(rgba(0,85,204,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,85,204,.025) 1px,transparent 1px);background-size:32px 32px;}
-    body.light-mode .book-card{box-shadow:0 1px 4px rgba(0,0,0,.07);}
-    body.light-mode .book-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.12),0 0 0 1px rgba(0,85,204,.1);}
-    body.light-mode header{background:rgba(240,240,248,.97);}
-
-    @media(max-width:768px){
-      header{height:42px;}
-      .h-name{display:none;}
-      main{padding:.875rem 10px;}
-      .filters{overflow-x:auto;flex-wrap:nowrap;padding-bottom:.2rem;scrollbar-width:none;}
-      .filters::-webkit-scrollbar{display:none;}
-      .grid,.pin-grid{grid-template-columns:1fr;}
-      #notif-panel{right:6px;width:calc(100vw - 12px);}
-      #chat-window{width:calc(100vw - 3rem);left:1rem;}
-    }
-  </style>
+@media(max-width:600px){.speed-row{flex-direction:column;}.platform-row{flex-wrap:wrap;}}
+</style>
 </head>
 <body>
 
-<div id="ban-screen">
-  <div class="ban-icon">⛔</div>
-  <div class="ban-title">Account Suspended</div>
-  <div class="ban-sub">Your account has been suspended. Contact the site owner if you believe this is a mistake.</div>
+<div id="topnav">
+  <div class="nav-brand">
+    <div class="nav-mark"><img src="/logo3.png?v=2" alt="HT"/></div>
+    <span class="nav-name">HTML Tools</span>
+  </div>
+  <button class="btn-back" onclick="history.length>1?history.back():window.location.href='/Studio/'">
+    ← Studio
+  </button>
+  <span class="nav-title" id="nav-title" style="margin-left:4px">New Game</span>
+  <div class="nav-spacer"></div>
+  <span class="nav-uname" id="nav-uname"></span>
 </div>
 
-<div id="announce-banner">
-  <span class="ann-pill">Notice</span>
-  <span id="announce-text"></span>
-  <button id="announce-dismiss">✕</button>
+<div id="signin-gate">
+  <div style="font-size:2rem;opacity:.3">🔒</div>
+  <div style="font-size:17px;font-weight:700">Sign in required</div>
+  <div style="font-size:12.5px;color:var(--tx-2);max-width:280px;line-height:1.6">Sign in through the Library to access Studio.</div>
+  <button class="btn btn-prim" onclick="window.location.href='/Library/'">Go to Library →</button>
 </div>
 
-<header>
-  <div class="h-brand">
-    <div class="h-mark"><img src="/logo3.png" alt="logo" onerror="this.parentElement.textContent='📚'"/></div>
-    <span class="h-name">HTML Library</span>
-  </div>
-  <div id="user-display">
-    <span class="user-pip"></span>
-    <span id="username-label" onclick="openProfile()"></span>
-    <span id="owner-badge" class="owner-chip" style="display:none">OWNER</span>
-    <span id="admin-badge" class="admin-chip" style="display:none">ADMIN</span>
-  </div>
-  <div class="h-spacer"></div>
-  <div class="h-icon-btn" id="notif-bell" onclick="toggleNotifPanel()" style="display:none" title="Notifications">🔔<span id="notif-badge"></span></div>
-  <div class="h-icon-btn" onclick="openLeaderboard()" title="Leaderboard">🏆</div>
-  <div class="h-icon-btn" id="saved-btn" onclick="openSaved()" style="display:none" title="Saved">🔖</div>
-  <div class="h-icon-btn" id="settings-btn" onclick="openSettings()" style="display:none" title="Settings">⚙️</div>
-  <div class="h-icon-btn" onclick="toggleLightMode()" id="theme-toggle-btn" title="Toggle theme">🌙</div>
-  <a href="/Library/Studio/" class="h-btn" id="studio-btn" style="display:none">🎛 Studio</a>
-  <button class="h-btn" id="auth-btn" onclick="openAuth()">Sign In</button>
-</header>
+<div id="page" style="display:none">
+<div class="page-inner">
 
-<div id="notif-panel">
-  <div class="np-head"><h4>🔔 Notifications</h4><button class="np-clear" onclick="clearAllNotifs()">Clear all</button></div>
-  <div class="np-list" id="notif-list"><div class="np-empty">No notifications yet</div></div>
-</div>
+  <!-- MODE TABS (hidden in single-mode pages) -->
+  <div class="mode-tabs" id="mode-tabs">
+    <button class="mode-tab active" id="tab-manual" onclick="setMode('manual')">📝 Manual Upload</button>
+    <button class="mode-tab" id="tab-ai" onclick="setMode('ai')">✨ Generate with AI</button>
+  </div>
 
-<main>
-  <div id="pin-banner">
-    <div class="pin-banner-label">📌 Pinned</div>
-    <div class="pin-grid" id="pin-grid"></div>
-    <div class="pin-divider"></div>
-  </div>
-  <div class="toolbar">
-    <div class="search-wrap">
-      <span class="search-icon">⌕</span>
-      <input type="text" id="search-input" placeholder="Search games…" oninput="renderBooks()"/>
-    </div>
-    <div class="filters">
-      <button class="filter-btn active" data-filter="popular" onclick="setFilter('popular',this)">⭐ Popular</button>
-      <button class="filter-btn" data-filter="newest" onclick="setFilter('newest',this)">Newest</button>
-      <button class="filter-btn" data-filter="liked" onclick="setFilter('liked',this)">Most Liked</button>
-      <button class="filter-btn" data-filter="views" onclick="setFilter('views',this)">Most Viewed</button>
-      <button class="filter-btn" data-filter="playtime" onclick="setFilter('playtime',this)">Most Played</button>
-      <button class="filter-btn" data-filter="commented" onclick="setFilter('commented',this)">Most Comments</button>
-      <button class="filter-btn" data-filter="rated" onclick="setFilter('rated',this)">Top Rated</button>
-      <button class="filter-btn" data-filter="remixes" onclick="setFilter('remixes',this)">🎛 Remixes</button>
-      <button class="filter-btn" data-filter="az" onclick="setFilter('az',this)">A–Z</button>
-      <button class="filter-btn" data-filter="saved" onclick="setFilter('saved',this)">Saved</button>
-      <button class="filter-btn" data-filter="mine" onclick="setFilter('mine',this)">My Games</button>
-      <button class="filter-btn" data-filter="mobile" onclick="setFilter('mobile',this)">📱 Mobile</button>
-      <button class="filter-btn" data-filter="computer" onclick="setFilter('computer',this)">💻 Computer</button>
-    </div>
-  </div>
-  <div class="grid" id="books-grid"><div class="loading"><span class="spin">⟳</span> Loading library…</div></div>
-</main>
-
-<button id="chat-fab" onclick="toggleChat()" title="Community Chat">💬<span class="chat-fab-badge" id="chat-fab-badge"></span></button>
-
-<div id="chat-window">
-  <div class="cw-header">
-    <div class="cw-title"><span class="cw-dot"></span>Community Chat</div>
-    <button class="cw-close" onclick="toggleChat()">✕</button>
-  </div>
-  <div class="cw-messages" id="cw-messages"><div class="cw-empty">No messages yet. Say hi! 👋</div></div>
-  <div id="cw-input-area">
-    <div class="cw-footer">
-      <div class="cw-ai-hint" id="cw-ai-hint">🤖 /ai mode — AI will answer</div>
-      <div class="cw-autodel-row">
-        <input type="checkbox" id="cw-autodel-check" class="cw-autodel-check"/>
-        <label for="cw-autodel-check" class="cw-autodel-label" id="cw-autodel-label">Auto-delete after 30s</label>
-      </div>
-      <div class="cw-input-row">
-        <input type="text" class="cw-input" id="cw-input" placeholder="Say something… or /ai <question>" maxlength="400" oninput="onChatInput()" onkeydown="if(event.key==='Enter')sendChatMsg()"/>
-        <button class="cw-send" onclick="sendChatMsg()">↑</button>
-      </div>
-    </div>
-  </div>
-  <div class="cw-login-notice" id="cw-login-notice" style="display:none">
-    <a href="#" onclick="toggleChat();openAuth();return false;">Sign in</a> to chat
-  </div>
-</div>
-
-<!-- AUTH MODAL -->
-<div class="overlay" id="auth-overlay">
-  <div class="modal">
-    <div class="modal-hdr"><h3>Account</h3><button class="modal-close" onclick="closeOverlay('auth-overlay')">✕</button></div>
-    <div class="modal-body">
-      <div style="display:flex;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:3px;gap:2px;margin-bottom:1rem;">
-        <button style="flex:1;padding:.4rem;border:none;cursor:pointer;transition:all .15s;letter-spacing:.08em;text-transform:uppercase;border-radius:2px;min-height:30px;font-family:var(--font);font-size:.68rem;font-weight:700;background:var(--theme-grad);color:#080810;" id="tab-login" onclick="switchAuthTab('login')">SIGN IN</button>
-        <button style="flex:1;padding:.4rem;background:transparent;border:none;color:var(--tx-3);cursor:pointer;transition:all .15s;letter-spacing:.08em;text-transform:uppercase;border-radius:2px;min-height:30px;font-family:var(--font);font-size:.68rem;font-weight:600;" id="tab-register" onclick="switchAuthTab('register')">REGISTER</button>
-      </div>
-      <div id="lg-locked-login" style="display:none;padding:.55rem .8rem;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);color:var(--tx-2);font-size:.73rem;text-align:center;margin-bottom:.75rem;">🔒 Login is currently disabled.</div>
-      <div id="lg-locked-signup" style="display:none;padding:.55rem .8rem;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);color:var(--tx-2);font-size:.73rem;text-align:center;margin-bottom:.75rem;">🔒 New registrations are closed.</div>
-      <div class="f-group"><label class="f-label">Email</label><input type="email" class="f-input" id="auth-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')submitAuth()"/></div>
-      <div class="f-group" id="auth-name-group" style="display:none"><label class="f-label">Display Name</label><input type="text" class="f-input" id="auth-name" placeholder="Your name"/></div>
-      <div class="f-group">
-        <label class="f-label">Password</label>
-        <input type="password" class="f-input" id="auth-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitAuth()"/>
-        <div id="auth-forgot-wrap" style="text-align:right;margin-top:.4rem"><a href="https://htmltools.me/ForgotPassword" target="_blank" rel="noopener" style="font-size:.68rem;color:var(--tx-3)">Forgot password?</a></div>
-      </div>
-      <div id="auth-error" style="display:none;font-size:.72rem;color:var(--red-hi);margin-bottom:.6rem;padding:.5rem .75rem;border-radius:var(--r);border:1px solid rgba(248,113,113,.25);background:rgba(248,113,113,.06)"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="h-btn" onclick="closeOverlay('auth-overlay')">Cancel</button>
-      <button class="h-btn h-btn-prim" id="auth-submit-btn" onclick="submitAuth()">SIGN IN</button>
-    </div>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div class="overlay" id="settings-overlay">
-  <div class="modal">
-    <div class="modal-hdr"><h3>⚙️ Settings</h3><button class="modal-close" onclick="closeOverlay('settings-overlay')">✕</button></div>
-    <div class="modal-body">
-      <div class="settings-section">
-        <div class="settings-section-title">Profile</div>
-        <div class="f-group"><label class="f-label">Display Name</label><input type="text" class="f-input" id="settings-username" placeholder="Your display name"/></div>
-        <button class="h-btn h-btn-prim" onclick="saveUsername()" style="width:100%;justify-content:center;height:30px">Save Username</button>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">🎨 Color Theme</div>
-        <div class="color-picker-row">
-          <div class="color-pick-group"><label>Color A</label><input type="color" class="color-swatch-input" id="theme-color-a" value="#00e5ff" oninput="updateThemePreview()"/></div>
-          <div class="color-pick-group"><label>Color B</label><input type="color" class="color-swatch-input" id="theme-color-b" value="#a855f7" oninput="updateThemePreview()"/></div>
-          <div class="theme-preview" id="theme-preview-box">HTML Library</div>
+  <!-- ═══════════════ MANUAL PANEL ═══════════════ -->
+  <div id="panel-manual">
+    <div class="card">
+      <div class="card-hdr"><span class="card-hdr-icon">📄</span>Game Code</div>
+      <div class="card-body">
+        <div class="f-group">
+          <label class="f-label">Title *</label>
+          <input type="text" class="f-input" id="bk-title" placeholder="Game name…"/>
         </div>
-        <div style="font-size:.6rem;color:var(--tx-3);margin-top:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Presets</div>
-        <div class="preset-colors" id="preset-colors"></div>
-        <div style="display:flex;gap:5px;margin-top:.75rem">
-          <button class="h-btn h-btn-prim" onclick="applyTheme()" style="flex:1;justify-content:center">Apply Theme</button>
-          <button class="h-btn" onclick="resetTheme()" style="flex:1;justify-content:center">Reset Default</button>
+        <div class="f-group">
+          <label class="f-label">HTML Code *</label>
+          <textarea class="f-input f-code" id="bk-code" placeholder="Paste your complete HTML here…" oninput="updateManualLineCount()"></textarea>
+          <div class="f-note" id="manual-line-note"></div>
         </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Appearance</div>
-        <div class="f-check"><input type="checkbox" id="settings-light-mode" onchange="setLightMode(this.checked)"/><label for="settings-light-mode">Light Mode</label></div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Account</div>
-        <button class="settings-signout-btn" onclick="doSignOut()">⏻ Sign Out</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- COMMENTS MODAL -->
-<div class="overlay" id="comments-overlay">
-  <div class="modal" style="max-width:580px">
-    <div class="modal-hdr"><h3 id="comments-modal-title">💬 Comments</h3><button class="modal-close" onclick="closeOverlay('comments-overlay')">✕</button></div>
-    <div class="modal-body">
-      <div class="comments-list" id="comments-list"><div class="no-comments">No comments yet.</div></div>
-      <div id="comment-login-notice" style="display:none;font-size:.73rem;color:var(--tx-3);text-align:center;padding:.6rem;border:1px solid var(--border);border-radius:var(--r);margin-bottom:.6rem">
-        <a href="#" onclick="openAuth();return false;" style="color:var(--neon)">Sign in</a> to leave a comment
-      </div>
-      <div class="comment-input-wrap" id="comment-input-row" style="display:none">
-        <div class="comment-input-row">
-          <input type="text" id="comment-text-input" placeholder="Write a comment…" maxlength="500" onkeydown="if(event.key==='Enter')submitComment()"/>
-          <button class="h-btn h-btn-prim" id="comment-post-btn" onclick="submitComment()" style="height:30px;font-size:.7rem;flex-shrink:0">Post</button>
+        <div class="f-group">
+          <label class="f-label">Description</label>
+          <input type="text" class="f-input" id="bk-desc" placeholder="Short description…"/>
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- RATING MODAL -->
-<div class="overlay" id="rate-overlay">
-  <div class="modal" style="max-width:360px">
-    <div class="modal-hdr"><h3 id="rate-modal-title">⭐ Rate this Game</h3><button class="modal-close" onclick="closeOverlay('rate-overlay')">✕</button></div>
-    <div class="modal-body" style="text-align:center">
-      <div style="font-size:.8rem;color:var(--tx-2);margin-bottom:.5rem">How would you rate it?</div>
-      <div class="stars-row" id="rate-stars-row">
-        <button class="star-btn" onclick="setStar(1)">⭐</button>
-        <button class="star-btn" onclick="setStar(2)">⭐</button>
-        <button class="star-btn" onclick="setStar(3)">⭐</button>
-        <button class="star-btn" onclick="setStar(4)">⭐</button>
-        <button class="star-btn" onclick="setStar(5)">⭐</button>
+    <div class="card">
+      <div class="card-hdr"><span class="card-hdr-icon">🖼</span>Branding</div>
+      <div class="card-body">
+        <div class="f-group">
+          <label class="f-label">Game Logo</label>
+          <div class="img-drop" id="logo-drop">
+            <button type="button" class="rm-img" id="logo-rm">✕</button>
+            <input type="file" id="logo-file" accept="image/*"/>
+            <div class="drop-label">📷 Click to upload (max 2MB)</div>
+            <img id="logo-prev" class="drop-prev" alt=""/>
+          </div>
+          <input type="text" class="f-input" id="logo-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="manualPrevUrl('logo',this.value)"/>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Card Background</label>
+          <div class="img-drop" id="bg-drop">
+            <button type="button" class="rm-img" id="bg-rm">✕</button>
+            <input type="file" id="bg-file" accept="image/*"/>
+            <div class="drop-label">🖼 Click to upload</div>
+            <img id="bg-prev" class="drop-prev" alt=""/>
+          </div>
+          <input type="text" class="f-input" id="bg-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="manualPrevUrl('bg',this.value)"/>
+        </div>
       </div>
-      <div id="rate-current" style="font-size:.72rem;color:var(--tx-3);margin-bottom:.75rem"></div>
     </div>
-    <div class="modal-foot" style="justify-content:center">
-      <button class="h-btn" onclick="closeOverlay('rate-overlay')">Cancel</button>
-      <button class="h-btn h-btn-prim" onclick="submitRate()">Submit Rating</button>
-    </div>
-  </div>
-</div>
-
-<!-- LEADERBOARD -->
-<div class="overlay" id="leaderboard-overlay">
-  <div class="modal" style="max-width:500px">
-    <div class="modal-hdr"><h3>🏆 Leaderboard</h3><button class="modal-close" onclick="closeOverlay('leaderboard-overlay')">✕</button></div>
-    <div class="modal-body">
-      <div class="lb-tabs">
-        <button class="lb-tab active" id="lb-tab-rated" onclick="switchLbTab('rated',this)">TOP RATED</button>
-        <button class="lb-tab" id="lb-tab-likes" onclick="switchLbTab('likes',this)">MOST LIKED</button>
-        <button class="lb-tab" id="lb-tab-views" onclick="switchLbTab('views',this)">MOST VIEWED</button>
-        <button class="lb-tab" id="lb-tab-time" onclick="switchLbTab('time',this)">MOST PLAYED</button>
+    <div class="card">
+      <div class="card-hdr"><span class="card-hdr-icon">⚙️</span>Settings</div>
+      <div class="card-body">
+        <div class="f-group">
+          <label class="f-label">Platform</label>
+          <div class="platform-row" id="plat-row">
+            <button type="button" class="plat-opt sel-both" data-p="both" onclick="selPlat('both')">🌐 Both</button>
+            <button type="button" class="plat-opt" data-p="mobile" onclick="selPlat('mobile')">📱 Mobile</button>
+            <button type="button" class="plat-opt" data-p="computer" onclick="selPlat('computer')">💻 PC</button>
+          </div>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Collaborators</label>
+          <div class="collab-row">
+            <input type="text" id="collab-email" placeholder="Add by email…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCollab();}"/>
+            <button type="button" class="btn btn-prim btn-sm" onclick="addCollab()">Add</button>
+          </div>
+          <div class="collab-tags" id="collab-tags"></div>
+        </div>
+        <div class="f-group">
+          <div class="chat-box">
+            <div class="chat-box-hdr">
+              <span class="f-label" style="margin:0">In-Game Chat</span>
+              <div class="chat-box-toggle">
+                <label class="toggle"><input type="checkbox" id="chat-chk" onchange="toggleChat()"/><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+                <span style="font-size:11px;color:var(--tx-3)" id="chat-lbl">Disabled</span>
+              </div>
+            </div>
+            <div id="scope-row" style="display:none" class="chat-scope-row">
+              <span style="font-size:11px;color:var(--tx-2)">Scope:</span>
+              <div class="scope-pills">
+                <button class="scope-pill active" id="sc-global" onclick="setScope('global')">🌐 Global</button>
+                <button class="scope-pill" id="sc-book" onclick="setScope('book')">📖 This Game</button>
+                <button class="scope-pill" id="sc-both" onclick="setScope('both')">🔀 Both</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="f-check"><input type="checkbox" id="allow-code" checked/><label for="allow-code">Allow others to view &amp; copy source code</label></div>
       </div>
-      <div id="leaderboard-list"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-ghost" onclick="saveDraft('manual')">💾 Save Draft</button>
+      <button class="btn btn-prim" id="upload-btn" onclick="submitManual()">🚀 <span id="upload-btn-lbl">Publish</span></button>
     </div>
   </div>
-</div>
 
-<!-- STATS MODAL -->
-<div class="overlay" id="bookstats-overlay">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-hdr"><h3 id="bookstats-title">Stats</h3><button class="modal-close" onclick="closeOverlay('bookstats-overlay')">✕</button></div>
-    <div class="modal-body" id="bookstats-content"></div>
+  <!-- ═══════════════ AI GENERATE PANEL ═══════════════ -->
+  <div id="panel-ai" style="display:none">
+    <!-- Step 1 -->
+    <div id="ai-s1">
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">✨</span>AI Generator</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Speed</label>
+            <div class="speed-row">
+              <div class="speed-opt sel" id="sp-fast" onclick="selSpeed('fast')"><div class="sp-icon">⚡</div><div class="sp-title">Quick</div><div class="sp-desc">Fast — great for simple games</div></div>
+              <div class="speed-opt" id="sp-smart" onclick="selSpeed('smart')"><div class="sp-icon">🧠</div><div class="sp-title">Smart</div><div class="sp-desc">Stronger — for complex projects</div></div>
+            </div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Describe your game *</label>
+            <textarea class="f-input" id="ai-prompt" style="min-height:120px" placeholder="e.g. A Snake game with neon colours and a high score counter. Include keyboard and touch controls."></textarea>
+            <div class="f-note">Be specific — colours, mechanics, features, controls. Output is capped at 2,000 lines.</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-prim" onclick="aiGenerate()">✨ Generate</button>
+      </div>
+    </div>
+    <!-- Step 2 -->
+    <div id="ai-s2" style="display:none">
+      <div class="gen-card">
+        <div class="gen-icon">✨</div>
+        <div class="gen-title" id="ai-gen-title">Building your game…</div>
+        <div class="gen-sub" id="ai-gen-sub">This usually takes 10–30 seconds</div>
+        <div class="prog-bar"><div class="prog-fill" id="ai-prog" style="width:0%"></div></div>
+      </div>
+    </div>
+    <!-- Step 3 -->
+    <div id="ai-s3" style="display:none">
+      <div class="prev-container">
+        <div class="prev-toolbar">
+          <span class="prev-toolbar-title" id="ai-prev-label">Generated Game</span>
+          <span id="ai-line-badge" class="line-badge ok"></span>
+          <button class="btn btn-sm" onclick="prevAction('ai','fullscreen')" title="Fullscreen">⛶</button>
+          <button class="btn btn-sm" onclick="prevAction('ai','tab')" title="New tab">↗</button>
+          <button class="btn btn-sm" onclick="prevAction('ai','download')" title="Download">↓</button>
+          <button class="btn btn-sm" onclick="prevAction('ai','copy')" title="Copy code">⧉</button>
+          <button class="btn btn-sm" id="ai-code-btn" onclick="prevToggleCode('ai')">‹/› Code</button>
+        </div>
+        <iframe id="ai-frame" class="prev-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
+        <div id="ai-code-view" class="code-view"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">✏️</span>Refine</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Ask for changes</label>
+            <div class="refine-row">
+              <input type="text" id="ai-refine" placeholder="e.g. Make the background dark, add a pause button…" onkeydown="if(event.key==='Enter')aiRefine()"/>
+              <button class="btn btn-prim" onclick="aiRefine()">✨ Apply</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost" style="font-size:11.5px" onclick="saveDraft('ai')">💾 Save Draft</button>
+            <button class="btn btn-ghost" style="font-size:11.5px" onclick="resetAI()">↺ Start Over</button>
+          </div>
+        </div>
+      </div>
+      <div class="section-divider-label">Publish Details</div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">ℹ</span>Info</div>
+        <div class="card-body">
+          <div class="f-group"><label class="f-label">Title *</label><input type="text" class="f-input" id="ai-title" placeholder="Game name…"/></div>
+          <div class="f-group"><label class="f-label">Description</label><input type="text" class="f-input" id="ai-desc" placeholder="Short description…"/></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">🖼</span>Branding</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Game Logo</label>
+            <div class="img-drop" id="ai-logo-drop"><button type="button" class="rm-img" id="ai-logo-rm">✕</button><input type="file" id="ai-logo-file" accept="image/*"/><div class="drop-label">📷 Click to upload (max 2MB)</div><img id="ai-logo-prev" class="drop-prev" alt=""/></div>
+            <input type="text" class="f-input" id="ai-logo-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="aiImgUrl('logo',this.value)"/>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Card Background</label>
+            <div class="img-drop" id="ai-bg-drop"><button type="button" class="rm-img" id="ai-bg-rm">✕</button><input type="file" id="ai-bg-file" accept="image/*"/><div class="drop-label">🖼 Click to upload</div><img id="ai-bg-prev" class="drop-prev" alt=""/></div>
+            <input type="text" class="f-input" id="ai-bg-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="aiImgUrl('bg',this.value)"/>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">⚙️</span>Settings</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Platform</label>
+            <div class="platform-row" id="ai-plat-row">
+              <button type="button" class="plat-opt sel-both" data-p="both" onclick="aiSelPlat('both')">🌐 Both</button>
+              <button type="button" class="plat-opt" data-p="mobile" onclick="aiSelPlat('mobile')">📱 Mobile</button>
+              <button type="button" class="plat-opt" data-p="computer" onclick="aiSelPlat('computer')">💻 PC</button>
+            </div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Collaborators</label>
+            <div class="collab-row"><input type="text" id="ai-collab-email" placeholder="Add by email…" onkeydown="if(event.key==='Enter'){event.preventDefault();aiAddCollab();}"/><button type="button" class="btn btn-prim btn-sm" onclick="aiAddCollab()">Add</button></div>
+            <div class="collab-tags" id="ai-collab-tags"></div>
+          </div>
+          <div class="f-group">
+            <div class="chat-box">
+              <div class="chat-box-hdr">
+                <span class="f-label" style="margin:0">In-Game Chat</span>
+                <div class="chat-box-toggle">
+                  <label class="toggle"><input type="checkbox" id="ai-chat-chk" checked onchange="aiToggleChat()"/><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+                  <span style="font-size:11px;color:var(--tx-3)" id="ai-chat-lbl">Enabled</span>
+                </div>
+              </div>
+              <div id="ai-scope-row" class="chat-scope-row">
+                <span style="font-size:11px;color:var(--tx-2)">Scope:</span>
+                <div class="scope-pills">
+                  <button class="scope-pill active" id="ai-sc-global" onclick="aiSetScope('global')">🌐 Global</button>
+                  <button class="scope-pill" id="ai-sc-book" onclick="aiSetScope('book')">📖 This Game</button>
+                  <button class="scope-pill" id="ai-sc-both" onclick="aiSetScope('both')">🔀 Both</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="f-check"><input type="checkbox" id="ai-allow-code" checked/><label for="ai-allow-code">Allow others to view &amp; copy source code</label></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button class="btn btn-prim" id="ai-pub-btn" onclick="aiPublish()">🚀 Publish Game</button>
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- PROFILE MODAL -->
-<div class="overlay" id="profile-overlay">
-  <div class="modal">
-    <div class="modal-hdr"><h3>👤 My Profile</h3><button class="modal-close" onclick="closeOverlay('profile-overlay')">✕</button></div>
-    <div class="modal-body" id="profile-content"></div>
+  <!-- ═══════════════ REMIX PANEL ═══════════════ -->
+  <div id="panel-remix" style="display:none">
+    <div class="banner banner-purple">
+      <span class="banner-icon">🎛</span>
+      <div>
+        <div class="banner-title">Remix Mode</div>
+        <div class="banner-sub">You're remixing <strong id="remix-game-name">…</strong>. Describe what to change — AI will rewrite the game while you can add your own title, description and branding before publishing.</div>
+      </div>
+    </div>
+    <!-- Step 1 -->
+    <div id="remix-s1">
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">🎛</span>Remix with AI</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Speed</label>
+            <div class="speed-row">
+              <div class="speed-opt sel" id="remix-sp-fast" onclick="remixSelSpeed('fast')"><div class="sp-icon">⚡</div><div class="sp-title">Quick</div><div class="sp-desc">Fast edits</div></div>
+              <div class="speed-opt" id="remix-sp-smart" onclick="remixSelSpeed('smart')"><div class="sp-icon">🧠</div><div class="sp-title">Smart</div><div class="sp-desc">Better for complex changes</div></div>
+            </div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">What do you want to change? *</label>
+            <textarea class="f-input" id="remix-prompt" style="min-height:110px" placeholder="e.g. Change the colour scheme to deep purple, add a lives system, make it endless…&#10;&#10;Or just describe a brand-new twist on this game!"></textarea>
+            <div class="f-note">Tip: you can also ask for a completely different mechanic — this is your remix! Output is capped at 2,000 lines.</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn-purple" onclick="remixGenerate()">🎛 Generate Remix</button>
+      </div>
+    </div>
+    <!-- Step 2 -->
+    <div id="remix-s2" style="display:none">
+      <div class="gen-card">
+        <div class="gen-icon">🎛</div>
+        <div class="gen-title">Generating your remix…</div>
+        <div class="gen-sub">Reading the original and applying your changes</div>
+        <div class="prog-bar"><div class="prog-fill" id="remix-prog" style="width:0%"></div></div>
+      </div>
+    </div>
+    <!-- Step 3 -->
+    <div id="remix-s3" style="display:none">
+      <div class="prev-container">
+        <div class="prev-toolbar">
+          <span class="prev-toolbar-title" id="remix-prev-label">Remix Preview</span>
+          <span id="remix-line-badge" class="line-badge ok"></span>
+          <button class="btn btn-sm" onclick="prevAction('remix','fullscreen')" title="Fullscreen">⛶</button>
+          <button class="btn btn-sm" onclick="prevAction('remix','tab')" title="New tab">↗</button>
+          <button class="btn btn-sm" onclick="prevAction('remix','download')" title="Download">↓</button>
+          <button class="btn btn-sm" onclick="prevAction('remix','copy')" title="Copy code">⧉</button>
+          <button class="btn btn-sm" id="remix-code-btn" onclick="prevToggleCode('remix')">‹/› Code</button>
+        </div>
+        <iframe id="remix-frame" class="prev-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
+        <div id="remix-code-view" class="code-view"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">✏️</span>Refine your remix</div>
+        <div class="card-body">
+          <div class="f-group">
+            <div class="refine-row">
+              <input type="text" id="remix-refine" placeholder="Ask for another change…" onkeydown="if(event.key==='Enter')remixRefine()"/>
+              <button class="btn-purple" onclick="remixRefine()">🎛 Apply</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost" style="font-size:11.5px" onclick="saveDraft('remix')">💾 Save Draft</button>
+            <button class="btn btn-ghost" style="font-size:11.5px" onclick="remixReset()">↺ Start Over</button>
+          </div>
+        </div>
+      </div>
+      <div class="section-divider-label">Your Remix Details</div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">ℹ</span>Info</div>
+        <div class="card-body">
+          <div class="f-group"><label class="f-label">Title *</label><input type="text" class="f-input" id="remix-title" placeholder="Your remix name…"/></div>
+          <div class="f-group"><label class="f-label">Description</label><input type="text" class="f-input" id="remix-desc" placeholder="Short description of your remix…"/></div>
+          <div style="font-size:.7rem;color:var(--purple-hi);padding:.5rem .7rem;background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);border-radius:var(--r);margin-top:4px;">
+            🎛 A "Remix of <span id="remix-orig-name-display">…</span>" tag will be added automatically.
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">🖼</span>Branding</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Game Logo</label>
+            <div class="img-drop" id="remix-logo-drop"><button type="button" class="rm-img" id="remix-logo-rm">✕</button><input type="file" id="remix-logo-file" accept="image/*"/><div class="drop-label">📷 Click to upload (max 2MB)</div><img id="remix-logo-prev" class="drop-prev" alt=""/></div>
+            <input type="text" class="f-input" id="remix-logo-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="remixImgUrl('logo',this.value)"/>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Card Background</label>
+            <div class="img-drop" id="remix-bg-drop"><button type="button" class="rm-img" id="remix-bg-rm">✕</button><input type="file" id="remix-bg-file" accept="image/*"/><div class="drop-label">🖼 Click to upload</div><img id="remix-bg-prev" class="drop-prev" alt=""/></div>
+            <input type="text" class="f-input" id="remix-bg-url" placeholder="Or paste image URL…" style="margin-top:5px" oninput="remixImgUrl('bg',this.value)"/>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">⚙️</span>Settings</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Platform</label>
+            <div class="platform-row" id="remix-plat-row">
+              <button type="button" class="plat-opt sel-both" data-p="both" onclick="remixSelPlat('both')">🌐 Both</button>
+              <button type="button" class="plat-opt" data-p="mobile" onclick="remixSelPlat('mobile')">📱 Mobile</button>
+              <button type="button" class="plat-opt" data-p="computer" onclick="remixSelPlat('computer')">💻 PC</button>
+            </div>
+          </div>
+          <div class="f-check"><input type="checkbox" id="remix-allow-code" checked/><label for="remix-allow-code">Allow others to view &amp; copy source code</label></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button class="btn-purple" id="remix-pub-btn" onclick="remixPublish()">🚀 Publish Remix</button>
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- SAVED MODAL -->
-<div class="overlay" id="saved-overlay">
-  <div class="modal" style="max-width:580px">
-    <div class="modal-hdr"><h3>🔖 Saved Games</h3><button class="modal-close" onclick="closeOverlay('saved-overlay')">✕</button></div>
-    <div class="modal-body" id="saved-content"></div>
+  <!-- ═══════════════ AI EDIT PANEL ═══════════════ -->
+  <div id="panel-aiedit" style="display:none">
+    <div class="banner banner-blue">
+      <span class="banner-icon">✏️</span>
+      <div>
+        <div class="banner-title">AI Edit — <span id="aiedit-game-name">…</span></div>
+        <div class="banner-sub">Describe what to change. AI updates only the code — your title, description, logo, and settings stay exactly as they are.</div>
+      </div>
+    </div>
+    <!-- Step 1 -->
+    <div id="aiedit-s1">
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">✨</span>Edit Game with AI</div>
+        <div class="card-body">
+          <div class="f-group">
+            <label class="f-label">Speed</label>
+            <div class="speed-row">
+              <div class="speed-opt sel" id="aiedit-sp-fast" onclick="aieditSelSpeed('fast')"><div class="sp-icon">⚡</div><div class="sp-title">Quick</div><div class="sp-desc">Fast edits</div></div>
+              <div class="speed-opt" id="aiedit-sp-smart" onclick="aieditSelSpeed('smart')"><div class="sp-icon">🧠</div><div class="sp-title">Smart</div><div class="sp-desc">Better for complex changes</div></div>
+            </div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">What to change? *</label>
+            <textarea class="f-input" id="aiedit-prompt" style="min-height:110px" placeholder="e.g. Change the background to dark purple, add a lives system, make the player move faster…"></textarea>
+            <div class="f-note">Describe only the changes you want. Everything else stays intact. Output is capped at 2,000 lines.</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn btn-prim" onclick="aieditGenerate()">✨ Apply AI Changes</button>
+      </div>
+    </div>
+    <!-- Step 2 -->
+    <div id="aiedit-s2" style="display:none">
+      <div class="gen-card">
+        <div class="gen-icon">✨</div>
+        <div class="gen-title">Applying changes…</div>
+        <div class="gen-sub">Reading your game and making edits</div>
+        <div class="prog-bar"><div class="prog-fill" id="aiedit-prog" style="width:0%"></div></div>
+      </div>
+    </div>
+    <!-- Step 3 -->
+    <div id="aiedit-s3" style="display:none">
+      <div class="prev-container">
+        <div class="prev-toolbar">
+          <span class="prev-toolbar-title" id="aiedit-prev-label">Edited Game</span>
+          <span id="aiedit-line-badge" class="line-badge ok"></span>
+          <button class="btn btn-sm" onclick="prevAction('aiedit','fullscreen')">⛶</button>
+          <button class="btn btn-sm" onclick="prevAction('aiedit','tab')">↗</button>
+          <button class="btn btn-sm" onclick="prevAction('aiedit','download')">↓</button>
+          <button class="btn btn-sm" onclick="prevAction('aiedit','copy')">⧉</button>
+          <button class="btn btn-sm" id="aiedit-code-btn" onclick="prevToggleCode('aiedit')">‹/› Code</button>
+        </div>
+        <iframe id="aiedit-frame" class="prev-frame" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"></iframe>
+        <div id="aiedit-code-view" class="code-view"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-hdr-icon">✏️</span>Refine More</div>
+        <div class="card-body">
+          <div class="f-group">
+            <div class="refine-row">
+              <input type="text" id="aiedit-refine" placeholder="Describe another change…" onkeydown="if(event.key==='Enter')aieditRefine()"/>
+              <button class="btn btn-prim" onclick="aieditRefine()">✨ Apply</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost" style="font-size:11.5px" onclick="saveDraft('aiedit')">💾 Save Draft</button>
+            <button class="btn btn-ghost" style="font-size:11.5px" onclick="aieditReset()">↺ Start Over</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button class="btn btn-prim" id="aiedit-save-btn" onclick="aieditSave()">💾 Save Changes</button>
+      </div>
+    </div>
   </div>
-</div>
+
+</div><!-- /page-inner -->
+</div><!-- /page -->
 
 <div id="toast"></div>
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getDatabase,ref,push,set,get,onValue,update,remove,query,limitToLast,orderByKey}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut,updateProfile}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getDatabase,ref,push,set,get,update}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 
-const OWNER_EMAIL='matthewbozhe@gmail.com';
+/* ── FIREBASE ── */
+const WORKER='https://aged-heart-d9b9.bozhetarnikmatthew.workers.dev/';
+const MAX_LINES=2000;
 const oldApp=initializeApp({apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"},'old');
 const auth=getAuth(oldApp);
 const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
 initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
 const db=getDatabase(newApp);
 
-// ── STATE ─────────────────────────────────────────────────────
-let CU=null,allBooks={},commentCountCache={};
-let currentFilter='popular',commentingBookId=null;
-let myNotifs=[],bannedUsers={},extraAdmins={},savedBooks={},pinnedBooks={};
-let loginDisabled=false,signupDisabled=false;
-let chatMessages={},chatOpen=false,chatUnread=0;
-let _countdownTimers={};
-let _groqKey=null;
-let authMode='login',_authSubmitting=false;
-let _ratingBookId=null,_selectedStar=0;
-let _lbMode='rated';
-let _booksLoaded=false;
+/* ── AI SYSTEM PROMPTS ── */
+const AI_MODELS={fast:'us.anthropic.claude-haiku-4-5-20251001-v1:0',smart:'us.anthropic.claude-sonnet-4-6'};
+const SYS_GEN=`You are an expert HTML5 game developer.\nRULES (no exceptions):\n1. Respond with ONLY a complete self-contained HTML file.\n2. Start with <!DOCTYPE html>, end with </html>.\n3. No markdown, explanations, or code fences.\n4. All CSS and JS inside the file.\n5. Make it polished and fun.\n6. CRITICAL: Keep output under ${MAX_LINES} lines.`;
+const SYS_EDIT=`You are an expert HTML5 game developer making targeted edits.\nRULES (no exceptions):\n1. You will receive existing game code and a change request.\n2. Apply changes and return the COMPLETE updated HTML file.\n3. Respond with ONLY the updated HTML — no markdown, no explanations.\n4. Start with <!DOCTYPE html>, end with </html>.\n5. Preserve all existing features, styles, and logic unless explicitly asked to change them.\n6. CRITICAL: Keep output under ${MAX_LINES} lines.`;
+const SYS_REMIX=`You are an expert HTML5 game developer creating a remix/fork of an existing game.\nRULES (no exceptions):\n1. You will receive an existing game's code and a description of changes.\n2. Apply the changes creatively and return a COMPLETE updated HTML file.\n3. Respond with ONLY the HTML — no markdown, no explanations.\n4. Start with <!DOCTYPE html>, end with </html>.\n5. Make the changes feel purposeful and polished. This is a new creative work, not just a patch.\n6. CRITICAL: Keep output under ${MAX_LINES} lines.`;
 
-// ── HELPERS ──────────────────────────────────────────────────
+/* ── STATE ── */
+let CU=null;
+// manual
+let _m={logo:null,bg:null,plat:'both',chatOn:false,scope:'global',collabs:[],editId:null,submitting:false};
+// ai generate
+let _ai={spd:'fast',code:'',conv:[],logo:null,bg:null,plat:'both',chatOn:true,scope:'global',collabs:[],publishing:false};
+// remix
+let _rx={spd:'fast',code:'',conv:[],logo:null,bg:null,plat:'both',origId:null,origTitle:'',publishing:false};
+// ai edit
+let _ae={id:null,bk:null,origCode:'',code:'',conv:[],spd:'fast',saving:false};
+// progress timers
+let _progT={};
+
+/* ── UTILS ── */
 const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
-const timeAgo=ts=>{if(!ts)return'?';const d=Date.now()-ts;if(d<60e3)return'just now';if(d<3600e3)return~~(d/60e3)+'m ago';if(d<864e5)return~~(d/3600e3)+'h ago';if(d<2592e6)return~~(d/864e5)+'d ago';return~~(d/2592e6)+'mo ago';};
-const fmtTime=s=>{if(!s||s<1)return'0s';if(s<60)return s+'s';const m=~~(s/60);if(m<60)return m+'m';const h=~~(m/60);return m%60?`${h}h ${m%60}m`:`${h}h`;};
-window.showToast=(msg,type='')=>{const t=document.getElementById('toast');t.textContent=msg;t.className='show '+(type||'');clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>{t.className='';},3000);};
-window.openOverlay=id=>document.getElementById(id).classList.add('open');
-window.closeOverlay=id=>document.getElementById(id).classList.remove('open');
+const countLines=s=>s?s.split('\n').length:0;
+window.showToast=(m,t='')=>{const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+(t||'');clearTimeout(window._tt);window._tt=setTimeout(()=>{el.className='toast';},3200);};
 
-function isOwner(u){return u&&u.email&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase();}
-function isAdmin(u){if(!u||!u.email)return false;if(isOwner(u))return true;return Object.values(extraAdmins).some(v=>{const e=typeof v==='string'?v:(v?.email||'');return e.toLowerCase()===u.email.toLowerCase();});}
-function isCollab(book){if(!CU||!book?.collaborators)return false;return Object.values(book.collaborators).some(c=>c?.email?.toLowerCase()===CU.email.toLowerCase());}
-function popularityScore(b){if(b.ratingAvg&&b.ratingCount>0)return b.ratingAvg*20+(b.views||0)*.01+(b.playtimeSeconds||0)/600;return 0;}
-function starsHtml(avg){if(!avg)return'';const full=~~avg;const half=avg-full>=.5;let h='';for(let i=0;i<5;i++)h+=i<full?'★':i===full&&half?'½':'☆';return h;}
+/* ── DRAFTS ── */
+const getDrafts=()=>{try{return JSON.parse(localStorage.getItem('studio_drafts')||'[]');}catch{return[];}};
+const setDrafts=d=>localStorage.setItem('studio_drafts',JSON.stringify(d));
 
-// ── SAVED ─────────────────────────────────────────────────────
-function loadSaved(){if(!CU){savedBooks={};return;}try{savedBooks=JSON.parse(localStorage.getItem('saved_'+CU.uid)||'{}')}catch{savedBooks={};}}
-function persistSaved(){if(!CU)return;localStorage.setItem('saved_'+CU.uid,JSON.stringify(savedBooks));}
-
-// ── LIGHT MODE ────────────────────────────────────────────────
-function loadLightMode(){if(localStorage.getItem('htmllib_lightmode')==='1'){document.body.classList.add('light-mode');document.getElementById('theme-toggle-btn').textContent='☀️';const c=document.getElementById('settings-light-mode');if(c)c.checked=true;}}
-window.setLightMode=v=>{if(v){document.body.classList.add('light-mode');localStorage.setItem('htmllib_lightmode','1');document.getElementById('theme-toggle-btn').textContent='☀️';}else{document.body.classList.remove('light-mode');localStorage.removeItem('htmllib_lightmode');document.getElementById('theme-toggle-btn').textContent='🌙';}const c=document.getElementById('settings-light-mode');if(c)c.checked=v;};
-window.toggleLightMode=()=>setLightMode(localStorage.getItem('htmllib_lightmode')!=='1');
-loadLightMode();
-
-// ── THEME ─────────────────────────────────────────────────────
-const PRESETS=[{a:'#00e5ff',b:'#a855f7'},{a:'#22c55e',b:'#06b6d4'},{a:'#ff6b35',b:'#f7c59f'},{a:'#ff006e',b:'#8338ec'},{a:'#ffd60a',b:'#ff6b00'},{a:'#00ff88',b:'#0080ff'},{a:'#a29bfe',b:'#6c5ce7'},{a:'#00cec9',b:'#55efc4'}];
-function getLum(hex){try{const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;return .299*r+.587*g+.114*b;}catch{return 1;}}
-function applyThemeVars(a,b){const r=document.documentElement;r.style.setProperty('--theme-a',a);r.style.setProperty('--theme-b',b);r.style.setProperty('--theme-grad',`linear-gradient(135deg,${a},${b})`);r.style.setProperty('--neon',a);r.style.setProperty('--neon2',b);}
-function loadTheme(){try{const s=JSON.parse(localStorage.getItem('htmllib_theme')||'null');if(s?.a&&s?.b)applyThemeVars(s.a,s.b);}catch{}}
-window.updateThemePreview=()=>{const a=document.getElementById('theme-color-a').value,b=document.getElementById('theme-color-b').value;const box=document.getElementById('theme-preview-box');if(box){box.style.background=`linear-gradient(135deg,${a},${b})`;box.style.color=getLum(a)>.35?'#080810':'#ffffff';}};
-window.applyTheme=()=>{const a=document.getElementById('theme-color-a').value,b=document.getElementById('theme-color-b').value;applyThemeVars(a,b);localStorage.setItem('htmllib_theme',JSON.stringify({a,b}));showToast('Theme applied! 🎨','success');};
-window.resetTheme=()=>{['--theme-a','--theme-b','--theme-grad','--neon','--neon2'].forEach(v=>document.documentElement.style.removeProperty(v));localStorage.removeItem('htmllib_theme');document.getElementById('theme-color-a').value='#00e5ff';document.getElementById('theme-color-b').value='#a855f7';updateThemePreview();showToast('Theme reset','success');};
-function renderPresets(){const c=document.getElementById('preset-colors');if(!c)return;c.innerHTML=PRESETS.map(p=>`<div class="preset-swatch" style="background:linear-gradient(135deg,${p.a},${p.b})" onclick="window.setPreset('${p.a}','${p.b}')"></div>`).join('');}
-window.setPreset=(a,b)=>{document.getElementById('theme-color-a').value=a;document.getElementById('theme-color-b').value=b;updateThemePreview();};
-loadTheme();
-
-// ── FIREBASE LISTENERS ────────────────────────────────────────
-// Single books listener — no double-counting
-onValue(ref(db,'books'),snap=>{
-  const raw=snap.val()||{};
-  allBooks={};
-  Object.entries(raw).forEach(([id,b])=>{
-    if(b?.title){const{code:_,...meta}=b;allBooks[id]={...meta,_origId:id};}
-  });
-  _booksLoaded=true;
-  renderPins();renderBooks();
-});
-
-// Comment counts — prefer dedicated node, fall back to counting comments
-onValue(ref(db,'commentCounts'),snap=>{
-  const data=snap.val()||{};
-  Object.entries(data).forEach(([id,cnt])=>{commentCountCache[id]=cnt||0;});
-  if(_booksLoaded){renderBooks();renderPins();}
-});
-onValue(ref(db,'comments'),snap=>{
-  const data=snap.val()||{};
-  // Only fill in missing entries to avoid double-rendering stomping commentCounts
-  Object.entries(data).forEach(([id,comms])=>{
-    if(commentCountCache[id]===undefined)commentCountCache[id]=comms?Object.keys(comms).length:0;
-  });
-  if(_booksLoaded){renderBooks();renderPins();}
-});
-
-onValue(ref(db,'bannedUsers'),snap=>{bannedUsers=snap.val()||{};if(CU&&!isOwner(CU))checkBanFromCache();});
-onValue(ref(db,'siteConfig/announcement'),snap=>{
-  const data=snap.val();const banner=document.getElementById('announce-banner');const span=document.getElementById('announce-text');
-  if(data){let msg='',poster=null;if(typeof data==='string')msg=data;else if(typeof data==='object'){msg=data.text||'';poster=data.postedBy||null;}
-    if(msg){banner.classList.add('show');span.innerHTML=poster?`<strong style="color:var(--yellow-hi)">${esc(poster)}:</strong> ${esc(msg)}`:esc(msg);}
-  }else banner.classList.remove('show');
-});
-onValue(ref(db,'siteConfig/loginDisabled'),snap=>{loginDisabled=!!snap.val();});
-onValue(ref(db,'siteConfig/signupDisabled'),snap=>{signupDisabled=!!snap.val();});
-onValue(ref(db,'siteConfig/pinnedBooks'),snap=>{pinnedBooks=snap.val()||{};if(_booksLoaded){renderPins();renderBooks();}});
-onValue(ref(db,'siteConfig/adminEmails'),snap=>{extraAdmins=snap.val()||{};if(CU)document.getElementById('admin-badge').style.display=(isAdmin(CU)&&!isOwner(CU))?'inline-flex':'none';});
-document.getElementById('announce-dismiss').onclick=()=>document.getElementById('announce-banner').classList.remove('show');
-
-// Chat
-const chatQ=query(ref(db,'chat'),orderByKey(),limitToLast(60));
-onValue(chatQ,snap=>{
-  const data=snap.val()||{};
-  const prevCount=Object.keys(chatMessages).length;
-  chatMessages=data;
-  if(chatOpen){renderChatMsgs();}
-  else{const nc=Object.keys(data).length;if(nc>prevCount){chatUnread+=(nc-prevCount);const b=document.getElementById('chat-fab-badge');b.textContent=chatUnread>9?'9+':String(chatUnread);b.classList.add('show');}}
-  Object.entries(data).forEach(([mid,msg])=>{
-    if(msg?.autoDelete&&!msg.deleted&&msg.sentAt){
-      const rem=30000-(Date.now()-msg.sentAt);
-      if(rem<=0)remove(ref(db,'chat/'+mid));
-      else if(!_countdownTimers[mid]){_countdownTimers[mid]=setTimeout(()=>{remove(ref(db,'chat/'+mid));delete _countdownTimers[mid];},rem);}
-    }
-  });
-});
-
-// ── AUTH ──────────────────────────────────────────────────────
+/* ── AUTH ── */
 onAuthStateChanged(auth,async u=>{
   CU=u;
-  const ud=document.getElementById('user-display');
-  const ab=document.getElementById('auth-btn');
   if(u){
-    ud.style.display='flex';ab.style.display='none';
-    document.getElementById('username-label').textContent=u.displayName||u.email;
-    document.getElementById('notif-bell').style.display='flex';
-    document.getElementById('saved-btn').style.display='flex';
-    document.getElementById('settings-btn').style.display='flex';
-    document.getElementById('studio-btn').style.display='inline-flex';
-    document.getElementById('owner-badge').style.display=isOwner(u)?'inline-flex':'none';
-    document.getElementById('admin-badge').style.display=(isAdmin(u)&&!isOwner(u))?'inline-flex':'none';
-    document.getElementById('cw-input-area').style.display='';
-    document.getElementById('cw-login-notice').style.display='none';
-    loadSaved();listenNotifs(u.uid);
-    if(!isOwner(u))checkBanStatus();
-    onValue(ref(db,'forceSignout/'+u.uid),async snap=>{if(snap.exists()&&snap.val()&&!isOwner(u)){await remove(ref(db,'forceSignout/'+u.uid));await fbSignOut(auth);}});
-    // Upsert user record (non-blocking)
-    get(ref(db,'users/'+u.uid)).then(s=>{const ex=s.val()||{};set(ref(db,'users/'+u.uid),{...ex,displayName:u.displayName||'',email:u.email,uid:u.uid,lastSignIn:Date.now(),joinedAt:ex.joinedAt||Date.now()});});
+    document.getElementById('signin-gate').style.display='none';
+    document.getElementById('page').style.display='flex';
+    document.getElementById('nav-uname').textContent=u.displayName||u.email;
+    if(localStorage.getItem('studio_lightmode')==='1')document.body.classList.add('light-mode');
+    await handleUrlParams();
   }else{
-    ud.style.display='none';ab.style.display='inline-flex';
-    ['notif-bell','saved-btn','settings-btn'].forEach(id=>document.getElementById(id).style.display='none');
-    document.getElementById('studio-btn').style.display='none';
-    document.getElementById('owner-badge').style.display='none';
-    document.getElementById('admin-badge').style.display='none';
-    document.getElementById('cw-input-area').style.display='none';
-    document.getElementById('cw-login-notice').style.display='';
-    myNotifs=[];savedBooks={};renderNotifs();
+    document.getElementById('signin-gate').style.display='flex';
+    document.getElementById('signin-gate').classList.add('show');
+    document.getElementById('page').style.display='none';
   }
-  if(_booksLoaded){renderBooks();renderPins();}
 });
 
-// ── RENDER ────────────────────────────────────────────────────
-function renderPins(){
-  const pids=Object.keys(pinnedBooks).filter(id=>allBooks[id]&&pinnedBooks[id]);
-  const banner=document.getElementById('pin-banner');
-  if(!pids.length){banner.classList.remove('show');return;}
-  banner.classList.add('show');
-  document.getElementById('pin-grid').innerHTML=pids.map(id=>buildCard(id,allBooks[id],true)).join('');
+async function fetchCode(id){
+  try{const s=await get(ref(db,'bookCode/'+id+'/code'));if(s.exists()&&s.val())return s.val();}catch{}
+  try{const s=await get(ref(db,'books/'+id+'/code'));if(s.exists()&&s.val())return s.val();}catch{}
+  return'';
 }
 
-window.renderBooks=function(){
-  const grid=document.getElementById('books-grid');
-  const q=(document.getElementById('search-input').value||'').toLowerCase();
-  const pinnedIds=new Set(Object.keys(pinnedBooks).filter(id=>pinnedBooks[id]));
-  let entries=Object.entries(allBooks).filter(([id,b])=>{
-    if(!b?.title)return false;
-    if(pinnedIds.has(id))return false;
-    if(q&&!b.title.toLowerCase().includes(q)&&!(b.desc||'').toLowerCase().includes(q))return false;
-    const p=b.platform||'computer';
-    if(currentFilter==='mine')return CU&&(CU.uid===b.ownerId||isCollab(b));
-    if(currentFilter==='saved')return CU&&!!savedBooks[id];
-    if(currentFilter==='mobile')return p==='mobile'||p==='both';
-    if(currentFilter==='computer')return p==='computer'||p==='both';
-    if(currentFilter==='remixes')return !!b.remixOf;
-    return true;
-  });
-  if(currentFilter==='popular')entries.sort((a,b)=>popularityScore(b[1])-popularityScore(a[1]));
-  else if(currentFilter==='newest')entries.sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
-  else if(currentFilter==='liked')entries.sort((a,b)=>(b[1].likes||0)-(a[1].likes||0));
-  else if(currentFilter==='views')entries.sort((a,b)=>(b[1].views||0)-(a[1].views||0));
-  else if(currentFilter==='playtime')entries.sort((a,b)=>(b[1].playtimeSeconds||0)-(a[1].playtimeSeconds||0));
-  else if(currentFilter==='commented')entries.sort((a,b)=>(commentCountCache[b[0]]||0)-(commentCountCache[a[0]]||0));
-  else if(currentFilter==='rated')entries.sort((a,b)=>(b[1].ratingAvg||0)-(a[1].ratingAvg||0));
-  else if(currentFilter==='remixes')entries.sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
-  else if(currentFilter==='az')entries.sort((a,b)=>(a[1].title||'').localeCompare(b[1].title||''));
-  if(!entries.length){
-    let msg='The library is empty.';
-    if(currentFilter==='mine')msg="You haven't uploaded any games yet.";
-    else if(currentFilter==='saved')msg="You haven't saved any games yet.";
-    else if(currentFilter==='remixes')msg="No remixes yet — be the first!";
-    else if(q)msg='No games match your search.';
-    grid.innerHTML=`<div class="empty-state"><div class="big">📚</div><p>${msg}</p></div>`;return;
-  }
-  grid.innerHTML=entries.map(([id,b])=>buildCard(id,b,false)).join('');
-};
+/* ── URL PARAM ROUTER ── */
+async function handleUrlParams(){
+  const p=new URLSearchParams(location.search);
+  const editId=p.get('edit');
+  const aieditId=p.get('aiedit');
+  const remixId=p.get('remix');
+  const remixTitle=p.get('remixTitle')||'Unknown Game';
+  const draftId=p.get('draft');
 
-function buildCard(id,bk,isPinned){
-  const liked=CU&&bk.likedBy?.[CU.uid];
-  const isSaved=CU&&!!savedBooks[id];
-  const isBookPinned=!!pinnedBooks[id];
-  const platform=bk.platform||'computer';
-  const platBadge=platform==='mobile'?'<span class="platform-badge mobile">📱 Mobile</span>':platform==='computer'?'<span class="platform-badge computer">💻 PC</span>':'<span class="platform-badge both">🌐 All</span>';
-  const bgDiv=bk.bgImage?`<div class="book-card-bg" style="background-image:url('${esc(bk.bgImage)}')"></div>`:'';
-  const logoHtml=bk.logoImage?`<div class="book-icon"><img src="${esc(bk.logoImage)}" alt=""/></div>`:`<div class="book-icon">📄</div>`;
-  const cCount=commentCountCache[id]||0;
-  const canRate=CU&&CU.uid!==bk.ownerId;
-  const canEdit=CU&&(CU.uid===bk.ownerId||isCollab(bk)||isAdmin(CU));
-  const canDelete=CU&&(CU.uid===bk.ownerId||isOwner(CU)||isAdmin(CU));
-  const isProtected=!!bk.undeletable;
-
-  // Rating
-  let ratingHtml='';
-  if(bk.ratingAvg&&bk.ratingCount>0)ratingHtml=`<div class="rating-display"><span class="rating-val">${bk.ratingAvg.toFixed(1)}</span><span class="stars-mini">${starsHtml(bk.ratingAvg)}</span><span class="rating-cnt">(${bk.ratingCount})</span></div>`;
-
-  // Remix-of tag
-  let remixHtml='';
-  if(bk.remixOf){
-    const origTitle=bk.remixOf.title||'Unknown';
-    const origId=bk.remixOf.id||'';
-    remixHtml=`<div class="remix-of">🎛 Remixed from <span class="remix-of-link" onclick="window.playBook('${esc(origId)}')">${esc(origTitle)}</span></div>`;
+  // Hide mode tabs by default for single-purpose pages
+  if(aieditId||remixId||editId){
+    document.getElementById('mode-tabs').style.display='none';
   }
 
-  let ownerActionsHtml='';
-  if(canEdit||canDelete){
-    ownerActionsHtml=`<div class="owner-actions">
-      ${canEdit?`<button class="act-btn" style="flex:1" onclick="window.editBook('${id}')">✎ Edit</button>`:''}
-      ${canDelete&&(!isProtected||isOwner(CU))?`<button class="act-btn" style="flex:1;color:var(--red-hi);border-color:rgba(248,113,113,.2)" onclick="window.deleteBook('${id}')">✕ Delete</button>`:''}
-      ${isOwner(CU)?`<button class="act-btn" onclick="window.togglePin('${id}')" style="color:var(--yellow-hi);border-color:rgba(251,191,36,.25)">${isBookPinned?'📌 Unpin':'📌 Pin'}</button>`:''}
-      ${isOwner(CU)?`<button class="act-btn" onclick="window.toggleUndeletable('${id}')" style="color:var(--blue-hi);border-color:rgba(96,165,250,.25)">${isProtected?'🔓 Unprotect':'🔒 Protect'}</button>`:''}
-    </div>`;
+  if(remixId){
+    document.getElementById('panel-ai').style.display='none';
+    document.getElementById('panel-manual').style.display='none';
+    document.getElementById('panel-remix').style.display='';
+    document.getElementById('nav-title').textContent='🎛 Remix';
+    await initRemix(remixId,remixTitle);
+  }else if(aieditId){
+    document.getElementById('panel-ai').style.display='none';
+    document.getElementById('panel-manual').style.display='none';
+    document.getElementById('panel-aiedit').style.display='';
+    document.getElementById('nav-title').textContent='✨ AI Edit';
+    await initAIEdit(aieditId);
+  }else if(editId){
+    document.getElementById('nav-title').textContent='✏️ Edit Game';
+    document.getElementById('upload-btn-lbl').textContent='Save Changes';
+    await initManualEdit(editId);
+    setMode('manual');
+  }else if(draftId){
+    const d=getDrafts().find(x=>x.id===parseInt(draftId));
+    if(d)restoreDraftUI(d);
+    else setMode('manual');
+  }else{
+    setMode('manual');
   }
-  const pinBadge=isBookPinned?'<div class="pin-badge">📌 PINNED</div>':'';
-
-  return`<div class="book-card${isBookPinned?' pinned':''}${isProtected?' undeletable':''}" id="card-${id}">
-  ${bgDiv}${pinBadge}
-  <div class="book-header">${logoHtml}
-    <div style="flex:1;min-width:0;${isBookPinned?'padding-right:52px':''}">
-      <div class="book-title">${esc(bk.title)}</div>
-      ${bk.desc?`<div class="book-desc" style="margin-top:.2rem">${esc(bk.desc)}</div>`:''}
-      ${remixHtml}
-    </div>
-  </div>
-  ${ratingHtml}
-  <div class="book-meta">
-    <span>👤 ${esc(bk.ownerName||'?')}</span>
-    <span>📅 ${timeAgo(bk.createdAt)}</span>
-    <span>👁 ${(bk.views||0).toLocaleString()}</span>
-    <span>⏱ ${fmtTime(bk.playtimeSeconds||0)}</span>
-    ${platBadge}
-    ${bk.allowViewCode?'<span class="badge">OSS</span>':''}
-    ${bk.generatedByAI?'<span class="badge" style="background:rgba(168,85,247,.07);color:var(--purple-hi);border-color:rgba(168,85,247,.2)">AI</span>':''}
-  </div>
-  <div class="book-actions">
-    <button class="act-btn${liked?' liked':''}" onclick="window.toggleLike('${id}')">♥ ${bk.likes||0}</button>
-    <button class="act-btn" onclick="window.openComments('${id}')">💬 ${cCount}</button>
-    ${canRate?`<button class="act-btn" onclick="window.openRate('${id}')" style="color:var(--yellow-hi);border-color:rgba(251,191,36,.2)">⭐ Rate</button>`:''}
-    ${CU?`<button class="act-btn${isSaved?' saved':''}" onclick="window.toggleSave('${id}')" title="${isSaved?'Unsave':'Save'}">🔖</button>`:''}
-    <button class="act-btn" onclick="window.shareBook('${id}')">🔗</button>
-    <button class="act-btn" onclick="window.openBookStats('${id}')" style="color:var(--purple-hi);border-color:rgba(167,139,250,.2)">📊</button>
-    <button class="act-btn-remix" onclick="window.remixBook('${id}','${esc(bk.title).replace(/'/g,'&#39;')}')">🎛 Remix</button>
-    <button class="play-btn" onclick="window.playBook('${id}')">▶ Play</button>
-  </div>
-  ${ownerActionsHtml}
-</div>`;
 }
 
-window.setFilter=(f,el)=>{currentFilter=f;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderBooks();};
-
-// ── REMIX ─────────────────────────────────────────────────────
-window.remixBook=function(id,title){
-  window.location.href='/Library/Studio/Upload/?remix='+id+'&remixTitle='+encodeURIComponent(title);
+/* ── MODE SWITCHING ── */
+window.setMode=function(mode){
+  document.getElementById('panel-manual').style.display=mode==='manual'?'':'none';
+  document.getElementById('panel-ai').style.display=mode==='ai'?'':'none';
+  document.getElementById('tab-manual').className='mode-tab'+(mode==='manual'?' active':'');
+  document.getElementById('tab-ai').className='mode-tab'+(mode==='ai'?' active':'');
 };
 
-// ── PLAY ──────────────────────────────────────────────────────
-window.playBook=function(id){
-  const book=allBooks[id];if(book)update(ref(db,'books/'+book._origId),{views:(book.views||0)+1});
-  window.location.href='/Library/book/'+id;
+/* ── LINE COUNT HELPERS ── */
+function lineBadgeClass(n){return n>MAX_LINES?'over':n>MAX_LINES*.85?'warn':'ok';}
+function updateLineBadge(badgeId,n){
+  const el=document.getElementById(badgeId);if(!el)return;
+  el.className='line-badge '+lineBadgeClass(n);
+  el.textContent=n+' / '+MAX_LINES+' lines';
+}
+window.updateManualLineCount=function(){
+  const code=document.getElementById('bk-code').value;
+  const n=countLines(code);
+  const note=document.getElementById('manual-line-note');
+  if(!code){note.textContent='';return;}
+  const cls=lineBadgeClass(n);
+  note.className='f-note'+(cls==='over'?' err':cls==='warn'?' warn':'');
+  note.textContent=n+' lines'+(cls==='over'?` — exceeds the ${MAX_LINES}-line limit`:cls==='warn'?` — approaching the ${MAX_LINES}-line limit`:'');
 };
 
-// ── EDIT ──────────────────────────────────────────────────────
-window.editBook=function(id){window.location.href='/Library/Studio/Upload/?edit='+id;};
-
-// ── LIKE ──────────────────────────────────────────────────────
-window.toggleLike=async function(id){
-  if(!CU){showToast('Sign in to like games','error');openAuth();return;}
-  const book=allBooks[id];if(!book)return;
-  const liked=book.likedBy?.[CU.uid];
-  const updates={};
-  updates['books/'+book._origId+'/likedBy/'+CU.uid]=liked?null:true;
-  updates['books/'+book._origId+'/likes']=Math.max(0,(book.likes||0)+(liked?-1:1));
-  await update(ref(db),updates);
-  if(!liked&&book.ownerId&&book.ownerId!==CU.uid){
-    set(push(ref(db,'notifications/'+book.ownerId)),{type:'like',fromName:CU.displayName||CU.email,fromUid:CU.uid,bookTitle:book.title,bookId:id,createdAt:Date.now(),read:false});
-  }
-};
-
-// ── COMMENTS ─────────────────────────────────────────────────
-window.openComments=async function(id){
-  const book=allBooks[id];if(!book)return;
-  commentingBookId=id;
-  document.getElementById('comments-modal-title').textContent='💬 '+book.title;
-  const list=document.getElementById('comments-list');
-  list.innerHTML='<div class="no-comments"><span class="spin">⟳</span> Loading…</div>';
-  document.getElementById('comment-input-row').style.display=CU?'flex':'none';
-  document.getElementById('comment-login-notice').style.display=CU?'none':'block';
-  openOverlay('comments-overlay');
-  try{
-    const snap=await get(ref(db,'comments/'+id));
-    const data=snap.val()||{};
-    const entries=Object.entries(data).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
-    if(!entries.length){list.innerHTML='<div class="no-comments">No comments yet. Be the first!</div>';return;}
-    const canDelAny=CU&&(CU.uid===book.ownerId||isAdmin(CU));
-    list.innerHTML=entries.map(([cid,c])=>{
-      const canDel=canDelAny||(CU&&CU.uid===c.authorId);
-      return`<div class="comment-item"><div class="comment-avatar">${(c.authorName||'?').charAt(0).toUpperCase()}</div><div class="comment-body"><div class="comment-header"><span class="comment-author">${esc(c.authorName||'?')}</span><span class="comment-time">${timeAgo(c.createdAt)}</span>${canDel?`<button class="comment-del" onclick="window.deleteComment('${id}','${cid}')">✕</button>`:''}</div><div class="comment-text">${esc(c.text||'')}</div></div></div>`;
-    }).join('');
-    list.scrollTop=list.scrollHeight;
-  }catch{list.innerHTML='<div class="no-comments">Error loading comments.</div>';}
-};
-
-window.submitComment=async function(){
-  if(!CU){showToast('Sign in to comment','error');return;}
-  const input=document.getElementById('comment-text-input');
-  const text=input.value.trim();if(!text)return;if(text.length>500){showToast('Too long','error');return;}
-  const btn=document.getElementById('comment-post-btn');btn.disabled=true;btn.textContent='…';
-  input.value='';
-  const book=allBooks[commentingBookId];
-  await set(push(ref(db,'comments/'+commentingBookId)),{text,authorId:CU.uid,authorName:CU.displayName||CU.email,createdAt:Date.now()});
-  const curCnt=(commentCountCache[commentingBookId]||0)+1;
-  commentCountCache[commentingBookId]=curCnt;
-  await set(ref(db,'commentCounts/'+commentingBookId),curCnt);
-  if(book?.ownerId&&book.ownerId!==CU.uid){
-    set(push(ref(db,'notifications/'+book.ownerId)),{type:'comment',fromName:CU.displayName||CU.email,fromUid:CU.uid,bookTitle:book.title,bookId:commentingBookId,commentText:text,createdAt:Date.now(),read:false});
-  }
-  btn.disabled=false;btn.textContent='Post';
-  showToast('Comment posted!','success');
-  openComments(commentingBookId);
-};
-
-window.deleteComment=async function(bookId,cid){
-  if(!CU||!confirm('Delete this comment?'))return;
-  await remove(ref(db,'comments/'+bookId+'/'+cid));
-  const newCnt=Math.max(0,(commentCountCache[bookId]||1)-1);
-  commentCountCache[bookId]=newCnt;
-  await set(ref(db,'commentCounts/'+bookId),newCnt);
-  showToast('Deleted','success');
-  openComments(bookId);
-};
-
-// ── RATINGS ───────────────────────────────────────────────────
-window.openRate=function(id){
-  if(!CU){showToast('Sign in to rate','error');openAuth();return;}
-  const book=allBooks[id];if(!book)return;
-  _ratingBookId=id;_selectedStar=0;
-  document.getElementById('rate-modal-title').textContent='⭐ Rate: '+book.title;
-  document.querySelectorAll('.star-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('rate-current').textContent=book.ratingAvg?`Current: ${book.ratingAvg.toFixed(1)} ⭐ (${book.ratingCount} ratings)`:'No ratings yet';
-  openOverlay('rate-overlay');
-};
-window.setStar=function(v){_selectedStar=v;document.querySelectorAll('.star-btn').forEach((b,i)=>b.classList.toggle('active',i<v));};
-window.submitRate=async function(){
-  if(!CU){showToast('Sign in first','error');return;}
-  if(!_selectedStar){showToast('Pick a star rating','error');return;}
-  if(!_ratingBookId)return;
-  const book=allBooks[_ratingBookId];if(!book)return;
-  await set(ref(db,'ratings/'+_ratingBookId+'/'+CU.uid),{rating:_selectedStar,ratedAt:Date.now()});
-  const snap=await get(ref(db,'ratings/'+_ratingBookId));
-  const vals=Object.values(snap.val()||{}).map(r=>r.rating||r||0).filter(Boolean);
-  const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10:0;
-  await update(ref(db,'books/'+book._origId),{ratingAvg:avg,ratingCount:vals.length});
-  showToast(`Rated ${_selectedStar} ⭐ — thanks!`,'success');
-  closeOverlay('rate-overlay');
-};
-
-// ── SAVE ──────────────────────────────────────────────────────
-window.toggleSave=function(id){if(!CU){showToast('Sign in to save','error');return;}if(savedBooks[id]){delete savedBooks[id];showToast('Removed from saved','success');}else{savedBooks[id]=true;showToast('Saved! 🔖','success');}persistSaved();renderBooks();};
-window.openSaved=function(){
-  if(!CU){openAuth();return;}
-  const saved=Object.keys(savedBooks).filter(id=>allBooks[id]);
-  const content=document.getElementById('saved-content');
-  content.innerHTML=saved.length?saved.map(id=>{const b=allBooks[id];if(!b)return'';return`<div class="saved-item"><div><div class="saved-item-title">${esc(b.title)}</div><div class="saved-item-sub">by ${esc(b.ownerName||'?')} · ♥ ${b.likes||0}</div></div><div style="display:flex;gap:4px"><button class="h-btn h-btn-prim" style="height:26px;font-size:.7rem" onclick="window.playBook('${id}');closeOverlay('saved-overlay')">▶ Play</button><button class="h-btn" style="height:26px;font-size:.7rem" onclick="window.toggleSave('${id}');window.openSaved()">✕</button></div></div>`;}).join(''):'<div style="text-align:center;padding:2rem;color:var(--tx-3);font-size:.8rem">No saved games yet.</div>';
-  openOverlay('saved-overlay');
-};
-
-// ── PIN / PROTECT ─────────────────────────────────────────────
-window.togglePin=async function(id){
-  if(!isOwner(CU))return;
-  if(pinnedBooks[id]){await remove(ref(db,'siteConfig/pinnedBooks/'+id));showToast('Unpinned','success');}
-  else{if(Object.values(pinnedBooks).filter(Boolean).length>=3){showToast('Max 3 pinned','error');return;}await set(ref(db,'siteConfig/pinnedBooks/'+id),true);showToast('Pinned 📌','success');}
-};
-window.toggleUndeletable=async function(id){
-  if(!isOwner(CU))return;const book=allBooks[id];if(!book)return;
-  await update(ref(db,'books/'+book._origId),{undeletable:!book.undeletable});showToast(book.undeletable?'Protection removed':'Protected 🔒','success');
-};
-
-// ── DELETE ────────────────────────────────────────────────────
-window.deleteBook=async function(id){
-  const book=allBooks[id];if(!book||!CU)return;
-  if(book.undeletable&&!isOwner(CU)){showToast('🔒 Game is protected.','error');return;}
-  if(CU.uid!==book.ownerId&&!isAdmin(CU)){showToast('Permission denied','error');return;}
-  if(!confirm('Delete "'+book.title+'"? Cannot be undone.'))return;
-  const{_origId}=book;
-  try{
-    await set(push(ref(db,'recentlyDeleted')),{...book,originalId:id,deletedAt:Date.now(),deletedBy:CU.email||''});
-    await remove(ref(db,'books/'+_origId));
-    try{await remove(ref(db,'bookCode/'+_origId));}catch{}
-    try{await remove(ref(db,'comments/'+id));}catch{}
-    try{await remove(ref(db,'commentCounts/'+id));}catch{}
-    if(pinnedBooks[id])try{await remove(ref(db,'siteConfig/pinnedBooks/'+id));}catch{}
-    showToast('Deleted','success');
-  }catch(e){showToast('Error: '+e.message,'error');}
-};
-
-// ── SHARE ─────────────────────────────────────────────────────
-window.shareBook=function(id){
-  const url=location.origin+'/Library/book/'+id;
-  navigator.clipboard.writeText(url).then(()=>showToast('Link copied! 🔗','success')).catch(()=>prompt('Copy link:',url));
-};
-
-// ── STATS ─────────────────────────────────────────────────────
-window.openBookStats=function(id){
-  const b=allBooks[id];if(!b)return;
-  document.getElementById('bookstats-title').textContent='📊 '+b.title;
-  document.getElementById('bookstats-content').innerHTML=`<div class="stats-grid">
-    <div class="stat-box"><div class="stat-box-num" style="color:var(--red-hi)">♥ ${b.likes||0}</div><div class="stat-box-label">Likes</div></div>
-    <div class="stat-box"><div class="stat-box-num" style="color:var(--blue-hi)">👁 ${(b.views||0).toLocaleString()}</div><div class="stat-box-label">Views</div></div>
-    <div class="stat-box"><div class="stat-box-num" style="color:var(--yellow-hi)">⏱ ${fmtTime(b.playtimeSeconds||0)}</div><div class="stat-box-label">Play Time</div></div>
-    <div class="stat-box"><div class="stat-box-num" style="color:var(--purple-hi)">💬 ${commentCountCache[id]||0}</div><div class="stat-box-label">Comments</div></div>
-    <div class="stat-box"><div class="stat-box-num" style="color:var(--yellow-hi)">${b.ratingAvg?b.ratingAvg.toFixed(1)+' ⭐':'—'}</div><div class="stat-box-label">Rating</div></div>
-    <div class="stat-box"><div class="stat-box-num">${b.allowViewCode?'Open':'Closed'}</div><div class="stat-box-label">Source</div></div>
-  </div>
-  <div style="font-size:.7rem;color:var(--tx-2);padding:.5rem .7rem;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);display:flex;justify-content:space-between">
-    <span>by <strong>${esc(b.ownerName||'?')}</strong></span>
-    <span style="font-size:.65rem;color:var(--tx-3);font-family:var(--mono)">${timeAgo(b.createdAt)}</span>
-  </div>`;
-  openOverlay('bookstats-overlay');
-};
-
-// ── LEADERBOARD ───────────────────────────────────────────────
-window.openLeaderboard=()=>{_lbMode='rated';document.querySelectorAll('.lb-tab').forEach(b=>b.classList.remove('active'));document.getElementById('lb-tab-rated').classList.add('active');renderLeaderboard();openOverlay('leaderboard-overlay');};
-window.switchLbTab=(mode,el)=>{_lbMode=mode;document.querySelectorAll('.lb-tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderLeaderboard();};
-function renderLeaderboard(){
-  const list=document.getElementById('leaderboard-list');
-  let entries=Object.entries(allBooks).filter(([,b])=>b?.title);
-  if(_lbMode==='rated')entries.sort((a,b)=>(b[1].ratingAvg||0)-(a[1].ratingAvg||0));
-  else if(_lbMode==='likes')entries.sort((a,b)=>(b[1].likes||0)-(a[1].likes||0));
-  else if(_lbMode==='views')entries.sort((a,b)=>(b[1].views||0)-(a[1].views||0));
-  else entries.sort((a,b)=>(b[1].playtimeSeconds||0)-(a[1].playtimeSeconds||0));
-  entries=entries.slice(0,10);
-  if(!entries.length){list.innerHTML='<div style="text-align:center;color:var(--tx-3);padding:2rem;font-size:.8rem">No games yet</div>';return;}
-  const rc=i=>i===0?'gold':i===1?'silver':i===2?'bronze':'';
-  const ri=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
-  const sv=([id,b])=>{
-    if(_lbMode==='rated')return`<span class="lb-stat" style="color:var(--yellow-hi)">${b.ratingAvg?b.ratingAvg.toFixed(1)+' ⭐':'—'}</span>`;
-    if(_lbMode==='likes')return`<span class="lb-stat" style="color:var(--red-hi)">♥ ${b.likes||0}</span>`;
-    if(_lbMode==='views')return`<span class="lb-stat" style="color:var(--blue-hi)">👁 ${(b.views||0).toLocaleString()}</span>`;
-    return`<span class="lb-stat" style="color:var(--yellow-hi)">⏱ ${fmtTime(b.playtimeSeconds||0)}</span>`;
-  };
-  list.innerHTML=entries.map(([id,b],i)=>`<div class="lb-row" onclick="window.playBook('${id}');closeOverlay('leaderboard-overlay')"><div class="lb-rank ${rc(i)}">${ri(i)}</div><div class="lb-info"><div class="lb-name">${esc(b.title)}</div><div class="lb-author">by ${esc(b.ownerName||'?')}</div></div>${sv([id,b])}</div>`).join('');
+/* ── IFRAME LOADER ── */
+function loadFrame(id,html){
+  const old=document.getElementById(id);if(!old)return;
+  const neo=document.createElement('iframe');
+  neo.id=id;neo.className=old.className;neo.style.cssText=old.style.cssText;
+  neo.setAttribute('sandbox','allow-scripts allow-forms allow-modals allow-popups allow-same-origin');
+  old.parentNode.replaceChild(neo,old);
+  requestAnimationFrame(()=>{neo.srcdoc=html;});
 }
 
-// ── PROFILE ───────────────────────────────────────────────────
-window.openProfile=function(){
-  if(!CU)return;
-  const myBooks=Object.entries(allBooks).filter(([,b])=>b.ownerId===CU.uid);
-  const totalLikes=myBooks.reduce((s,[,b])=>s+(b.likes||0),0);
-  document.getElementById('profile-content').innerHTML=`
-    <div style="text-align:center;margin-bottom:1.25rem">
-      <div style="width:52px;height:52px;background:var(--theme-grad);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700;color:#080810;margin:0 auto .6rem">${(CU.displayName||CU.email||'?').charAt(0).toUpperCase()}</div>
-      <div style="font-weight:700;font-size:1rem;font-family:var(--font-display);text-transform:uppercase">${esc(CU.displayName||'Anonymous')}</div>
-      <div style="font-size:.7rem;color:var(--tx-3);margin-top:.2rem;font-family:var(--mono)">${esc(CU.email)}</div>
-      ${isOwner(CU)?'<div style="margin-top:.4rem"><span class="owner-chip">OWNER</span></div>':isAdmin(CU)?'<div style="margin-top:.4rem"><span class="admin-chip">ADMIN</span></div>':''}
-    </div>
-    <div class="profile-stats-row">
-      <div class="profile-stat"><div class="profile-stat-num">${myBooks.length}</div><div class="profile-stat-label">Games</div></div>
-      <div class="profile-stat"><div class="profile-stat-num" style="color:var(--red-hi)">${totalLikes}</div><div class="profile-stat-label">Likes</div></div>
-      <div class="profile-stat"><div class="profile-stat-num" style="color:var(--blue-hi)">${Object.keys(savedBooks).length}</div><div class="profile-stat-label">Saved</div></div>
-    </div>
-    <div style="margin-bottom:.875rem">
-      <div style="font-size:.6rem;color:var(--tx-3);font-weight:700;letter-spacing:.1em;margin-bottom:.6rem;text-transform:uppercase">My Games</div>
-      ${myBooks.length?myBooks.map(([id,b])=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border)"><div><div style="font-size:.8rem;font-family:var(--font-display);font-weight:700">${esc(b.title)}</div><div style="font-size:.6rem;color:var(--tx-3);margin-top:.1rem;font-family:var(--mono)">♥ ${b.likes||0} · 👁 ${b.views||0}</div></div><button class="h-btn" style="height:24px;font-size:.68rem" onclick="window.playBook('${id}');closeOverlay('profile-overlay')">▶</button></div>`).join(''):'<div style="font-size:.75rem;color:var(--tx-3);text-align:center;padding:.875rem">No games yet</div>'}
-    </div>
-    <div style="display:flex;gap:5px">
-      <button class="h-btn" style="flex:1;justify-content:center" onclick="closeOverlay('profile-overlay');openSettings()">⚙️ Settings</button>
-      <a href="/Library/Studio/" class="h-btn" style="flex:1;justify-content:center">🎛 Studio</a>
-    </div>`;
-  openOverlay('profile-overlay');
+/* ── PREVIEW TOOLBAR ACTIONS ── */
+function codeForPanel(which){
+  if(which==='ai')return _ai.code;
+  if(which==='remix')return _rx.code;
+  if(which==='aiedit')return _ae.code;
+  return'';
+}
+function titleForPanel(which){
+  if(which==='ai')return document.getElementById('ai-title').value.trim()||'game';
+  if(which==='remix')return document.getElementById('remix-title').value.trim()||'remix';
+  if(which==='aiedit')return _ae.bk?.title||'game';
+  return'game';
+}
+window.prevAction=function(which,action){
+  const code=codeForPanel(which);
+  if(!code){showToast('No code yet.','err');return;}
+  if(action==='fullscreen'){
+    const f=document.getElementById(which+'-frame');
+    if(f)(f.requestFullscreen||f.webkitRequestFullscreen||f.mozRequestFullScreen||function(){}).call(f);
+  }else if(action==='tab'){
+    const w=window.open('about:blank','_blank');
+    if(w){w.document.open();w.document.write(code);w.document.close();}
+    else showToast('Pop-up blocked.','err');
+  }else if(action==='download'){
+    const blob=new Blob([code],{type:'text/html'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=(titleForPanel(which).replace(/[^a-z0-9_\-]/gi,'_')||'game')+'.html';
+    a.click();URL.revokeObjectURL(a.href);
+  }else if(action==='copy'){
+    navigator.clipboard.writeText(code).then(()=>showToast('Copied!','ok')).catch(()=>showToast('Copy failed.','err'));
+  }
+};
+window.prevToggleCode=function(which){
+  const frameId=which+'-frame';
+  const viewId=which+'-code-view';
+  const btnId=which+'-code-btn';
+  const frame=document.getElementById(frameId);
+  const view=document.getElementById(viewId);
+  const btn=document.getElementById(btnId);
+  const showing=view.style.display==='block';
+  if(showing){
+    view.style.display='none';frame.style.display='block';
+    if(btn)btn.textContent='‹/› Code';
+  }else{
+    view.textContent=codeForPanel(which)||'(no code)';
+    view.style.display='block';frame.style.display='none';
+    if(btn)btn.textContent='👁 Preview';
+  }
 };
 
-// ── SETTINGS ──────────────────────────────────────────────────
-window.openSettings=function(){
-  if(!CU)return;
-  document.getElementById('settings-username').value=CU.displayName||'';
-  const lc=document.getElementById('settings-light-mode');if(lc)lc.checked=localStorage.getItem('htmllib_lightmode')==='1';
-  try{const s=JSON.parse(localStorage.getItem('htmllib_theme')||'null');document.getElementById('theme-color-a').value=s?.a||'#00e5ff';document.getElementById('theme-color-b').value=s?.b||'#a855f7';}catch{}
-  updateThemePreview();renderPresets();openOverlay('settings-overlay');
-};
-window.saveUsername=async function(){
-  if(!CU)return;const name=document.getElementById('settings-username').value.trim();if(!name){showToast('Enter a name','error');return;}
-  try{await updateProfile(CU,{displayName:name});await update(ref(db,'users/'+CU.uid),{displayName:name});document.getElementById('username-label').textContent=name;showToast('Username updated!','success');}
-  catch(e){showToast('Error: '+e.message,'error');}
+/* ── AI CALLER ── */
+async function callAI(msgs,spd,sys){
+  const model=AI_MODELS[spd]||AI_MODELS.fast;
+  const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system:sys,messages:msgs,max_tokens:6000})});
+  if(!r.ok){const t=await r.text().catch(()=>r.status);throw new Error('Error '+r.status+': '+t);}
+  const data=await r.json();
+  let raw='';
+  if(Array.isArray(data.content))raw=data.content.map(x=>x.text||'').join('');
+  else if(data.content)raw=String(data.content);
+  return raw.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+}
+
+function enforceLimit(code){
+  const lines=code.split('\n');
+  if(lines.length>MAX_LINES){
+    const trunc=lines.slice(0,MAX_LINES);
+    if(trunc[trunc.length-1].trim()!=='</html>')trunc.push('</html>');
+    return{code:trunc.join('\n'),truncated:true,count:lines.length};
+  }
+  return{code,truncated:false,count:lines.length};
+}
+
+/* ── PROGRESS BARS ── */
+function startProg(fillId){
+  clearInterval(_progT[fillId]);let p=0;
+  const b=document.getElementById(fillId);if(b)b.style.width='0%';
+  _progT[fillId]=setInterval(()=>{p=Math.min(p+Math.random()*2.5,88);if(b)b.style.width=p+'%';},450);
+}
+function stopProg(fillId){
+  clearInterval(_progT[fillId]);
+  const b=document.getElementById(fillId);if(b)b.style.width='100%';
+}
+
+/* ════════════════════════════════════════════
+   AI GENERATE
+════════════════════════════════════════════ */
+window.selSpeed=s=>{
+  _ai.spd=s;
+  document.getElementById('sp-fast').classList.toggle('sel',s==='fast');
+  document.getElementById('sp-smart').classList.toggle('sel',s==='smart');
 };
 
-// ── AUTH ──────────────────────────────────────────────────────
-window.switchAuthTab=function(mode){
-  authMode=mode;
-  const activeStyle='flex:1;padding:.4rem;border:none;cursor:pointer;transition:all .15s;letter-spacing:.08em;text-transform:uppercase;border-radius:2px;min-height:30px;font-family:var(--font);font-size:.68rem;font-weight:700;background:var(--theme-grad);color:#080810;';
-  const inactiveStyle='flex:1;padding:.4rem;background:transparent;border:none;color:var(--tx-3);cursor:pointer;transition:all .15s;letter-spacing:.08em;text-transform:uppercase;border-radius:2px;min-height:30px;font-family:var(--font);font-size:.68rem;font-weight:600;';
-  document.getElementById('tab-login').style.cssText=mode==='login'?activeStyle:inactiveStyle;
-  document.getElementById('tab-register').style.cssText=mode==='register'?activeStyle:inactiveStyle;
-  document.getElementById('auth-name-group').style.display=mode==='register'?'block':'none';
-  document.getElementById('auth-submit-btn').textContent=mode==='login'?'SIGN IN':'REGISTER';
-  document.getElementById('auth-forgot-wrap').style.display=mode==='login'?'block':'none';
-  document.getElementById('auth-error').style.display='none';
-  document.getElementById('lg-locked-login').style.display=mode==='login'&&loginDisabled?'block':'none';
-  document.getElementById('lg-locked-signup').style.display=mode==='register'&&signupDisabled?'block':'none';
-};
-
-window.openAuth=()=>{switchAuthTab('login');openOverlay('auth-overlay');};
-window.submitAuth=async function(){
-  if(_authSubmitting)return;
-  if(authMode==='login'&&loginDisabled){showToast('Login disabled','error');return;}
-  if(authMode==='register'&&signupDisabled){showToast('Registrations closed','error');return;}
-  const email=document.getElementById('auth-email').value.trim();
-  const password=document.getElementById('auth-password').value;
-  const name=document.getElementById('auth-name').value.trim();
-  document.getElementById('auth-error').style.display='none';
-  if(!email||!password){showToast('Fill in all fields','error');return;}
-  const btn=document.getElementById('auth-submit-btn');_authSubmitting=true;btn.disabled=true;btn.textContent='…';
+window.aiGenerate=async function(){
+  const prompt=(document.getElementById('ai-prompt').value||'').trim();
+  if(!prompt){showToast('Describe your game first.','err');return;}
+  document.getElementById('ai-s1').style.display='none';
+  document.getElementById('ai-s2').style.display='';
+  document.getElementById('ai-gen-title').textContent=_ai.spd==='smart'?'Thinking carefully…':'Building your game…';
+  document.getElementById('ai-gen-sub').textContent=_ai.spd==='smart'?'Smart mode may take 30–60s':'Usually 10–30 seconds';
+  startProg('ai-prog');
+  _ai.conv=[{role:'user',content:prompt}];
   try{
-    if(authMode==='register'){const c=await createUserWithEmailAndPassword(auth,email,password);if(name)await updateProfile(c.user,{displayName:name});showToast('Welcome! 📚','success');}
-    else{await signInWithEmailAndPassword(auth,email,password);showToast('Welcome back!','success');}
-    closeOverlay('auth-overlay');
+    let raw=await callAI(_ai.conv,_ai.spd,SYS_GEN);
+    if(!raw||!raw.includes('<html'))throw new Error('AI did not return valid HTML. Try rephrasing.');
+    const{code,truncated,count}=enforceLimit(raw);
+    _ai.code=code;_ai.conv.push({role:'assistant',content:code});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines (was ${count}).`,'');
+    if(!document.getElementById('ai-title').value){
+      const w=prompt.split(' ').slice(0,5).join(' ');
+      document.getElementById('ai-title').value=w.charAt(0).toUpperCase()+w.slice(1);
+    }
+    stopProg('ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s3').style.display='';
+    document.getElementById('ai-prev-label').textContent=document.getElementById('ai-title').value||'Generated Game';
+    updateLineBadge('ai-line-badge',countLines(_ai.code));
+    loadFrame('ai-frame',_ai.code);
+    autoSave('ai');
   }catch(e){
-    let msg=e.message||'Authentication failed.';
-    msg=msg.replace('Firebase: ','').replace(/\s*\(auth\/.*\)\s*\.?$/,'').trim();
-    if(e.code==='auth/email-already-in-use')msg='Account with this email already exists.';
-    else if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')msg='Invalid email or password.';
-    else if(e.code==='auth/weak-password')msg='Password must be at least 6 characters.';
-    else if(e.code==='auth/too-many-requests')msg='Too many attempts. Please wait.';
-    const errEl=document.getElementById('auth-error');errEl.textContent=msg;errEl.style.display='block';
-  }finally{btn.disabled=false;btn.textContent=authMode==='login'?'SIGN IN':'REGISTER';_authSubmitting=false;}
-};
-window.doSignOut=async function(){await fbSignOut(auth);closeOverlay('settings-overlay');closeOverlay('profile-overlay');showToast('Signed out','success');};
-
-// ── BAN ───────────────────────────────────────────────────────
-async function checkBanStatus(){if(!CU||isOwner(CU))return;try{const s=await get(ref(db,'bannedUsers/'+CU.uid));if(s.exists()&&s.val())document.getElementById('ban-screen').classList.add('show');}catch{}}
-function checkBanFromCache(){if(!CU||isOwner(CU))return;if(bannedUsers[CU.uid])document.getElementById('ban-screen').classList.add('show');}
-
-// ── NOTIFICATIONS ─────────────────────────────────────────────
-function listenNotifs(uid){
-  onValue(ref(db,'notifications/'+uid),snap=>{
-    const data=snap.val()||{};
-    myNotifs=Object.entries(data).map(([nid,n])=>({...n,nid})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-    const unread=myNotifs.filter(n=>!n.read).length;
-    const badge=document.getElementById('notif-badge');
-    badge.textContent=unread>9?'9+':String(unread);
-    badge.classList.toggle('show',unread>0);
-    renderNotifs();
-  });
-}
-function renderNotifs(){
-  const list=document.getElementById('notif-list');
-  if(!myNotifs.length){list.innerHTML='<div class="np-empty">No notifications yet</div>';return;}
-  list.innerHTML=myNotifs.map(n=>`<div class="notif-item${n.read?'':' unread'}"><div class="ni-body">${notifMsg(n)}</div><div class="ni-time">${timeAgo(n.createdAt)}</div></div>`).join('');
-}
-function notifMsg(n){
-  if(n.type==='like')return`<strong>${esc(n.fromName)}</strong> liked <strong>${esc(n.bookTitle)}</strong>`;
-  if(n.type==='comment')return`<strong>${esc(n.fromName)}</strong> commented on <strong>${esc(n.bookTitle)}</strong>`;
-  return esc(n.message||'New notification');
-}
-window.toggleNotifPanel=async function(){
-  const panel=document.getElementById('notif-panel');
-  const isOpen=panel.classList.toggle('open');
-  if(isOpen&&CU){
-    const unread=myNotifs.filter(n=>!n.read);
-    for(const n of unread)update(ref(db,'notifications/'+CU.uid+'/'+n.nid),{read:true});
-  }
-};
-window.clearAllNotifs=async function(){if(!CU)return;await remove(ref(db,'notifications/'+CU.uid));showToast('Cleared','success');};
-// Close notif panel on outside click
-document.addEventListener('click',e=>{
-  const panel=document.getElementById('notif-panel');
-  const bell=document.getElementById('notif-bell');
-  if(panel.classList.contains('open')&&!panel.contains(e.target)&&!bell.contains(e.target))panel.classList.remove('open');
-},{capture:true});
-
-// ── CHAT ──────────────────────────────────────────────────────
-function avatarGrad(uid){const c=[['#22c55e','#3b82f6'],['#ef4444','#f59e0b'],['#3b82f6','#a78bfa'],['#f59e0b','#22c55e'],['#a78bfa','#ef4444']];const i=uid?uid.charCodeAt(0)%c.length:0;return`linear-gradient(135deg,${c[i][0]},${c[i][1]})`;}
-
-window.toggleChat=function(){
-  chatOpen=!chatOpen;
-  const win=document.getElementById('chat-window');
-  if(chatOpen){
-    win.style.display='flex';
-    chatUnread=0;
-    const b=document.getElementById('chat-fab-badge');b.textContent='0';b.classList.remove('show');
-    renderChatMsgs();
-    setTimeout(()=>{const m=document.getElementById('cw-messages');if(m)m.scrollTop=m.scrollHeight;},50);
-    if(CU)document.getElementById('cw-input')?.focus();
-  }else{
-    win.style.display='none';
+    stopProg('ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s1').style.display='';
+    showToast('Error: '+e.message,'err');
   }
 };
 
-function renderChatMsgs(){
-  const container=document.getElementById('cw-messages');
-  const entries=Object.entries(chatMessages).filter(([,m])=>m&&!m.deleted).sort((a,b)=>(a[1].sentAt||0)-(b[1].sentAt||0));
-  if(!entries.length){container.innerHTML='<div class="cw-empty">No messages yet. Say hi! 👋</div>';return;}
-  const wasBottom=container.scrollHeight-container.scrollTop-container.clientHeight<80;
-  container.innerHTML=entries.map(([mid,msg])=>{
-    const isOwn=CU&&msg.senderId===CU.uid;
-    const isAI=!!msg.isAI;
-    const canDel=CU&&(msg.senderId===CU.uid||isAdmin(CU));
-    const initials=(msg.senderName||'?').charAt(0).toUpperCase();
-    return`<div class="cw-msg${isOwn?' own':''}"><div class="cw-avatar" style="background:${isAI?'linear-gradient(135deg,#a855f7,#6366f1)':avatarGrad(msg.senderId||'')}">${isAI?'🤖':initials}</div><div><div class="cw-sender">${esc(msg.senderName||'?')}${msg.isAdmin?'<span class="admin-chip" style="font-size:.48rem;margin-left:.2rem">ADMIN</span>':''}${isAI?'<span class="cw-ai-tag">🤖 AI</span>':''}</div><div class="cw-bubble">${esc(msg.text||'')}</div><div style="display:flex;gap:.35rem;padding:0 .2rem;margin-top:.1rem">${canDel?`<button class="cw-del-btn" onclick="window.deleteChatMsg('${mid}')">✕</button>`:''}</div></div></div>`;
-  }).join('');
-  if(wasBottom)container.scrollTop=container.scrollHeight;
-}
-
-window.onChatInput=function(){document.getElementById('cw-ai-hint').classList.toggle('show',(document.getElementById('cw-input').value||'').startsWith('/ai '));};
-
-async function getGroqKey(){
-  if(_groqKey)return _groqKey;
+window.aiRefine=async function(){
+  const txt=(document.getElementById('ai-refine').value||'').trim();
+  if(!txt){showToast('Describe the changes you want.','err');return;}
+  if(!_ai.code){showToast('Generate first.','err');return;}
+  document.getElementById('ai-s3').style.display='none';
+  document.getElementById('ai-s2').style.display='';
+  document.getElementById('ai-gen-title').textContent='Applying changes…';
+  document.getElementById('ai-gen-sub').textContent='Refining your game…';
+  startProg('ai-prog');
+  _ai.conv.push({role:'user',content:txt});
   try{
-    const res=await fetch('https://hack.htmltools.me/749749535064/',{cache:'no-store'});
-    const html=await res.text();
-    const m=html.match(/_AUDITOR_KEY\s*=\s*["']([^"']+)["']/);
-    if(m?.[1]){_groqKey=m[1];return _groqKey;}
-  }catch{}
-  return null;
-}
-async function fetchAI(prompt){
-  const key=await getGroqKey();if(!key)throw new Error('Could not load key');
-  const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'llama3-8b-8192',max_tokens:300,messages:[{role:'system',content:'You are a helpful assistant in the HTML Library community chat. Keep replies concise and friendly.'},{role:'user',content:prompt}]})});
-  if(!res.ok)throw new Error('API error '+res.status);
-  const data=await res.json();return data.choices?.[0]?.message?.content||'Sorry, could not respond.';
-}
-
-window.sendChatMsg=async function(){
-  if(!CU){showToast('Sign in to chat','error');return;}
-  const input=document.getElementById('cw-input');const rawText=input.value.trim();
-  if(!rawText||rawText.length>400)return;
-  if(rawText.startsWith('/ai ')){
-    const prompt=rawText.slice(4).trim();if(!prompt)return;
-    input.value='';document.getElementById('cw-ai-hint').classList.remove('show');
-    await set(push(ref(db,'chat')),{text:rawText,senderId:CU.uid,senderName:CU.displayName||CU.email,sentAt:Date.now(),autoDelete:false,isAdmin:isAdmin(CU)});
-    const thinkRef=push(ref(db,'chat'));const thinkKey=thinkRef.key;
-    await set(thinkRef,{text:'🤔 Thinking…',senderId:'ai',senderName:'AI Assistant',sentAt:Date.now(),autoDelete:false,isAI:true});
-    try{const answer=await fetchAI(prompt);await set(ref(db,'chat/'+thinkKey),{text:answer,senderId:'ai',senderName:'AI Assistant',sentAt:Date.now(),autoDelete:false,isAI:true});}
-    catch(err){await set(ref(db,'chat/'+thinkKey),{text:'⚠️ AI error: '+err.message,senderId:'ai',senderName:'AI Assistant',sentAt:Date.now(),autoDelete:false,isAI:true});}
-    return;
+    let raw=await callAI(_ai.conv,_ai.spd,SYS_GEN);
+    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML.');
+    const{code,truncated}=enforceLimit(raw);
+    _ai.code=code;_ai.conv.push({role:'assistant',content:code});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    document.getElementById('ai-refine').value='';
+    stopProg('ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s3').style.display='';
+    updateLineBadge('ai-line-badge',countLines(_ai.code));
+    loadFrame('ai-frame',_ai.code);
+    showToast('Updated! 🎉','ok');autoSave('ai');
+  }catch(e){
+    stopProg('ai-prog');
+    document.getElementById('ai-s2').style.display='none';
+    document.getElementById('ai-s3').style.display='';
+    showToast('Error: '+e.message,'err');
   }
-  const autoDelete=document.getElementById('cw-autodel-check').checked;
-  input.value='';document.getElementById('cw-ai-hint').classList.remove('show');
-  await set(push(ref(db,'chat')),{text:rawText,senderId:CU.uid,senderName:CU.displayName||CU.email,sentAt:Date.now(),autoDelete,isAdmin:isAdmin(CU)});
 };
-window.deleteChatMsg=async function(mid){
-  if(!CU)return;const msg=chatMessages[mid];if(!msg)return;
-  if(msg.senderId!==CU.uid&&!isAdmin(CU)){showToast('Cannot delete','error');return;}
-  if(!confirm('Delete this message?'))return;
-  await remove(ref(db,'chat/'+mid));
-};
-document.getElementById('cw-autodel-check').addEventListener('change',function(){document.getElementById('cw-autodel-label').classList.toggle('on',this.checked);});
 
-// ── KEYBOARD / OVERLAY HANDLING ───────────────────────────────
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){
-    // Close topmost overlay first
-    const open=[...document.querySelectorAll('.overlay.open')];
-    if(open.length){open[open.length-1].classList.remove('open');return;}
-    if(chatOpen){toggleChat();return;}
-    document.getElementById('notif-panel').classList.remove('open');
+window.resetAI=function(){
+  _ai={spd:'fast',code:'',conv:[],logo:null,bg:null,plat:'both',chatOn:true,scope:'global',collabs:[],publishing:false};
+  document.getElementById('ai-prompt').value='';document.getElementById('ai-refine').value='';
+  document.getElementById('ai-title').value='';document.getElementById('ai-desc').value='';
+  document.getElementById('ai-allow-code').checked=true;
+  imgClear('ai-logo');imgClear('ai-bg');
+  document.getElementById('ai-collab-tags').innerHTML='';document.getElementById('ai-collab-email').value='';
+  selSpeed('fast');
+  document.getElementById('ai-chat-chk').checked=true;document.getElementById('ai-chat-lbl').textContent='Enabled';
+  document.getElementById('ai-scope-row').style.display='flex';
+  ['global','book','both'].forEach(s=>document.getElementById('ai-sc-'+s).classList.toggle('active',s==='global'));
+  aiSelPlat('both');
+  document.getElementById('ai-s1').style.display='';
+  document.getElementById('ai-s2').style.display='none';
+  document.getElementById('ai-s3').style.display='none';
+};
+
+window.aiPublish=async function(){
+  if(_ai.publishing)return;
+  const title=(document.getElementById('ai-title').value||'').trim();
+  if(!title){showToast('Add a title.','err');return;}
+  if(!_ai.code){showToast('No code.','err');return;}
+  _ai.publishing=true;
+  const btn=document.getElementById('ai-pub-btn');btn.innerHTML='<span class="spin">⟳</span> Publishing…';btn.disabled=true;
+  const co={};_ai.collabs.forEach((c,i)=>{co['c'+i]={email:c.email};});
+  const meta={title,desc:(document.getElementById('ai-desc').value||'').trim(),allowViewCode:document.getElementById('ai-allow-code').checked,platform:_ai.plat,chatEnabled:_ai.chatOn,chatScope:_ai.scope,collaborators:Object.keys(co).length?co:null,generatedByAI:true,updatedAt:Date.now(),ownerId:CU.uid,ownerName:CU.displayName||CU.email,createdAt:Date.now(),likes:0,views:0};
+  if(_ai.logo)meta.logoImage=_ai.logo;if(_ai.bg)meta.bgImage=_ai.bg;
+  try{
+    const nr=push(ref(db,'books'));await set(nr,meta);await set(ref(db,'bookCode/'+nr.key+'/code'),_ai.code);
+    removeAutoSave('ai');
+    showToast('Published! 🎉','ok');
+    setTimeout(()=>window.location.href='/Studio/',1200);
+  }catch(e){showToast('Error: '+e.message,'err');}
+  btn.innerHTML='🚀 Publish Game';btn.disabled=false;_ai.publishing=false;
+};
+
+/* AI image helpers */
+window.aiImgUrl=(t,url)=>{if(url&&url.startsWith('http'))aiSetImg(t,url);};
+function aiHandleFile(t,inp){const f=inp.files[0];if(!f)return;if(f.size>2e6){showToast('Max 2MB.','err');inp.value='';return;}const r=new FileReader();r.onload=e=>aiSetImg(t,e.target.result);r.readAsDataURL(f);}
+function aiSetImg(t,src){if(t==='logo')_ai.logo=src;else _ai.bg=src;imgSet('ai-'+t,src);}
+document.getElementById('ai-logo-file').addEventListener('change',function(){aiHandleFile('logo',this);});
+document.getElementById('ai-bg-file').addEventListener('change',function(){aiHandleFile('bg',this);});
+document.getElementById('ai-logo-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();_ai.logo=null;imgClear('ai-logo');});
+document.getElementById('ai-bg-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();_ai.bg=null;imgClear('ai-bg');});
+window.aiSelPlat=p=>{_ai.plat=p;setPlat('ai-plat-row',p);};
+window.aiToggleChat=()=>{_ai.chatOn=document.getElementById('ai-chat-chk').checked;document.getElementById('ai-chat-lbl').textContent=_ai.chatOn?'Enabled':'Disabled';document.getElementById('ai-scope-row').style.display=_ai.chatOn?'flex':'none';};
+window.aiSetScope=s=>{_ai.scope=s;['global','book','both'].forEach(x=>document.getElementById('ai-sc-'+x).classList.toggle('active',x===s));};
+window.aiAddCollab=()=>addCollabTo(_ai.collabs,'ai-collab-email','ai-collab-tags',renderAiCollabs);
+window.aiRemoveCollab=e=>{_ai.collabs=_ai.collabs.filter(c=>c.email!==e);renderAiCollabs();};
+function renderAiCollabs(){renderCollagTags('ai-collab-tags',_ai.collabs,'aiRemoveCollab');}
+
+/* ════════════════════════════════════════════
+   REMIX
+════════════════════════════════════════════ */
+async function initRemix(id,title){
+  _rx.origId=id;_rx.origTitle=title;
+  document.getElementById('remix-game-name').textContent=title;
+  document.getElementById('remix-orig-name-display').textContent=title;
+  document.getElementById('remix-prev-label').textContent='Remix of '+title;
+  // pre-fill a title suggestion
+  document.getElementById('remix-title').value=title+' Remix';
+}
+
+window.remixSelSpeed=s=>{
+  _rx.spd=s;
+  document.getElementById('remix-sp-fast').classList.toggle('sel',s==='fast');
+  document.getElementById('remix-sp-smart').classList.toggle('sel',s==='smart');
+};
+
+window.remixGenerate=async function(){
+  const prompt=(document.getElementById('remix-prompt').value||'').trim();
+  if(!prompt){showToast('Describe what to change.','err');return;}
+  document.getElementById('remix-s1').style.display='none';
+  document.getElementById('remix-s2').style.display='';
+  startProg('remix-prog');
+  // Load original code
+  let origCode='';
+  try{origCode=await fetchCode(_rx.origId);}catch{}
+  if(!origCode){stopProg('remix-prog');document.getElementById('remix-s2').style.display='none';document.getElementById('remix-s1').style.display='';showToast('Could not load original game code.','err');return;}
+  const userMsg=`Here is the original game code:\n\n${origCode}\n\n---\n\nRemix request: ${prompt}`;
+  _rx.conv=[{role:'user',content:userMsg}];
+  try{
+    let raw=await callAI(_rx.conv,_rx.spd,SYS_REMIX);
+    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML. Try rephrasing.');
+    const{code,truncated,count}=enforceLimit(raw);
+    _rx.code=code;_rx.conv.push({role:'assistant',content:code});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines (was ${count}).`,'');
+    stopProg('remix-prog');
+    document.getElementById('remix-s2').style.display='none';
+    document.getElementById('remix-s3').style.display='';
+    updateLineBadge('remix-line-badge',countLines(_rx.code));
+    loadFrame('remix-frame',_rx.code);
+    showToast('Remix ready! 🎛','ok');
+    autoSave('remix');
+  }catch(e){
+    stopProg('remix-prog');
+    document.getElementById('remix-s2').style.display='none';
+    document.getElementById('remix-s1').style.display='';
+    showToast('Error: '+e.message,'err');
   }
-});
-document.querySelectorAll('.overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
+};
 
-// Legacy redirect
-const p=new URLSearchParams(location.search);const sharedBookId=p.get('book');
-if(sharedBookId)window.location.replace('/Library/book/'+sharedBookId);
+window.remixRefine=async function(){
+  const txt=(document.getElementById('remix-refine').value||'').trim();
+  if(!txt){showToast('Describe another change.','err');return;}
+  if(!_rx.code){showToast('Generate first.','err');return;}
+  document.getElementById('remix-s3').style.display='none';
+  document.getElementById('remix-s2').style.display='';
+  startProg('remix-prog');
+  const userMsg=`Here is the current remix code:\n\n${_rx.code}\n\n---\n\nFurther change: ${txt}`;
+  _rx.conv.push({role:'user',content:userMsg});
+  try{
+    let raw=await callAI(_rx.conv,_rx.spd,SYS_REMIX);
+    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML.');
+    const{code,truncated}=enforceLimit(raw);
+    _rx.code=code;_rx.conv.push({role:'assistant',content:code});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    document.getElementById('remix-refine').value='';
+    stopProg('remix-prog');
+    document.getElementById('remix-s2').style.display='none';
+    document.getElementById('remix-s3').style.display='';
+    updateLineBadge('remix-line-badge',countLines(_rx.code));
+    loadFrame('remix-frame',_rx.code);
+    showToast('Updated! 🎉','ok');autoSave('remix');
+  }catch(e){
+    stopProg('remix-prog');document.getElementById('remix-s2').style.display='none';
+    document.getElementById('remix-s3').style.display='';showToast('Error: '+e.message,'err');
+  }
+};
+
+window.remixReset=()=>{
+  _rx.code='';_rx.conv=[];
+  document.getElementById('remix-prompt').value='';document.getElementById('remix-refine').value='';
+  document.getElementById('remix-s1').style.display='';
+  document.getElementById('remix-s2').style.display='none';
+  document.getElementById('remix-s3').style.display='none';
+};
+
+window.remixPublish=async function(){
+  if(_rx.publishing)return;
+  const title=(document.getElementById('remix-title').value||'').trim();
+  if(!title){showToast('Add a title for your remix.','err');return;}
+  if(!_rx.code){showToast('No code yet — generate first.','err');return;}
+  _rx.publishing=true;
+  const btn=document.getElementById('remix-pub-btn');btn.innerHTML='<span class="spin">⟳</span> Publishing…';btn.disabled=true;
+  const meta={
+    title,
+    desc:(document.getElementById('remix-desc').value||'').trim(),
+    allowViewCode:document.getElementById('remix-allow-code').checked,
+    platform:_rx.plat,
+    chatEnabled:false,chatScope:'global',
+    generatedByAI:true,
+    remixOf:{id:_rx.origId,title:_rx.origTitle},
+    updatedAt:Date.now(),ownerId:CU.uid,ownerName:CU.displayName||CU.email,
+    createdAt:Date.now(),likes:0,views:0
+  };
+  if(_rx.logo)meta.logoImage=_rx.logo;if(_rx.bg)meta.bgImage=_rx.bg;
+  try{
+    const nr=push(ref(db,'books'));await set(nr,meta);await set(ref(db,'bookCode/'+nr.key+'/code'),_rx.code);
+    removeAutoSave('remix');
+    showToast('Remix published! 🎛','ok');
+    setTimeout(()=>window.location.href='/Studio/',1300);
+  }catch(e){showToast('Error: '+e.message,'err');}
+  btn.innerHTML='🚀 Publish Remix';btn.disabled=false;_rx.publishing=false;
+};
+
+/* Remix image helpers */
+window.remixImgUrl=(t,url)=>{if(url&&url.startsWith('http')){if(t==='logo')_rx.logo=url;else _rx.bg=url;imgSet('remix-'+t,url);}};
+function remixHandleFile(t,inp){const f=inp.files[0];if(!f)return;if(f.size>2e6){showToast('Max 2MB.','err');inp.value='';return;}const r=new FileReader();r.onload=e=>{if(t==='logo')_rx.logo=e.target.result;else _rx.bg=e.target.result;imgSet('remix-'+t,e.target.result);};r.readAsDataURL(f);}
+document.getElementById('remix-logo-file').addEventListener('change',function(){remixHandleFile('logo',this);});
+document.getElementById('remix-bg-file').addEventListener('change',function(){remixHandleFile('bg',this);});
+document.getElementById('remix-logo-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();_rx.logo=null;imgClear('remix-logo');});
+document.getElementById('remix-bg-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();_rx.bg=null;imgClear('remix-bg');});
+window.remixSelPlat=p=>{_rx.plat=p;setPlat('remix-plat-row',p);};
+
+/* ════════════════════════════════════════════
+   AI EDIT
+════════════════════════════════════════════ */
+async function initAIEdit(id){
+  document.getElementById('aiedit-game-name').textContent='Loading…';
+  try{
+    const snap=await get(ref(db,'books/'+id));
+    if(!snap.exists()){showToast('Game not found.','err');return;}
+    const bk=snap.val();
+    if(bk.ownerId!==CU.uid){showToast('You can only AI-edit your own games.','err');return;}
+    _ae.id=id;_ae.bk=bk;
+    document.getElementById('aiedit-game-name').textContent=bk.title||'Untitled';
+    document.getElementById('aiedit-prev-label').textContent=bk.title||'Edited Game';
+    _ae.origCode=await fetchCode(id);
+    if(!_ae.origCode){showToast('Could not load game code.','err');return;}
+  }catch(e){showToast('Error loading game: '+e.message,'err');}
+}
+
+window.aieditSelSpeed=s=>{
+  _ae.spd=s;
+  document.getElementById('aiedit-sp-fast').classList.toggle('sel',s==='fast');
+  document.getElementById('aiedit-sp-smart').classList.toggle('sel',s==='smart');
+};
+
+window.aieditGenerate=async function(){
+  const prompt=(document.getElementById('aiedit-prompt').value||'').trim();
+  if(!prompt){showToast('Describe what to change.','err');return;}
+  const baseCode=_ae.code||_ae.origCode;
+  if(!baseCode){showToast('Game code not loaded yet.','err');return;}
+  document.getElementById('aiedit-s1').style.display='none';
+  document.getElementById('aiedit-s2').style.display='';
+  startProg('aiedit-prog');
+  const userMsg=`Here is the current game code:\n\n${baseCode}\n\n---\n\nChanges to make: ${prompt}`;
+  _ae.conv.push({role:'user',content:userMsg});
+  try{
+    let raw=await callAI(_ae.conv,_ae.spd,SYS_EDIT);
+    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML. Try rephrasing.');
+    const{code,truncated,count}=enforceLimit(raw);
+    _ae.code=code;_ae.conv.push({role:'assistant',content:code});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    stopProg('aiedit-prog');
+    document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s3').style.display='';
+    updateLineBadge('aiedit-line-badge',countLines(_ae.code));
+    loadFrame('aiedit-frame',_ae.code);
+    showToast('Changes applied! ✨','ok');
+    autoSave('aiedit');
+  }catch(e){
+    stopProg('aiedit-prog');
+    document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s1').style.display='';
+    showToast('Error: '+e.message,'err');
+  }
+};
+
+window.aieditRefine=async function(){
+  const txt=(document.getElementById('aiedit-refine').value||'').trim();
+  if(!txt){showToast('Describe another change.','err');return;}
+  if(!_ae.code){showToast('Apply changes first.','err');return;}
+  document.getElementById('aiedit-s3').style.display='none';
+  document.getElementById('aiedit-s2').style.display='';
+  startProg('aiedit-prog');
+  const userMsg=`Here is the current game code:\n\n${_ae.code}\n\n---\n\nChanges: ${txt}`;
+  _ae.conv.push({role:'user',content:userMsg});
+  try{
+    let raw=await callAI(_ae.conv,_ae.spd,SYS_EDIT);
+    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML.');
+    const{code,truncated}=enforceLimit(raw);
+    _ae.code=code;_ae.conv.push({role:'assistant',content:code});
+    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    document.getElementById('aiedit-refine').value='';
+    stopProg('aiedit-prog');
+    document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s3').style.display='';
+    updateLineBadge('aiedit-line-badge',countLines(_ae.code));
+    loadFrame('aiedit-frame',_ae.code);
+    showToast('Updated! 🎉','ok');autoSave('aiedit');
+  }catch(e){
+    stopProg('aiedit-prog');document.getElementById('aiedit-s2').style.display='none';
+    document.getElementById('aiedit-s3').style.display='';showToast('Error: '+e.message,'err');
+  }
+};
+
+window.aieditReset=()=>{
+  _ae.code='';_ae.conv=[];
+  document.getElementById('aiedit-prompt').value='';document.getElementById('aiedit-refine').value='';
+  document.getElementById('aiedit-s1').style.display='';
+  document.getElementById('aiedit-s2').style.display='none';
+  document.getElementById('aiedit-s3').style.display='none';
+};
+
+window.aieditSave=async function(){
+  if(_ae.saving)return;if(!_ae.code){showToast('No changes to save.','err');return;}if(!_ae.id){showToast('No game loaded.','err');return;}
+  _ae.saving=true;
+  const btn=document.getElementById('aiedit-save-btn');btn.innerHTML='<span class="spin">⟳</span> Saving…';btn.disabled=true;
+  try{
+    await set(ref(db,'bookCode/'+_ae.id+'/code'),_ae.code);
+    await update(ref(db,'books/'+_ae.id),{updatedAt:Date.now()});
+    removeAutoSave('aiedit');
+    showToast('Game updated! ✨','ok');
+    setTimeout(()=>window.location.href='/Studio/',1400);
+  }catch(e){showToast('Error: '+e.message,'err');}
+  btn.innerHTML='💾 Save Changes';btn.disabled=false;_ae.saving=false;
+};
+
+/* ════════════════════════════════════════════
+   MANUAL UPLOAD / EDIT
+════════════════════════════════════════════ */
+async function initManualEdit(id){
+  _m.editId=id;
+  try{
+    const snap=await get(ref(db,'books/'+id));
+    if(!snap.exists()){showToast('Game not found.','err');return;}
+    const bk=snap.val();
+    if(bk.ownerId!==CU.uid){showToast('Permission denied.','err');return;}
+    document.getElementById('bk-title').value=bk.title||'';
+    document.getElementById('bk-desc').value=bk.desc||'';
+    document.getElementById('allow-code').checked=!!bk.allowViewCode;
+    const code=await fetchCode(id);
+    document.getElementById('bk-code').value=code;
+    updateManualLineCount();
+    if(bk.logoImage){_m.logo=bk.logoImage;imgSet('logo',bk.logoImage);document.getElementById('logo-url').value=bk.logoImage.startsWith('http')?bk.logoImage:'';}
+    if(bk.bgImage){_m.bg=bk.bgImage;imgSet('bg',bk.bgImage);document.getElementById('bg-url').value=bk.bgImage.startsWith('http')?bk.bgImage:'';}
+    selPlat(bk.platform||'both');
+    _m.collabs=bk.collaborators?Object.values(bk.collaborators).filter(Boolean):[];renderManualCollabs();
+    _m.chatOn=bk.chatEnabled!==false;_m.scope=bk.chatScope||'global';
+    document.getElementById('chat-chk').checked=_m.chatOn;
+    document.getElementById('chat-lbl').textContent=_m.chatOn?'Enabled':'Disabled';
+    document.getElementById('scope-row').style.display=_m.chatOn?'flex':'none';
+    ['global','book','both'].forEach(s=>document.getElementById('sc-'+s).classList.toggle('active',s===_m.scope));
+  }catch(e){showToast('Error loading: '+e.message,'err');}
+}
+
+window.submitManual=async function(){
+  if(_m.submitting)return;_m.submitting=true;
+  const title=document.getElementById('bk-title').value.trim();
+  const code=document.getElementById('bk-code').value.trim();
+  if(!title){showToast('Add a title.','err');_m.submitting=false;return;}
+  if(!code){showToast('Add HTML code.','err');_m.submitting=false;return;}
+  const lines=countLines(code);
+  if(lines>MAX_LINES){showToast(`Code exceeds ${MAX_LINES} lines (${lines} lines). Please trim it.`,'err');_m.submitting=false;return;}
+  const btn=document.getElementById('upload-btn');const origHTML=btn.innerHTML;
+  btn.innerHTML='<span class="spin">⟳</span> Saving…';btn.disabled=true;
+  const co={};_m.collabs.forEach((c,i)=>{co['c'+i]={email:c.email};});
+  const meta={title,desc:document.getElementById('bk-desc').value.trim(),allowViewCode:document.getElementById('allow-code').checked,platform:_m.plat,chatEnabled:_m.chatOn,chatScope:_m.scope,collaborators:Object.keys(co).length?co:null,updatedAt:Date.now()};
+  if(_m.logo!==undefined)meta.logoImage=_m.logo||null;
+  if(_m.bg!==undefined)meta.bgImage=_m.bg||null;
+  try{
+    if(_m.editId){
+      await update(ref(db,'books/'+_m.editId),meta);
+      await set(ref(db,'bookCode/'+_m.editId+'/code'),code);
+      showToast('Saved! ✅','ok');
+    }else{
+      const nr=push(ref(db,'books'));
+      await set(nr,{...meta,ownerId:CU.uid,ownerName:CU.displayName||CU.email,createdAt:Date.now(),likes:0,views:0});
+      await set(ref(db,'bookCode/'+nr.key+'/code'),code);
+      removeAutoSave('manual');
+      showToast('Published! 🎉','ok');
+    }
+    setTimeout(()=>window.location.href='/Studio/',1200);
+  }catch(e){showToast('Error: '+e.message,'err');}
+  btn.innerHTML=origHTML;btn.disabled=false;_m.submitting=false;
+};
+
+/* Manual image */
+document.getElementById('logo-file').addEventListener('change',function(){manualHandleFile('logo',this);});
+document.getElementById('bg-file').addEventListener('change',function(){manualHandleFile('bg',this);});
+document.getElementById('logo-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();_m.logo=null;imgClear('logo');});
+document.getElementById('bg-rm').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();_m.bg=null;imgClear('bg');});
+function manualHandleFile(t,inp){const f=inp.files[0];if(!f)return;if(f.size>2e6){showToast('Max 2MB.','err');inp.value='';return;}const r=new FileReader();r.onload=e=>{if(t==='logo')_m.logo=e.target.result;else _m.bg=e.target.result;imgSet(t,e.target.result);};r.readAsDataURL(f);}
+window.manualPrevUrl=(t,url)=>{if(url&&url.startsWith('http')){if(t==='logo')_m.logo=url;else _m.bg=url;imgSet(t,url);}};
+window.toggleChat=()=>{_m.chatOn=document.getElementById('chat-chk').checked;document.getElementById('chat-lbl').textContent=_m.chatOn?'Enabled':'Disabled';document.getElementById('scope-row').style.display=_m.chatOn?'flex':'none';};
+window.setScope=s=>{_m.scope=s;['global','book','both'].forEach(x=>document.getElementById('sc-'+x).classList.toggle('active',x===s));};
+window.addCollab=()=>addCollabTo(_m.collabs,'collab-email','collab-tags',renderManualCollabs);
+window.removeCollab=e=>{_m.collabs=_m.collabs.filter(c=>c.email!==e);renderManualCollabs();};
+function renderManualCollabs(){renderCollagTags('collab-tags',_m.collabs,'removeCollab');}
+window.selPlat=p=>{_m.plat=p;setPlat('plat-row',p);};
+
+/* ════════════════════════════════════════════
+   SHARED UI HELPERS
+════════════════════════════════════════════ */
+function imgSet(prefix,src){
+  const drop=document.getElementById(prefix+'-drop');
+  const prev=document.getElementById(prefix+'-prev');
+  if(!drop||!prev)return;
+  prev.src=src;prev.style.display='block';
+  drop.classList.add('has-img');
+  const lbl=drop.querySelector('.drop-label');if(lbl)lbl.style.display='none';
+}
+function imgClear(prefix){
+  const drop=document.getElementById(prefix+'-drop');
+  const prev=document.getElementById(prefix+'-prev');
+  const fi=document.getElementById(prefix+'-file');
+  const ui=document.getElementById(prefix+'-url');
+  if(prev){prev.style.display='none';prev.src='';}
+  if(fi)fi.value='';
+  if(ui)ui.value='';
+  if(drop){drop.classList.remove('has-img');const lbl=drop.querySelector('.drop-label');if(lbl)lbl.style.display='';}
+}
+function setPlat(rowId,p){document.querySelectorAll('#'+rowId+' .plat-opt').forEach(b=>{b.className='plat-opt';if(b.dataset.p===p)b.classList.add('sel-'+p);});}
+function addCollabTo(arr,inputId,tagsId,render){
+  const inp=document.getElementById(inputId);
+  const email=(inp.value||'').trim().toLowerCase();
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){showToast('Valid email required.','err');return;}
+  if(CU&&email===CU.email.toLowerCase()){showToast("That's your own email.",'err');return;}
+  if(arr.some(c=>c.email===email)){showToast('Already added.','err');return;}
+  if(arr.length>=10){showToast('Max 10 collaborators.','err');return;}
+  arr.push({email});inp.value='';render();
+}
+function renderCollagTags(tagsId,arr,removeFn){
+  const el=document.getElementById(tagsId);if(!el)return;
+  el.innerHTML=arr.map(c=>`<span class="ctag">${esc(c.email)}<button class="ctag-rm" onclick="${removeFn}('${esc(c.email)}')">✕</button></span>`).join('');
+}
+
+/* ════════════════════════════════════════════
+   DRAFTS
+════════════════════════════════════════════ */
+window.saveDraft=function(type){
+  const drafts=getDrafts();
+  const d={id:Date.now(),type,savedAt:Date.now()};
+  if(type==='ai'){
+    if(!_ai.code){showToast('No code yet.','err');return;}
+    d.name=document.getElementById('ai-title').value.trim()||'Untitled AI Game';
+    d.prompt=document.getElementById('ai-prompt').value.trim();
+    d.code=_ai.code;d.desc=document.getElementById('ai-desc').value.trim();
+    d.logo=_ai.logo;d.bg=_ai.bg;d.plat=_ai.plat;
+    d.chatOn=_ai.chatOn;d.scope=_ai.scope;d.collabs=[..._ai.collabs];
+    d.allowCode=document.getElementById('ai-allow-code').checked;d.spd=_ai.spd;d.conv=[..._ai.conv];
+  }else if(type==='remix'){
+    if(!_rx.code){showToast('No code yet.','err');return;}
+    d.name=document.getElementById('remix-title').value.trim()||'Untitled Remix';
+    d.prompt=document.getElementById('remix-prompt').value.trim();
+    d.code=_rx.code;d.desc=document.getElementById('remix-desc').value.trim();
+    d.logo=_rx.logo;d.bg=_rx.bg;d.plat=_rx.plat;
+    d.origId=_rx.origId;d.origTitle=_rx.origTitle;d.conv=[..._rx.conv];d.spd=_rx.spd;
+  }else if(type==='aiedit'){
+    if(!_ae.code){showToast('No changes yet.','err');return;}
+    d.name=(_ae.bk?.title||'Untitled')+' (AI Edit)';
+    d.code=_ae.code;d.gameId=_ae.id;
+    d.prompt=document.getElementById('aiedit-prompt').value.trim();
+    d.conv=[..._ae.conv];d.spd=_ae.spd;
+    if(_ae.bk)d.logo=_ae.bk.logoImage||null;
+  }else{
+    d.name=document.getElementById('bk-title').value.trim()||'Untitled Game';
+    d.code=document.getElementById('bk-code').value.trim();
+    d.desc=document.getElementById('bk-desc').value.trim();
+    d.logo=_m.logo;d.bg=_m.bg;d.plat=_m.plat;
+    d.chatOn=_m.chatOn;d.scope=_m.scope;d.collabs=[..._m.collabs];
+    d.allowCode=document.getElementById('allow-code').checked;
+  }
+  drafts.unshift(d);if(drafts.length>20)drafts.pop();
+  setDrafts(drafts);showToast('Draft saved! 💾','ok');
+};
+
+function autoSave(type){
+  const drafts=getDrafts();
+  const idx=drafts.findIndex(d=>d.auto&&d.type===type);
+  const d={id:idx>=0?drafts[idx].id:Date.now(),type,auto:true,savedAt:Date.now()};
+  if(type==='ai'){
+    if(!_ai.code)return;
+    d.name=document.getElementById('ai-title').value.trim()||'Auto-saved AI Game';
+    d.prompt=document.getElementById('ai-prompt').value.trim();d.code=_ai.code;
+    d.desc=document.getElementById('ai-desc').value.trim();d.logo=_ai.logo;d.bg=_ai.bg;
+    d.plat=_ai.plat;d.chatOn=_ai.chatOn;d.scope=_ai.scope;d.collabs=[..._ai.collabs];
+    d.allowCode=document.getElementById('ai-allow-code').checked;d.spd=_ai.spd;d.conv=[..._ai.conv];
+  }else if(type==='remix'){
+    if(!_rx.code)return;
+    d.name=document.getElementById('remix-title').value.trim()||'Auto-saved Remix';
+    d.prompt=document.getElementById('remix-prompt').value.trim();d.code=_rx.code;
+    d.desc=document.getElementById('remix-desc').value.trim();d.logo=_rx.logo;d.bg=_rx.bg;
+    d.plat=_rx.plat;d.origId=_rx.origId;d.origTitle=_rx.origTitle;d.conv=[..._rx.conv];d.spd=_rx.spd;
+  }else if(type==='aiedit'){
+    if(!_ae.code)return;
+    d.name=(_ae.bk?.title||'Untitled')+' (AI Edit)';
+    d.code=_ae.code;d.gameId=_ae.id;d.conv=[..._ae.conv];d.spd=_ae.spd;
+  }else{
+    const code=document.getElementById('bk-code').value.trim();if(!code)return;
+    d.name=document.getElementById('bk-title').value.trim()||'Auto-saved Game';
+    d.code=code;d.desc=document.getElementById('bk-desc').value.trim();
+    d.logo=_m.logo;d.bg=_m.bg;d.plat=_m.plat;d.chatOn=_m.chatOn;d.scope=_m.scope;
+    d.collabs=[..._m.collabs];d.allowCode=document.getElementById('allow-code').checked;
+  }
+  if(idx>=0)drafts[idx]=d;else drafts.unshift(d);
+  if(drafts.length>25)drafts.pop();
+  setDrafts(drafts);
+}
+
+function removeAutoSave(type){
+  setDrafts(getDrafts().filter(d=>!(d.auto&&d.type===type)));
+}
+
+// Auto-save every 30s
+setInterval(()=>{
+  const p=new URLSearchParams(location.search);
+  if(p.get('aiedit'))autoSave('aiedit');
+  else if(p.get('remix'))autoSave('remix');
+  else if(document.getElementById('panel-ai').style.display!=='none')autoSave('ai');
+  else autoSave('manual');
+},30000);
+
+function restoreDraftUI(d){
+  if(d.type==='ai'){
+    setMode('ai');
+    _ai.code=d.code||'';_ai.conv=d.conv||[];_ai.spd=d.spd||'fast';
+    selSpeed(_ai.spd);
+    document.getElementById('ai-prompt').value=d.prompt||'';
+    document.getElementById('ai-title').value=d.name||'';
+    document.getElementById('ai-desc').value=d.desc||'';
+    if(d.logo){_ai.logo=d.logo;imgSet('ai-logo',d.logo);}
+    if(d.bg){_ai.bg=d.bg;imgSet('ai-bg',d.bg);}
+    aiSelPlat(d.plat||'both');
+    _ai.chatOn=d.chatOn!==false;_ai.scope=d.scope||'global';
+    document.getElementById('ai-chat-chk').checked=_ai.chatOn;
+    document.getElementById('ai-chat-lbl').textContent=_ai.chatOn?'Enabled':'Disabled';
+    document.getElementById('ai-scope-row').style.display=_ai.chatOn?'flex':'none';
+    ['global','book','both'].forEach(s=>document.getElementById('ai-sc-'+s).classList.toggle('active',s===_ai.scope));
+    _ai.collabs=d.collabs||[];renderAiCollabs();
+    if(_ai.code){
+      document.getElementById('ai-s1').style.display='none';
+      document.getElementById('ai-s3').style.display='';
+      updateLineBadge('ai-line-badge',countLines(_ai.code));
+      loadFrame('ai-frame',_ai.code);
+    }
+  }else{
+    setMode('manual');
+    document.getElementById('bk-title').value=d.name||'';
+    document.getElementById('bk-code').value=d.code||'';
+    document.getElementById('bk-desc').value=d.desc||'';
+    if(d.logo){_m.logo=d.logo;imgSet('logo',d.logo);}
+    if(d.bg){_m.bg=d.bg;imgSet('bg',d.bg);}
+    selPlat(d.plat||'both');
+    _m.chatOn=!!d.chatOn;_m.scope=d.scope||'global';
+    document.getElementById('chat-chk').checked=_m.chatOn;
+    document.getElementById('chat-lbl').textContent=_m.chatOn?'Enabled':'Disabled';
+    document.getElementById('scope-row').style.display=_m.chatOn?'flex':'none';
+    ['global','book','both'].forEach(s=>document.getElementById('sc-'+s).classList.toggle('active',s===_m.scope));
+    _m.collabs=d.collabs||[];renderManualCollabs();
+    document.getElementById('allow-code').checked=d.allowCode!==false;
+    updateManualLineCount();
+  }
+  showToast('Draft restored!','ok');
+}
 </script>
 </body>
 </html>
