@@ -515,21 +515,50 @@ function pvTab(tab){
 }
 
 // ── AI GENERATION ──
-async function generateGame(apiMsgs){
+// Single non-streaming call to the Worker. Returns raw text plus the
+// Bedrock stop_reason so callers can detect max_tokens truncation.
+async function callModel(apiMsgs){
   var resp = await fetch(WORKER_URL, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ model:'us.anthropic.claude-sonnet-4-6', system: STUDIO_SYSTEM, messages: apiMsgs })
+    body: JSON.stringify({ model:'us.anthropic.claude-sonnet-4-6', system: STUDIO_SYSTEM, messages: apiMsgs, max_tokens: 16000 })
   });
   if (!resp.ok) { var t = await resp.text().catch(function(){return resp.status;}); throw new Error('Worker error '+resp.status+': '+t); }
   var data = await resp.json();
   var raw = '';
   if (data.content && Array.isArray(data.content)) raw = data.content.map(function(x){return x.text||'';}).join('');
   else if (data.content) raw = String(data.content);
-  raw = raw.replace(/<think>[\s\S]*?<\/think>/gi,'').trim();
-  raw = raw.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-  var isHtml = /^<!doctype/i.test(raw) || /^<html/i.test(raw);
-  return { raw: raw, isHtml: isHtml };
+  return { raw: raw, stopReason: data.stop_reason || null };
+}
+
+// Generates a game, and if the model gets cut off by the token limit
+// (stop_reason === 'max_tokens'), automatically asks it to continue
+// exactly where it left off and stitches the pieces together — up to
+// a few rounds — instead of shipping a truncated file.
+async function generateGame(apiMsgs, onStatus){
+  var MAX_CONTINUATIONS = 5;
+  var first = await callModel(apiMsgs);
+  var raw = first.raw;
+  var stopReason = first.stopReason;
+  var rounds = 0;
+
+  while (stopReason === 'max_tokens' && rounds < MAX_CONTINUATIONS) {
+    rounds++;
+    if (onStatus) onStatus('Response was cut off — continuing (part ' + (rounds+1) + ')…');
+    var continueMsgs = apiMsgs.concat([
+      { role: 'assistant', content: raw },
+      { role: 'user', content: 'Your last response was cut off mid-file because it hit the token limit. Continue generating EXACTLY from where you left off — do not repeat anything already written, do not restart, do not add any commentary. Just output the remaining raw code that completes the file.' }
+    ]);
+    var cont = await callModel(continueMsgs);
+    raw += cont.raw;
+    stopReason = cont.stopReason;
+  }
+
+  var cleaned = raw.replace(/<think>[\s\S]*?<\/think>/gi,'').trim();
+  cleaned = cleaned.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+  var isHtml = /^<!doctype/i.test(cleaned) || /^<html/i.test(cleaned);
+  var stillTruncated = (stopReason === 'max_tokens') || (isHtml && !/<\/html>\s*$/i.test(cleaned));
+  return { raw: cleaned, isHtml: isHtml, truncated: stillTruncated };
 }
 
 async function sendPrompt(){
@@ -561,13 +590,18 @@ async function sendPrompt(){
   });
 
   try {
-    var result = await generateGame(apiMsgs);
+    var result = await generateGame(apiMsgs, function(statusTxt){
+      document.getElementById('gen-overlay-txt').textContent = statusTxt;
+    });
     typingEl.remove();
     if (result.isHtml) {
-      d.messages.push({ role:'ai', content: d.html ? "Updated — here's the new version." : "Here's your game — take a look at the preview.", html: result.raw });
+      var label = d.html ? "Updated — here's the new version." : "Here's your game — take a look at the preview.";
+      if (result.truncated) label += ' (Note: this build may still be incomplete even after auto-continuing — say "finish the rest" if something looks cut off.)';
+      d.messages.push({ role:'ai', content: label, html: result.raw });
       d.html = result.raw;
       showPreview(result.raw);
       document.getElementById('publish-btn').disabled = false;
+      if (result.truncated) showToast('Heads up: this build may still be incomplete');
     } else {
       d.messages.push({ role:'ai', content: result.raw });
     }
