@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Boblox Studio</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --bg:#0f0f0f; --panel:#181818; --panel-hi:#1f1f1f; --input-bg:#141414;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.13); --border3:rgba(255,255,255,.2);
+  --tx:#ffffff; --tx2:rgba(255,255,255,.65); --tx3:rgba(255,255,255,.38);
+  --accent:#00A2FF; --accent-hover:#33B5FF; --accent-dim:rgba(0,162,255,.14);
+  --user-bubble:#232323;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--tx);font-family:var(--font);height:100%;font-size:14px;overflow:hidden;}
+button{font-family:inherit;cursor:pointer;border:none;background:transparent;color:inherit;}
+input,textarea{font-family:inherit;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:7px;height:7px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px;}
+body{display:flex;flex-direction:column;}
+
+/* AUTH GATE */
+.auth-gate{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.auth-gate.hidden{display:none;}
+.auth-box{background:var(--panel);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:380px;padding:26px;}
+.auth-box img{width:36px;height:36px;border-radius:8px;margin-bottom:14px;}
+.auth-box h2{font-size:1.15rem;font-weight:800;margin-bottom:6px;}
+.auth-box p{font-size:.8rem;color:var(--tx3);margin-bottom:18px;line-height:1.5;}
+.auth-err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:8px;padding:8px 11px;font-size:.72rem;color:#f87171;display:none;margin-bottom:10px;}
+.auth-err.show{display:block;}
+.auth-google{width:100%;height:38px;background:var(--panel-hi);border:1px solid var(--border2);border-radius:8px;font-size:.82rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:12px;}
+.auth-google:hover{border-color:var(--border3);}
+.auth-divider{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.auth-divider span{font-size:.65rem;color:var(--tx3);}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.auth-lbl{display:block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:5px;}
+.auth-inp{width:100%;height:36px;background:var(--input-bg);border:1px solid var(--border2);border-radius:8px;color:var(--tx);font-size:.83rem;padding:0 11px;outline:none;margin-bottom:10px;}
+.auth-inp:focus{border-color:var(--accent);}
+.auth-submit{width:100%;height:38px;background:var(--accent);color:#fff;border-radius:8px;font-size:.83rem;font-weight:700;margin-top:2px;}
+.auth-submit:hover{background:var(--accent-hover);}
+.auth-switch-row{text-align:center;font-size:.72rem;color:var(--tx3);margin-top:14px;}
+.auth-switch-row a{color:var(--accent);text-decoration:underline;cursor:pointer;}
+
+/* TOPBAR */
+.topbar{height:54px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--bg);}
+.brand{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.brand img{width:24px;height:24px;border-radius:6px;}
+.brand span{font-size:1rem;font-weight:800;}
+.tb-sep{width:1px;height:20px;background:var(--border2);}
+.tb-title{font-size:.8rem;color:var(--tx2);font-weight:600;}
+.tb-sp{flex:1;}
+.tb-btn{height:32px;padding:0 13px;border-radius:8px;font-size:.76rem;font-weight:600;color:var(--tx2);display:flex;align-items:center;gap:6px;transition:all .12s;border:1px solid transparent;}
+.tb-btn:hover{background:var(--panel-hi);color:var(--tx);}
+.tb-btn.primary{background:var(--accent);color:#fff;}
+.tb-btn.primary:hover{background:var(--accent-hover);}
+.tb-btn.primary:disabled{background:rgba(255,255,255,.08);color:var(--tx3);cursor:not-allowed;}
+.tb-avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0;}
+
+/* LAYOUT */
+.body-wrap{flex:1;display:flex;min-height:0;}
+
+/* DRAFTS SIDEBAR */
+.drafts-sb{width:230px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.drafts-hdr{padding:14px 14px 10px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);}
+.drafts-new{margin:0 12px 10px;height:34px;border:1px solid var(--border2);border-radius:8px;font-size:.75rem;font-weight:600;color:var(--tx2);display:flex;align-items:center;justify-content:center;gap:6px;}
+.drafts-new:hover{background:var(--panel-hi);color:var(--tx);}
+.drafts-list{flex:1;overflow-y:auto;padding:0 8px 10px;}
+.draft-item{padding:9px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;transition:background .1s;border:1px solid transparent;}
+.draft-item:hover{background:var(--panel-hi);}
+.draft-item.active{background:var(--accent-dim);border-color:rgba(0,162,255,.25);}
+.draft-item-title{font-size:.76rem;font-weight:600;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.draft-item-sub{font-size:.65rem;color:var(--tx3);margin-top:2px;}
+.drafts-empty{padding:20px 14px;font-size:.72rem;color:var(--tx3);text-align:center;line-height:1.6;}
+
+/* CHAT PANEL */
+.chat-panel{width:380px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);min-width:0;}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.chat-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--tx3);}
+.chat-empty img{width:40px;height:40px;border-radius:9px;opacity:.5;margin-bottom:14px;}
+.chat-empty h3{font-size:.92rem;color:var(--tx2);margin-bottom:6px;font-weight:700;}
+.chat-empty p{font-size:.75rem;line-height:1.6;max-width:260px;}
+.msg-user{align-self:flex-end;max-width:88%;background:var(--user-bubble);border-radius:14px 14px 3px 14px;padding:9px 13px;font-size:.82rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;}
+.msg-ai{align-self:flex-start;max-width:92%;font-size:.82rem;line-height:1.6;color:var(--tx2);}
+.msg-ai-card{
+  display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;
+  cursor:pointer;transition:all .12s;
+}
+.msg-ai-card:hover{border-color:rgba(0,162,255,.4);background:var(--accent-dim);}
+.msg-ai-card-icon{width:30px;height:30px;border-radius:7px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0;font-size:.6rem;font-weight:800;font-family:var(--mono);}
+.msg-ai-card-name{font-size:.78rem;font-weight:700;color:var(--tx);}
+.msg-ai-card-sub{font-size:.66rem;color:var(--tx3);margin-top:1px;}
+.typing{display:flex;gap:5px;align-items:center;padding:4px 0;}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--tx3);animation:tdot 1.4s infinite;}
+.typing span:nth-child(2){animation-delay:.2s;}
+.typing span:nth-child(3){animation-delay:.4s;}
+@keyframes tdot{0%,60%,100%{opacity:.2;transform:scale(.7);}30%{opacity:1;transform:scale(1);}}
+
+.composer{padding:12px 14px 14px;flex-shrink:0;border-top:1px solid var(--border);}
+.composer-box{background:var(--input-bg);border:1px solid var(--border2);border-radius:14px;overflow:hidden;transition:border-color .12s;}
+.composer-box:focus-within{border-color:var(--accent);}
+#prompt{width:100%;min-height:44px;max-height:150px;background:transparent;border:none;outline:none;color:var(--tx);font-size:.83rem;resize:none;padding:12px 12px 4px;line-height:1.55;}
+#prompt::placeholder{color:var(--tx3);}
+.composer-foot{display:flex;align-items:center;padding:6px 8px 8px;}
+.composer-hint{font-size:.63rem;color:var(--tx3);flex:1;}
+.send-btn{width:29px;height:29px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.send-btn:hover:not(:disabled){background:var(--accent-hover);}
+.send-btn:disabled{background:rgba(255,255,255,.08);color:var(--tx3);cursor:not-allowed;}
+.send-btn svg{width:13px;height:13px;}
+
+/* PREVIEW PANE */
+.preview-pane{flex:1;display:flex;flex-direction:column;min-width:0;background:#000;}
+.pv-topbar{height:44px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--border);}
+.pv-tabs{display:flex;gap:2px;background:rgba(255,255,255,.05);border-radius:8px;padding:2px;}
+.pv-tab{padding:5px 13px;border-radius:6px;font-size:.72rem;font-weight:700;color:var(--tx3);}
+.pv-tab.active{background:var(--panel-hi);color:var(--tx);}
+.pv-sp{flex:1;}
+.pv-status{font-size:.68rem;color:var(--tx3);}
+.preview-body{flex:1;position:relative;min-height:0;}
+#pv-iframe{width:100%;height:100%;border:none;background:#fff;display:block;}
+#pv-code{width:100%;height:100%;overflow:auto;padding:18px 22px;font-family:var(--mono);font-size:.72rem;line-height:1.7;color:#c9d3da;background:#0a0a0a;white-space:pre-wrap;word-break:break-word;display:none;}
+.preview-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--tx3);background:var(--bg);}
+.preview-placeholder img{width:44px;height:44px;border-radius:10px;opacity:.35;margin-bottom:14px;}
+.preview-placeholder h3{font-size:.95rem;color:var(--tx2);margin-bottom:6px;font-weight:700;}
+.preview-placeholder p{font-size:.78rem;max-width:280px;line-height:1.6;}
+.gen-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;backdrop-filter:blur(2px);}
+.gen-overlay.show{display:flex;}
+.spinner{width:30px;height:30px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.gen-overlay span{font-size:.78rem;color:var(--tx2);font-weight:600;}
+
+/* PUBLISH MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:800;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;}
+.modal-hdr{padding:18px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;}
+.modal-hdr h2{font-size:.98rem;font-weight:800;flex:1;}
+.modal-x{width:26px;height:26px;border-radius:7px;color:var(--tx3);display:flex;align-items:center;justify-content:center;}
+.modal-x:hover{background:var(--panel-hi);color:var(--tx);}
+.modal-body{padding:18px 20px;display:flex;flex-direction:column;gap:16px;}
+.field-lbl{display:block;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:7px;}
+.logo-row{display:flex;align-items:center;gap:12px;}
+.logo-preview{width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--border2);flex-shrink:0;background:var(--input-bg);}
+.logo-upload-btn{height:33px;padding:0 13px;border:1px solid var(--border2);border-radius:8px;font-size:.75rem;font-weight:600;color:var(--tx2);position:relative;}
+.logo-upload-btn:hover{background:var(--panel-hi);color:var(--tx);}
+.logo-upload-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.field-inp{width:100%;height:38px;background:var(--input-bg);border:1px solid var(--border2);border-radius:8px;color:var(--tx);font-size:.83rem;padding:0 12px;outline:none;}
+.field-inp:focus{border-color:var(--accent);}
+.field-textarea{width:100%;background:var(--input-bg);border:1px solid var(--border2);border-radius:8px;color:var(--tx);font-size:.83rem;padding:9px 12px;outline:none;resize:vertical;min-height:64px;line-height:1.5;}
+.field-textarea:focus{border-color:var(--accent);}
+.field-hint{font-size:.65rem;color:var(--tx3);margin-top:5px;}
+.modal-foot{padding:14px 20px 20px;display:flex;gap:8px;}
+.modal-cancel{height:36px;padding:0 15px;border:1px solid var(--border2);border-radius:8px;font-size:.78rem;color:var(--tx2);}
+.modal-cancel:hover{background:var(--panel-hi);color:var(--tx);}
+.modal-publish{flex:1;height:36px;background:var(--accent);color:#fff;border-radius:8px;font-size:.8rem;font-weight:700;}
+.modal-publish:hover{background:var(--accent-hover);}
+.modal-publish:disabled{background:rgba(255,255,255,.08);color:var(--tx3);cursor:not-allowed;}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--panel-hi);border:1px solid var(--border2);padding:8px 18px;border-radius:20px;font-size:.75rem;font-weight:600;z-index:9999;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media (max-width:900px){
+  .drafts-sb{display:none;}
+  .chat-panel{width:340px;}
+}
+@media (max-width:680px){
+  .chat-panel{width:100%;border-right:none;}
+  .preview-pane{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div class="auth-gate" id="auth-gate">
+  <div class="auth-box">
+    <img src="https://htmltools.me/logo3.png" alt=""/>
+    <h2 id="auth-title">Sign in to Boblox Studio</h2>
+    <p>You need an account to create and save games.</p>
+    <div class="auth-err" id="auth-err"></div>
+    <button class="auth-google" id="auth-google-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <div class="auth-divider"><span>or email</span></div>
+    <label class="auth-lbl">Email</label>
+    <input class="auth-inp" type="email" id="auth-email" placeholder="you@example.com"/>
+    <label class="auth-lbl">Password</label>
+    <input class="auth-inp" type="password" id="auth-password" placeholder="••••••••"/>
+    <button class="auth-submit" id="auth-submit">Sign in</button>
+    <div class="auth-switch-row">Don't have an account? <a id="auth-switch">Create one</a></div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="brand" href="/Boblox/"><img src="https://htmltools.me/logo3.png" alt=""/><span>Boblox</span></a>
+  <div class="tb-sep"></div>
+  <span class="tb-title">Studio</span>
+  <div class="tb-sp"></div>
+  <button class="tb-btn" id="new-btn" onclick="startNewDraft()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New
+  </button>
+  <button class="tb-btn primary" id="publish-btn" onclick="openPublishModal()" disabled>Publish</button>
+  <div class="tb-avatar" id="tb-avatar">?</div>
+</div>
+
+<div class="body-wrap">
+  <!-- DRAFTS SIDEBAR -->
+  <div class="drafts-sb">
+    <div class="drafts-hdr">Drafts</div>
+    <button class="drafts-new" onclick="startNewDraft()">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New game
+    </button>
+    <div class="drafts-list" id="drafts-list">
+      <div class="drafts-empty">No drafts yet.<br>Start a new game to see it here.</div>
+    </div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel">
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="chat-empty" id="chat-empty">
+        <img src="https://htmltools.me/logo3.png" alt=""/>
+        <h3>What do you want to build?</h3>
+        <p>Describe a game — an obby, a tycoon, a tag arena, anything. Claude will build it and you can refine it with follow-up messages.</p>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="composer-box">
+        <textarea id="prompt" placeholder="Describe your game idea..." rows="1"></textarea>
+        <div class="composer-foot">
+          <span class="composer-hint">Enter to send · Shift+Enter for new line</span>
+          <button class="send-btn" id="send-btn" onclick="sendPrompt()" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREVIEW PANE -->
+  <div class="preview-pane">
+    <div class="pv-topbar">
+      <div class="pv-tabs">
+        <button class="pv-tab active" id="tab-preview" onclick="pvTab('preview')">Preview</button>
+        <button class="pv-tab" id="tab-code" onclick="pvTab('code')">Code</button>
+      </div>
+      <div class="pv-sp"></div>
+      <span class="pv-status" id="pv-status"></span>
+    </div>
+    <div class="preview-body">
+      <div class="preview-placeholder" id="preview-placeholder">
+        <img src="https://htmltools.me/logo3.png" alt=""/>
+        <h3>No game yet</h3>
+        <p>Your generated game will appear here once you describe what you want to build.</p>
+      </div>
+      <iframe id="pv-iframe" sandbox="allow-scripts allow-forms allow-pointer-lock" style="display:none"></iframe>
+      <pre id="pv-code"></pre>
+      <div class="gen-overlay" id="gen-overlay">
+        <div class="spinner"></div>
+        <span id="gen-overlay-txt">Building your game…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PUBLISH MODAL -->
+<div class="modal-overlay" id="publish-overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Publish game</h2>
+      <button class="modal-x" onclick="closePublishModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <label class="field-lbl">Logo</label>
+        <div class="logo-row">
+          <img class="logo-preview" id="logo-preview" src="https://htmltools.me/logo3.png" alt=""/>
+          <div class="logo-upload-btn">Upload image<input type="file" accept="image/*" id="logo-file" onchange="handleLogoUpload(event)"/></div>
+        </div>
+        <div class="field-hint">Defaults to the Boblox logo if you skip this.</div>
+      </div>
+      <div>
+        <label class="field-lbl">Title</label>
+        <input class="field-inp" id="pub-title" placeholder="e.g. Sharcbloc749's Untitled Game"/>
+      </div>
+      <div>
+        <label class="field-lbl">Description <span style="text-transform:none;font-weight:500;">(optional)</span></label>
+        <textarea class="field-textarea" id="pub-desc" placeholder="What's this game about?"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="modal-cancel" onclick="closePublishModal()">Cancel</button>
+      <button class="modal-publish" id="modal-publish-btn" onclick="doPublish()">Publish game</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── FIREBASE ──
+var FB_CONFIG = {
+  apiKey: "AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
+  authDomain: "website-encryption-htmltools.firebaseapp.com",
+  databaseURL: "https://website-encryption-htmltools-default-rtdb.firebaseio.com",
+  projectId: "website-encryption-htmltools",
+  storageBucket: "website-encryption-htmltools.firebasestorage.app",
+  messagingSenderId: "211271935323",
+  appId: "1:211271935323:web:1abb9d416087ea89c0e67e"
+};
+var WORKER_URL = 'https://aged-heart-d9b9.bozhetarnikmatthew.workers.dev/';
+firebase.initializeApp(FB_CONFIG);
+var db = firebase.database();
+var auth = firebase.auth();
+
+// ── STATE ──
+var currentUser = null;
+var drafts = {};          // draftId -> draft object
+var activeDraftId = null;
+var isGenerating = false;
+var uploadedLogoDataUrl = null;
+
+// Data model:
+// boblox_drafts/<uid>/<draftId> = { id, title, messages:[{role,content,html?}], html, createdAt, updatedAt }
+// boblox_games/<gameId>          = { title, description, logo, ownerUid, ownerName, createdAt, updatedAt, plays, published:true }
+// boblox_game_html/<gameId>      = { html }
+
+var STUDIO_SYSTEM = [
+"You are the game-generation engine inside Boblox Studio, an AI game creator.",
+"When the user describes a game idea (or asks to modify the current one), respond with a SINGLE complete self-contained HTML file starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanation before or after — just the raw file.",
+"",
+"Rules for the game file:",
+"- It must be fully self-contained: all CSS and JS inline, no external file dependencies except CDN script tags (e.g. three.js from cdnjs) which are allowed.",
+"- For 3D games use Three.js r128 loaded from https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js (global THREE build, not modules).",
+"- For simpler 2D games (obbies can be 3D or 2D, tycoons, clickers, tag, platformers) use canvas or DOM+CSS as appropriate — pick whatever makes the game actually fun and responsive, not whatever is most complex.",
+"- Build real, working gameplay: win/lose conditions, scoring, controls that work with keyboard (WASD/arrows) and are usable, collision detection, restart/respawn logic. Do not ship an empty scene or a non-interactive tech demo.",
+"- If the user asks for something with game systems beyond a simple obstacle course (tycoon economies, inventories, NPC shops, quests, currency, upgrades, tag/combat mechanics, etc), actually implement those systems with working state and persistence via in-memory JS state (localStorage is fine for single-player progress).",
+"- Keep performance smooth: avoid unbounded object counts, use requestAnimationFrame, dispose of unused geometry.",
+"- Include a short on-screen control hint (e.g. 'WASD to move, Space to jump') so the game is playable without external instructions.",
+"- This game will run embedded in an iframe alongside a separate multiplayer chat/social layer that the platform provides — do not build your own chat, login, or friends system; just build the actual game.",
+"- When the user sends a follow-up message asking for changes, regenerate the FULL file with the requested changes applied, not a diff or partial snippet.",
+"",
+"If the user's message is not actually a game request (e.g. a question about how this works), respond in plain text instead of HTML."
+].join('\n');
+
+function esc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(window._tt); window._tt=setTimeout(function(){t.classList.remove('show');},2600); }
+
+// ── AUTH ──
+var authMode = 'signin';
+auth.onAuthStateChanged(function(user){
+  if (user) {
+    currentUser = user;
+    document.getElementById('auth-gate').classList.add('hidden');
+    var av = document.getElementById('tb-avatar');
+    av.textContent = (user.displayName || user.email || '?').charAt(0).toUpperCase();
+    loadDrafts();
+  } else {
+    currentUser = null;
+    document.getElementById('auth-gate').classList.remove('hidden');
+  }
+});
+function setAuthMode(mode){
+  authMode = mode;
+  document.getElementById('auth-err').classList.remove('show');
+  document.getElementById('auth-title').textContent = mode==='signup' ? 'Create your account' : 'Sign in to Boblox Studio';
+  document.getElementById('auth-submit').textContent = mode==='signup' ? 'Create account' : 'Sign in';
+  document.querySelector('.auth-switch-row').innerHTML = mode==='signup'
+    ? 'Already have an account? <a id="auth-switch">Sign in</a>'
+    : "Don't have an account? <a id=\"auth-switch\">Create one</a>";
+  document.getElementById('auth-switch').onclick = function(){ setAuthMode(mode==='signup'?'signin':'signup'); };
+}
+document.getElementById('auth-switch').onclick = function(){ setAuthMode('signup'); };
+document.getElementById('auth-google-btn').onclick = function(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(e){
+    if (e.code !== 'auth/popup-closed-by-user') { var el=document.getElementById('auth-err'); el.textContent=e.message; el.classList.add('show'); }
+  });
+};
+document.getElementById('auth-submit').onclick = function(){
+  var email = document.getElementById('auth-email').value.trim();
+  var pass = document.getElementById('auth-password').value;
+  var errEl = document.getElementById('auth-err');
+  errEl.classList.remove('show');
+  if (!email || !pass) { errEl.textContent='Enter email and password.'; errEl.classList.add('show'); return; }
+  var p = authMode==='signup' ? auth.createUserWithEmailAndPassword(email,pass) : auth.signInWithEmailAndPassword(email,pass);
+  p.catch(function(e){ errEl.textContent = e.message; errEl.classList.add('show'); });
+};
+
+// ── DRAFTS ──
+function userDraftsPath(){ return 'boblox_drafts/' + currentUser.uid; }
+
+function loadDrafts(){
+  db.ref(userDraftsPath()).on('value', function(snap){
+    drafts = {};
+    snap.forEach(function(child){ drafts[child.key] = child.val(); });
+    renderDraftsList();
+    if (!activeDraftId) {
+      var ids = Object.keys(drafts).sort(function(a,b){ return (drafts[b].updatedAt||0)-(drafts[a].updatedAt||0); });
+      if (ids.length) loadDraft(ids[0]); else startNewDraft();
+    }
+  });
+}
+
+function renderDraftsList(){
+  var el = document.getElementById('drafts-list');
+  var ids = Object.keys(drafts).sort(function(a,b){ return (drafts[b].updatedAt||0)-(drafts[a].updatedAt||0); });
+  if (!ids.length) { el.innerHTML = '<div class="drafts-empty">No drafts yet.<br>Start a new game to see it here.</div>'; return; }
+  el.innerHTML = ids.map(function(id){
+    var d = drafts[id], act = id===activeDraftId ? ' active' : '';
+    var sub = d.html ? 'Has a build' : 'No build yet';
+    return '<div class="draft-item'+act+'" onclick="loadDraft(\''+id+'\')">'+
+      '<div class="draft-item-title">'+esc(d.title || 'Untitled draft')+'</div>'+
+      '<div class="draft-item-sub">'+sub+'</div>'+
+    '</div>';
+  }).join('');
+}
+
+function startNewDraft(){
+  var id = 'd' + Date.now();
+  drafts[id] = { id:id, title:'Untitled draft', messages:[], html:null, createdAt:Date.now(), updatedAt:Date.now() };
+  activeDraftId = id;
+  renderDraftsList();
+  renderChat();
+  clearPreview();
+  document.getElementById('publish-btn').disabled = true;
+  document.getElementById('prompt').focus();
+}
+
+function loadDraft(id){
+  if (!drafts[id]) return;
+  activeDraftId = id;
+  renderDraftsList();
+  renderChat();
+  var d = drafts[id];
+  if (d.html) { showPreview(d.html); document.getElementById('publish-btn').disabled = false; }
+  else { clearPreview(); document.getElementById('publish-btn').disabled = true; }
+}
+
+var _draftSaveTimer = null;
+function saveActiveDraft(){
+  if (!currentUser || !activeDraftId) return;
+  var d = drafts[activeDraftId];
+  d.updatedAt = Date.now();
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = setTimeout(function(){
+    db.ref(userDraftsPath() + '/' + activeDraftId).set(d).catch(function(e){ console.warn('draft save failed', e); });
+  }, 500);
+}
+
+// ── CHAT RENDER ──
+function renderChat(){
+  var wrap = document.getElementById('chat-msgs');
+  var d = drafts[activeDraftId];
+  if (!d || !d.messages.length) {
+    wrap.innerHTML = '<div class="chat-empty" id="chat-empty"><img src="https://htmltools.me/logo3.png" alt=""/><h3>What do you want to build?</h3><p>Describe a game — an obby, a tycoon, a tag arena, anything. Claude will build it and you can refine it with follow-up messages.</p></div>';
+    return;
+  }
+  wrap.innerHTML = d.messages.map(function(m){
+    if (m.role === 'user') return '<div class="msg-user">'+esc(m.content)+'</div>';
+    if (m.html) {
+      return '<div class="msg-ai">'+
+        (m.content ? '<div style="margin-bottom:8px;">'+esc(m.content)+'</div>' : '') +
+        '<div class="msg-ai-card" onclick="showPreview(currentDraftHtml('+"'"+'x'+"'"+'))" data-html-idx="'+d.messages.indexOf(m)+'">'+
+          '<div class="msg-ai-card-icon">&lt;/&gt;</div>'+
+          '<div><div class="msg-ai-card-name">Game build</div><div class="msg-ai-card-sub">Click to preview this version</div></div>'+
+        '</div>'+
+      '</div>';
+    }
+    return '<div class="msg-ai">'+esc(m.content)+'</div>';
+  }).join('');
+  // wire up card clicks properly (avoid inline closures issue)
+  Array.prototype.forEach.call(wrap.querySelectorAll('.msg-ai-card'), function(card){
+    var idx = parseInt(card.getAttribute('data-html-idx'), 10);
+    card.onclick = function(){
+      var m = drafts[activeDraftId].messages[idx];
+      if (m && m.html) showPreview(m.html);
+    };
+  });
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ── PREVIEW ──
+function clearPreview(){
+  document.getElementById('preview-placeholder').style.display = 'flex';
+  document.getElementById('pv-iframe').style.display = 'none';
+  document.getElementById('pv-iframe').srcdoc = '';
+  document.getElementById('pv-code').textContent = '';
+  document.getElementById('pv-status').textContent = '';
+}
+function showPreview(html){
+  if (!html) return;
+  document.getElementById('preview-placeholder').style.display = 'none';
+  document.getElementById('pv-iframe').style.display = 'block';
+  document.getElementById('pv-iframe').srcdoc = html;
+  document.getElementById('pv-code').textContent = html;
+  document.getElementById('pv-status').textContent = 'Live preview';
+}
+function pvTab(tab){
+  document.getElementById('tab-preview').classList.toggle('active', tab==='preview');
+  document.getElementById('tab-code').classList.toggle('active', tab==='code');
+  document.getElementById('pv-iframe').style.display = tab==='preview' ? 'block' : 'none';
+  document.getElementById('pv-code').style.display = tab==='code' ? 'block' : 'none';
+}
+
+// ── AI GENERATION ──
+async function generateGame(apiMsgs){
+  var resp = await fetch(WORKER_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ model:'us.anthropic.claude-sonnet-4-6', system: STUDIO_SYSTEM, messages: apiMsgs })
+  });
+  if (!resp.ok) { var t = await resp.text().catch(function(){return resp.status;}); throw new Error('Worker error '+resp.status+': '+t); }
+  var data = await resp.json();
+  var raw = '';
+  if (data.content && Array.isArray(data.content)) raw = data.content.map(function(x){return x.text||'';}).join('');
+  else if (data.content) raw = String(data.content);
+  raw = raw.replace(/<think>[\s\S]*?<\/think>/gi,'').trim();
+  raw = raw.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+  var isHtml = /^<!doctype/i.test(raw) || /^<html/i.test(raw);
+  return { raw: raw, isHtml: isHtml };
+}
+
+async function sendPrompt(){
+  var promptEl = document.getElementById('prompt');
+  var text = promptEl.value.trim();
+  if (!text || isGenerating) return;
+  if (!activeDraftId) startNewDraft();
+  var d = drafts[activeDraftId];
+
+  d.messages.push({ role:'user', content:text });
+  if (d.messages.length === 1) d.title = text.slice(0,44) + (text.length>44?'…':'');
+  promptEl.value=''; promptEl.style.height='auto';
+  renderChat(); renderDraftsList(); saveActiveDraft();
+  updateSendBtn();
+
+  isGenerating = true; updateSendBtn();
+  var overlay = document.getElementById('gen-overlay');
+  document.getElementById('gen-overlay-txt').textContent = d.html ? 'Applying your changes…' : 'Building your game…';
+  overlay.classList.add('show');
+
+  // typing indicator in chat
+  var wrap = document.getElementById('chat-msgs');
+  var typingEl = document.createElement('div');
+  typingEl.className = 'msg-ai'; typingEl.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  wrap.appendChild(typingEl); wrap.scrollTop = wrap.scrollHeight;
+
+  var apiMsgs = d.messages.map(function(m){
+    return { role: m.role==='ai' ? 'assistant' : 'user', content: m.content };
+  });
+
+  try {
+    var result = await generateGame(apiMsgs);
+    typingEl.remove();
+    if (result.isHtml) {
+      d.messages.push({ role:'ai', content: d.html ? "Updated — here's the new version." : "Here's your game — take a look at the preview.", html: result.raw });
+      d.html = result.raw;
+      showPreview(result.raw);
+      document.getElementById('publish-btn').disabled = false;
+    } else {
+      d.messages.push({ role:'ai', content: result.raw });
+    }
+    renderChat(); renderDraftsList(); saveActiveDraft();
+  } catch(err) {
+    typingEl.remove();
+    d.messages.push({ role:'ai', content: 'Something went wrong generating your game: ' + (err.message||err) });
+    renderChat(); saveActiveDraft();
+  }
+  overlay.classList.remove('show');
+  isGenerating = false; updateSendBtn();
+}
+
+// ── TEXTAREA ──
+var promptEl = document.getElementById('prompt');
+promptEl.addEventListener('input', function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,150)+'px'; updateSendBtn(); });
+promptEl.addEventListener('keydown', function(e){ if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendPrompt(); } });
+function updateSendBtn(){ document.getElementById('send-btn').disabled = isGenerating || !promptEl.value.trim(); }
+
+// ── PUBLISH ──
+function openPublishModal(){
+  var d = drafts[activeDraftId];
+  if (!d || !d.html) return;
+  uploadedLogoDataUrl = null;
+  document.getElementById('logo-preview').src = 'https://htmltools.me/logo3.png';
+  var creatorName = (currentUser.displayName || (currentUser.email||'').split('@')[0] || 'Someone');
+  document.getElementById('pub-title').value = d.title && d.title !== 'Untitled draft' ? d.title : (creatorName + "'s Untitled Game");
+  document.getElementById('pub-desc').value = '';
+  document.getElementById('publish-overlay').classList.add('open');
+}
+function closePublishModal(){ document.getElementById('publish-overlay').classList.remove('open'); }
+function handleLogoUpload(e){
+  var file = e.target.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){ uploadedLogoDataUrl = ev.target.result; document.getElementById('logo-preview').src = ev.target.result; };
+  reader.readAsDataURL(file);
+}
+
+async function doPublish(){
+  var d = drafts[activeDraftId];
+  if (!d || !d.html || !currentUser) return;
+  var btn = document.getElementById('modal-publish-btn');
+  btn.disabled = true; btn.textContent = 'Publishing…';
+
+  var creatorName = (currentUser.displayName || (currentUser.email||'').split('@')[0] || 'Someone');
+  var title = document.getElementById('pub-title').value.trim() || (creatorName + "'s Untitled Game");
+  var desc = document.getElementById('pub-desc').value.trim();
+  var logo = uploadedLogoDataUrl || 'https://htmltools.me/logo3.png';
+
+  try {
+    var gameId = 'g' + Date.now() + Math.random().toString(36).slice(2,8);
+    await db.ref('boblox_games/' + gameId).set({
+      title: title, description: desc, logo: logo,
+      ownerUid: currentUser.uid, ownerName: creatorName,
+      createdAt: Date.now(), updatedAt: Date.now(), plays: 0, published: true
+    });
+    await db.ref('boblox_game_html/' + gameId).set({ html: d.html });
+    // remove the draft now that it's published
+    await db.ref(userDraftsPath() + '/' + activeDraftId).remove();
+    delete drafts[activeDraftId];
+    activeDraftId = null;
+
+    closePublishModal();
+    showToast('Published! Redirecting…');
+    setTimeout(function(){ window.location.href = '/Boblox/Game/' + gameId; }, 900);
+  } catch(err) {
+    showToast('Publish failed: ' + (err.message||err));
+    btn.disabled = false; btn.textContent = 'Publish game';
+  }
+}
+
+// helper referenced in an early render path; kept as no-op fallback
+function currentDraftHtml(){ return drafts[activeDraftId] ? drafts[activeDraftId].html : null; }
+</script>
+</body>
+</html>
