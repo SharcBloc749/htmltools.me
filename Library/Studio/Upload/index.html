@@ -862,16 +862,47 @@ window.prevToggleCode=function(which){
   }
 };
 
-/* ── AI CALLER ── */
+/* ── AI CALLER ──
+   FIX: previously used a fixed max_tokens:6000 with no truncation handling.
+   Games that needed more tokens got silently cut off mid-file, and the only
+   validity check was raw.includes('<html') which passes even on a truncated
+   response. This version:
+     1) raises max_tokens to 8192
+     2) detects stop_reason === 'max_tokens' and automatically continues the
+        generation in follow-up turns, stitching the pieces together
+     3) exposes isCompleteHTML() so callers can verify the final result
+        actually has a closing </html> before accepting it
+*/
+const isCompleteHTML=s=>!!s&&/<!doctype html/i.test(s)&&/<\/html>\s*$/i.test(s.trim());
+
 async function callAI(msgs,spd,sys){
   const model=AI_MODELS[spd]||AI_MODELS.fast;
-  const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system:sys,messages:msgs,max_tokens:6000})});
-  if(!r.ok){const t=await r.text().catch(()=>r.status);throw new Error('Error '+r.status+': '+t);}
-  const data=await r.json();
-  let raw='';
-  if(Array.isArray(data.content))raw=data.content.map(x=>x.text||'').join('');
-  else if(data.content)raw=String(data.content);
-  return raw.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+  let fullText='';
+  let roundMsgs=[...msgs];
+  const MAX_ROUNDS=4; // safety cap on continuation calls
+
+  for(let round=0;round<MAX_ROUNDS;round++){
+    const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system:sys,messages:roundMsgs,max_tokens:8192})});
+    if(!r.ok){const t=await r.text().catch(()=>r.status);throw new Error('Error '+r.status+': '+t);}
+    const data=await r.json();
+    let raw='';
+    if(Array.isArray(data.content))raw=data.content.map(x=>x.text||'').join('');
+    else if(data.content)raw=String(data.content);
+    fullText+=raw;
+
+    const stopReason=data.stop_reason||data.stopReason;
+    if(stopReason!=='max_tokens'){
+      break; // model finished naturally
+    }
+    // Truncated by the token limit — ask it to continue from exactly
+    // where it left off instead of silently accepting a broken file.
+    roundMsgs=[...roundMsgs,
+      {role:'assistant',content:raw},
+      {role:'user',content:'Continue exactly where you left off, picking up from the very next character. Do not repeat anything you already wrote, do not add commentary, explanations, or code fences — just the raw continuation of the HTML file.'}
+    ];
+  }
+
+  return fullText.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
 }
 
 function enforceLimit(code){
@@ -915,7 +946,7 @@ window.aiGenerate=async function(){
   _ai.conv=[{role:'user',content:prompt}];
   try{
     let raw=await callAI(_ai.conv,_ai.spd,SYS_GEN);
-    if(!raw||!raw.includes('<html'))throw new Error('AI did not return valid HTML. Try rephrasing.');
+    if(!isCompleteHTML(raw))throw new Error('AI did not return a complete HTML file (it may have been cut off). Try again or use Smart mode.');
     const{code,truncated,count}=enforceLimit(raw);
     _ai.code=code;_ai.conv.push({role:'assistant',content:code});
     if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines (was ${count}).`,'');
@@ -950,7 +981,7 @@ window.aiRefine=async function(){
   _ai.conv.push({role:'user',content:txt});
   try{
     let raw=await callAI(_ai.conv,_ai.spd,SYS_GEN);
-    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML.');
+    if(!isCompleteHTML(raw))throw new Error('AI returned an incomplete HTML file. Try again.');
     const{code,truncated}=enforceLimit(raw);
     _ai.code=code;_ai.conv.push({role:'assistant',content:code});
     if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
@@ -1052,7 +1083,7 @@ window.remixGenerate=async function(){
   _rx.conv=[{role:'user',content:userMsg}];
   try{
     let raw=await callAI(_rx.conv,_rx.spd,SYS_REMIX);
-    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML. Try rephrasing.');
+    if(!isCompleteHTML(raw))throw new Error('AI did not return a complete HTML file (it may have been cut off). Try again or use Smart mode.');
     const{code,truncated,count}=enforceLimit(raw);
     _rx.code=code;_rx.conv.push({role:'assistant',content:code});
     if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines (was ${count}).`,'');
@@ -1082,7 +1113,7 @@ window.remixRefine=async function(){
   _rx.conv.push({role:'user',content:userMsg});
   try{
     let raw=await callAI(_rx.conv,_rx.spd,SYS_REMIX);
-    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML.');
+    if(!isCompleteHTML(raw))throw new Error('AI returned an incomplete HTML file. Try again.');
     const{code,truncated}=enforceLimit(raw);
     _rx.code=code;_rx.conv.push({role:'assistant',content:code});
     if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
@@ -1180,7 +1211,7 @@ window.aieditGenerate=async function(){
   _ae.conv.push({role:'user',content:userMsg});
   try{
     let raw=await callAI(_ae.conv,_ae.spd,SYS_EDIT);
-    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML. Try rephrasing.');
+    if(!isCompleteHTML(raw))throw new Error('AI did not return a complete HTML file (it may have been cut off). Try again or use Smart mode.');
     const{code,truncated,count}=enforceLimit(raw);
     _ae.code=code;_ae.conv.push({role:'assistant',content:code});
     if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
@@ -1210,7 +1241,7 @@ window.aieditRefine=async function(){
   _ae.conv.push({role:'user',content:userMsg});
   try{
     let raw=await callAI(_ae.conv,_ae.spd,SYS_EDIT);
-    if(!raw||!raw.includes('<html'))throw new Error('AI returned invalid HTML.');
+    if(!isCompleteHTML(raw))throw new Error('AI returned an incomplete HTML file. Try again.');
     const{code,truncated}=enforceLimit(raw);
     _ae.code=code;_ae.conv.push({role:'assistant',content:code});
     if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
@@ -1487,5 +1518,6 @@ function restoreDraftUI(d){
   showToast('Draft restored!','ok');
 }
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
