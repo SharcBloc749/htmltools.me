@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Boblox</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --bg:#0f0f0f; --panel:#181818; --panel-hi:#1f1f1f; --input-bg:#141414;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.13); --border3:rgba(255,255,255,.2);
+  --tx:#ffffff; --tx2:rgba(255,255,255,.65); --tx3:rgba(255,255,255,.38);
+  --accent:#00A2FF; --accent-hover:#33B5FF; --accent-dim:rgba(0,162,255,.14);
+  --green:#4ade80;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--tx);font-family:var(--font);height:100%;font-size:14px;overflow:hidden;}
+button{font-family:inherit;cursor:pointer;border:none;background:transparent;color:inherit;}
+input{font-family:inherit;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:7px;height:7px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px;}
+body{display:flex;flex-direction:column;}
+
+/* AUTH GATE (lightweight) */
+.auth-gate{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.auth-gate.hidden{display:none;}
+.auth-box{background:var(--panel);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:360px;padding:24px;text-align:center;}
+.auth-box img{width:34px;height:34px;border-radius:8px;margin-bottom:12px;}
+.auth-box h2{font-size:1.05rem;font-weight:800;margin-bottom:6px;}
+.auth-box p{font-size:.78rem;color:var(--tx3);margin-bottom:16px;line-height:1.5;}
+.auth-google{width:100%;height:38px;background:var(--panel-hi);border:1px solid var(--border2);border-radius:8px;font-size:.82rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:9px;}
+.auth-google:hover{border-color:var(--border3);}
+.auth-note{font-size:.68rem;color:var(--tx3);margin-top:12px;}
+
+/* TOPBAR */
+.topbar{height:52px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--border);background:var(--bg);z-index:10;}
+.back-btn{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--tx2);flex-shrink:0;}
+.back-btn:hover{background:var(--panel-hi);color:var(--tx);}
+.game-logo{width:30px;height:30px;border-radius:7px;object-fit:cover;flex-shrink:0;background:var(--panel);}
+.game-info{min-width:0;}
+.game-title{font-size:.86rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.game-meta{font-size:.68rem;color:var(--tx3);}
+.tb-sp{flex:1;}
+.tb-btn{height:32px;padding:0 12px;border-radius:8px;font-size:.75rem;font-weight:600;color:var(--tx2);display:flex;align-items:center;gap:6px;}
+.tb-btn:hover{background:var(--panel-hi);color:var(--tx);}
+.tb-btn.active{background:var(--accent-dim);color:var(--accent);}
+.online-pill{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--tx2);padding:0 4px;}
+.online-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;}
+
+/* BODY */
+.body-wrap{flex:1;display:flex;min-height:0;}
+.game-area{flex:1;min-width:0;background:#000;position:relative;}
+#game-iframe{width:100%;height:100%;border:none;background:#fff;display:block;}
+.game-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);}
+.spinner{width:28px;height:28px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.game-loading span{font-size:.78rem;color:var(--tx3);}
+.game-error{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--bg);text-align:center;padding:20px;}
+.game-error h3{font-size:.95rem;color:var(--tx2);}
+.game-error p{font-size:.78rem;color:var(--tx3);max-width:280px;}
+
+/* SOCIAL SIDEBAR */
+.social-sb{width:320px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--panel);transition:margin .2s;}
+.social-sb.collapsed{margin-right:-320px;}
+
+/* Lobby (3D avatars) */
+.lobby-wrap{position:relative;height:190px;flex-shrink:0;border-bottom:1px solid var(--border);background:#0a0a12;}
+#lobby-canvas{width:100%;height:100%;display:block;}
+.lobby-hint{position:absolute;bottom:6px;left:8px;font-size:.62rem;color:rgba(255,255,255,.45);pointer-events:none;background:rgba(0,0,0,.4);padding:2px 7px;border-radius:5px;}
+.nametag{
+  position:absolute;transform:translate(-50%,-100%);font-size:.62rem;font-weight:700;color:#fff;
+  background:rgba(0,0,0,.55);padding:2px 6px;border-radius:5px;white-space:nowrap;pointer-events:none;
+}
+
+/* Tabs */
+.social-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.social-tab{flex:1;padding:10px 0;text-align:center;font-size:.72rem;font-weight:700;color:var(--tx3);border-bottom:2px solid transparent;}
+.social-tab.active{color:var(--tx);border-bottom-color:var(--accent);}
+
+/* Players tab */
+.players-list{flex:1;overflow-y:auto;padding:10px;display:none;flex-direction:column;gap:4px;}
+.players-list.active{display:flex;}
+.player-row{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:9px;}
+.player-row:hover{background:var(--panel-hi);}
+.player-mini-avatar{width:30px;height:30px;border-radius:8px;background:linear-gradient(180deg,#F5D742 0%,#F5D742 40%,#2E5FA3 40%,#2E5FA3 75%,#4CAF50 75%);flex-shrink:0;border:1px solid var(--border2);}
+.player-name{flex:1;font-size:.78rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.player-you{font-size:.63rem;color:var(--tx3);}
+.friend-btn{height:26px;padding:0 10px;border-radius:7px;font-size:.66rem;font-weight:700;border:1px solid var(--border2);color:var(--tx2);flex-shrink:0;}
+.friend-btn:hover{background:var(--accent-dim);border-color:rgba(0,162,255,.4);color:var(--accent);}
+.friend-btn.added{color:var(--green);border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.08);}
+.players-empty{padding:30px 14px;text-align:center;font-size:.75rem;color:var(--tx3);line-height:1.6;}
+
+/* Chat tab */
+.chat-wrap{flex:1;display:none;flex-direction:column;min-height:0;}
+.chat-wrap.active{display:flex;}
+.chat-msgs{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;}
+.chat-row{display:flex;flex-direction:column;gap:1px;}
+.chat-row .who{font-size:.66rem;font-weight:700;color:var(--accent);}
+.chat-row .who.me{color:var(--tx2);}
+.chat-row .txt{font-size:.8rem;line-height:1.45;color:var(--tx);word-break:break-word;}
+.chat-empty2{margin:auto;text-align:center;font-size:.75rem;color:var(--tx3);padding:20px;}
+.chat-input-row{display:flex;gap:6px;padding:9px;border-top:1px solid var(--border);flex-shrink:0;}
+.chat-input{flex:1;height:34px;background:var(--input-bg);border:1px solid var(--border2);border-radius:8px;color:var(--tx);font-size:.78rem;padding:0 11px;outline:none;}
+.chat-input:focus{border-color:var(--accent);}
+.chat-send{width:34px;height:34px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.chat-send:hover{background:var(--accent-hover);}
+
+@media (max-width:760px){
+  .social-sb{position:fixed;right:0;top:52px;bottom:0;width:280px;z-index:20;box-shadow:-20px 0 40px rgba(0,0,0,.5);}
+  .social-sb.collapsed{margin-right:-280px;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div class="auth-gate" id="auth-gate">
+  <div class="auth-box">
+    <img src="https://htmltools.me/logo3.png" alt=""/>
+    <h2>Sign in to play</h2>
+    <p>You need an account to play, chat, and add friends on Boblox.</p>
+    <button class="auth-google" id="auth-google-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </button>
+    <div class="auth-note">Or go back and sign in from the Boblox home page.</div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="back-btn" href="/Boblox/">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="15 18 9 12 15 6"/></svg>
+  </a>
+  <img class="game-logo" id="game-logo" src="https://htmltools.me/logo3.png" alt=""/>
+  <div class="game-info">
+    <div class="game-title" id="game-title">Loading…</div>
+    <div class="game-meta" id="game-meta"></div>
+  </div>
+  <div class="tb-sp"></div>
+  <div class="online-pill"><span class="online-dot"></span><span id="online-count">1</span> online</div>
+  <button class="tb-btn" id="social-toggle" onclick="toggleSocial()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Chat &amp; Players
+  </button>
+</div>
+
+<div class="body-wrap">
+  <div class="game-area">
+    <iframe id="game-iframe" sandbox="allow-scripts allow-forms allow-pointer-lock" style="display:none"></iframe>
+    <div class="game-loading" id="game-loading"><div class="spinner"></div><span>Loading game…</span></div>
+    <div class="game-error" id="game-error"><h3>Game not found</h3><p>This game may have been removed or the link is incorrect.</p></div>
+  </div>
+
+  <div class="social-sb" id="social-sb">
+    <div class="lobby-wrap">
+      <canvas id="lobby-canvas"></canvas>
+      <div class="lobby-hint">WASD to walk</div>
+    </div>
+    <div class="social-tabs">
+      <button class="social-tab active" id="tab-btn-players" onclick="switchTab('players')">Players</button>
+      <button class="social-tab" id="tab-btn-chat" onclick="switchTab('chat')">Chat</button>
+    </div>
+    <div class="players-list active" id="players-list"></div>
+    <div class="chat-wrap" id="chat-wrap">
+      <div class="chat-msgs" id="chat-msgs"><div class="chat-empty2">No messages yet. Say hi!</div></div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" placeholder="Message players in this game…" maxlength="300"/>
+        <button class="chat-send" onclick="sendChat()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── FIREBASE ──
+var FB_CONFIG = {
+  apiKey: "AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
+  authDomain: "website-encryption-htmltools.firebaseapp.com",
+  databaseURL: "https://website-encryption-htmltools-default-rtdb.firebaseio.com",
+  projectId: "website-encryption-htmltools",
+  storageBucket: "website-encryption-htmltools.firebasestorage.app",
+  messagingSenderId: "211271935323",
+  appId: "1:211271935323:web:1abb9d416087ea89c0e67e"
+};
+firebase.initializeApp(FB_CONFIG);
+var db = firebase.database();
+var auth = firebase.auth();
+
+// ── GAME ID FROM URL ──
+// Works whether served at /Boblox/Game/<id> (via the Worker) or with a query param fallback.
+function getGameId(){
+  var parts = location.pathname.split('/').filter(Boolean); // ["Boblox","Game","<id>"]
+  var idx = parts.indexOf('Game');
+  if (idx > -1 && parts[idx+1] && parts[idx+1] !== 'index.html') return decodeURIComponent(parts[idx+1]);
+  var q = new URLSearchParams(location.search).get('id');
+  return q || null;
+}
+var GAME_ID = getGameId();
+
+function esc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── AUTH ──
+var currentUser = null;
+auth.onAuthStateChanged(function(user){
+  if (user) {
+    currentUser = user;
+    document.getElementById('auth-gate').classList.add('hidden');
+    boot();
+  } else {
+    currentUser = null;
+    document.getElementById('auth-gate').classList.remove('hidden');
+  }
+});
+document.getElementById('auth-google-btn').onclick = function(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(e){
+    if (e.code !== 'auth/popup-closed-by-user') alert(e.message);
+  });
+};
+
+var booted = false;
+function boot(){
+  if (booted) return; booted = true;
+  if (!GAME_ID) {
+    document.getElementById('game-loading').style.display='none';
+    document.getElementById('game-error').style.display='flex';
+    return;
+  }
+  loadGame();
+  initPresenceAndLobby();
+  initChat();
+}
+
+// ── LOAD GAME ──
+function loadGame(){
+  db.ref('boblox_games/' + GAME_ID).once('value').then(function(snap){
+    if (!snap.exists()) { showGameError(); return; }
+    var g = snap.val();
+    document.getElementById('game-title').textContent = g.title || 'Untitled Game';
+    document.getElementById('game-meta').textContent = 'by ' + (g.ownerName || 'Unknown') + ' · ' + ((g.plays||0)+1) + ' plays';
+    if (g.logo) document.getElementById('game-logo').src = g.logo;
+    document.title = (g.title || 'Boblox') + ' — Boblox';
+    db.ref('boblox_games/' + GAME_ID + '/plays').transaction(function(v){ return (v||0)+1; });
+
+    return db.ref('boblox_game_html/' + GAME_ID).once('value');
+  }).then(function(htmlSnap){
+    if (!htmlSnap) return;
+    if (!htmlSnap.exists()) { showGameError(); return; }
+    var html = htmlSnap.val().html;
+    var frame = document.getElementById('game-iframe');
+    frame.srcdoc = html;
+    frame.onload = function(){
+      document.getElementById('game-loading').style.display = 'none';
+      frame.style.display = 'block';
+    };
+  }).catch(function(err){
+    console.warn(err);
+    showGameError();
+  });
+}
+function showGameError(){
+  document.getElementById('game-loading').style.display='none';
+  document.getElementById('game-error').style.display='flex';
+}
+
+// ── SOCIAL PANEL TOGGLE / TABS ──
+function toggleSocial(){
+  var sb = document.getElementById('social-sb');
+  sb.classList.toggle('collapsed');
+  document.getElementById('social-toggle').classList.toggle('active', !sb.classList.contains('collapsed'));
+}
+function switchTab(tab){
+  document.getElementById('tab-btn-players').classList.toggle('active', tab==='players');
+  document.getElementById('tab-btn-chat').classList.toggle('active', tab==='chat');
+  document.getElementById('players-list').classList.toggle('active', tab==='players');
+  document.getElementById('chat-wrap').classList.toggle('active', tab==='chat');
+}
+
+// ── CHAT ──
+function initChat(){
+  var msgsEl = document.getElementById('chat-msgs');
+  db.ref('boblox_chat/' + GAME_ID).limitToLast(60).on('value', function(snap){
+    var arr = [];
+    snap.forEach(function(c){ arr.push(c.val()); });
+    if (!arr.length) { msgsEl.innerHTML = '<div class="chat-empty2">No messages yet. Say hi!</div>'; return; }
+    msgsEl.innerHTML = arr.map(function(m){
+      var mine = m.uid === currentUser.uid;
+      return '<div class="chat-row"><span class="who'+(mine?' me':'')+'">'+esc(m.name)+'</span><span class="txt">'+esc(m.text)+'</span></div>';
+    }).join('');
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+  });
+
+  document.getElementById('chat-input').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') sendChat();
+  });
+}
+function sendChat(){
+  var inp = document.getElementById('chat-input');
+  var text = inp.value.trim();
+  if (!text || !currentUser) return;
+  inp.value = '';
+  var name = currentUser.displayName || (currentUser.email||'').split('@')[0] || 'Player';
+  db.ref('boblox_chat/' + GAME_ID).push({ uid: currentUser.uid, name: name, text: text.slice(0,300), ts: Date.now() });
+}
+
+// ── PRESENCE + 3D LOBBY (walking avatars, name tags, friends) ──
+var scene, camera, renderer, clock;
+var localAvatar, others = {}; // uid -> { group, targetX, targetZ, targetRot, name }
+var keys = {};
+var myPos = { x:0, z:0, rot:0 };
+var MOVE_SPEED = 2.6;
+
+function buildAvatarMesh(){
+  var group = new THREE.Group();
+  var yellow = new THREE.MeshLambertMaterial({ color: 0xF5D742 });
+  var blue   = new THREE.MeshLambertMaterial({ color: 0x2E5FA3 });
+  var green  = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+
+  var head = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.42,0.42), yellow);
+  head.position.y = 1.62; group.add(head);
+
+  var torso = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.62,0.28), blue);
+  torso.position.y = 1.12; group.add(torso);
+
+  var armGeo = new THREE.BoxGeometry(0.18,0.58,0.18);
+  var armL = new THREE.Mesh(armGeo, yellow); armL.position.set(-0.34,1.12,0); armL.geometry.translate(0,-0.29,0); armL.position.y = 1.41;
+  var armR = new THREE.Mesh(armGeo, yellow); armR.position.set(0.34,1.12,0); armR.geometry.translate(0,-0.29,0); armR.position.y = 1.41;
+  group.add(armL, armR);
+
+  var legGeo = new THREE.BoxGeometry(0.2,0.58,0.2);
+  var legL = new THREE.Mesh(legGeo, green); legL.geometry.translate(0,-0.29,0); legL.position.set(-0.13,0.83,0);
+  var legR = new THREE.Mesh(legGeo, green); legR.geometry.translate(0,-0.29,0); legR.position.set(0.13,0.83,0);
+  group.add(legL, legR);
+
+  group.userData.parts = { armL:armL, armR:armR, legL:legL, legR:legR };
+  return group;
+}
+
+function initPresenceAndLobby(){
+  var canvas = document.getElementById('lobby-canvas');
+  var wrap = document.getElementById('lobby-wrap') || canvas.parentElement;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0a12);
+  scene.fog = new THREE.Fog(0x0a0a12, 5, 14);
+
+  camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+
+  renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+  function resizeRenderer(){
+    var w = canvas.clientWidth || wrap.clientWidth, h = canvas.clientHeight || wrap.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / Math.max(h,1);
+    camera.updateProjectionMatrix();
+  }
+  resizeRenderer();
+  window.addEventListener('resize', resizeRenderer);
+
+  var hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 0.9); scene.add(hemi);
+  var dir = new THREE.DirectionalLight(0xffffff, 0.7); dir.position.set(4,6,3); scene.add(dir);
+
+  var floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(20,20),
+    new THREE.MeshLambertMaterial({ color: 0x16161f })
+  );
+  floor.rotation.x = -Math.PI/2; scene.add(floor);
+
+  var grid = new THREE.GridHelper(20, 20, 0x2a2a3a, 0x1c1c28); scene.add(grid);
+
+  localAvatar = buildAvatarMesh();
+  scene.add(localAvatar);
+
+  clock = new THREE.Clock();
+
+  window.addEventListener('keydown', function(e){ keys[e.key.toLowerCase()] = true; });
+  window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()] = false; });
+
+  var myName = currentUser.displayName || (currentUser.email||'').split('@')[0] || 'Player';
+  var presenceRef = db.ref('boblox_presence/' + GAME_ID + '/' + currentUser.uid);
+  presenceRef.onDisconnect().remove();
+
+  var lastSent = 0;
+  function heartbeat(){
+    var now = Date.now();
+    if (now - lastSent > 150) {
+      presenceRef.set({ name: myName, x: myPos.x, z: myPos.z, rot: myPos.rot, ts: now });
+      lastSent = now;
+    }
+  }
+
+  db.ref('boblox_presence/' + GAME_ID).on('value', function(snap){
+    var seen = {};
+    var count = 0;
+    snap.forEach(function(child){
+      var uid = child.key;
+      count++;
+      if (uid === currentUser.uid) return;
+      var v = child.val();
+      seen[uid] = true;
+      if (!others[uid]) {
+        var mesh = buildAvatarMesh();
+        scene.add(mesh);
+        others[uid] = { group: mesh, x: v.x||0, z: v.z||0, rot: v.rot||0, name: v.name || 'Player', walking:false };
+      }
+      var o = others[uid];
+      o.walking = (Math.abs((v.x||0) - o.x) > 0.01 || Math.abs((v.z||0) - o.z) > 0.01);
+      o.x = v.x || 0; o.z = v.z || 0; o.rot = v.rot || 0; o.name = v.name || 'Player';
+    });
+    Object.keys(others).forEach(function(uid){
+      if (!seen[uid]) { scene.remove(others[uid].group); delete others[uid]; }
+    });
+    document.getElementById('online-count').textContent = Math.max(count,1);
+    renderPlayersList(seen, myName);
+  });
+
+  function renderPlayersList(others_uids, myName){
+    var el = document.getElementById('players-list');
+    var rows = [];
+    rows.push({ uid: currentUser.uid, name: myName + ' (you)', isMe: true });
+    Object.keys(others).forEach(function(uid){
+      rows.push({ uid: uid, name: others[uid].name, isMe: false });
+    });
+    if (rows.length <= 1) {
+      el.innerHTML = '<div class="player-row"><div class="player-mini-avatar"></div><div class="player-name">'+esc(myName)+' <span class="player-you">(you)</span></div></div>'+
+        '<div class="players-empty">No one else is here right now.<br>Invite friends to this game!</div>';
+      return;
+    }
+    el.innerHTML = rows.map(function(r){
+      if (r.isMe) return '<div class="player-row"><div class="player-mini-avatar"></div><div class="player-name">'+esc(myName)+' <span class="player-you">(you)</span></div></div>';
+      return '<div class="player-row"><div class="player-mini-avatar"></div><div class="player-name">'+esc(r.name)+'</div>'+
+        '<button class="friend-btn" id="fbtn-'+r.uid+'" onclick="addFriend(\''+r.uid+'\',\''+esc(r.name).replace(/'/g,"&#39;")+'\',this)">Add Friend</button></div>';
+    }).join('');
+    // mark already-friends
+    Object.keys(others).forEach(function(uid){
+      db.ref('boblox_friends/' + currentUser.uid + '/' + uid).once('value').then(function(s){
+        var btn = document.getElementById('fbtn-'+uid);
+        if (btn && s.exists()) { btn.textContent = 'Friends ✓'; btn.classList.add('added'); btn.disabled = true; }
+      });
+    });
+  }
+
+  // nametag overlay divs
+  var tagPool = {};
+  function ensureTag(id){
+    if (tagPool[id]) return tagPool[id];
+    var d = document.createElement('div');
+    d.className = 'nametag';
+    document.getElementById('lobby-wrap') ? document.querySelector('.lobby-wrap').appendChild(d) : wrap.appendChild(d);
+    tagPool[id] = d;
+    return d;
+  }
+  function project(obj, name, uid){
+    var pos = obj.position.clone(); pos.y += 1.95;
+    pos.project(camera);
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    var x = (pos.x*0.5+0.5)*w, y = (-pos.y*0.5+0.5)*h;
+    var visible = pos.z < 1;
+    var tag = ensureTag(uid);
+    tag.style.display = visible ? 'block' : 'none';
+    tag.style.left = x+'px'; tag.style.top = y+'px';
+    tag.textContent = name;
+  }
+
+  function animateWalk(group, t, moving){
+    var p = group.userData.parts;
+    var amp = moving ? 0.5 : 0;
+    p.armL.rotation.x = Math.sin(t*7)*amp;
+    p.armR.rotation.x = -Math.sin(t*7)*amp;
+    p.legL.rotation.x = -Math.sin(t*7)*amp;
+    p.legR.rotation.x = Math.sin(t*7)*amp;
+  }
+
+  function animate(){
+    requestAnimationFrame(animate);
+    var dt = Math.min(clock.getDelta(), 0.1);
+    var t = clock.elapsedTime;
+
+    var mx=0, mz=0;
+    if (keys['w']||keys['arrowup']) mz -= 1;
+    if (keys['s']||keys['arrowdown']) mz += 1;
+    if (keys['a']||keys['arrowleft']) mx -= 1;
+    if (keys['d']||keys['arrowright']) mx += 1;
+    var moving = (mx!==0||mz!==0);
+    if (moving) {
+      var len = Math.hypot(mx,mz); mx/=len; mz/=len;
+      myPos.x = THREE.MathUtils.clamp(myPos.x + mx*MOVE_SPEED*dt, -9, 9);
+      myPos.z = THREE.MathUtils.clamp(myPos.z + mz*MOVE_SPEED*dt, -9, 9);
+      myPos.rot = Math.atan2(mx, mz);
+    }
+    localAvatar.position.set(myPos.x, 0, myPos.z);
+    localAvatar.rotation.y = myPos.rot;
+    animateWalk(localAvatar, t, moving);
+
+    // camera follows local avatar, third-person
+    var camOffset = new THREE.Vector3(0, 2.4, 3.6);
+    var desired = localAvatar.position.clone().add(camOffset);
+    camera.position.lerp(desired, 0.12);
+    camera.lookAt(localAvatar.position.x, 1.2, localAvatar.position.z);
+
+    Object.keys(others).forEach(function(uid){
+      var o = others[uid];
+      o.group.position.lerp(new THREE.Vector3(o.x,0,o.z), 0.25);
+      o.group.rotation.y = o.rot;
+      animateWalk(o.group, t, o.walking);
+      project(o.group, o.name, uid);
+    });
+
+    heartbeat();
+    renderer.render(scene, camera);
+  }
+  animate();
+}
+
+function addFriend(uid, name, btnEl){
+  if (!currentUser) return;
+  var myName = currentUser.displayName || (currentUser.email||'').split('@')[0] || 'Player';
+  Promise.all([
+    db.ref('boblox_friends/' + currentUser.uid + '/' + uid).set({ name: name, addedAt: Date.now() }),
+    db.ref('boblox_friends/' + uid + '/' + currentUser.uid).set({ name: myName, addedAt: Date.now() })
+  ]).then(function(){
+    btnEl.textContent = 'Friends ✓';
+    btnEl.classList.add('added');
+    btnEl.disabled = true;
+  }).catch(function(err){ console.warn('add friend failed', err); });
+}
+</script>
+</body>
+</html>
