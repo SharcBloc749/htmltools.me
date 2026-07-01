@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Boblox - HTMLTools</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png"/>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+:root{
+  --bg:#0f0f0f;
+  --panel:#181818;
+  --panel-hi:#1f1f1f;
+  --card:#181818;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.13);
+  --tx:#ffffff;
+  --tx2:rgba(255,255,255,.65);
+  --tx3:rgba(255,255,255,.38);
+  --accent:#00A2FF;
+  --accent-hover:#33B5FF;
+  --sidebar-w:76px;
+  --font: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--tx);font-family:var(--font);min-height:100%;font-size:14px;}
+button{font-family:inherit;cursor:pointer;border:none;background:transparent;color:inherit;}
+input{font-family:inherit;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px;}
+body{display:flex;}
+
+/* SIDEBAR */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;padding:14px 0;gap:2px;position:sticky;top:0;height:100vh;border-right:1px solid var(--border);
+}
+.sb-item{
+  width:60px;padding:9px 0 7px;display:flex;flex-direction:column;align-items:center;gap:4px;
+  border-radius:8px;color:var(--tx2);transition:background .12s,color .12s;
+}
+.sb-item:hover{background:var(--panel-hi);color:var(--tx);}
+.sb-item.active{color:var(--tx);}
+.sb-item svg{width:22px;height:22px;}
+.sb-item span{font-size:.62rem;font-weight:600;letter-spacing:.01em;}
+.sb-logo{width:34px;height:34px;border-radius:8px;margin-bottom:14px;}
+
+/* MAIN */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+/* TOPBAR */
+.topbar{
+  height:64px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 22px;
+  background:var(--bg);position:sticky;top:0;z-index:50;border-bottom:1px solid var(--border);
+}
+.brand{display:flex;align-items:center;gap:9px;flex-shrink:0;}
+.brand img{width:26px;height:26px;border-radius:6px;display:block;}
+.brand span{font-size:1.35rem;font-weight:800;letter-spacing:-.02em;}
+.search-wrap{flex:1;max-width:640px;position:relative;}
+.search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--tx3);pointer-events:none;}
+#search{
+  width:100%;height:40px;background:var(--panel);border:1px solid var(--border2);border-radius:8px;
+  color:var(--tx);font-size:.85rem;padding:0 14px 0 40px;outline:none;transition:border-color .12s,background .12s;
+}
+#search:focus{border-color:var(--accent);background:var(--panel-hi);}
+#search::placeholder{color:var(--tx3);}
+.top-sp{flex:1;}
+.tb-link{
+  height:38px;padding:0 16px;border-radius:20px;font-size:.8rem;font-weight:700;display:flex;
+  align-items:center;gap:7px;transition:all .12s;flex-shrink:0;
+}
+.tb-link.primary{background:var(--accent);color:#fff;}
+.tb-link.primary:hover{background:var(--accent-hover);}
+
+/* WRAP */
+.wrap{max-width:1600px;width:100%;margin:0 auto;padding:22px 24px 60px;}
+.section-hdr{display:flex;align-items:center;gap:8px;margin:28px 0 14px;}
+.section-hdr:first-child{margin-top:2px;}
+.section-hdr h2{font-size:1.15rem;font-weight:800;letter-spacing:-.01em;}
+.section-hdr .count{font-size:.72rem;color:var(--tx3);font-weight:600;}
+.section-hdr .chev{color:var(--tx3);}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px 14px;}
+
+/* CARD */
+.card{display:flex;flex-direction:column;cursor:pointer;}
+.card-thumb{
+  width:100%;aspect-ratio:16/10;background:var(--card);border-radius:10px;overflow:hidden;position:relative;
+  display:flex;align-items:center;justify-content:center;border:1px solid var(--border);
+  transition:transform .14s ease, box-shadow .14s ease;
+}
+.card:hover .card-thumb{transform:translateY(-2px) scale(1.015);box-shadow:0 10px 26px rgba(0,0,0,.5);}
+.card-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.card-thumb .fallback{width:48px;height:48px;border-radius:10px;opacity:.3;}
+.card-title{font-size:.85rem;font-weight:700;color:var(--tx);margin-top:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-meta{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:.72rem;color:var(--tx3);font-weight:600;}
+.card-meta svg{width:12px;height:12px;flex-shrink:0;}
+.card-meta .dot{width:2px;height:2px;border-radius:50%;background:var(--tx3);}
+.card-owner{font-size:.7rem;color:var(--tx3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* EMPTY / SKELETON */
+.empty-state{
+  padding:80px 20px;text-align:center;color:var(--tx3);border:1px dashed var(--border2);border-radius:14px;grid-column:1/-1;
+}
+.empty-state h3{color:var(--tx2);font-size:1rem;margin-bottom:7px;font-weight:700;}
+.empty-state p{font-size:.8rem;line-height:1.6;max-width:340px;margin:0 auto 18px;}
+.skel .card-thumb{background:linear-gradient(90deg,var(--panel) 25%,var(--panel-hi) 50%,var(--panel) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border:1px solid var(--border);}
+.skel-line{height:9px;background:var(--panel);border-radius:4px;margin-top:9px;}
+.skel-line.w60{width:55%;margin-top:6px;height:7px;}
+@keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+
+@media (max-width:760px){
+  .sidebar{display:none;}
+  .brand span{display:none;}
+  .topbar{padding:0 14px;gap:10px;}
+  .wrap{padding:16px 14px 50px;}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px 10px;}
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <img class="sb-logo" src="https://htmltools.me/logo3.png" alt=""/>
+  <a class="sb-item active" href="/Boblox/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 22V12h6v10"/></svg>
+    <span>Home</span>
+  </a>
+  <a class="sb-item" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+    <span>Charts</span>
+  </a>
+  <a class="sb-item" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+    <span>Avatar</span>
+  </a>
+  <a class="sb-item" href="/Boblox/Studio/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span>Create</span>
+  </a>
+  <a class="sb-item" href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+    <span>More</span>
+  </a>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <a class="brand" href="/Boblox/">
+      <img src="https://htmltools.me/logo3.png" alt="Boblox"/>
+      <span>Boblox</span>
+    </a>
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search" type="text" placeholder="Search games..." oninput="onSearch(this.value)"/>
+    </div>
+    <div class="top-sp"></div>
+    <a class="tb-link primary" href="/Boblox/Studio/">Create</a>
+  </div>
+
+  <div class="wrap">
+    <div class="section-hdr">
+      <h2 id="results-hdr">Recommended For You</h2>
+      <span class="count" id="results-count"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<script>
+var FB_CONFIG = {
+  apiKey: "AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
+  authDomain: "website-encryption-htmltools.firebaseapp.com",
+  databaseURL: "https://website-encryption-htmltools-default-rtdb.firebaseio.com",
+  projectId: "website-encryption-htmltools",
+  storageBucket: "website-encryption-htmltools.firebasestorage.app",
+  messagingSenderId: "211271935323",
+  appId: "1:211271935323:web:1abb9d416087ea89c0e67e"
+};
+firebase.initializeApp(FB_CONFIG);
+var db = firebase.database();
+
+// Games live at: boblox_games/<gameId> = {
+//   id, title, description, logo, ownerUid, ownerName,
+//   createdAt, updatedAt, plays, published: true
+// }
+
+var allGames = [];
+var query = '';
+
+function esc(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderSkeletons(n){
+  var grid = document.getElementById('grid');
+  var html = '';
+  for (var i=0;i<n;i++){
+    html += '<div class="card skel"><div class="card-thumb"></div><div class="skel-line"></div><div class="skel-line w60"></div></div>';
+  }
+  grid.innerHTML = html;
+}
+
+function cardHtml(g){
+  var thumb = g.logo
+    ? '<img src="'+esc(g.logo)+'" alt="" onerror="this.parentElement.innerHTML=\'<img class=fallback src=https://htmltools.me/logo3.png>\'"/>'
+    : '<img class="fallback" src="https://htmltools.me/logo3.png" alt=""/>';
+  var plays = (g.plays || 0);
+  var playsTxt = plays === 1 ? '1 play' : (plays >= 1000 ? (plays/1000).toFixed(1)+'k plays' : plays + ' plays');
+  return '<a class="card" href="/Boblox/Game/'+encodeURIComponent(g.id)+'">' +
+    '<div class="card-thumb">'+thumb+'</div>' +
+    '<div class="card-title">'+esc(g.title || 'Untitled Game')+'</div>' +
+    '<div class="card-meta">' +
+      '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' +
+      '<span>'+playsTxt+'</span>' +
+    '</div>' +
+    '<div class="card-owner">'+esc(g.ownerName || 'Unknown')+'</div>' +
+  '</a>';
+}
+
+function render(){
+  var hdr = document.getElementById('results-hdr');
+  var countEl = document.getElementById('results-count');
+
+  var list = allGames;
+  if (query) {
+    var q = query.toLowerCase();
+    list = allGames.filter(function(g){
+      return (g.title||'').toLowerCase().indexOf(q) > -1 ||
+             (g.description||'').toLowerCase().indexOf(q) > -1 ||
+             (g.ownerName||'').toLowerCase().indexOf(q) > -1;
+    });
+    hdr.textContent = 'Search results';
+    countEl.textContent = list.length + (list.length===1?' game':' games');
+  } else {
+    hdr.textContent = 'Recommended For You';
+    countEl.textContent = allGames.length + (allGames.length===1?' game':' games');
+  }
+
+  var grid = document.getElementById('grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty-state">' +
+        '<h3>'+(query ? 'No games found' : 'No games published yet')+'</h3>' +
+        '<p>'+(query ? 'Try a different search term.' : 'Be the first to publish a game with Boblox Studio.')+'</p>' +
+        (query ? '' : '<a class="tb-link primary" style="display:inline-flex" href="/Boblox/Studio/">Create a game</a>') +
+      '</div>';
+    return;
+  }
+  var sorted = list.slice().sort(function(a,b){ return (b.plays||0) - (a.plays||0); });
+  grid.innerHTML = sorted.map(cardHtml).join('');
+}
+
+function onSearch(v){
+  query = v.trim();
+  render();
+}
+
+renderSkeletons(12);
+db.ref('boblox_games').orderByChild('published').equalTo(true).on('value', function(snap){
+  var arr = [];
+  snap.forEach(function(child){
+    var g = child.val();
+    g.id = child.key;
+    arr.push(g);
+  });
+  allGames = arr;
+  render();
+}, function(err){
+  console.warn('Failed to load games:', err);
+  document.getElementById('grid').innerHTML =
+    '<div class="empty-state"><h3>Couldn\'t load games</h3><p>Please refresh the page.</p></div>';
+});
+</script>
+</body>
+</html>
