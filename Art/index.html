@@ -108,6 +108,27 @@ footer .dot{color:var(--borderhi);}
 
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--panel2);border:1px solid var(--border2);padding:7px 14px;border-radius:var(--r-md);font-size:.78rem;font-weight:500;z-index:9999;opacity:0;transition:all .2s cubic-bezier(.22,1,.36,1);pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* AUTH MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10000;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{width:100%;max-width:340px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);}
+.modal-head span{font-size:.88rem;font-weight:700;letter-spacing:-.01em;}
+.modal-close{background:transparent;border:none;color:var(--tx3);font-size:1.1rem;line-height:1;padding:2px 6px;border-radius:var(--r);}
+.modal-close:hover{color:var(--tx);background:var(--panel);}
+.modal-tabs{display:flex;border-bottom:1px solid var(--border);}
+.modal-tab{flex:1;padding:9px;text-align:center;font-size:.76rem;font-weight:600;color:var(--tx3);cursor:pointer;transition:all .13s;border-bottom:2px solid transparent;}
+.modal-tab:hover{color:var(--tx2);background:var(--panel);}
+.modal-tab.active{color:var(--tx);border-bottom-color:var(--white);}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:9px;}
+.modal-body input.qinput{width:100%;}
+.auth-error{font-size:.72rem;color:var(--redhi);line-height:1.5;min-height:0;display:none;}
+.auth-error.show{display:block;}
+.auth-forgot{font-size:.72rem;color:var(--tx3);text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:center;margin-top:-2px;}
+.auth-forgot:hover{color:var(--tx2);}
+.modal-divider{display:flex;align-items:center;gap:10px;font-size:.68rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin:2px 0;}
+.modal-divider::before,.modal-divider::after{content:'';flex:1;height:1px;background:var(--border2);}
 </style>
 </head>
 <body>
@@ -198,6 +219,28 @@ footer .dot{color:var(--borderhi);}
 <footer><strong>HTML Tools</strong><span class="dot">&middot;</span><span>Art</span><span class="dot">&middot;</span><span>built by Matthew</span></footer>
 <div class="toast" id="toast"></div>
 
+<div class="modal-overlay" id="auth-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <span id="auth-title">Sign in</span>
+      <button class="modal-close" id="auth-close">&times;</button>
+    </div>
+    <div class="modal-tabs">
+      <div class="modal-tab active" data-at="signin">Sign in</div>
+      <div class="modal-tab" data-at="signup">Sign up</div>
+    </div>
+    <div class="modal-body">
+      <input type="email" class="qinput" id="auth-email" placeholder="Email" autocomplete="email"/>
+      <input type="password" class="qinput" id="auth-password" placeholder="Password" autocomplete="current-password"/>
+      <div class="auth-error" id="auth-error"></div>
+      <button class="btn btn-prim" id="auth-submit" style="justify-content:center;height:34px;font-size:.82rem;">Sign in</button>
+      <div class="auth-forgot" id="auth-forgot">Forgot password?</div>
+      <div class="modal-divider"><span>or</span></div>
+      <button class="btn" id="auth-google" style="justify-content:center;height:34px;font-size:.82rem;">Continue with Google</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -230,11 +273,109 @@ auth.onAuthStateChanged(function(user){
     document.getElementById('signout-btn').style.display='none';
   }
 });
-document.getElementById('signin-btn').addEventListener('click',async function(){
-  try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); showToast('Signed in!'); }
-  catch(e){ if(e.code!=='auth/popup-closed-by-user') showToast('Sign in failed.'); }
-});
 document.getElementById('signout-btn').addEventListener('click',async function(){ await auth.signOut(); showToast('Signed out.'); });
+
+// ---- Auth modal (email/password + Google) ----
+var _authOverlay=document.getElementById('auth-overlay');
+var _authMode='signin'; // 'signin' | 'signup'
+var _authEmail=document.getElementById('auth-email');
+var _authPassword=document.getElementById('auth-password');
+var _authError=document.getElementById('auth-error');
+var _authSubmit=document.getElementById('auth-submit');
+var _authTitle=document.getElementById('auth-title');
+var _authForgot=document.getElementById('auth-forgot');
+
+function friendlyAuthError(e){
+  switch(e.code){
+    case 'auth/invalid-email': return 'That email address looks invalid.';
+    case 'auth/user-not-found': return 'No account found with that email.';
+    case 'auth/wrong-password': return 'Incorrect password.';
+    case 'auth/invalid-credential': return 'Incorrect email or password.';
+    case 'auth/email-already-in-use': return 'An account already exists with that email.';
+    case 'auth/weak-password': return 'Password should be at least 6 characters.';
+    case 'auth/missing-password': return 'Please enter a password.';
+    case 'auth/too-many-requests': return 'Too many attempts. Try again later.';
+    default: return 'Something went wrong. Please try again.';
+  }
+}
+function setAuthError(msg){
+  if(msg){ _authError.textContent=msg; _authError.classList.add('show'); }
+  else{ _authError.textContent=''; _authError.classList.remove('show'); }
+}
+function setAuthMode(mode){
+  _authMode=mode;
+  document.querySelectorAll('.modal-tab').forEach(function(t){t.classList.toggle('active',t.dataset.at===mode);});
+  _authTitle.textContent = mode==='signin' ? 'Sign in' : 'Create an account';
+  _authSubmit.textContent = mode==='signin' ? 'Sign in' : 'Sign up';
+  _authPassword.autocomplete = mode==='signin' ? 'current-password' : 'new-password';
+  setAuthError('');
+}
+function openAuthModal(mode){
+  setAuthMode(mode||'signin');
+  _authEmail.value=''; _authPassword.value='';
+  _authOverlay.classList.add('show');
+  setTimeout(function(){ _authEmail.focus(); },10);
+}
+function closeAuthModal(){ _authOverlay.classList.remove('show'); }
+
+document.getElementById('signin-btn').addEventListener('click',function(){ openAuthModal('signin'); });
+document.getElementById('auth-close').addEventListener('click',closeAuthModal);
+_authOverlay.addEventListener('click',function(e){ if(e.target===_authOverlay) closeAuthModal(); });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape' && _authOverlay.classList.contains('show')) closeAuthModal(); });
+
+document.querySelectorAll('.modal-tab').forEach(function(t){
+  t.addEventListener('click',function(){ setAuthMode(t.dataset.at); });
+});
+
+async function submitAuth(){
+  var email=_authEmail.value.trim();
+  var password=_authPassword.value;
+  setAuthError('');
+  if(!email || !password){ setAuthError('Please fill in both fields.'); return; }
+  _authSubmit.disabled=true;
+  var originalText=_authSubmit.textContent;
+  _authSubmit.textContent='Please wait…';
+  try{
+    if(_authMode==='signin'){
+      await auth.signInWithEmailAndPassword(email,password);
+      showToast('Signed in!');
+    }else{
+      await auth.createUserWithEmailAndPassword(email,password);
+      showToast('Account created!');
+    }
+    closeAuthModal();
+  }catch(e){
+    setAuthError(friendlyAuthError(e));
+  }finally{
+    _authSubmit.disabled=false;
+    _authSubmit.textContent=originalText;
+  }
+}
+_authSubmit.addEventListener('click',submitAuth);
+_authPassword.addEventListener('keydown',function(e){ if(e.key==='Enter') submitAuth(); });
+_authEmail.addEventListener('keydown',function(e){ if(e.key==='Enter') _authPassword.focus(); });
+
+_authForgot.addEventListener('click',async function(){
+  var email=_authEmail.value.trim();
+  if(!email){ setAuthError('Enter your email above first, then click "Forgot password?"'); _authEmail.focus(); return; }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    setAuthError('');
+    showToast('Password reset email sent.');
+  }catch(e){
+    setAuthError(friendlyAuthError(e));
+  }
+});
+
+document.getElementById('auth-google').addEventListener('click',async function(){
+  try{
+    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    showToast('Signed in!');
+    closeAuthModal();
+  }catch(e){
+    if(e.code!=='auth/popup-closed-by-user') setAuthError('Google sign-in failed.');
+  }
+});
 
 // pixel demo swatch
 (function(){
@@ -300,5 +441,6 @@ document.getElementById('qb-go').addEventListener('click',function(){
   goToRoom(_qtMode,_qtVis,document.getElementById('qb-name').value.trim());
 });
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
