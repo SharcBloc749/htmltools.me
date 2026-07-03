@@ -170,6 +170,35 @@ footer .dot{color:var(--borderhi);}
 <footer><strong>HTML Tools</strong><span class="dot">&middot;</span><span>Museum</span><span class="dot">&middot;</span><span>built by Matthew</span></footer>
 <div class="toast" id="toast"></div>
 
+<!-- AUTH MODAL -->
+<div class="modal-bg" id="auth-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:16px;">
+  <div class="modal" style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);width:100%;max-width:400px;overflow:hidden;">
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <h3 id="auth-modal-title" style="font-size:.85rem;font-weight:600;">Sign in</h3>
+      <button class="modal-close-btn" data-close="auth-modal" style="background:transparent;border:none;color:var(--tx3);cursor:pointer;font-size:1.1rem;padding:2px 6px;border-radius:3px;line-height:1;">&times;</button>
+    </div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:11px;">
+      <button class="btn" id="auth-google-btn" style="width:100%;justify-content:center;height:34px;"><i class="fab fa-google"></i>&nbsp; Continue with Google</button>
+      <div style="display:flex;align-items:center;gap:8px;color:var(--tx3);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;"><div style="flex:1;height:1px;background:var(--border2)"></div>or<div style="flex:1;height:1px;background:var(--border2)"></div></div>
+      <div>
+        <label class="lbl" style="display:block;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:4px;">Email</label>
+        <input class="inp" type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" style="width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.82rem;padding:0 9px;height:32px;border-radius:var(--r);outline:none;"/>
+      </div>
+      <div>
+        <label class="lbl" style="display:block;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:4px;">Password</label>
+        <input class="inp" type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password" style="width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.82rem;padding:0 9px;height:32px;border-radius:var(--r);outline:none;"/>
+      </div>
+      <div id="auth-error" style="font-size:.72rem;color:var(--redhi);display:none;"></div>
+      <button class="btn btn-prim" id="auth-submit-btn" style="width:100%;justify-content:center;height:34px;">Sign in</button>
+      <div style="display:flex;justify-content:space-between;font-size:.71rem;">
+        <a href="#" id="auth-toggle-mode" style="text-decoration:underline;color:var(--tx2);">Need an account? Sign up</a>
+        <a href="#" id="auth-forgot" style="text-decoration:underline;color:var(--tx3);">Forgot password?</a>
+      </div>
+    </div>
+  </div>
+</div>
+<style>#auth-modal.open{display:flex !important;}</style>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -209,7 +238,7 @@ var myUid = null, myName = 'Guest', isAdmin = false;
 auth.onAuthStateChanged(function(user){
   if(user){
     myUid = user.uid;
-    myName = user.isAnonymous ? ('Guest-'+user.uid.slice(0,4)) : (user.displayName||user.email||'User');
+    myName = user.isAnonymous ? ('Guest-'+user.uid.slice(0,4)) : (user.displayName || (user.email ? user.email.split('@')[0] : 'User'));
     isAdmin = !user.isAnonymous && user.email===ADMIN_EMAIL;
     document.getElementById('nav-email').textContent = user.isAnonymous ? '' : myName;
     document.getElementById('signin-btn').style.display = user.isAnonymous ? 'inline-flex' : 'none';
@@ -217,12 +246,67 @@ auth.onAuthStateChanged(function(user){
     document.getElementById('admin-pill').style.display = isAdmin ? 'inline-flex' : 'none';
     loadRooms();
   } else {
-    auth.signInAnonymously().catch(function(e){ showToast('Could not connect: '+e.message); });
+    auth.signInAnonymously().catch(function(e){ showToast('Could not connect: '+e.message+'. Check that Anonymous sign-in is enabled in Firebase Auth settings.'); });
   }
 });
-document.getElementById('signin-btn').addEventListener('click', async function(){
-  try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); showToast('Signed in!'); }
-  catch(e){ if(e.code!=='auth/popup-closed-by-user') showToast('Sign in failed.'); }
+
+// ── AUTH MODAL (Google + email/password) ──
+var authMode = 'signin';
+document.getElementById('signin-btn').addEventListener('click', function(){
+  document.getElementById('auth-error').style.display='none';
+  document.getElementById('auth-modal').classList.add('open');
+});
+document.querySelectorAll('[data-close]').forEach(function(b){
+  b.addEventListener('click', function(){ document.getElementById(b.dataset.close).classList.remove('open'); });
+});
+document.getElementById('auth-toggle-mode').addEventListener('click', function(e){
+  e.preventDefault();
+  authMode = authMode==='signin' ? 'signup' : 'signin';
+  document.getElementById('auth-modal-title').textContent = authMode==='signin' ? 'Sign in' : 'Create account';
+  document.getElementById('auth-submit-btn').textContent = authMode==='signin' ? 'Sign in' : 'Create account';
+  document.getElementById('auth-toggle-mode').textContent = authMode==='signin' ? 'Need an account? Sign up' : 'Already have an account? Sign in';
+});
+function friendlyAuthError(e){
+  var map = {
+    'auth/email-already-in-use':'That email already has an account — try signing in instead.',
+    'auth/invalid-email':'That email address looks invalid.',
+    'auth/weak-password':'Password should be at least 6 characters.',
+    'auth/wrong-password':'Incorrect password.',
+    'auth/user-not-found':'No account found with that email.',
+    'auth/too-many-requests':'Too many attempts — try again in a bit.',
+    'auth/operation-not-allowed':'Email/password sign-in isn\'t enabled for this project yet.'
+  };
+  return map[e.code] || e.message;
+}
+document.getElementById('auth-submit-btn').addEventListener('click', async function(){
+  var email = document.getElementById('auth-email').value.trim();
+  var pass = document.getElementById('auth-password').value;
+  var errEl = document.getElementById('auth-error');
+  errEl.style.display='none';
+  if(!email || !pass){ errEl.textContent='Enter an email and password.'; errEl.style.display='block'; return; }
+  try{
+    if(authMode==='signin') await auth.signInWithEmailAndPassword(email, pass);
+    else await auth.createUserWithEmailAndPassword(email, pass);
+    document.getElementById('auth-modal').classList.remove('open');
+    showToast(authMode==='signin' ? 'Signed in!' : 'Account created!');
+  }catch(e){
+    errEl.textContent = friendlyAuthError(e);
+    errEl.style.display = 'block';
+  }
+});
+document.getElementById('auth-forgot').addEventListener('click', async function(e){
+  e.preventDefault();
+  var email = document.getElementById('auth-email').value.trim();
+  if(!email){ showToast('Enter your email first, then click again.'); return; }
+  try{ await auth.sendPasswordResetEmail(email); showToast('Password reset email sent.'); }
+  catch(err){ showToast(friendlyAuthError(err)); }
+});
+document.getElementById('auth-google-btn').addEventListener('click', async function(){
+  try{
+    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    document.getElementById('auth-modal').classList.remove('open');
+    showToast('Signed in!');
+  }catch(e){ if(e.code!=='auth/popup-closed-by-user') showToast('Sign in failed.'); }
 });
 document.getElementById('signout-btn').addEventListener('click', async function(){
   await auth.signOut();
