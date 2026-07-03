@@ -51,6 +51,8 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
 .btn:disabled{opacity:.4;cursor:not-allowed;}
 .btn-prim{background:var(--white);color:var(--wfg);border-color:var(--white);font-weight:600;}
 .btn-prim:hover{opacity:.88;background:var(--white);color:var(--wfg);border-color:var(--white);}
+.btn-danger{color:var(--redhi);border-color:rgba(220,38,38,.2);background:transparent;}
+.btn-danger:hover{background:rgba(220,38,38,.06);border-color:var(--redhi);}
 .btn-icon{width:28px;padding:0;justify-content:center;}
 .btn-sm{height:25px;font-size:11px;padding:0 8px;}
 
@@ -70,25 +72,30 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
 /* TOOLBAR (bottom floating, both modes) */
 .toolbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:7px;display:flex;align-items:center;gap:5px;box-shadow:0 12px 40px rgba(0,0,0,.6);z-index:50;max-width:94vw;overflow-x:auto;}
 .tb-sep{width:1px;height:22px;background:var(--border);margin:0 2px;flex-shrink:0;}
-.tb-btn{width:32px;height:32px;border-radius:var(--r-md);background:transparent;border:1px solid transparent;color:var(--tx2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .13s;font-size:.85rem;}
+.tb-btn{width:32px;height:32px;border-radius:var(--r-md);background:transparent;border:1px solid transparent;color:var(--tx2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .13s;font-size:.85rem;position:relative;}
 .tb-btn:hover{background:var(--panel);color:var(--tx);}
 .tb-btn.active{background:var(--white);color:var(--wfg);}
+.tb-btn[data-key]::after{content:attr(data-key);position:absolute;bottom:-3px;right:-3px;font-family:var(--mono);font-size:7px;color:var(--tx3);background:var(--panel2);border-radius:3px;padding:0 2px;line-height:1.3;pointer-events:none;}
+.tb-btn.active[data-key]::after{color:var(--wfg);background:rgba(12,12,12,.25);}
 .swatch{width:26px;height:26px;border-radius:50%;border:2px solid var(--border2);flex-shrink:0;transition:transform .1s;cursor:pointer;}
 .swatch:hover{transform:scale(1.1);}
 .swatch.active{border-color:var(--white);transform:scale(1.12);}
 .custom-color-wrap{position:relative;width:26px;height:26px;flex-shrink:0;}
 .custom-color-wrap input[type=color]{position:absolute;inset:0;width:100%;height:100%;border:none;padding:0;border-radius:50%;cursor:pointer;background:transparent;}
 .size-pop{display:flex;align-items:center;gap:6px;padding:0 6px;}
-.size-pop input[type=range]{width:70px;accent-color:var(--white);}
+.size-pop input[type=range]{width:60px;accent-color:var(--white);}
 .size-label{font-family:var(--mono);font-size:10px;color:var(--tx3);min-width:20px;text-align:center;}
 
-/* SIDEBAR (color palette for pixel mode / layers info) */
+/* SIDEBAR (color palette / layers info / chat) */
 .side-panel{width:0;background:var(--surface);border-left:1px solid var(--border);flex-shrink:0;overflow:hidden;transition:width .18s;display:flex;flex-direction:column;}
 .side-panel.open{width:230px;}
 .side-panel-inner{padding:14px;display:flex;flex-direction:column;gap:14px;width:230px;overflow-y:auto;flex:1;}
 .sp-title{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);}
 .palette-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
 .palette-grid .swatch{width:100%;height:0;padding-bottom:100%;border-radius:6px;}
+.hint-list{display:flex;flex-direction:column;gap:3px;}
+.hint-list div{font-size:.68rem;color:var(--tx3);display:flex;justify-content:space-between;gap:6px;}
+.hint-list kbd{font-family:var(--mono);background:var(--panel);border:1px solid var(--border2);border-radius:3px;padding:0 4px;color:var(--tx2);}
 .chat-box{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;}
 .chat-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:80px;max-height:180px;}
 .chat-msg{font-size:.72rem;line-height:1.5;}
@@ -146,6 +153,9 @@ input.inp:focus{border-color:var(--borderhi);}
   </div>
   <div class="nav-spacer"></div>
   <div class="presence-stack" id="presence-stack"></div>
+  <span id="nav-email" style="font-size:.72rem;color:var(--tx3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+  <button class="btn btn-sm" id="signin-btn">Sign in</button>
+  <button class="btn btn-sm btn-danger" id="signout-btn" style="display:none;">Sign out</button>
   <button class="btn btn-icon" id="btn-share" title="Share"><i class="fas fa-link"></i></button>
   <button class="btn btn-icon mobile-panel-toggle" id="btn-panel-toggle" title="Palette & chat"><i class="fas fa-palette"></i></button>
   <button class="btn btn-icon" id="btn-download" title="Download PNG"><i class="fas fa-download"></i></button>
@@ -166,6 +176,10 @@ input.inp:focus{border-color:var(--borderhi);}
       <div>
         <div class="sp-title" style="margin-bottom:8px;">Palette</div>
         <div class="palette-grid" id="palette-grid"></div>
+      </div>
+      <div>
+        <div class="sp-title" style="margin-bottom:6px;">Shortcuts</div>
+        <div class="hint-list" id="hint-list"></div>
       </div>
       <div class="chat-box">
         <div class="sp-title">Room chat</div>
@@ -234,6 +248,7 @@ var FB_CONFIG = {
 firebase.initializeApp(FB_CONFIG);
 var db = firebase.database();
 var auth = firebase.auth();
+var ADMIN_EMAIL = 'matthewbozhe@gmail.com';
 
 function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function genId(len){var chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',s='';var arr=new Uint8Array(len||16);crypto.getRandomValues(arr);for(var i=0;i<len;i++)s+=chars[arr[i]%chars.length];return s;}
@@ -250,7 +265,7 @@ var IS_NEW = params.get('new')==='1';
 var VIS = params.get('vis') || 'public';
 var ROOM_NAME_PARAM = params.get('name') || 'Untitled';
 
-// ── AUTH (anonymous fallback so everyone can draw) ──
+// ── AUTH (anonymous fallback so everyone can draw; Google sign-in optional for a persistent name / admin powers) ──
 var currentUser = null, myUid = null, myName = 'Guest';
 var PALETTE = ['#0c0c0c','#e8e8e8','#ef4444','#f59e0b','#facc15','#22c55e','#06b6d4','#3b82f6','#6366f1','#a855f7','#ec4899','#78350f','#78716c','#ffffff','#fde68a','#fca5a5'];
 
@@ -258,10 +273,22 @@ auth.onAuthStateChanged(function(user){
   if(user){
     currentUser=user; myUid=user.uid;
     myName = user.isAnonymous ? ('Guest-'+user.uid.slice(0,4)) : (user.displayName||user.email||'User');
+    document.getElementById('nav-email').textContent = user.isAnonymous ? '' : myName;
+    document.getElementById('signin-btn').style.display = user.isAnonymous ? 'inline-flex' : 'none';
+    document.getElementById('signout-btn').style.display = user.isAnonymous ? 'none' : 'inline-flex';
     initRoom();
   }else{
     auth.signInAnonymously().catch(function(e){ showToast('Could not connect: '+e.message); });
   }
+});
+document.getElementById('signin-btn').addEventListener('click', async function(){
+  try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); showToast('Signed in!'); }
+  catch(e){ if(e.code!=='auth/popup-closed-by-user') showToast('Sign in failed.'); }
+});
+document.getElementById('signout-btn').addEventListener('click', async function(){
+  await auth.signOut();
+  auth.signInAnonymously();
+  showToast('Signed out.');
 });
 
 // ── ROOM STATE ──
@@ -271,6 +298,13 @@ var canvas = document.getElementById('draw-canvas');
 var cursorCanvas = document.getElementById('cursor-canvas');
 var ctx = canvas.getContext('2d');
 var cctx = cursorCanvas.getContext('2d');
+var contributorMarked = false;
+
+function markContributor(){
+  if(contributorMarked || !myUid) return;
+  contributorMarked = true;
+  db.ref('art_rooms/'+ROOM_ID+'/contributors/'+myUid).set(myName);
+}
 
 function initRoom(){
   document.getElementById('app-loading').classList.add('hidden');
@@ -281,7 +315,6 @@ function initRoom(){
   document.getElementById('share-url').value = window.location.href;
 
   if(IS_NEW){
-    // Show setup modal to configure before creating
     document.getElementById('setup-name').value = ROOM_NAME_PARAM==='Untitled Room' ? '' : ROOM_NAME_PARAM;
     document.getElementById('setup-pixel-size').style.display = MODE==='pixel' ? 'block' : 'none';
     document.getElementById('setup-modal').classList.add('open');
@@ -310,12 +343,14 @@ function createRoom(name){
   roomData = {
     id: ROOM_ID, name: name, mode: MODE, visibility: VIS,
     gridSize: MODE==='pixel' ? GRID : null,
-    owner: myUid, created: Date.now(), views: 0
+    owner: myUid, ownerName: myName, created: Date.now(), views: 0,
+    contributors: {}
   };
   db.ref('art_rooms/'+ROOM_ID).set(roomData).then(function(){
     setupCanvasForMode();
     attachRealtimeListeners();
     startPresence();
+    markContributor();
   }).catch(function(e){ showToast('Failed to create room.'); });
 }
 
@@ -332,8 +367,7 @@ function loadOrCreateRoom(){
       badge.className = 'room-badge '+VIS;
       db.ref('art_rooms/'+ROOM_ID+'/views').transaction(function(v){ return (v||0)+1; });
     } else {
-      // public canvas doesn't exist yet - create it
-      roomData = { id:ROOM_ID, name:ROOM_NAME_PARAM, mode:MODE, visibility:VIS, gridSize: MODE==='pixel'?GRID:null, owner:myUid, created:Date.now(), views:1 };
+      roomData = { id:ROOM_ID, name:ROOM_NAME_PARAM, mode:MODE, visibility:VIS, gridSize: MODE==='pixel'?GRID:null, owner:myUid, ownerName:myName, created:Date.now(), views:1, contributors:{} };
       db.ref('art_rooms/'+ROOM_ID).set(roomData);
     }
     setupCanvasForMode();
@@ -343,13 +377,14 @@ function loadOrCreateRoom(){
 }
 
 // ══════════════════════════ CANVAS SETUP ══════════════════════════
-var displayW=0, displayH=0; // CSS pixel size of canvas element
-var cellPx=0; // pixel-mode: size of one grid cell in canvas-resolution pixels
+var displayW=0, displayH=0;
+var cellPx=0;
 var DPR = Math.max(1, window.devicePixelRatio||1);
 
 function setupCanvasForMode(){
   buildToolbar();
   buildPalette();
+  buildHints();
   sizeCanvasToContainer();
   window.addEventListener('resize', debounce(sizeCanvasToContainer, 150));
   if(MODE==='pixel'){
@@ -358,6 +393,7 @@ function setupCanvasForMode(){
     initFreehandInteractions();
   }
   redrawAll();
+  window.addEventListener('keydown', handleKeydown);
 }
 
 function debounce(fn,ms){var t;return function(){clearTimeout(t);var a=arguments,c=this;t=setTimeout(function(){fn.apply(c,a);},ms);};}
@@ -368,28 +404,22 @@ function sizeCanvasToContainer(){
   var maxH = area.clientHeight - 24;
 
   if(MODE==='pixel'){
-    // square canvas, fit within container, resolution = GRID x GRID pixels (1 px per cell) upscaled via CSS
     var side = Math.min(maxW, maxH, 640);
     displayW = side; displayH = side;
     cellPx = displayW / GRID;
-    canvas.width = GRID; canvas.height = GRID; // internal resolution = 1px per cell
+    canvas.width = GRID; canvas.height = GRID;
     canvas.style.width = displayW+'px'; canvas.style.height = displayH+'px';
     cursorCanvas.width = Math.round(displayW*DPR); cursorCanvas.height = Math.round(displayH*DPR);
     cursorCanvas.style.width = displayW+'px'; cursorCanvas.style.height = displayH+'px';
     ctx.imageSmoothingEnabled = false;
   } else {
-    // freehand: large fixed logical canvas (1200x800) scaled to fit
     var LOGICAL_W = 1200, LOGICAL_H = 800;
     var scale = Math.min(maxW/LOGICAL_W, maxH/LOGICAL_H, 1);
     displayW = LOGICAL_W*scale; displayH = LOGICAL_H*scale;
     if(canvas.width !== Math.round(LOGICAL_W*DPR)){
-      // preserve existing drawing when resizing display (internal buffer stays same resolution)
-      var prevData = null;
-      if(canvas.width>0){ try{ prevData = ctx.getImageData(0,0,canvas.width,canvas.height);}catch(e){} }
       canvas.width = Math.round(LOGICAL_W*DPR); canvas.height = Math.round(LOGICAL_H*DPR);
       ctx.scale(DPR,DPR);
       ctx.lineCap='round'; ctx.lineJoin='round';
-      if(prevData){ /* strokes are replayed from Firebase anyway */ }
     }
     canvas.style.width = displayW+'px'; canvas.style.height = displayH+'px';
     cursorCanvas.width = Math.round(displayW*DPR); cursorCanvas.height = Math.round(displayH*DPR);
@@ -398,12 +428,11 @@ function sizeCanvasToContainer(){
   redrawAll();
 }
 
-// Convert a pointer event to LOGICAL canvas coordinates (0..GRID for pixel, 0..1200/800 for freehand)
 function eventToLogicalPoint(e){
-  var rect = canvas.getBoundingClientRect(); // CSS box of the canvas element
+  var rect = canvas.getBoundingClientRect();
   var clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
   var clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
-  var xRatio = (clientX - rect.left) / rect.width;   // 0..1 across the displayed box
+  var xRatio = (clientX - rect.left) / rect.width;
   var yRatio = (clientY - rect.top) / rect.height;
   xRatio = Math.min(1, Math.max(0, xRatio));
   yRatio = Math.min(1, Math.max(0, yRatio));
@@ -414,19 +443,73 @@ function eventToLogicalPoint(e){
   }
 }
 
+// ══════════════════════════ SHARED: UNDO STACK ══════════════════════════
+var myActions = [];
+function trimActions(){ if(myActions.length>60) myActions.shift(); }
+function undoLast(){
+  var action = myActions.pop();
+  if(!action){ showToast('Nothing to undo'); return; }
+  if(action.type==='pixels'){
+    action.entries.forEach(function(e){
+      var parts = e.key.split('_'); var x=+parts[0], y=+parts[1];
+      if(e.prev){
+        pixelData[e.key]=e.prev; ctx.fillStyle=e.prev; ctx.fillRect(x,y,1,1);
+        db.ref('art_pixels/'+ROOM_ID+'/'+e.key).set({c:e.prev, uid:myUid, ts:firebase.database.ServerValue.TIMESTAMP});
+      } else {
+        delete pixelData[e.key]; ctx.clearRect(x,y,1,1);
+        db.ref('art_pixels/'+ROOM_ID+'/'+e.key).remove();
+      }
+    });
+  } else if(action.type==='stroke'){
+    db.ref('art_strokes/'+ROOM_ID+'/'+action.id).remove();
+  }
+  showToast('Undone');
+}
+
 // ══════════════════════════ PIXEL MODE ══════════════════════════
-var pixelData = {}; // "x_y" -> color
+var pixelData = {};
 var currentColor = PALETTE[0];
 var isPointerDown = false;
+var currentTool = 'pencil'; // pencil | eraser | fill | eyedropper | line | rect
+var gridVisible = false;
+var strokeEntries = [];
+var pixelDragStart = null;
+var pixelPreviewPoints = [];
+var pixelPreviewColor = null;
+
+var PIXEL_TOOLS = [
+  {id:'pencil', icon:'fa-pencil', title:'Pencil', key:'P'},
+  {id:'eraser', icon:'fa-eraser', title:'Eraser', key:'E'},
+  {id:'fill', icon:'fa-fill-drip', title:'Fill', key:'F'},
+  {id:'eyedropper', icon:'fa-eye-dropper', title:'Eyedropper', key:'I'},
+  {id:'line', icon:'fa-slash', title:'Line', key:'L'},
+  {id:'rect', icon:'fa-vector-square', title:'Rectangle', key:'R'}
+];
 
 function buildToolbar(){
   var tb = document.getElementById('toolbar');
   if(MODE==='pixel'){
     tb.innerHTML =
+      PIXEL_TOOLS.map(function(t){
+        return '<button class="tb-btn'+(t.id==='pencil'?' active':'')+'" data-tool="'+t.id+'" data-key="'+t.key+'" title="'+t.title+'"><i class="fas '+t.icon+'"></i></button>';
+      }).join('')+
+      '<div class="tb-sep"></div>'+
+      '<button class="tb-btn" id="tool-undo" data-key="Z" title="Undo"><i class="fas fa-rotate-left"></i></button>'+
+      '<button class="tb-btn" id="tool-grid" title="Toggle grid"><i class="fas fa-border-all"></i></button>'+
+      '<div class="tb-sep"></div>'+
       '<div class="custom-color-wrap"><input type="color" id="pixel-color-picker" value="'+currentColor+'"/></div>'+
       '<div class="tb-sep"></div>'+
       '<div id="quick-swatches" style="display:flex;gap:5px;"></div>';
     renderQuickSwatches();
+    tb.querySelectorAll('[data-tool]').forEach(function(b){
+      b.addEventListener('click',function(){ setPixelTool(b.dataset.tool); });
+    });
+    document.getElementById('tool-undo').addEventListener('click', undoLast);
+    document.getElementById('tool-grid').addEventListener('click', function(){
+      gridVisible = !gridVisible;
+      this.classList.toggle('active', gridVisible);
+      renderOverlay();
+    });
     document.getElementById('pixel-color-picker').addEventListener('input',function(){
       currentColor = this.value;
       renderQuickSwatches();
@@ -434,30 +517,61 @@ function buildToolbar(){
     });
   } else {
     tb.innerHTML =
-      '<button class="tb-btn active" id="tool-pen" title="Pen"><i class="fas fa-pen"></i></button>'+
-      '<button class="tb-btn" id="tool-eraser" title="Eraser"><i class="fas fa-eraser"></i></button>'+
+      '<button class="tb-btn active" data-fhtool="pen" data-key="P" title="Pen"><i class="fas fa-pen"></i></button>'+
+      '<button class="tb-btn" data-fhtool="eraser" data-key="E" title="Eraser"><i class="fas fa-eraser"></i></button>'+
+      '<button class="tb-btn" data-fhtool="line" data-key="L" title="Line"><i class="fas fa-slash"></i></button>'+
+      '<button class="tb-btn" data-fhtool="rect" data-key="R" title="Rectangle"><i class="fas fa-vector-square"></i></button>'+
+      '<button class="tb-btn" data-fhtool="circle" data-key="C" title="Circle"><i class="fas fa-circle"></i></button>'+
+      '<button class="tb-btn" data-fhtool="eyedropper" data-key="I" title="Eyedropper"><i class="fas fa-eye-dropper"></i></button>'+
+      '<div class="tb-sep"></div>'+
+      '<button class="tb-btn" id="tool-undo" data-key="Z" title="Undo"><i class="fas fa-rotate-left"></i></button>'+
       '<div class="tb-sep"></div>'+
       '<div class="custom-color-wrap"><input type="color" id="fh-color-picker" value="'+currentColor+'"/></div>'+
       '<div class="tb-sep"></div>'+
       '<div class="size-pop"><i class="fas fa-circle" style="font-size:5px;color:var(--tx3)"></i><input type="range" id="brush-size" min="1" max="40" value="6"/><span class="size-label" id="brush-size-label">6</span></div>'+
+      '<div class="size-pop"><i class="fas fa-droplet" style="font-size:8px;color:var(--tx3)"></i><input type="range" id="brush-opacity" min="10" max="100" value="100"/><span class="size-label" id="brush-opacity-label">100</span></div>'+
       '<div class="tb-sep"></div>'+
       '<button class="tb-btn" id="tool-clear" title="Clear canvas"><i class="fas fa-trash"></i></button>';
 
-    document.getElementById('tool-pen').addEventListener('click',function(){ fhTool='pen'; toggleFhTool(); });
-    document.getElementById('tool-eraser').addEventListener('click',function(){ fhTool='eraser'; toggleFhTool(); });
-    document.getElementById('fh-color-picker').addEventListener('input',function(){ currentColor=this.value; });
+    tb.querySelectorAll('[data-fhtool]').forEach(function(b){
+      b.addEventListener('click',function(){ setFhTool(b.dataset.fhtool); });
+    });
+    document.getElementById('tool-undo').addEventListener('click', undoLast);
+    document.getElementById('fh-color-picker').addEventListener('input',function(){ currentColor=this.value; highlightPaletteSelection(); });
     document.getElementById('brush-size').addEventListener('input',function(){ brushSize=parseInt(this.value); document.getElementById('brush-size-label').textContent=brushSize; });
+    document.getElementById('brush-opacity').addEventListener('input',function(){ brushOpacity=parseInt(this.value)/100; document.getElementById('brush-opacity-label').textContent=this.value; });
     document.getElementById('tool-clear').addEventListener('click',function(){
       if(confirm('Clear the whole canvas for everyone? This cannot be undone.')){
         db.ref('art_strokes/'+ROOM_ID).remove();
         ctx.clearRect(0,0,canvas.width,canvas.height);
+        myActions = [];
       }
     });
   }
 }
-function toggleFhTool(){
-  document.getElementById('tool-pen').classList.toggle('active', fhTool==='pen');
-  document.getElementById('tool-eraser').classList.toggle('active', fhTool==='eraser');
+
+function setPixelTool(id){
+  currentTool = id;
+  document.querySelectorAll('#toolbar [data-tool]').forEach(function(b){ b.classList.toggle('active', b.dataset.tool===id); });
+  pixelDragStart=null; pixelPreviewPoints=[]; renderOverlay();
+}
+function setFhTool(id){
+  fhTool = id;
+  document.querySelectorAll('#toolbar [data-fhtool]').forEach(function(b){ b.classList.toggle('active', b.dataset.fhtool===id); });
+  fhDragStart=null; fhPreviewPoints=[]; renderOverlay();
+}
+
+function handleKeydown(e){
+  if(document.activeElement && (document.activeElement.tagName==='INPUT')) return;
+  var k = e.key.toLowerCase();
+  if((e.ctrlKey||e.metaKey) && k==='z'){ e.preventDefault(); undoLast(); return; }
+  if(MODE==='pixel'){
+    var map = {p:'pencil', e:'eraser', f:'fill', i:'eyedropper', l:'line', r:'rect'};
+    if(map[k]) setPixelTool(map[k]);
+  } else {
+    var map2 = {p:'pen', e:'eraser', l:'line', r:'rect', c:'circle', i:'eyedropper'};
+    if(map2[k]) setFhTool(map2[k]);
+  }
 }
 
 function renderQuickSwatches(){
@@ -498,33 +612,144 @@ function highlightPaletteSelection(){
     s.classList.toggle('active', s.dataset.c.toLowerCase()===currentColor.toLowerCase());
   });
 }
+function syncColorPickers(){
+  if(document.getElementById('pixel-color-picker')) document.getElementById('pixel-color-picker').value = currentColor;
+  if(document.getElementById('fh-color-picker')) document.getElementById('fh-color-picker').value = currentColor;
+  renderQuickSwatches(); highlightPaletteSelection();
+}
 
-function paintPixel(x,y,color,skipRemote){
+function buildHints(){
+  var el = document.getElementById('hint-list');
+  var rows = MODE==='pixel'
+    ? [['Pencil','P'],['Eraser','E'],['Fill','F'],['Eyedropper','I'],['Line','L'],['Rectangle','R'],['Undo','Ctrl+Z']]
+    : [['Pen','P'],['Eraser','E'],['Line','L'],['Rectangle','R'],['Circle','C'],['Eyedropper','I'],['Undo','Ctrl+Z']];
+  el.innerHTML = rows.map(function(r){ return '<div><span>'+r[0]+'</span><kbd>'+r[1]+'</kbd></div>'; }).join('');
+}
+
+function writePixelRaw(x,y,color){
   var key = x+'_'+y;
-  pixelData[key] = color;
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, 1, 1);
-  if(!skipRemote){
+  if(color===null){
+    delete pixelData[key];
+    ctx.clearRect(x,y,1,1);
+    db.ref('art_pixels/'+ROOM_ID+'/'+key).remove();
+  } else {
+    pixelData[key] = color;
+    ctx.fillStyle = color;
+    ctx.fillRect(x,y,1,1);
     db.ref('art_pixels/'+ROOM_ID+'/'+key).set({ c: color, uid: myUid, ts: firebase.database.ServerValue.TIMESTAMP });
   }
+}
+
+function commitPixelDrag(x,y,color){
+  var key = x+'_'+y;
+  if(!strokeEntries.some(function(e){return e.key===key;})) strokeEntries.push({key:key, prev: pixelData[key]||null});
+  writePixelRaw(x,y,color);
+  markContributor();
+}
+function finishPixelDrag(){
+  if(strokeEntries.length){ myActions.push({type:'pixels', entries: strokeEntries}); trimActions(); }
+  strokeEntries=[];
+}
+function applyPixels(changes){
+  var entries = [];
+  changes.forEach(function(ch){
+    var key = ch.x+'_'+ch.y;
+    if(!entries.some(function(e){return e.key===key;})) entries.push({key:key, prev: pixelData[key]||null});
+    writePixelRaw(ch.x, ch.y, ch.color);
+  });
+  myActions.push({type:'pixels', entries: entries});
+  trimActions();
+  markContributor();
+}
+
+function floodFill(startX,startY,newColor){
+  var startKey = startX+'_'+startY;
+  var targetColor = pixelData[startKey] || null;
+  if(targetColor === newColor) return [];
+  var visited = {}; var stack=[[startX,startY]]; var changes=[];
+  while(stack.length){
+    var pt = stack.pop(); var x=pt[0], y=pt[1];
+    if(x<0||y<0||x>=GRID||y>=GRID) continue;
+    var key = x+'_'+y;
+    if(visited[key]) continue;
+    visited[key]=true;
+    var cur = pixelData[key] || null;
+    if(cur !== targetColor) continue;
+    changes.push({x:x,y:y,color:newColor});
+    stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+  return changes;
+}
+
+function bresenhamLine(x0,y0,x1,y1){
+  var points=[]; var dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
+  var sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy;
+  while(true){
+    points.push({x:x0,y:y0});
+    if(x0===x1 && y0===y1) break;
+    var e2=2*err;
+    if(e2>-dy){err-=dy;x0+=sx;}
+    if(e2<dx){err+=dx;y0+=sy;}
+  }
+  return points;
+}
+function rectPoints(x0,y0,x1,y1){
+  var xa=Math.min(x0,x1), xb=Math.max(x0,x1), ya=Math.min(y0,y1), yb=Math.max(y0,y1);
+  var pts=[];
+  for(var x=xa;x<=xb;x++){ pts.push({x:x,y:ya}); pts.push({x:x,y:yb}); }
+  for(var y=ya;y<=yb;y++){ pts.push({x:xa,y:y}); pts.push({x:xb,y:y}); }
+  return pts;
 }
 
 function initPixelInteractions(){
   function handleDown(e){
     e.preventDefault();
-    isPointerDown = true;
     var p = eventToLogicalPoint(e);
-    paintPixel(p.x, p.y, currentColor);
-    updateMyCursorFirebase(p.x, p.y, true);
+    if(currentTool==='pencil'){
+      isPointerDown = true; strokeEntries=[];
+      commitPixelDrag(p.x,p.y,currentColor);
+    } else if(currentTool==='eraser'){
+      isPointerDown = true; strokeEntries=[];
+      commitPixelDrag(p.x,p.y,null);
+    } else if(currentTool==='fill'){
+      var changes = floodFill(p.x,p.y,currentColor);
+      if(changes.length) applyPixels(changes);
+    } else if(currentTool==='eyedropper'){
+      var sampled = pixelData[p.x+'_'+p.y];
+      if(sampled){ currentColor=sampled; syncColorPickers(); showToast('Color picked'); }
+      else showToast('Nothing to pick there');
+    } else if(currentTool==='line' || currentTool==='rect'){
+      isPointerDown = true;
+      pixelDragStart = p;
+      pixelPreviewColor = currentColor;
+      pixelPreviewPoints = [p];
+      renderOverlay();
+    }
+    updateMyCursorFirebase(p.x,p.y,true);
   }
   function handleMove(e){
-    var raw = eventToLogicalPoint(e);
-    updateMyCursorFirebase(raw.x, raw.y, isPointerDown);
+    var p = eventToLogicalPoint(e);
+    updateMyCursorFirebase(p.x,p.y,isPointerDown);
     if(!isPointerDown) return;
     e.preventDefault();
-    paintPixel(raw.x, raw.y, currentColor);
+    if(currentTool==='pencil'){ commitPixelDrag(p.x,p.y,currentColor); }
+    else if(currentTool==='eraser'){ commitPixelDrag(p.x,p.y,null); }
+    else if((currentTool==='line'||currentTool==='rect') && pixelDragStart){
+      pixelPreviewPoints = currentTool==='line'
+        ? bresenhamLine(pixelDragStart.x,pixelDragStart.y,p.x,p.y)
+        : rectPoints(pixelDragStart.x,pixelDragStart.y,p.x,p.y);
+      renderOverlay();
+    }
   }
-  function handleUp(){ isPointerDown = false; }
+  function handleUp(){
+    if(currentTool==='pencil' || currentTool==='eraser'){ finishPixelDrag(); }
+    if(isPointerDown && (currentTool==='line'||currentTool==='rect') && pixelDragStart){
+      var changes = pixelPreviewPoints.map(function(pt){ return {x:pt.x,y:pt.y,color:pixelPreviewColor}; });
+      if(changes.length) applyPixels(changes);
+      pixelDragStart=null; pixelPreviewPoints=[]; renderOverlay();
+    }
+    isPointerDown = false;
+  }
 
   canvas.addEventListener('mousedown', handleDown);
   canvas.addEventListener('mousemove', handleMove);
@@ -537,38 +762,78 @@ function initPixelInteractions(){
 // ══════════════════════════ FREEHAND MODE ══════════════════════════
 var fhTool = 'pen';
 var brushSize = 6;
-var currentStroke = null; // {points:[], color, size, uid}
-var allStrokes = {}; // strokeId -> stroke object (for redraw)
+var brushOpacity = 1;
+var currentStroke = null;
+var allStrokes = {};
+var fhDragStart = null;
+var fhPreviewPoints = [];
 
 function initFreehandInteractions(){
   ctx.lineCap='round'; ctx.lineJoin='round';
 
   function handleDown(e){
     e.preventDefault();
-    isPointerDown = true;
     var p = eventToLogicalPoint(e);
-    currentStroke = { points:[[p.x,p.y]], color: fhTool==='eraser' ? '__ERASER__' : currentColor, size: brushSize, uid: myUid, name: myName };
-    drawStrokeSegment(currentStroke, p.x, p.y, true);
+    if(fhTool==='eyedropper'){
+      try{
+        var px = ctx.getImageData(Math.round(p.x*DPR), Math.round(p.y*DPR), 1, 1).data;
+        if(px[3]>0){
+          currentColor = '#'+[px[0],px[1],px[2]].map(function(v){return v.toString(16).padStart(2,'0');}).join('');
+          syncColorPickers(); showToast('Color picked');
+        } else showToast('Nothing to pick there');
+      }catch(err){}
+      return;
+    }
+    isPointerDown = true;
+    if(fhTool==='pen' || fhTool==='eraser'){
+      currentStroke = { points:[[p.x,p.y]], color: fhTool==='eraser' ? '__ERASER__' : currentColor, size: brushSize, alpha: brushOpacity, uid: myUid, name: myName };
+      drawStrokeSegment(currentStroke, p.x, p.y, true);
+    } else if(fhTool==='line' || fhTool==='rect' || fhTool==='circle'){
+      fhDragStart = p;
+      fhPreviewPoints = [[p.x,p.y]];
+      renderOverlay();
+    }
   }
   function handleMove(e){
     var p = eventToLogicalPoint(e);
-    updateMyCursorFirebase(p.x, p.y, isPointerDown);
-    if(!isPointerDown || !currentStroke) return;
+    updateMyCursorFirebase(p.x,p.y,isPointerDown);
+    if(!isPointerDown) return;
     e.preventDefault();
-    currentStroke.points.push([p.x,p.y]);
-    drawStrokeSegment(currentStroke, p.x, p.y, false);
+    if(fhTool==='pen' || fhTool==='eraser'){
+      if(!currentStroke) return;
+      currentStroke.points.push([p.x,p.y]);
+      drawStrokeSegment(currentStroke, p.x, p.y, false);
+    } else if(fhDragStart){
+      fhPreviewPoints = computeShapePoints(fhTool, fhDragStart, p);
+      renderOverlay();
+    }
   }
   function handleUp(){
-    if(isPointerDown && currentStroke && currentStroke.points.length>0){
+    if(isPointerDown && (fhTool==='pen'||fhTool==='eraser') && currentStroke && currentStroke.points.length>0){
       var strokeId = genId(14);
       db.ref('art_strokes/'+ROOM_ID+'/'+strokeId).set({
-        points: currentStroke.points, color: currentStroke.color, size: currentStroke.size,
+        points: currentStroke.points, color: currentStroke.color, size: currentStroke.size, alpha: currentStroke.alpha,
         uid: myUid, name: myName, ts: firebase.database.ServerValue.TIMESTAMP
       });
       allStrokes[strokeId] = currentStroke;
+      myActions.push({type:'stroke', id: strokeId}); trimActions();
+      markContributor();
+    } else if(isPointerDown && fhDragStart && (fhTool==='line'||fhTool==='rect'||fhTool==='circle') && fhPreviewPoints.length>1){
+      var stroke = { points: fhPreviewPoints, color: currentColor, size: brushSize, alpha: brushOpacity, uid: myUid, name: myName };
+      var strokeId = genId(14);
+      db.ref('art_strokes/'+ROOM_ID+'/'+strokeId).set({
+        points: stroke.points, color: stroke.color, size: stroke.size, alpha: stroke.alpha,
+        uid: myUid, name: myName, ts: firebase.database.ServerValue.TIMESTAMP
+      });
+      allStrokes[strokeId] = stroke;
+      myActions.push({type:'stroke', id: strokeId}); trimActions();
+      markContributor();
     }
     isPointerDown = false;
     currentStroke = null;
+    fhDragStart = null;
+    fhPreviewPoints = [];
+    renderOverlay();
   }
 
   canvas.addEventListener('mousedown', handleDown);
@@ -579,8 +844,27 @@ function initFreehandInteractions(){
   window.addEventListener('touchend', handleUp);
 }
 
+function computeShapePoints(tool, start, end){
+  if(tool==='line') return [[start.x,start.y],[end.x,end.y]];
+  if(tool==='rect'){
+    return [[start.x,start.y],[end.x,start.y],[end.x,end.y],[start.x,end.y],[start.x,start.y]];
+  }
+  if(tool==='circle'){
+    var dx=end.x-start.x, dy=end.y-start.y;
+    var radius = Math.sqrt(dx*dx+dy*dy);
+    var pts=[]; var N=48;
+    for(var i=0;i<=N;i++){
+      var a = (i/N)*Math.PI*2;
+      pts.push([start.x+Math.cos(a)*radius, start.y+Math.sin(a)*radius]);
+    }
+    return pts;
+  }
+  return [];
+}
+
 function drawStrokeSegment(stroke, x, y, isFirst){
   ctx.lineWidth = stroke.size;
+  ctx.globalAlpha = stroke.alpha==null ? 1 : stroke.alpha;
   ctx.globalCompositeOperation = (stroke.color==='__ERASER__') ? 'destination-out' : 'source-over';
   ctx.strokeStyle = (stroke.color==='__ERASER__') ? 'rgba(0,0,0,1)' : stroke.color;
   var pts = stroke.points;
@@ -598,11 +882,13 @@ function drawStrokeSegment(stroke, x, y, isFirst){
     ctx.stroke();
   }
   ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
 }
 
 function drawFullStroke(stroke){
   if(!stroke.points || stroke.points.length===0) return;
   ctx.lineWidth = stroke.size;
+  ctx.globalAlpha = stroke.alpha==null ? 1 : stroke.alpha;
   ctx.globalCompositeOperation = (stroke.color==='__ERASER__') ? 'destination-out' : 'source-over';
   ctx.strokeStyle = (stroke.color==='__ERASER__') ? 'rgba(0,0,0,1)' : stroke.color;
   ctx.fillStyle = ctx.strokeStyle;
@@ -617,6 +903,7 @@ function drawFullStroke(stroke){
     ctx.stroke();
   }
   ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
 }
 
 function redrawAll(){
@@ -652,6 +939,12 @@ function attachRealtimeListeners(){
       ctx.fillStyle = val.c;
       ctx.fillRect(parseInt(parts[0]), parseInt(parts[1]), 1, 1);
     });
+    db.ref('art_pixels/'+ROOM_ID).on('child_removed', function(snap){
+      var key = snap.key;
+      delete pixelData[key];
+      var parts = key.split('_');
+      ctx.clearRect(parseInt(parts[0]), parseInt(parts[1]), 1, 1);
+    });
   } else {
     db.ref('art_strokes/'+ROOM_ID).on('child_added', function(snap){
       var stroke = snap.val();
@@ -668,7 +961,6 @@ function attachRealtimeListeners(){
     });
   }
 
-  // Chat
   db.ref('art_chat/'+ROOM_ID).limitToLast(50).on('child_added', function(snap){
     appendChatMsg(snap.val());
   });
@@ -692,12 +984,12 @@ function sendChat(){
   inp.value='';
 }
 
-// ══════════════════════════ PRESENCE (live cursors) ══════════════════════════
+// ══════════════════════════ PRESENCE (live cursors + overlay) ══════════════════════════
 var presenceUsers = {};
 var lastCursorSend = 0;
 function updateMyCursorFirebase(x,y,drawing){
   var now = Date.now();
-  if(now - lastCursorSend < 60) return; // throttle
+  if(now - lastCursorSend < 60) return;
   lastCursorSend = now;
   db.ref('art_presence/'+ROOM_ID+'/'+myUid).set({ name: myName, x:x, y:y, drawing: !!drawing, ts: firebase.database.ServerValue.TIMESTAMP });
 }
@@ -710,14 +1002,12 @@ function startPresence(){
     var active = {};
     Object.keys(val).forEach(function(uid){
       if(uid===myUid) return;
-      if(now - (val[uid].ts||0) > 15000) return; // stale
+      if(now - (val[uid].ts||0) > 15000) return;
       active[uid] = val[uid];
     });
     presenceUsers = active;
     renderPresenceStack();
-    renderRemoteCursors();
   });
-  // Heartbeat so I stay "present" even if idle
   setInterval(function(){
     db.ref('art_presence/'+ROOM_ID+'/'+myUid+'/ts').set(firebase.database.ServerValue.TIMESTAMP);
   }, 8000);
@@ -733,12 +1023,45 @@ function renderPresenceStack(){
   }).join('');
 }
 
-function renderRemoteCursors(){
+function renderOverlay(){
   cctx.clearRect(0,0,cursorCanvas.width, cursorCanvas.height);
-  var scaleX = (cursorCanvas.width/DPR) / (MODE==='pixel' ? GRID : 1200);
-  var scaleY = (cursorCanvas.height/DPR) / (MODE==='pixel' ? GRID : 800);
   cctx.save();
   cctx.scale(DPR,DPR);
+
+  if(MODE==='pixel' && gridVisible){
+    cctx.strokeStyle = 'rgba(255,255,255,.08)';
+    cctx.lineWidth = 1;
+    for(var i=0;i<=GRID;i++){
+      cctx.beginPath(); cctx.moveTo(i*cellPx,0); cctx.lineTo(i*cellPx,displayH); cctx.stroke();
+      cctx.beginPath(); cctx.moveTo(0,i*cellPx); cctx.lineTo(displayW,i*cellPx); cctx.stroke();
+    }
+  }
+
+  // local shape preview
+  if(MODE==='pixel' && pixelPreviewPoints.length && (currentTool==='line'||currentTool==='rect')){
+    cctx.globalAlpha = 0.65;
+    cctx.fillStyle = pixelPreviewColor || currentColor;
+    pixelPreviewPoints.forEach(function(pt){ cctx.fillRect(pt.x*cellPx, pt.y*cellPx, cellPx, cellPx); });
+    cctx.globalAlpha = 1;
+  }
+  if(MODE==='freehand' && fhPreviewPoints.length>1 && fhDragStart){
+    var scale = displayW/1200;
+    cctx.globalAlpha = brushOpacity;
+    cctx.strokeStyle = currentColor;
+    cctx.lineWidth = brushSize*scale;
+    cctx.lineCap='round'; cctx.lineJoin='round';
+    cctx.setLineDash([6,4]);
+    cctx.beginPath();
+    cctx.moveTo(fhPreviewPoints[0][0]*scale, fhPreviewPoints[0][1]*scale);
+    for(var j=1;j<fhPreviewPoints.length;j++) cctx.lineTo(fhPreviewPoints[j][0]*scale, fhPreviewPoints[j][1]*scale);
+    cctx.stroke();
+    cctx.setLineDash([]);
+    cctx.globalAlpha = 1;
+  }
+
+  // remote cursors
+  var scaleX = (MODE==='pixel') ? cellPx : displayW/1200;
+  var scaleY = (MODE==='pixel') ? cellPx : displayH/800;
   Object.keys(presenceUsers).forEach(function(uid){
     var u = presenceUsers[uid];
     if(u.x==null||u.y==null) return;
@@ -756,7 +1079,7 @@ function renderRemoteCursors(){
   });
   cctx.restore();
 }
-setInterval(renderRemoteCursors, 100);
+setInterval(renderOverlay, 100);
 
 // ══════════════════════════ MISC UI ══════════════════════════
 document.getElementById('btn-share').addEventListener('click', function(){
@@ -781,7 +1104,6 @@ document.getElementById('btn-download').addEventListener('click', function(){
   var a = document.createElement('a');
   a.download = (roomData?roomData.name:'art')+'.png';
   if(MODE==='pixel'){
-    // export at higher resolution for pixel mode so it's not a tiny image
     var exportCanvas = document.createElement('canvas');
     var scale = 16;
     exportCanvas.width = GRID*scale; exportCanvas.height = GRID*scale;
@@ -796,5 +1118,6 @@ document.getElementById('btn-download').addEventListener('click', function(){
   showToast('Downloaded!');
 });
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
