@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -71,9 +70,6 @@ input.search-input{width:100%;background:var(--surface);border:1px solid var(--b
 input.search-input:focus{border-color:var(--borderhi);}
 input.search-input::placeholder{color:var(--tx3);}
 select.sel{background:var(--surface);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.78rem;padding:0 10px;height:34px;border-radius:var(--r-md);outline:none;cursor:pointer;}
-.seg{display:flex;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-md);padding:2px;gap:2px;}
-.seg button{background:transparent;border:none;color:var(--tx3);padding:6px 10px;border-radius:5px;font-size:.75rem;font-weight:600;font-family:var(--font);transition:all .13s;}
-.seg button.active{background:var(--white);color:var(--wfg);}
 
 /* GRID */
 .gallery-wrap{max-width:1080px;margin:0 auto;width:100%;padding:14px 20px 70px;flex:1;}
@@ -86,17 +82,17 @@ select.sel{background:var(--surface);border:1px solid var(--border2);color:var(-
 .card-thumb{width:100%;aspect-ratio:4/3;background:#141414;position:relative;overflow:hidden;
   background-image:linear-gradient(45deg,#1a1a1a 25%,transparent 25%),linear-gradient(-45deg,#1a1a1a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1a1a1a 75%),linear-gradient(-45deg,transparent 75%,#1a1a1a 75%);
   background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0px;
+  display:flex;align-items:center;justify-content:center;
 }
-.card-thumb canvas{width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block;}
+.card-thumb canvas{max-width:100%;max-height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block;}
 .card-thumb .mode-tag{position:absolute;top:7px;left:7px;font-family:var(--mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;background:rgba(12,12,12,.75);border:1px solid var(--border2);color:var(--tx2);padding:2px 7px;border-radius:20px;backdrop-filter:blur(4px);}
-.card-thumb .thumb-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:1.2rem;}
+.card-thumb .remix-badge{position:absolute;top:7px;right:7px;font-family:var(--mono);font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;background:rgba(12,12,12,.75);border:1px solid var(--border2);color:var(--tx2);padding:2px 7px;border-radius:20px;backdrop-filter:blur(4px);display:flex;align-items:center;gap:4px;}
+.card-thumb .thumb-empty{color:var(--tx3);font-size:.72rem;}
 .card-body{padding:11px 12px;display:flex;flex-direction:column;gap:8px;flex:1;}
 .card-title{font-size:.85rem;font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .card-meta{display:flex;align-items:center;justify-content:space-between;font-size:.68rem;color:var(--tx3);}
-.contributors{display:flex;align-items:center;}
-.contrib-dot{width:19px;height:19px;border-radius:50%;border:2px solid var(--surface);margin-left:-6px;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;flex-shrink:0;}
-.contrib-dot:first-child{margin-left:0;}
-.contrib-names{font-size:.68rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-left:6px;}
+.card-artist{font-size:.7rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-artist b{color:var(--tx2);font-weight:600;}
 .card-foot{display:flex;gap:6px;align-items:center;padding-top:2px;}
 .like-btn{background:transparent;border:1px solid var(--border2);color:var(--tx3);border-radius:20px;padding:0 9px;height:26px;font-size:.7rem;display:inline-flex;align-items:center;gap:5px;transition:all .13s;}
 .like-btn:hover{border-color:var(--redhi);color:var(--redhi);}
@@ -136,7 +132,7 @@ footer .dot{color:var(--borderhi);}
 <div class="hero">
   <span class="hero-badge">PUBLIC GALLERY</span>
   <h1>The Museum</h1>
-  <p>Every public canvas anyone has drawn on, saved and browsable. Open a piece to keep adding to it, or start something new from the Art tab.</p>
+  <p>Snapshots artists have chosen to publish from their rooms. Open a piece to view it full-size, or remix it into your own room.</p>
   <div class="stats-row">
     <div class="stat"><b id="stat-rooms">—</b><span>Pieces</span></div>
     <div class="stat"><b id="stat-artists">—</b><span>Artists</span></div>
@@ -149,16 +145,10 @@ footer .dot{color:var(--borderhi);}
     <i class="fas fa-magnifying-glass"></i>
     <input class="search-input" id="search-input" placeholder="Search by name or artist…"/>
   </div>
-  <div class="seg" id="mode-filter">
-    <button class="active" data-m="all">All</button>
-    <button data-m="pixel">Pixel</button>
-    <button data-m="freehand">Freehand</button>
-  </div>
   <select class="sel" id="sort-select">
     <option value="new">Newest</option>
     <option value="views">Most viewed</option>
     <option value="likes">Most loved</option>
-    <option value="artists">Most artists</option>
   </select>
 </div>
 
@@ -222,7 +212,7 @@ function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 var _toastTimer;
 function showToast(msg,dur){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(_toastTimer);_toastTimer=setTimeout(function(){t.classList.remove('show');},dur||2200);}
 var USER_COLORS=['#ef4444','#f59e0b','#22c55e','#3b82f6','#a855f7','#ec4899','#06b6d4','#84cc16'];
-function colorForUid(uid){var h=0;for(var i=0;i<uid.length;i++)h=uid.charCodeAt(i)+((h<<5)-h);return USER_COLORS[Math.abs(h)%USER_COLORS.length];}
+function colorForUid(uid){var h=0;for(var i=0;i<(uid||'').length;i++)h=uid.charCodeAt(i)+((h<<5)-h);return USER_COLORS[Math.abs(h)%USER_COLORS.length];}
 function timeAgo(ts){
   if(!ts) return '';
   var s = Math.floor((Date.now()-ts)/1000);
@@ -245,7 +235,7 @@ auth.onAuthStateChanged(function(user){
     document.getElementById('signin-btn').style.display = user.isAnonymous ? 'inline-flex' : 'none';
     document.getElementById('signout-btn').style.display = user.isAnonymous ? 'none' : 'inline-flex';
     document.getElementById('admin-pill').style.display = isAdmin ? 'inline-flex' : 'none';
-    loadRooms();
+    loadPieces();
   } else {
     auth.signInAnonymously().catch(function(e){ showToast('Could not connect: '+e.message+'. Check that Anonymous sign-in is enabled in Firebase Auth settings.'); });
   }
@@ -315,17 +305,15 @@ document.getElementById('signout-btn').addEventListener('click', async function(
   showToast('Signed out.');
 });
 
-// ── LOAD ROOMS ──
-var allRooms = [];
-var thumbCache = {};
-var rendered = false;
+// ── LOAD PIECES (from art_museum, where the Upload flow actually publishes to) ──
+var allPieces = [];
 
-function loadRooms(){
-  db.ref('art_rooms').on('value', function(snap){
+function loadPieces(){
+  db.ref('art_museum').on('value', function(snap){
     var val = snap.val() || {};
-    allRooms = Object.keys(val).map(function(id){
-      var r = val[id]; r.id = id; return r;
-    }).filter(function(r){ return r.visibility==='public'; });
+    allPieces = Object.keys(val).map(function(id){
+      var p = val[id]; p.id = id; return p;
+    });
     renderStats();
     applyFiltersAndRender();
   });
@@ -334,41 +322,32 @@ function loadRooms(){
 function renderStats(){
   var artists = {};
   var totalViews = 0;
-  allRooms.forEach(function(r){
-    totalViews += (r.views||0);
-    Object.keys(r.contributors||{}).forEach(function(uid){ artists[uid]=true; });
+  allPieces.forEach(function(p){
+    totalViews += (p.views||0);
+    if(p.publisherUid) artists[p.publisherUid] = true;
   });
-  document.getElementById('stat-rooms').textContent = allRooms.length;
+  document.getElementById('stat-rooms').textContent = allPieces.length;
   document.getElementById('stat-artists').textContent = Object.keys(artists).length;
   document.getElementById('stat-views').textContent = totalViews;
 }
 
 // ── FILTER / SORT ──
-var filterMode = 'all', sortBy = 'new', searchQ = '';
-document.getElementById('mode-filter').querySelectorAll('button').forEach(function(b){
-  b.addEventListener('click', function(){
-    document.getElementById('mode-filter').querySelectorAll('button').forEach(function(x){x.classList.remove('active');});
-    b.classList.add('active');
-    filterMode = b.dataset.m;
-    applyFiltersAndRender();
-  });
-});
+var sortBy = 'new', searchQ = '';
 document.getElementById('sort-select').addEventListener('change', function(){ sortBy=this.value; applyFiltersAndRender(); });
 document.getElementById('search-input').addEventListener('input', function(){ searchQ=this.value.trim().toLowerCase(); applyFiltersAndRender(); });
 
 function applyFiltersAndRender(){
-  var list = allRooms.slice();
-  if(filterMode!=='all') list = list.filter(function(r){ return r.mode===filterMode; });
+  var list = allPieces.slice();
   if(searchQ){
-    list = list.filter(function(r){
-      var names = Object.values(r.contributors||{}).join(' ').toLowerCase();
-      return (r.name||'').toLowerCase().indexOf(searchQ)>-1 || names.indexOf(searchQ)>-1;
+    list = list.filter(function(p){
+      var name = (p.name||'').toLowerCase();
+      var artist = (p.publisherName||'').toLowerCase();
+      return name.indexOf(searchQ)>-1 || artist.indexOf(searchQ)>-1;
     });
   }
   list.sort(function(a,b){
     if(sortBy==='views') return (b.views||0)-(a.views||0);
     if(sortBy==='likes') return Object.keys(b.likes||{}).length - Object.keys(a.likes||{}).length;
-    if(sortBy==='artists') return Object.keys(b.contributors||{}).length - Object.keys(a.contributors||{}).length;
     return (b.created||0)-(a.created||0);
   });
   renderGallery(list);
@@ -378,175 +357,120 @@ function applyFiltersAndRender(){
 function renderGallery(list){
   var grid = document.getElementById('gallery-grid');
   if(list.length===0){
-    grid.innerHTML = '<div class="empty-state"><i class="fas fa-panorama"></i><span>No public art matches yet. Go start something on the Art tab.</span></div>';
+    grid.innerHTML = '<div class="empty-state"><i class="fas fa-panorama"></i><span>No public art matches yet. Publish a room from the Art tab to see it here.</span></div>';
     return;
   }
-  grid.innerHTML = list.map(function(r){ return cardHtml(r); }).join('');
+  grid.innerHTML = list.map(function(p){ return cardHtml(p); }).join('');
 
-  list.forEach(function(r){
-    var likeBtn = grid.querySelector('.like-btn[data-id="'+r.id+'"]');
-    if(likeBtn) likeBtn.addEventListener('click', function(){ toggleLike(r.id); });
-    var openBtn = grid.querySelector('.open-btn[data-id="'+r.id+'"]');
-    if(openBtn) openBtn.addEventListener('click', function(){ openRoom(r); });
+  list.forEach(function(p){
+    var likeBtn = grid.querySelector('.like-btn[data-id="'+p.id+'"]');
+    if(likeBtn) likeBtn.addEventListener('click', function(){ toggleLike(p.id); });
+    var openBtn = grid.querySelector('.open-btn[data-id="'+p.id+'"]');
+    if(openBtn) openBtn.addEventListener('click', function(){ openPiece(p); });
+    var remixBtn = grid.querySelector('.remix-btn[data-id="'+p.id+'"]');
+    if(remixBtn) remixBtn.addEventListener('click', function(){ remixPiece(p); });
     if(isAdmin){
-      var privBtn = grid.querySelector('.priv-btn[data-id="'+r.id+'"]');
-      if(privBtn) privBtn.addEventListener('click', function(){ togglePrivate(r); });
-      var delBtn = grid.querySelector('.del-btn[data-id="'+r.id+'"]');
-      if(delBtn) delBtn.addEventListener('click', function(){ deleteRoom(r); });
+      var delBtn = grid.querySelector('.del-btn[data-id="'+p.id+'"]');
+      if(delBtn) delBtn.addEventListener('click', function(){ deletePiece(p); });
     }
-    renderThumb(r);
+    paintThumb(p);
   });
 }
 
-function cardHtml(r){
-  var contributors = r.contributors || {};
-  var uids = Object.keys(contributors);
-  var dots = uids.slice(0,4).map(function(uid){
-    var nm = contributors[uid] || '?';
-    return '<div class="contrib-dot" style="background:'+colorForUid(uid)+'" title="'+esc(nm)+'">'+esc(nm.charAt(0).toUpperCase())+'</div>';
-  }).join('');
-  var names = uids.map(function(uid){ return contributors[uid]; }).filter(Boolean).join(', ') || 'No artists yet';
-  var likedByMe = !!(r.likes && r.likes[myUid]);
-  var likeCount = Object.keys(r.likes||{}).length;
+function cardHtml(p){
+  var likedByMe = !!(p.likes && p.likes[myUid]);
+  var likeCount = Object.keys(p.likes||{}).length;
+  var artistInitial = (p.publisherName||'?').charAt(0).toUpperCase();
+  var artistUid = p.publisherUid || 'anon';
 
   return '' +
-    '<div class="card" data-id="'+r.id+'">' +
-      '<div class="card-thumb" id="thumb-'+r.id+'">' +
-        '<div class="mode-tag">'+(r.mode==='pixel'?'Pixel':'Freehand')+'</div>' +
-        '<div class="thumb-loading"><i class="fas fa-spinner fa-spin"></i></div>' +
+    '<div class="card" data-id="'+p.id+'">' +
+      '<div class="card-thumb" id="thumb-'+p.id+'">' +
+        '<div class="mode-tag">Pixel</div>' +
+        (p.remixOfName ? '<div class="remix-badge"><i class="fas fa-code-branch"></i> Remix</div>' : '') +
       '</div>' +
       '<div class="card-body">' +
-        '<div class="card-title" title="'+esc(r.name||'Untitled')+'">'+esc(r.name||'Untitled')+'</div>' +
-        '<div class="card-meta"><span>'+timeAgo(r.created)+'</span><span><i class="fas fa-eye" style="opacity:.6;margin-right:3px;"></i>'+(r.views||0)+'</span></div>' +
-        '<div style="display:flex;align-items:center;">' +
-          '<div class="contributors">'+dots+'</div>' +
-          '<div class="contrib-names">'+esc(names)+'</div>' +
+        '<div class="card-title" title="'+esc(p.name||'Untitled')+'">'+esc(p.name||'Untitled')+'</div>' +
+        '<div class="card-meta"><span>'+timeAgo(p.created)+'</span><span><i class="fas fa-eye" style="opacity:.6;margin-right:3px;"></i>'+(p.views||0)+'</span></div>' +
+        '<div class="card-artist" style="display:flex;align-items:center;gap:6px;">' +
+          '<span style="width:16px;height:16px;border-radius:50%;background:'+colorForUid(artistUid)+';display:inline-flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:700;color:#fff;flex-shrink:0;">'+esc(artistInitial)+'</span>' +
+          '<span>by <b>'+esc(p.publisherName||'Unknown')+'</b></span>' +
         '</div>' +
         '<div class="card-foot">' +
-          '<button class="like-btn'+(likedByMe?' liked':'')+'" data-id="'+r.id+'"><i class="fa'+(likedByMe?'s':'r')+' fa-heart"></i> <span>'+likeCount+'</span></button>' +
-          '<button class="btn btn-prim open-btn" data-id="'+r.id+'">Open</button>' +
+          '<button class="like-btn'+(likedByMe?' liked':'')+'" data-id="'+p.id+'"><i class="fa'+(likedByMe?'s':'r')+' fa-heart"></i> <span>'+likeCount+'</span></button>' +
+          (p.remixable ? '<button class="btn remix-btn" data-id="'+p.id+'" title="Remix"><i class="fas fa-code-branch"></i></button>' : '') +
+          '<button class="btn btn-prim open-btn" data-id="'+p.id+'">Open</button>' +
         '</div>' +
       '</div>' +
       (isAdmin ? (
         '<div class="admin-row">' +
-          '<button class="btn priv-btn" data-id="'+r.id+'"><i class="fas fa-lock"></i> Make private</button>' +
-          '<button class="btn btn-danger del-btn" data-id="'+r.id+'"><i class="fas fa-trash"></i> Delete</button>' +
+          '<button class="btn btn-danger del-btn" data-id="'+p.id+'"><i class="fas fa-trash"></i> Delete</button>' +
         '</div>'
       ) : '') +
     '</div>';
 }
 
-function openRoom(r){
-  var params = new URLSearchParams();
-  params.set('mode', r.mode);
-  params.set('room', r.id);
-  params.set('name', r.name||'Untitled');
-  params.set('vis', 'public');
-  window.location.href = '/Art/Create?'+params.toString();
+function openPiece(p){
+  db.ref('art_museum/'+p.id+'/views').transaction(function(v){ return (v||0)+1; });
+  var host = document.getElementById('thumb-'+p.id);
+  var cv = host ? host.querySelector('canvas') : null;
+  if(cv){
+    var w = window.open('', '_blank');
+    if(w){
+      w.document.write('<title>'+esc(p.name||'Untitled')+'</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="'+cv.toDataURL('image/png')+'" style="max-width:95vw;max-height:95vh;image-rendering:pixelated;"/></body>');
+    }
+  }
+}
+
+function remixPiece(p){
+  window.location.href = '/Art/Upload/?remix='+p.id;
 }
 
 function toggleLike(id){
-  var ref = db.ref('art_rooms/'+id+'/likes/'+myUid);
+  var ref = db.ref('art_museum/'+id+'/likes/'+myUid);
   ref.once('value').then(function(snap){
     if(snap.exists()) ref.remove(); else ref.set(true);
   });
 }
 
-function togglePrivate(r){
+function deletePiece(p){
   if(!isAdmin) return;
-  var newVis = r.visibility==='private' ? 'public' : 'private';
-  if(!confirm((newVis==='private' ? 'Hide' : 'Un-hide')+' "'+(r.name||'Untitled')+'" from the public museum?')) return;
-  db.ref('art_rooms/'+r.id+'/visibility').set(newVis).then(function(){
-    showToast(newVis==='private' ? 'Made private' : 'Made public');
-  });
+  if(!confirm('Permanently delete "'+(p.name||'Untitled')+'" from the Museum? This cannot be undone.')) return;
+  db.ref('art_museum/'+p.id).remove().then(function(){ showToast('Deleted'); });
 }
 
-function deleteRoom(r){
-  if(!isAdmin) return;
-  if(!confirm('Permanently delete "'+(r.name||'Untitled')+'"? This removes all pixels/strokes and cannot be undone.')) return;
-  Promise.all([
-    db.ref('art_rooms/'+r.id).remove(),
-    db.ref('art_pixels/'+r.id).remove(),
-    db.ref('art_strokes/'+r.id).remove(),
-    db.ref('art_chat/'+r.id).remove(),
-    db.ref('art_presence/'+r.id).remove()
-  ]).then(function(){ showToast('Deleted'); });
-}
-
-// ── THUMBNAILS ──
-function renderThumb(r){
-  var host = document.getElementById('thumb-'+r.id);
+// ── THUMBNAILS (piece snapshots store cells as "x_y" -> color hex string) ──
+function paintThumb(p){
+  var host = document.getElementById('thumb-'+p.id);
   if(!host) return;
-  if(thumbCache[r.id]){ paintThumb(host, r, thumbCache[r.id]); return; }
-
-  if(r.mode==='pixel'){
-    db.ref('art_pixels/'+r.id).once('value').then(function(snap){
-      var data = snap.val() || {};
-      thumbCache[r.id] = data;
-      paintThumb(host, r, data);
-    }).catch(function(){ removeLoading(host); });
-  } else {
-    db.ref('art_strokes/'+r.id).once('value').then(function(snap){
-      var data = snap.val() || {};
-      thumbCache[r.id] = data;
-      paintThumb(host, r, data);
-    }).catch(function(){ removeLoading(host); });
+  var cells = (p.snapshot && p.snapshot.cells) || {};
+  var keys = Object.keys(cells);
+  if(!keys.length){
+    host.innerHTML += '<div class="thumb-empty">Empty</div>';
+    return;
   }
-}
-function removeLoading(host){ var l = host.querySelector('.thumb-loading'); if(l) l.remove(); }
-
-function paintThumb(host, r, data){
-  removeLoading(host);
+  var minX,minY,maxX,maxY;
+  keys.forEach(function(k,i){
+    var parts = k.split('_');
+    var x = parseInt(parts[0]), y = parseInt(parts[1]);
+    if(i===0){ minX=maxX=x; minY=maxY=y; }
+    if(x<minX) minX=x; if(x>maxX) maxX=x;
+    if(y<minY) minY=y; if(y>maxY) maxY=y;
+  });
+  var w = (maxX-minX+1), h = (maxY-minY+1);
   var cv = document.createElement('canvas');
-  host.appendChild(cv);
+  cv.width = w; cv.height = h;
   var gctx = cv.getContext('2d');
-
-  if(r.mode==='pixel'){
-    var grid = r.gridSize || 32;
-    cv.width = grid; cv.height = grid;
-    gctx.imageSmoothingEnabled = false;
-    Object.keys(data).forEach(function(key){
-      var parts = key.split('_');
-      var val = data[key];
-      if(!val || !val.c) return;
-      gctx.fillStyle = val.c;
-      gctx.fillRect(parseInt(parts[0]), parseInt(parts[1]), 1, 1);
-    });
-    if(Object.keys(data).length===0){
-      gctx.fillStyle = 'rgba(255,255,255,.04)';
-      gctx.fillRect(0,0,grid,grid);
-    }
-  } else {
-    var W=300, H=225, scale=W/1200;
-    cv.width = W; cv.height = H;
-    gctx.lineCap='round'; gctx.lineJoin='round';
-    var keys = Object.keys(data);
-    if(keys.length===0){
-      gctx.fillStyle = 'rgba(255,255,255,.04)';
-      gctx.fillRect(0,0,W,H);
-    }
-    keys.forEach(function(id){
-      var stroke = data[id];
-      if(!stroke || !stroke.points || !stroke.points.length) return;
-      gctx.lineWidth = Math.max(1, stroke.size*scale);
-      gctx.globalAlpha = stroke.alpha==null?1:stroke.alpha;
-      gctx.globalCompositeOperation = (stroke.color==='__ERASER__') ? 'destination-out' : 'source-over';
-      gctx.strokeStyle = (stroke.color==='__ERASER__') ? 'rgba(0,0,0,1)' : stroke.color;
-      gctx.fillStyle = gctx.strokeStyle;
-      if(stroke.points.length===1){
-        gctx.beginPath();
-        gctx.arc(stroke.points[0][0]*scale, stroke.points[0][1]*scale, (stroke.size*scale)/2, 0, Math.PI*2);
-        gctx.fill();
-      } else {
-        gctx.beginPath();
-        gctx.moveTo(stroke.points[0][0]*scale, stroke.points[0][1]*scale);
-        for(var i=1;i<stroke.points.length;i++) gctx.lineTo(stroke.points[i][0]*scale, stroke.points[i][1]*scale);
-        gctx.stroke();
-      }
-      gctx.globalCompositeOperation='source-over';
-      gctx.globalAlpha=1;
-    });
-  }
+  gctx.imageSmoothingEnabled = false;
+  keys.forEach(function(k){
+    var parts = k.split('_');
+    var x = parseInt(parts[0])-minX, y = parseInt(parts[1])-minY;
+    var color = cells[k];
+    if(!color) return;
+    gctx.fillStyle = color;
+    gctx.fillRect(x, y, 1, 1);
+  });
+  host.appendChild(cv);
 }
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
