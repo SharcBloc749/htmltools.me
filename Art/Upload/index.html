@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Upload — HTMLTools Art</title>
+<link rel="icon" type="image/png" href="/logo3.png?v=2"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c0c0c;--surface:#111;--panel:#171717;--panel2:#1e1e1e;
+  --border:#252525;--border2:#2e2e2e;--borderhi:#404040;
+  --tx:#e8e8e8;--tx2:#888;--tx3:#4a4a4a;
+  --white:#fff;--wfg:#0c0c0c;
+  --red:#dc2626;--redhi:#ef4444;--green:#16a34a;--greenhi:#22c55e;
+  --r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;--nav-h:48px;
+  --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--font);font-size:13.5px;-webkit-font-smoothing:antialiased;}
+body{display:flex;flex-direction:column;min-height:100%;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:6px;flex-shrink:0;}
+.nav-brand{display:flex;align-items:center;gap:7px;padding-right:12px;margin-right:4px;border-right:1px solid var(--border);}
+.nav-mark{width:24px;height:24px;border-radius:5px;overflow:hidden;}
+.nav-mark img{width:24px;height:24px;object-fit:contain;display:block;}
+.nav-name{font-size:.78rem;font-weight:600;color:var(--tx2);}
+.nav-spacer{flex:1;}
+.btn{background:var(--panel);border:1px solid var(--border2);color:var(--tx2);padding:0 11px;border-radius:var(--r);font-size:12px;font-weight:500;font-family:var(--font);transition:all .13s;display:inline-flex;align-items:center;gap:6px;height:28px;}
+.btn:hover{background:var(--panel2);border-color:var(--borderhi);color:var(--tx);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-prim{background:var(--white);color:var(--wfg);border-color:var(--white);font-weight:600;}
+.btn-prim:hover{opacity:.88;background:var(--white);color:var(--wfg);border-color:var(--white);}
+
+.wrap{max-width:520px;margin:0 auto;width:100%;padding:50px 20px 60px;flex:1;display:flex;flex-direction:column;gap:18px;}
+.state-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:50px 20px;}
+.state-card i{font-size:1.8rem;color:var(--tx3);}
+.state-card h2{font-size:1.15rem;font-weight:700;}
+.state-card p{font-size:.85rem;color:var(--tx2);line-height:1.6;max-width:380px;}
+
+.publish-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:20px;display:flex;flex-direction:column;gap:14px;}
+.preview-thumb{width:100%;aspect-ratio:4/3;background:#141414;border:1px solid var(--border2);border-radius:var(--r-md);overflow:hidden;
+  background-image:linear-gradient(45deg,#1a1a1a 25%,transparent 25%),linear-gradient(-45deg,#1a1a1a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#1a1a1a 75%),linear-gradient(-45deg,transparent 75%,#1a1a1a 75%);
+  background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0px;display:flex;align-items:center;justify-content:center;}
+.preview-thumb canvas{max-width:100%;max-height:100%;image-rendering:pixelated;}
+label.lbl{display:block;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:4px;}
+input.inp{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.85rem;padding:0 10px;height:34px;border-radius:var(--r);outline:none;}
+input.inp:focus{border-color:var(--borderhi);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-md);padding:10px 12px;}
+.toggle-row div{display:flex;flex-direction:column;gap:1px;}
+.toggle-row b{font-size:.82rem;}
+.toggle-row span{font-size:.68rem;color:var(--tx3);}
+.switch{position:relative;width:36px;height:20px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.switch .track{position:absolute;inset:0;background:var(--border2);border-radius:20px;transition:.15s;cursor:pointer;}
+.switch .track:before{content:'';position:absolute;width:15px;height:15px;left:2.5px;top:2.5px;background:var(--tx2);border-radius:50%;transition:.15s;}
+.switch input:checked + .track{background:var(--white);}
+.switch input:checked + .track:before{transform:translateX(16px);background:var(--wfg);}
+.remix-tag{font-family:var(--mono);font-size:.66rem;color:var(--tx3);background:var(--panel2);border:1px solid var(--border2);padding:5px 9px;border-radius:20px;align-self:flex-start;}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--panel2);border:1px solid var(--border2);padding:7px 14px;border-radius:var(--r-md);font-size:.78rem;font-weight:500;z-index:9999;opacity:0;transition:all .2s cubic-bezier(.22,1,.36,1);pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-brand"><a href="/Art"><div class="nav-mark"><img src="https://htmltools.me/logo3.png" alt="HT"/></div></a><span class="nav-name">Art</span></div>
+  <div class="nav-spacer"></div>
+  <a href="/Art" class="btn">Cancel</a>
+</nav>
+
+<div class="wrap" id="wrap">
+  <div class="state-card"><i class="fas fa-spinner fa-spin"></i><h2>Loading…</h2></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+var FB_CONFIG = {
+  apiKey:"AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
+  authDomain:"website-encryption-htmltools.firebaseapp.com",
+  databaseURL:"https://website-encryption-htmltools-default-rtdb.firebaseio.com",
+  projectId:"website-encryption-htmltools",
+  storageBucket:"website-encryption-htmltools.firebasestorage.app",
+  messagingSenderId:"211271935323",
+  appId:"1:211271935323:web:1abb9d416087ea89c0e67e"
+};
+firebase.initializeApp(FB_CONFIG);
+var db = firebase.database();
+var auth = firebase.auth();
+var CHUNK = 16;
+
+function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function genId(len){var chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',s='';var arr=new Uint8Array(len||16);crypto.getRandomValues(arr);for(var i=0;i<len;i++)s+=chars[arr[i]%chars.length];return s;}
+function genJoinCode(){var chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',s='';var arr=new Uint8Array(5);crypto.getRandomValues(arr);for(var i=0;i<5;i++)s+=chars[arr[i]%chars.length];return s;}
+function chunkKey(cx,cy){ return (cx<0?'m'+(-cx):'p'+cx)+'_'+(cy<0?'m'+(-cy):'p'+cy); }
+var _toastTimer;
+function showToast(msg,dur){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(_toastTimer);_toastTimer=setTimeout(function(){t.classList.remove('show');},dur||2400);}
+
+var params = new URLSearchParams(window.location.search);
+var ROOM_ID = params.get('room');
+var REMIX_OF = params.get('remix');
+
+var myUid=null, myName='Guest', currentUser=null;
+auth.onAuthStateChanged(function(user){
+  if(user){
+    currentUser=user; myUid=user.uid;
+    myName = user.isAnonymous ? ('Guest-'+user.uid.slice(0,4)) : (user.displayName || (user.email ? user.email.split('@')[0] : 'User'));
+    boot();
+  } else {
+    auth.signInAnonymously().catch(function(e){ showToast('Could not connect: '+e.message); });
+  }
+});
+
+function renderState(iconClass, title, body, showBackBtn){
+  document.getElementById('wrap').innerHTML =
+    '<div class="state-card"><i class="fas '+iconClass+'"></i><h2>'+esc(title)+'</h2><p>'+body+'</p>'+
+    (showBackBtn!==false ? '<a class="btn btn-prim" href="/Art" style="height:34px;padding:0 18px;">Back to Art</a>' : '')+
+    '</div>';
+}
+
+function boot(){
+  if(REMIX_OF){ bootRemix(REMIX_OF); }
+  else if(ROOM_ID){ bootPublish(ROOM_ID); }
+  else { renderState('fa-circle-question','Nothing to do here','Open this page from a room\'s Publish button, or from a Museum piece\'s Remix button.'); }
+}
+
+// ══════════════════════════ PUBLISH FLOW ══════════════════════════
+function bootPublish(roomId){
+  db.ref('art_rooms/'+roomId).once('value').then(function(snap){
+    if(!snap.exists()){ renderState('fa-circle-question','Room not found','This room doesn\'t exist, or has been deleted.'); return; }
+    var room = snap.val();
+    if(room.owner !== myUid){
+      renderState('fa-lock','Only the owner can publish', 'You\'re a member of this room, but only its owner can publish it to the Museum. Ask them to publish it instead.');
+      return;
+    }
+    renderPublishForm(roomId, room);
+  }).catch(function(){ renderState('fa-triangle-exclamation','Something went wrong','Please try again.'); });
+}
+
+function renderPublishForm(roomId, room){
+  var wrap = document.getElementById('wrap');
+  wrap.innerHTML =
+    '<div><h2 style="font-size:1.3rem;font-weight:700;letter-spacing:-.02em;margin-bottom:4px;">Publish to the Museum</h2>'+
+    '<p style="font-size:.82rem;color:var(--tx2);">This saves a snapshot of "'+esc(room.name||'Untitled')+'" to the public gallery. The room keeps drawing live — publishing again later updates nothing automatically, it creates a fresh snapshot.</p></div>'+
+    '<div class="publish-card">'+
+      '<div class="preview-thumb" id="preview-thumb"><i class="fas fa-spinner fa-spin" style="color:var(--tx3);"></i></div>'+
+      (room.publishedRemixOfName ? '<div class="remix-tag"><i class="fas fa-code-branch"></i> Remix of '+esc(room.publishedRemixOfName)+'</div>' : '')+
+      '<div><label class="lbl">Name for the Museum</label><input class="inp" id="museum-name" value="'+esc(room.name||'Untitled')+'" maxlength="60"/></div>'+
+      '<div class="toggle-row"><div><b>Remixable</b><span>Let anyone start their own room from this drawing</span></div>'+
+      '<label class="switch"><input type="checkbox" id="remixable-toggle" checked/><span class="track"></span></label></div>'+
+      '<button class="btn btn-prim" id="publish-go" style="height:36px;justify-content:center;"><i class="fas fa-upload"></i> Publish</button>'+
+    '</div>';
+
+  loadRoomPixelsForPreview(roomId, room, function(cells){
+    paintPreview(document.getElementById('preview-thumb'), cells);
+    document.getElementById('publish-go').addEventListener('click', function(){ doPublish(roomId, room, cells); });
+  });
+}
+
+function loadRoomPixelsForPreview(roomId, room, cb){
+  if(room.infinite){
+    db.ref('art_pixels/'+roomId+'/chunks').once('value').then(function(snap){
+      var chunks = snap.val()||{}; var cells={};
+      Object.keys(chunks).forEach(function(ck){
+        var parts = ck.split('_');
+        var cx = parts[0][0]==='m' ? -parseInt(parts[0].slice(1)) : parseInt(parts[0].slice(1));
+        var cy = parts[1][0]==='m' ? -parseInt(parts[1].slice(1)) : parseInt(parts[1].slice(1));
+        var chunkData = chunks[ck];
+        Object.keys(chunkData).forEach(function(lk){
+          var lp=lk.split('_'); var lx=parseInt(lp[0]), ly=parseInt(lp[1]);
+          var v=chunkData[lk];
+          if(v&&v.c) cells[(cx*CHUNK+lx)+'_'+(cy*CHUNK+ly)] = v.c;
+        });
+      });
+      cb(cells);
+    });
+  } else {
+    db.ref('art_pixels/'+roomId+'/cells').once('value').then(function(snap){
+      var raw = snap.val()||{}; var cells={};
+      Object.keys(raw).forEach(function(k){ if(raw[k]&&raw[k].c) cells[k]=raw[k].c; });
+      cb(cells);
+    });
+  }
+}
+
+function paintPreview(host, cells){
+  var keys = Object.keys(cells);
+  host.innerHTML='';
+  if(!keys.length){ host.innerHTML = '<span style="font-size:.78rem;color:var(--tx3);">This drawing is empty</span>'; return; }
+  var minX,minY,maxX,maxY;
+  keys.forEach(function(k,i){ var p=k.split('_'); var x=+p[0],y=+p[1]; if(i===0){minX=maxX=x;minY=maxY=y;} if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; });
+  var w=(maxX-minX+1), h=(maxY-minY+1);
+  var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  var gctx=cv.getContext('2d'); gctx.imageSmoothingEnabled=false;
+  keys.forEach(function(k){ var p=k.split('_'); var x=+p[0]-minX,y=+p[1]-minY; gctx.fillStyle=cells[k]; gctx.fillRect(x,y,1,1); });
+  cv.style.width = Math.min(280, w*10)+'px';
+  cv.style.imageRendering='pixelated';
+  host.appendChild(cv);
+}
+
+async function doPublish(roomId, room, cells){
+  var btn = document.getElementById('publish-go');
+  btn.disabled=true; btn.textContent='Publishing…';
+  try{
+    // re-verify ownership server-side-ish (client check against live data, best effort)
+    var freshSnap = await db.ref('art_rooms/'+roomId+'/owner').once('value');
+    if(freshSnap.val() !== myUid){ showToast('Only the owner can publish.'); btn.disabled=false; btn.textContent='Publish'; return; }
+    var name = document.getElementById('museum-name').value.trim() || 'Untitled';
+    var remixable = document.getElementById('remixable-toggle').checked;
+    var museumId = 'm_'+genId(20);
+    var museumData = {
+      name:name, mode:'pixel', infinite: !!room.infinite,
+      publisherUid: myUid, publisherName: myName,
+      remixable: !!remixable,
+      remixOfMuseumId: REMIX_OF || (room.remixOfMuseumId || null),
+      remixOfName: room.remixOfName || null,
+      created: Date.now(), views:0, likes:{},
+      snapshot: { cells: cells }
+    };
+    await db.ref('art_museum/'+museumId).set(museumData);
+    await db.ref('art_rooms/'+roomId+'/publishedMuseumId').set(museumId);
+    renderState('fa-circle-check','Published!', 'Your drawing is live in the Museum.', false);
+    document.getElementById('wrap').innerHTML += '<a class="btn btn-prim" href="/Art/Museum" style="height:36px;justify-content:center;margin-top:6px;">View in Museum</a><a class="btn" href="/Art/Create?r='+roomId+'" style="height:36px;justify-content:center;margin-top:8px;">Back to room</a>';
+  }catch(e){
+    showToast('Failed to publish.');
+    btn.disabled=false; btn.textContent='Publish';
+  }
+}
+
+// ══════════════════════════ REMIX FLOW ══════════════════════════
+function bootRemix(museumId){
+  db.ref('art_museum/'+museumId).once('value').then(function(snap){
+    if(!snap.exists()){ renderState('fa-circle-question','Piece not found','This Museum piece doesn\'t exist, or has been removed.'); return; }
+    var piece = snap.val();
+    if(!piece.remixable){ renderState('fa-lock','Not remixable','The artist who published this piece didn\'t make it remixable.'); return; }
+    renderRemixForm(museumId, piece);
+  });
+}
+function renderRemixForm(museumId, piece){
+  var cells = (piece.snapshot && piece.snapshot.cells) || {};
+  var wrap = document.getElementById('wrap');
+  wrap.innerHTML =
+    '<div><h2 style="font-size:1.3rem;font-weight:700;letter-spacing:-.02em;margin-bottom:4px;">Remix this drawing</h2>'+
+    '<p style="font-size:.82rem;color:var(--tx2);">This creates a brand-new room, owned by you, seeded with a copy of "'+esc(piece.name||'Untitled')+'". Draw on it, invite whoever you want, and publish your own version whenever you\'re ready.</p></div>'+
+    '<div class="publish-card">'+
+      '<div class="preview-thumb" id="preview-thumb"></div>'+
+      '<div><label class="lbl">Name for your new room</label><input class="inp" id="remix-room-name" value="Remix of '+esc(piece.name||'Untitled')+'" maxlength="60"/></div>'+
+      '<button class="btn btn-prim" id="remix-go" style="height:36px;justify-content:center;"><i class="fas fa-code-branch"></i> Create my remix</button>'+
+    '</div>';
+  paintPreview(document.getElementById('preview-thumb'), cells);
+  document.getElementById('remix-go').addEventListener('click', function(){ doRemix(museumId, piece, cells); });
+}
+async function doRemix(museumId, piece, cells){
+  var btn = document.getElementById('remix-go');
+  btn.disabled=true; btn.textContent='Creating…';
+  try{
+    var internalId = 'r_'+genId(20);
+    var code = genJoinCode();
+    var name = document.getElementById('remix-room-name').value.trim() || ('Remix of '+(piece.name||'Untitled'));
+    var roomData = {
+      name:name, mode:'pixel', infinite:true, gridSize:null,
+      joinCode:code, owner:myUid, ownerName:myName, created:Date.now(), locked:false,
+      members:{}, banned:{}, remixOfMuseumId: museumId, remixOfName: piece.name||'Untitled'
+    };
+    roomData.members[myUid] = { name:myName, joinedAt:Date.now() };
+    await db.ref('art_rooms/'+internalId).set(roomData);
+    await db.ref('art_joincodes/'+code).set(internalId);
+    await db.ref('art_user_rooms/'+myUid+'/'+internalId).set(true);
+    // seed pixels as chunks (remix rooms are always infinite)
+    var writes = {};
+    Object.keys(cells).forEach(function(k){
+      var p=k.split('_'); var x=parseInt(p[0]), y=parseInt(p[1]);
+      var cx=Math.floor(x/CHUNK), cy=Math.floor(y/CHUNK);
+      var lx=((x%CHUNK)+CHUNK)%CHUNK, ly=((y%CHUNK)+CHUNK)%CHUNK;
+      writes['art_pixels/'+internalId+'/chunks/'+chunkKey(cx,cy)+'/'+lx+'_'+ly] = { c:cells[k], uid:myUid, ts:firebase.database.ServerValue.TIMESTAMP };
+    });
+    if(Object.keys(writes).length) await db.ref().update(writes);
+    window.location.href = '/Art/Create?r='+internalId;
+  }catch(e){
+    showToast('Failed to create remix.');
+    btn.disabled=false; btn.textContent='Create my remix';
+  }
+}
+</script>
+</body>
+</html>
