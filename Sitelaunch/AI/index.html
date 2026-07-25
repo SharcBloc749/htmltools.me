@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SiteLaunch AI — HTMLTools</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<style>
+:root{--bg:#0c0c0c;--surface:#111;--panel:#171717;--panel-2:#1e1e1e;--border:#252525;--border-2:#2e2e2e;--border-hi:#404040;--tx:#e8e8e8;--tx-2:#888;--tx-3:#4a4a4a;--white:#fff;--wfg:#0c0c0c;--green:#16a34a;--green-hi:#22c55e;--blue:#2563eb;--blue-hi:#3b82f6;--red:#dc2626;--red-hi:#ef4444;--yellow:#ca8a04;--yellow-hi:#f59e0b;--r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;--nav-h:48px;--font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;--mono:'JetBrains Mono','SF Mono',Consolas,monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{color:var(--tx);font-family:var(--font);font-size:13.5px;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--border-hi);}
+
+/* ── LOGIN GATE ── */
+#login-gate{position:fixed;inset:0;background:var(--bg);z-index:8000;display:flex;align-items:center;justify-content:center;padding:1.5rem;}
+#login-gate.hidden{display:none;}
+.lg-card{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r-xl);padding:1.875rem;}
+.lg-logo{width:38px;height:38px;margin:0 auto 1.125rem;display:block;}
+.lg-h{font-weight:700;font-size:1.1rem;text-align:center;margin-bottom:.2rem;}
+.lg-sub{font-size:.78rem;color:var(--tx-3);text-align:center;margin-bottom:1.375rem;}
+.lg-fg{margin-bottom:.8rem;}
+.lg-fg label{display:block;font-size:.7rem;color:var(--tx-2);margin-bottom:.375rem;font-weight:500;}
+.lg-fg input{width:100%;background:var(--panel);border:1px solid var(--border-2);color:var(--tx);font-family:var(--font);font-size:.85rem;padding:.6rem .8rem;border-radius:var(--r);outline:none;}
+.lg-fg input:focus{border-color:var(--border-hi);}
+.lg-btn{width:100%;padding:.68rem;background:var(--white);color:var(--wfg);font-size:.82rem;font-weight:600;border:none;border-radius:var(--r);cursor:pointer;margin-top:.5rem;}
+.lg-btn:hover{opacity:.9;}
+.lg-err{margin-top:.75rem;padding:.6rem .8rem;border-radius:var(--r);font-size:.75rem;display:none;border:1px solid rgba(220,38,38,.25);background:rgba(220,38,38,.06);color:var(--red-hi);}
+.lg-err.show{display:block;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;height:var(--nav-h);gap:10px;flex-shrink:0;}
+.tb-brand{display:flex;align-items:center;gap:8px;padding-right:12px;margin-right:2px;border-right:1px solid var(--border);flex-shrink:0;}
+.tb-brand img{width:24px;height:24px;border-radius:5px;}
+.tb-brand span{font-size:.8rem;font-weight:600;color:var(--tx-2);}
+.site-picker{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r);padding:5px 10px;font-size:12.5px;cursor:pointer;transition:all .13s;}
+.site-picker:hover{border-color:var(--border-hi);}
+.site-picker select{background:transparent;border:none;color:var(--tx);font-family:inherit;font-size:12.5px;outline:none;cursor:pointer;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.quota-pill{font-size:11px;color:var(--tx-2);background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-family:var(--mono);display:flex;align-items:center;gap:6px;}
+.quota-pill .dot{width:5px;height:5px;border-radius:50%;background:var(--green-hi);}
+.quota-pill.low .dot{background:var(--yellow-hi);}
+.quota-pill.empty .dot{background:var(--red-hi);}
+.btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);padding:0 11px;border-radius:var(--r);font-size:12px;font-weight:500;transition:all .13s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;height:28px;}
+.btn:hover{background:var(--panel-2);border-color:var(--border-hi);color:var(--tx);}
+.btn-prim{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn-prim:hover{background:#1d4ed8;border-color:#1d4ed8;color:#fff;}
+.btn-run{background:var(--green);color:#fff;border-color:var(--green);font-weight:600;}
+.btn-run:hover{background:#15803d;color:#fff;}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--tx-3);}
+.btn-ghost:hover{background:var(--panel);border-color:var(--border);color:var(--tx-2);}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border-2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--tx-2);cursor:pointer;flex-shrink:0;}
+
+/* ── LAYOUT ── */
+.layout{flex:1;display:flex;min-height:0;overflow:hidden;}
+
+/* SIDEBAR: conversations + files */
+.sidebar{width:250px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.sb-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sb-tab{flex:1;padding:9px;background:transparent;border:none;color:var(--tx-3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;border-bottom:2px solid transparent;transition:all .13s;}
+.sb-tab.active{color:var(--tx);border-bottom-color:var(--blue-hi);}
+.sb-tab:hover:not(.active){color:var(--tx-2);}
+.sb-pane{flex:1;overflow-y:auto;display:none;flex-direction:column;padding:8px;gap:4px;}
+.sb-pane.active{display:flex;}
+.conv-item{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--tx-2);transition:all .12s;position:relative;}
+.conv-item:hover{background:var(--panel);}
+.conv-item.active{background:var(--panel-2);color:var(--tx);}
+.conv-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.conv-item .del{opacity:0;font-size:10px;color:var(--tx-3);flex-shrink:0;}
+.conv-item:hover .del{opacity:1;}
+.conv-item .del:hover{color:var(--red-hi);}
+.new-conv-btn{margin:8px;padding:8px;background:var(--panel);border:1px dashed var(--border-2);border-radius:var(--r);color:var(--tx-2);font-size:11.5px;text-align:center;cursor:pointer;transition:all .13s;}
+.new-conv-btn:hover{border-color:var(--border-hi);color:var(--tx);}
+.draft-banner{margin:8px;padding:9px 10px;background:rgba(202,138,4,.08);border:1px solid rgba(202,138,4,.25);border-radius:var(--r);font-size:11px;color:var(--yellow-hi);display:none;flex-direction:column;gap:6px;}
+.draft-banner.show{display:flex;}
+.draft-banner button{background:rgba(202,138,4,.15);border:1px solid rgba(202,138,4,.3);color:var(--yellow-hi);border-radius:var(--r);padding:4px 8px;font-size:10.5px;}
+.tree-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--tx-2);transition:all .1s;}
+.tree-item:hover{background:var(--panel);color:var(--tx);}
+.tree-item.active{background:var(--panel-2);color:var(--tx);}
+.tree-item .ext{font-family:var(--mono);font-size:9.5px;color:var(--tx-3);width:24px;flex-shrink:0;}
+.tree-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);}
+.tree-empty{padding:22px 10px;text-align:center;color:var(--tx-3);font-size:11.5px;}
+
+/* CHAT PANE */
+.chat-pane{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border);}
+.chat-scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;}
+.msg{max-width:88%;display:flex;flex-direction:column;gap:6px;}
+.msg.user{align-self:flex-end;align-items:flex-end;}
+.msg.assistant{align-self:flex-start;align-items:flex-start;}
+.msg-bubble{padding:10px 13px;border-radius:var(--r-md);font-size:13px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;}
+.msg.user .msg-bubble{background:var(--blue);color:#fff;border-bottom-right-radius:2px;}
+.msg.assistant .msg-bubble{background:var(--panel);border:1px solid var(--border);border-bottom-left-radius:2px;}
+.msg-avatar-row{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--tx-3);}
+.msg-avatar-row img{width:14px;height:14px;border-radius:3px;}
+.file-card{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r-md);overflow:hidden;}
+.file-card-hdr{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--panel-2);border-bottom:1px solid var(--border);cursor:pointer;}
+.file-card-hdr .fc-icon{font-family:var(--mono);font-size:9px;color:var(--tx-3);background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:2px 5px;}
+.file-card-hdr .fc-path{flex:1;font-family:var(--mono);font-size:11.5px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-card-hdr .fc-arrow{font-size:9px;color:var(--tx-3);transition:transform .15s;}
+.file-card.open .fc-arrow{transform:rotate(90deg);}
+.file-card-actions{display:flex;gap:4px;padding:6px 8px;background:var(--surface);border-bottom:1px solid var(--border);}
+.fc-btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);font-size:10.5px;padding:3px 8px;border-radius:3px;transition:all .13s;}
+.fc-btn:hover{border-color:var(--border-hi);color:var(--tx);}
+.file-card-body{display:none;max-height:340px;overflow:auto;}
+.file-card.open .file-card-body{display:block;}
+.file-card-body pre{margin:0;padding:11px 13px;font-family:var(--mono)!important;font-size:11.5px!important;line-height:1.6!important;background:var(--editor-bg,#141414)!important;}
+.ask-card{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--blue-hi);border-radius:var(--r-md);padding:12px 13px;display:flex;flex-direction:column;gap:9px;}
+.ask-q{font-size:12.5px;color:var(--tx);font-weight:500;}
+.ask-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);cursor:pointer;font-size:12px;color:var(--tx-2);transition:all .12s;}
+.ask-opt:hover{border-color:var(--border-hi);color:var(--tx);background:var(--panel-2);}
+.ask-opt .letter{font-family:var(--mono);font-size:10px;color:var(--tx-3);background:var(--panel);border-radius:3px;padding:1px 6px;flex-shrink:0;}
+.ask-opt.answered{opacity:.45;pointer-events:none;}
+.ask-type-row{display:none;gap:6px;}
+.ask-type-row.show{display:flex;}
+.ask-type-row input{flex:1;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r);padding:7px 9px;color:var(--tx);font-size:12px;outline:none;}
+.typing-dots{display:flex;gap:4px;padding:10px 13px;}
+.typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--tx-3);animation:tdot 1.1s infinite ease-in-out;}
+.typing-dots span:nth-child(2){animation-delay:.15s;}
+.typing-dots span:nth-child(3){animation-delay:.3s;}
+@keyframes tdot{0%,60%,100%{opacity:.3;transform:scale(.8)}30%{opacity:1;transform:scale(1)}}
+.chat-input-wrap{border-top:1px solid var(--border);padding:11px 13px;flex-shrink:0;background:var(--surface);}
+.chat-input-row{display:flex;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r-md);padding:8px;transition:border-color .13s;}
+.chat-input-row:focus-within{border-color:var(--border-hi);}
+.chat-input-row textarea{flex:1;background:transparent;border:none;color:var(--tx);font-family:inherit;font-size:13px;outline:none;resize:none;max-height:130px;min-height:22px;line-height:1.5;padding:2px 4px;}
+.chat-input-row textarea::placeholder{color:var(--tx-3);}
+.send-btn{background:var(--blue);color:#fff;border:none;width:32px;height:32px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;transition:opacity .13s;}
+.send-btn:hover{opacity:.88;}
+.send-btn:disabled{opacity:.35;cursor:not-allowed;}
+.quota-hint{font-size:10.5px;color:var(--tx-3);margin-top:6px;text-align:center;}
+.quota-hint a{color:var(--blue-hi);cursor:pointer;}
+
+/* PREVIEW PANE */
+.preview-pane{width:340px;display:flex;flex-direction:column;background:var(--surface);flex-shrink:0;}
+.pp-hdr{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.pp-hdr h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--tx-3);font-weight:600;}
+.pp-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;}
+.pending-file{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:9px 10px;display:flex;align-items:center;gap:8px;font-size:11.5px;}
+.pending-file input[type=checkbox]{accent-color:var(--blue-hi);cursor:pointer;}
+.pending-file .name{flex:1;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pp-empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--tx-3);font-size:11.5px;padding:20px;}
+.pp-actions{padding:11px 12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:7px;}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(6px);}
+.modal-overlay.active{display:flex;}
+.modal{background:var(--surface);border-radius:var(--r-xl);width:90%;max-width:420px;max-height:88vh;overflow-y:auto;border:1px solid var(--border-2);}
+.modal-hdr{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.modal-hdr h3{font-size:13px;font-weight:600;}
+.modal-close{background:transparent;border:none;color:var(--tx-3);cursor:pointer;font-size:14px;padding:3px 7px;border-radius:3px;}
+.modal-close:hover{color:var(--tx);background:var(--panel);}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:12px;}
+.modal-foot{padding:11px 16px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end;}
+.f-input{width:100%;padding:0 10px;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r);color:var(--tx);font-size:12.5px;height:32px;outline:none;}
+.f-label{font-size:10.5px;color:var(--tx-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;display:block;}
+.admin-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.admin-row:last-child{border-bottom:none;}
+.admin-row .u{font-family:var(--mono);color:var(--tx-2);}
+.grant-form{display:flex;gap:6px;margin-top:6px;}
+.grant-form input,.grant-form select{background:var(--panel);border:1px solid var(--border-2);color:var(--tx);border-radius:var(--r);padding:0 8px;height:28px;font-size:11.5px;}
+.empty-picker{padding:30px;text-align:center;color:var(--tx-3);font-size:12px;}
+.picker-item{padding:9px 11px;border-radius:var(--r);cursor:pointer;font-size:12.5px;transition:all .12s;font-family:var(--mono);}
+.picker-item:hover{background:var(--panel);}
+</style>
+</head>
+<body>
+
+<div id="login-gate">
+  <div class="lg-card">
+    <img src="https://htmltools.me/logo3.png" class="lg-logo" alt="">
+    <div class="lg-h">SiteLaunch AI</div>
+    <div class="lg-sub">Sign in with your SiteLaunch account</div>
+    <div class="lg-fg"><label>Email or Username</label><input type="text" id="lg-email" placeholder="you@example.com or yoursite"></div>
+    <div class="lg-fg"><label>Password</label><input type="password" id="lg-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="lg-btn" onclick="doLogin()">Sign In →</button>
+    <div class="lg-err" id="lg-err"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none;flex-direction:column;height:100%;">
+  <div class="topbar">
+    <div class="tb-brand"><img src="https://htmltools.me/logo3.png" alt=""><span>SiteLaunch AI</span></div>
+    <div class="site-picker" id="sitePickerWrap">
+      <span style="opacity:.6">🌐</span>
+      <select id="siteSelect"><option>Loading sites…</option></select>
+    </div>
+    <div class="tb-right">
+      <span class="quota-pill" id="quotaPill"><span class="dot"></span><span id="quotaText">30/30</span></span>
+      <button class="btn" id="adminBtn" style="display:none" onclick="openAdminModal()">🛡 Admin</button>
+      <div class="avatar" id="avatarBtn" onclick="doSignOut()" title="Sign out">?</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sb-tabs">
+        <button class="sb-tab active" id="tabConv" onclick="switchSbTab('conv')">Chats</button>
+        <button class="sb-tab" id="tabFiles" onclick="switchSbTab('files')">Files</button>
+      </div>
+      <div class="sb-pane active" id="paneConv">
+        <div class="draft-banner" id="draftBanner">
+          <span>⚠ Unsaved draft found from a previous session.</span>
+          <div style="display:flex;gap:6px"><button onclick="restoreDraft()">Restore</button><button onclick="dismissDraft()">Discard</button></div>
+        </div>
+        <div class="new-conv-btn" onclick="createConversation()">+ New conversation</div>
+        <div id="convList"></div>
+      </div>
+      <div class="sb-pane" id="paneFiles">
+        <div id="fileTree"><div class="tree-empty">Select a site to see files</div></div>
+      </div>
+    </div>
+
+    <div class="chat-pane">
+      <div class="chat-scroll" id="chatScroll">
+        <div style="text-align:center;color:var(--tx-3);font-size:12px;padding:30px 20px;">
+          👋 Tell HTMLTools Coder what you want to build or change. It can create/edit pages, and will ask before assuming anything important.
+        </div>
+      </div>
+      <div class="chat-input-wrap">
+        <div class="chat-input-row">
+          <textarea id="chatInput" placeholder="e.g. Add a Chat page where signed-in users can message each other…" rows="1" oninput="autoGrow(this)" onkeydown="handleChatKey(event)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+        <div class="quota-hint" id="quotaHint"></div>
+      </div>
+    </div>
+
+    <div class="preview-pane">
+      <div class="pp-hdr"><h3>Pending Changes</h3><button class="btn btn-ghost" style="height:22px;font-size:10px" onclick="clearPending()">Clear</button></div>
+      <div class="pp-body" id="pendingList"><div class="pp-empty">Changes HTMLTools Coder makes will appear here for review before you save.</div></div>
+      <div class="pp-actions">
+        <button class="btn" style="width:100%;justify-content:center" onclick="openPreviewPicker()">👁 Preview</button>
+        <button class="btn btn-run" style="width:100%;justify-content:center" onclick="saveAndPublish()">✓ Save &amp; Publish</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QUOTA REQUEST MODAL -->
+<div class="modal-overlay" id="quotaModal"><div class="modal">
+  <div class="modal-hdr"><h3>Request more prompts</h3><button class="modal-close" onclick="closeModals()">&times;</button></div>
+  <div class="modal-body">
+    <p style="font-size:12px;color:var(--tx-2);line-height:1.6">You've hit today's limit. Send a request to the HTMLTools team for a temporary or permanent increase.</p>
+    <textarea class="f-input" id="quotaReason" placeholder="Optional: why you need more (helps get it approved faster)" style="height:70px;padding:8px 10px;font-family:inherit;resize:vertical"></textarea>
+  </div>
+  <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModals()">Cancel</button><button class="btn btn-prim" onclick="submitQuotaRequest()">Send Request</button></div>
+</div></div>
+
+<!-- PREVIEW PICKER MODAL -->
+<div class="modal-overlay" id="previewModal"><div class="modal">
+  <div class="modal-hdr"><h3>Preview which page?</h3><button class="modal-close" onclick="closeModals()">&times;</button></div>
+  <div class="modal-body" id="previewPickerBody"></div>
+</div></div>
+
+<!-- ADMIN MODAL -->
+<div class="modal-overlay" id="adminModal"><div class="modal" style="max-width:520px">
+  <div class="modal-hdr"><h3>🛡 Admin — Quota Requests</h3><button class="modal-close" onclick="closeModals()">&times;</button></div>
+  <div class="modal-body" id="adminBody"><div style="color:var(--tx-3);font-size:12px">Loading…</div></div>
+</div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, set, get, remove, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const OWNER_EMAIL = "matthewbozhe@gmail.com";
+const AI_WORKER_URL = "https://black-mode-0618.bozhetarnikmatthew.workers.dev/";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDJR71PzrgQans3qOc0N1mI2vD4wFg1iV4",
+  authDomain: "htmltools-website-hoster.firebaseapp.com",
+  databaseURL: "https://htmltools-website-hoster-default-rtdb.firebaseio.com",
+  projectId: "htmltools-website-hoster",
+  storageBucket: "htmltools-website-hoster.firebasestorage.app",
+  messagingSenderId: "234189976540",
+  appId: "1:234189976540:web:4fa38db41cf745ada91519"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+function encodeKey(p){ return p.replace(/\|/g,'|p|').replace(/\./g,'|d|').replace(/\//g,'|s|'); }
+function decodeKey(k){ return k.replace(/\|d\|/g,'.').replace(/\|s\|/g,'/').replace(/\|p\|/g,'|'); }
+function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let currentUser=null, currentUsername=null, isOwner=false;
+let mySites=[], currentSite=null, currentFiles={};
+let conversations=[], currentConvId=null;
+let pendingFiles={}; // path -> content (staged, not yet saved)
+let dailyLimit=30, usedToday=0, quotaUnlimited=false;
+let autosaveTimer=null;
+
+// ── AUTH ──
+document.getElementById('login-gate') && (window.doLogin = async function(){
+  const raw=document.getElementById('lg-email').value.trim();
+  const pass=document.getElementById('lg-password').value;
+  const errEl=document.getElementById('lg-err');
+  errEl.classList.remove('show');
+  try{
+    let email=raw;
+    if(!raw.includes('@')){
+      const uname=raw.toLowerCase().replace(/\.htmltools\.me$/,'');
+      const unameSnap=await get(ref(db,`usernames/${uname}`));
+      if(!unameSnap.exists()) throw new Error(`No site found for "${uname}.htmltools.me"`);
+      const uSnap=await get(ref(db,`users/${unameSnap.val().uid}`));
+      if(!uSnap.exists()) throw new Error('Account not found.');
+      email=uSnap.val().email;
+    }
+    await signInWithEmailAndPassword(auth,email,pass);
+  }catch(e){
+    errEl.textContent=(e.message||'Login failed').replace('Firebase: ','').replace(/\(.*\)/,'').trim();
+    errEl.classList.add('show');
+  }
+});
+window.doSignOut = async ()=>{ if(confirm('Sign out?')) await fbSignOut(auth); };
+
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    document.getElementById('login-gate').classList.remove('hidden');
+    document.getElementById('app').style.display='none';
+    return;
+  }
+  currentUser=user;
+  isOwner = (user.email||'').toLowerCase()===OWNER_EMAIL;
+  const userSnap = await get(ref(db,`users/${user.uid}`));
+  currentUsername = userSnap.exists() ? userSnap.val().username : (user.email||'').split('@')[0];
+  document.getElementById('login-gate').classList.add('hidden');
+  document.getElementById('app').style.display='flex';
+  document.getElementById('avatarBtn').textContent=(currentUsername||'?')[0].toUpperCase();
+  if(isOwner) document.getElementById('adminBtn').style.display='inline-flex';
+  await loadMySites();
+  await loadQuota();
+  await loadConversations();
+  checkForDraft();
+});
+
+// ── SITES ──
+async function loadMySites(){
+  const sel=document.getElementById('siteSelect');
+  // The owner of a SiteLaunch subdomain IS the user (1 site per account in this schema),
+  // but we still support the picker in case of future multi-site support.
+  mySites=[currentUsername];
+  sel.innerHTML = mySites.map(s=>`<option value="${esc(s)}">${esc(s)}.htmltools.me</option>`).join('');
+  currentSite = mySites[0];
+  sel.onchange = ()=>{ currentSite=sel.value; loadSiteFiles(); };
+  await loadSiteFiles();
+}
+async function loadSiteFiles(){
+  currentFiles={};
+  const snap = await get(ref(db,`sites/${currentSite}/files`));
+  if(snap.exists()){
+    for(const [k,v] of Object.entries(snap.val())){
+      if(v && v.content!==undefined) currentFiles[v.path||decodeKey(k)] = v;
+    }
+  }
+  renderFileTree();
+}
+function renderFileTree(){
+  const el=document.getElementById('fileTree');
+  const paths=Object.keys(currentFiles).sort();
+  if(!paths.length){ el.innerHTML='<div class="tree-empty">No files yet — ask the AI to build something!</div>'; return; }
+  el.innerHTML = paths.map(p=>{
+    const ext=p.split('.').pop().slice(0,3);
+    return `<div class="tree-item" title="${esc(p)}"><span class="ext">${esc(ext)}</span><span class="name">${esc(p)}</span></div>`;
+  }).join('');
+}
+window.switchSbTab = (t)=>{
+  document.getElementById('tabConv').classList.toggle('active',t==='conv');
+  document.getElementById('tabFiles').classList.toggle('active',t==='files');
+  document.getElementById('paneConv').classList.toggle('active',t==='conv');
+  document.getElementById('paneFiles').classList.toggle('active',t==='files');
+};
+
+// ── QUOTA ──
+async function loadQuota(){
+  const today=new Date().toISOString().slice(0,10);
+  const overrideSnap = await get(ref(db,`aiQuotaOverride/${currentUser.uid}`));
+  dailyLimit=30; quotaUnlimited=false;
+  if(overrideSnap.exists()){
+    const o=overrideSnap.val();
+    if(o.unlimited) quotaUnlimited=true;
+    else if(o.expiresAt && o.expiresAt>Date.now() && typeof o.limit==='number') dailyLimit=o.limit;
+  }
+  if(isOwner) quotaUnlimited=true;
+  const usedSnap = await get(ref(db,`aiQuota/${currentUser.uid}/${today}`));
+  usedToday = usedSnap.exists() ? usedSnap.val() : 0;
+  renderQuotaPill();
+}
+function renderQuotaPill(){
+  const pill=document.getElementById('quotaPill'), text=document.getElementById('quotaText'), hint=document.getElementById('quotaHint');
+  if(quotaUnlimited){ pill.className='quota-pill'; text.textContent='Unlimited'; hint.innerHTML=''; return; }
+  const remaining=Math.max(0,dailyLimit-usedToday);
+  text.textContent=`${remaining}/${dailyLimit} today`;
+  pill.className='quota-pill'+(remaining===0?' empty':remaining<=5?' low':'');
+  hint.innerHTML = remaining===0 ? `Out of prompts for today. <a onclick="openQuotaModal()">Request more →</a>` : '';
+}
+window.openQuotaModal = ()=>{ document.getElementById('quotaModal').classList.add('active'); };
+window.submitQuotaRequest = async ()=>{
+  const reason=document.getElementById('quotaReason').value.trim();
+  await push(ref(db,'quotaRequests'),{
+    uid:currentUser.uid, email:currentUser.email, username:currentUsername,
+    reason, ts:Date.now(), status:'pending'
+  });
+  closeModals();
+  alert('Request sent! You\\'ll be notified once the HTMLTools team responds.');
+};
+
+// ── ADMIN ──
+window.openAdminModal = async ()=>{
+  document.getElementById('adminModal').classList.add('active');
+  const body=document.getElementById('adminBody');
+  const snap = await get(ref(db,'quotaRequests'));
+  if(!snap.exists()){ body.innerHTML='<div style="color:var(--tx-3);font-size:12px">No requests.</div>'; return; }
+  const entries=Object.entries(snap.val()).sort((a,b)=>b[1].ts-a[1].ts);
+  body.innerHTML = entries.map(([id,r])=>`
+    <div class="admin-row" style="flex-direction:column;align-items:stretch;gap:6px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <span class="u">${esc(r.email)} (${esc(r.username||'—')})</span>
+        <span style="color:var(--tx-3);font-size:10.5px">${new Date(r.ts).toLocaleString()}</span>
+      </div>
+      ${r.reason?`<div style="color:var(--tx-2);font-size:11.5px">"${esc(r.reason)}"</div>`:''}
+      <div style="font-size:10.5px;color:${r.status==='pending'?'var(--yellow-hi)':'var(--green-hi)'}">${esc(r.status)}</div>
+      <div class="grant-form">
+        <select id="hrs_${id}"><option value="24">24 hrs</option><option value="168">1 week</option><option value="720">30 days</option><option value="unlimited">Forever</option></select>
+        <input type="number" id="lim_${id}" placeholder="new daily limit" value="60" style="width:110px">
+        <button class="btn btn-prim" style="height:28px" onclick="grantQuota('${id}','${r.uid}')">Grant</button>
+      </div>
+    </div>`).join('');
+};
+window.grantQuota = async (reqId, uid)=>{
+  const hrsVal=document.getElementById('hrs_'+reqId).value;
+  const limVal=parseInt(document.getElementById('lim_'+reqId).value)||60;
+  const payload = hrsVal==='unlimited' ? {unlimited:true} : {limit:limVal, expiresAt:Date.now()+parseInt(hrsVal)*3600*1000};
+  await set(ref(db,`aiQuotaOverride/${uid}`),payload);
+  await set(ref(db,`quotaRequests/${reqId}/status`),'granted');
+  openAdminModal();
+};
+
+// ── CONVERSATIONS ──
+async function loadConversations(){
+  const snap = await get(ref(db,`aiConversations/${currentUser.uid}`));
+  conversations = snap.exists() ? Object.entries(snap.val()).map(([id,c])=>({id,...c})).sort((a,b)=>b.updatedAt-a.updatedAt) : [];
+  renderConvList();
+  if(conversations.length) selectConversation(conversations[0].id);
+  else createConversation();
+}
+function renderConvList(){
+  const el=document.getElementById('convList');
+  if(!conversations.length){ el.innerHTML=''; return; }
+  el.innerHTML = conversations.map(c=>`
+    <div class="conv-item ${c.id===currentConvId?'active':''}" onclick="selectConversation('${c.id}')">
+      <span class="name">${esc(c.title||'New conversation')}</span>
+      <span class="del" onclick="event.stopPropagation();deleteConversation('${c.id}')">✕</span>
+    </div>`).join('');
+}
+window.createConversation = async ()=>{
+  const newRef = push(ref(db,`aiConversations/${currentUser.uid}`));
+  const conv={title:'New conversation', messages:[], createdAt:Date.now(), updatedAt:Date.now()};
+  await set(newRef, conv);
+  conversations.unshift({id:newRef.key,...conv});
+  selectConversation(newRef.key);
+  renderConvList();
+};
+window.deleteConversation = async (id)=>{
+  if(!confirm('Delete this conversation?')) return;
+  await remove(ref(db,`aiConversations/${currentUser.uid}/${id}`));
+  conversations=conversations.filter(c=>c.id!==id);
+  renderConvList();
+  if(currentConvId===id){ if(conversations.length) selectConversation(conversations[0].id); else createConversation(); }
+};
+window.selectConversation = (id)=>{
+  currentConvId=id;
+  const conv=conversations.find(c=>c.id===id);
+  renderConvList();
+  renderChat(conv?conv.messages||[]:[]);
+};
+function currentConv(){ return conversations.find(c=>c.id===currentConvId); }
+
+// ── DRAFTS (autosave of in-flight, unsaved edits) ──
+function checkForDraft(){
+  const raw=localStorage.getItem(`sla_draft_${currentUser.uid}`);
+  if(raw){
+    try{ const d=JSON.parse(raw); if(d && d.pendingFiles && Object.keys(d.pendingFiles).length) document.getElementById('draftBanner').classList.add('show'); }catch(e){}
+  }
+}
+window.restoreDraft = ()=>{
+  const raw=localStorage.getItem(`sla_draft_${currentUser.uid}`);
+  if(raw){ try{ const d=JSON.parse(raw); pendingFiles=d.pendingFiles||{}; renderPending(); }catch(e){} }
+  document.getElementById('draftBanner').classList.remove('show');
+};
+window.dismissDraft = ()=>{
+  localStorage.removeItem(`sla_draft_${currentUser.uid}`);
+  document.getElementById('draftBanner').classList.remove('show');
+};
+function autosaveDraft(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer=setTimeout(()=>{
+    localStorage.setItem(`sla_draft_${currentUser.uid}`, JSON.stringify({pendingFiles, ts:Date.now()}));
+  },500);
+}
+window.addEventListener('beforeunload', ()=>{
+  if(Object.keys(pendingFiles).length) localStorage.setItem(`sla_draft_${currentUser.uid}`, JSON.stringify({pendingFiles, ts:Date.now()}));
+});
+
+// ── CHAT RENDERING ──
+function renderChat(messages){
+  const scroll=document.getElementById('chatScroll');
+  if(!messages.length){
+    scroll.innerHTML=`<div style="text-align:center;color:var(--tx-3);font-size:12px;padding:30px 20px;">👋 Tell HTMLTools Coder what you want to build or change.</div>`;
+    return;
+  }
+  scroll.innerHTML='';
+  messages.forEach(m=>appendMessageEl(m));
+  scroll.scrollTop=scroll.scrollHeight;
+}
+function appendMessageEl(m){
+  const scroll=document.getElementById('chatScroll');
+  if(scroll.children.length===1 && scroll.children[0].style.textAlign==='center') scroll.innerHTML='';
+  const wrap=document.createElement('div');
+  wrap.className='msg '+(m.role==='user'?'user':'assistant');
+  let html='';
+  if(m.role==='assistant'){
+    html+=`<div class="msg-avatar-row"><img src="https://htmltools.me/claudelogo.png" alt="">HTMLTools Coder</div>`;
+  }
+  if(m.prose) html+=`<div class="msg-bubble">${esc(m.prose)}</div>`;
+  (m.files||[]).forEach((f,i)=>{
+    const ext=f.path.split('.').pop().slice(0,3);
+    html+=`<div class="file-card" id="fc_${m._id||'x'}_${i}">
+      <div class="file-card-hdr" onclick="this.parentElement.classList.toggle('open')">
+        <span class="fc-icon">${esc(ext)}</span><span class="fc-path">${esc(f.path)}</span><span class="fc-arrow">▶</span>
+      </div>
+      <div class="file-card-actions">
+        <button class="fc-btn" onclick="event.stopPropagation();copyFileContent(this)">📋 Copy</button>
+        <button class="fc-btn" onclick="event.stopPropagation();downloadFileContent('${esc(f.path).replace(/'/g,"\\'")}',this)">⬇ Download</button>
+        <button class="fc-btn" onclick="event.stopPropagation();stageFile('${esc(f.path).replace(/'/g,"\\'")}',this)">＋ Stage change</button>
+      </div>
+      <div class="file-card-body"><pre><code class="language-markup" data-raw="${encodeURIComponent(f.content)}">${esc(f.content.length>4000?f.content.slice(0,4000)+'\\n…(truncated in view, full content will be staged)':f.content)}</code></pre></div>
+    </div>`;
+  });
+  if(m.ask){
+    html+=`<div class="ask-card"><div class="ask-q">${esc(m.ask.question)}</div>`;
+    (m.ask.options||[]).forEach(o=>{
+      html+=`<div class="ask-opt" onclick="answerAsk(this,'${esc(o.letter)}','${esc(o.text).replace(/'/g,"\\'")}')"><span class="letter">${esc(o.letter)}</span><span>${esc(o.text)}</span></div>`;
+    });
+    html+=`<div class="ask-opt" onclick="answerAsk(this,'C','__TYPE__')"><span class="letter">C</span><span>Type here…</span></div>`;
+    html+=`<div class="ask-type-row" id="asktype_${m._id||'x'}"><input placeholder="Your answer…" onkeydown="if(event.key==='Enter')submitTypedAnswer(this)"><button class="btn btn-prim" onclick="submitTypedAnswer(this.previousElementSibling)">Send</button></div>`;
+    html+=`<div class="ask-opt" onclick="answerAsk(this,'D','Rather not answer')"><span class="letter">D</span><span>Rather not answer</span></div>`;
+    html+='</div>';
+  }
+  wrap.innerHTML=html;
+  scroll.appendChild(wrap);
+  scroll.querySelectorAll('pre code').forEach(c=>{ if(!c.dataset.highlighted){ Prism.highlightElement(c); c.dataset.highlighted='1'; }});
+  scroll.scrollTop=scroll.scrollHeight;
+}
+window.copyFileContent = (btn)=>{
+  const pre=btn.closest('.file-card').querySelector('code');
+  const raw=decodeURIComponent(pre.dataset.raw);
+  navigator.clipboard.writeText(raw).then(()=>{ btn.textContent='✓ Copied'; setTimeout(()=>btn.textContent='📋 Copy',1500); });
+};
+window.downloadFileContent = (path,btn)=>{
+  const pre=btn.closest('.file-card').querySelector('code');
+  const raw=decodeURIComponent(pre.dataset.raw);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([raw],{type:'text/plain'}));
+  a.download=path.split('/').pop();
+  a.click();
+};
+window.stageFile = (path,btn)=>{
+  const pre=btn.closest('.file-card').querySelector('code');
+  const raw=decodeURIComponent(pre.dataset.raw);
+  pendingFiles[path]=raw;
+  renderPending();
+  autosaveDraft();
+  btn.textContent='✓ Staged';
+  setTimeout(()=>btn.textContent='＋ Stage change',1500);
+};
+window.answerAsk = (el,letter,text)=>{
+  if(letter==='C'){
+    const row=el.parentElement.querySelector('.ask-type-row');
+    row.classList.add('show');
+    row.querySelector('input').focus();
+    return;
+  }
+  el.parentElement.querySelectorAll('.ask-opt').forEach(o=>o.classList.add('answered'));
+  sendMessage(text);
+};
+window.submitTypedAnswer = (input)=>{
+  const val=input.value.trim();
+  if(!val) return;
+  input.closest('.ask-card').querySelectorAll('.ask-opt').forEach(o=>o.classList.add('answered'));
+  sendMessage(val);
+};
+
+// ── PENDING PANEL ──
+function renderPending(){
+  const el=document.getElementById('pendingList');
+  const paths=Object.keys(pendingFiles);
+  if(!paths.length){ el.innerHTML='<div class="pp-empty">Changes HTMLTools Coder makes will appear here for review before you save.</div>'; return; }
+  el.innerHTML=paths.map(p=>`<div class="pending-file"><input type="checkbox" checked data-path="${esc(p)}"><span class="name">${esc(p)}</span></div>`).join('');
+}
+window.clearPending = ()=>{
+  if(!Object.keys(pendingFiles).length) return;
+  if(!confirm('Discard all staged changes?')) return;
+  pendingFiles={};
+  renderPending();
+  localStorage.removeItem(`sla_draft_${currentUser.uid}`);
+};
+
+// ── PREVIEW ──
+window.openPreviewPicker = ()=>{
+  const paths=Object.keys(pendingFiles);
+  const body=document.getElementById('previewPickerBody');
+  if(!paths.length){ body.innerHTML='<div class="empty-picker">No staged changes to preview yet.</div>'; }
+  else{
+    body.innerHTML = paths.map(p=>`<div class="picker-item" onclick="doPreview('${esc(p).replace(/'/g,"\\'")}')">${esc(p)}</div>`).join('');
+  }
+  document.getElementById('previewModal').classList.add('active');
+};
+window.doPreview = (path)=>{
+  // Stash the staged content in sessionStorage keyed by path so a lightweight
+  // preview route can render it without needing it saved to the live site yet.
+  sessionStorage.setItem(`sla_preview_${currentSite}_${path}`, pendingFiles[path]);
+  const url = `https://htmltools.me/Sitelaunch/${encodeURIComponent(currentUsername)}/${encodeURIComponent(currentSite)}.htmltools.me/${path}?__preview=1`;
+  window.open(url,'_blank');
+  closeModals();
+};
+
+// ── SAVE & PUBLISH ──
+window.saveAndPublish = async ()=>{
+  const paths=Object.keys(pendingFiles);
+  if(!paths.length){ alert('Nothing staged to save.'); return; }
+  const checked = Array.from(document.querySelectorAll('.pending-file input[type=checkbox]:checked')).map(c=>c.dataset.path);
+  if(!checked.length){ alert('Nothing selected.'); return; }
+  for(const path of checked){
+    const content=pendingFiles[path];
+    await set(ref(db,`sites/${currentSite}/files/${encodeKey(path)}`),{
+      content, type:guessType(path), size:new Blob([content]).size, path, updatedAt:Date.now()
+    });
+    delete pendingFiles[path];
+  }
+  await set(ref(db,`discover/sites/${currentSite}/lastUpdated`),Date.now());
+  renderPending();
+  await loadSiteFiles();
+  localStorage.removeItem(`sla_draft_${currentUser.uid}`);
+  alert(`✓ Published ${checked.length} file(s) to ${currentSite}.htmltools.me`);
+};
+function guessType(path){
+  if(path.endsWith('.css')) return 'text/css';
+  if(path.endsWith('.js')) return 'application/javascript';
+  if(path.endsWith('.json')) return 'application/json';
+  return 'text/html';
+}
+
+// ── SENDING MESSAGES / PARSING AI OUTPUT ──
+window.autoGrow = (el)=>{ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; };
+window.handleChatKey = (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); } };
+
+function buildFileContext(){
+  // Give the model a lightweight manifest + full content of anything staged/relevant.
+  const manifest = Object.keys(currentFiles).map(p=>`- ${p}`).join('\\n') || '(no files yet)';
+  let contextStr = `SITE: ${currentSite}.htmltools.me\\nUSERNAME: ${currentUsername}\\nEXISTING FILES:\\n${manifest}\\n\\n`;
+  // Include full contents of a reasonable number of existing files so edits are informed.
+  const paths=Object.keys(currentFiles).slice(0,12);
+  for(const p of paths){
+    contextStr += `--- FILE: ${p} ---\\n${currentFiles[p].content}\\n\\n`;
+  }
+  if(Object.keys(pendingFiles).length){
+    contextStr += `STAGED (NOT YET PUBLISHED) CHANGES:\\n`;
+    for(const [p,c] of Object.entries(pendingFiles)) contextStr += `--- STAGED FILE: ${p} ---\\n${c}\\n\\n`;
+  }
+  return contextStr;
+}
+
+async function sendMessage(overrideText){
+  const input=document.getElementById('chatInput');
+  const text=(overrideText!==undefined?overrideText:input.value).trim();
+  if(!text) return;
+  if(!quotaUnlimited && usedToday>=dailyLimit){ openQuotaModal(); return; }
+
+  if(overrideText===undefined){ input.value=''; autoGrow(input); }
+  document.getElementById('sendBtn').disabled=true;
+
+  const conv=currentConv();
+  conv.messages = conv.messages||[];
+  conv.messages.push({role:'user', prose:text, _id:Date.now()+'_u'});
+  appendMessageEl({role:'user', prose:text});
+  if(conv.messages.length===1) conv.title = text.slice(0,42);
+
+  const scroll=document.getElementById('chatScroll');
+  const typingEl=document.createElement('div');
+  typingEl.className='msg assistant'; typingEl.id='typingIndicator';
+  typingEl.innerHTML=`<div class="msg-avatar-row"><img src="https://htmltools.me/claudelogo.png">HTMLTools Coder</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
+  scroll.appendChild(typingEl); scroll.scrollTop=scroll.scrollHeight;
+
+  try{
+    const apiMessages = conv.messages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({
+      role:m.role, content:m.role==='user'? (m===conv.messages[conv.messages.length-1]? `${buildFileContext()}\\nUSER REQUEST: ${m.prose}` : m.prose) : (m.rawText||m.prose||'')
+    }));
+
+    const resp = await fetch(AI_WORKER_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        uid: currentUser.uid,
+        userEmail: currentUser.email,
+        model: 'htmltools-coder-4.6',
+        messages: apiMessages
+      })
+    });
+    const data = await resp.json();
+    document.getElementById('typingIndicator')?.remove();
+
+    if(resp.status===429){
+      appendMessageEl({role:'assistant', prose:"You've hit today's prompt limit. You can request more from the button below the message box."});
+      openQuotaModal();
+      document.getElementById('sendBtn').disabled=false;
+      return;
+    }
+    if(data.error){
+      appendMessageEl({role:'assistant', prose:'⚠ '+data.error});
+      document.getElementById('sendBtn').disabled=false;
+      return;
+    }
+
+    const rawText = (data.content||[]).map(c=>c.text||'').join('\\n');
+    const parsed = parseAiOutput(rawText);
+    const assistantMsg = {role:'assistant', prose:parsed.prose, files:parsed.files, ask:parsed.ask, rawText, _id:Date.now()+'_a'};
+    conv.messages.push(assistantMsg);
+    appendMessageEl(assistantMsg);
+
+    conv.updatedAt=Date.now();
+    await set(ref(db,`aiConversations/${currentUser.uid}/${conv.id}`), {title:conv.title, messages:conv.messages, createdAt:conv.createdAt, updatedAt:conv.updatedAt});
+    renderConvList();
+
+    usedToday++;
+    renderQuotaPill();
+  }catch(e){
+    document.getElementById('typingIndicator')?.remove();
+    appendMessageEl({role:'assistant', prose:'⚠ Something went wrong reaching HTMLTools Coder: '+e.message});
+  }
+  document.getElementById('sendBtn').disabled=false;
+}
+window.sendMessage=sendMessage;
+
+function parseAiOutput(text){
+  const files=[];
+  let ask=null;
+  let prose=text;
+
+  const fileRe=/:::file path="([^"]+)"\\n```[a-zA-Z]*\\n([\\s\\S]*?)```\\n:::endfile/g;
+  let m;
+  while((m=fileRe.exec(text))){ files.push({path:m[1], content:m[2]}); }
+  prose = prose.replace(fileRe,'').trim();
+
+  const askRe=/:::ask\\n([\\s\\S]*?):::endask/;
+  const askMatch=askRe.exec(text);
+  if(askMatch){
+    const block=askMatch[1];
+    const qMatch=/question:\\s*(.+)/.exec(block);
+    const question=qMatch?qMatch[1].trim():'Can you clarify?';
+    const options=[];
+    const optRe=/^([A-Z]):\\s*(.+)$/gm;
+    let om;
+    while((om=optRe.exec(block))){
+      if(om[1]==='C' && /type here/i.test(om[2])) continue;
+      if(om[1]==='D' && /rather not/i.test(om[2])) continue;
+      options.push({letter:om[1], text:om[2].trim()});
+    }
+    ask={question, options};
+    prose = prose.replace(askRe,'').trim();
+  }
+  return {prose, files, ask};
+}
+
+function closeModalsFn(){ document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('active')); }
+window.closeModals = closeModalsFn;
+document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{ if(e.target===el) closeModalsFn(); }));
+</script>
+</body>
+</html>
