@@ -7,6 +7,8 @@
   
   <script src="/uv/uv.bundle.js"></script>
   <script src="/uv/uv.config.js"></script>
+  <!-- Load BareMux from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@latest/dist/index.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,43 +42,55 @@
   <script>
     let swPromise = null;
 
-    function ensureSWActive() {
+    async function ensureSWActive() {
       if (!swPromise) {
         swPromise = (async () => {
           if (!('serviceWorker' in navigator)) {
             throw new Error('Service workers not supported.');
           }
 
+          // 1. Register Service Worker
           const reg = await navigator.serviceWorker.register(__uv$config.sw, {
             scope: __uv$config.prefix
           });
 
-          // Worker is already active and ready
-          if (reg.active && reg.active.state === 'activated') {
-            return reg;
+          // 2. Wait until SW reaches 'activated' state
+          if (!(reg.active && reg.active.state === 'activated')) {
+            await new Promise((resolve) => {
+              const worker = reg.installing || reg.waiting || reg.active;
+              if (!worker) return resolve(reg);
+              if (worker.state === 'activated') resolve(reg);
+              worker.addEventListener('statechange', (e) => {
+                if (e.target.state === 'activated') resolve(reg);
+              });
+            });
           }
 
-          // Otherwise wait for statechange to reach 'activated'
-          return new Promise((resolve) => {
-            const worker = reg.installing || reg.waiting || reg.active;
-            if (!worker) return resolve(reg);
+          // 3. Initialize BareMux transport dynamically via CDN
+          if (typeof BareMux !== 'undefined') {
+            try {
+              // Fetch worker script from CDN and convert to Blob URL to bypass CORS worker limits
+              const workerRes = await fetch('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@latest/dist/worker.js');
+              const workerText = await workerRes.text();
+              const workerBlobUrl = URL.createObjectURL(new Blob([workerText], { type: 'application/javascript' }));
 
-            if (worker.state === 'activated') {
-              resolve(reg);
-            } else {
-              worker.addEventListener('statechange', (e) => {
-                if (e.target.state === 'activated') {
-                  resolve(reg);
-                }
-              });
+              const connection = new BareMux.BareMuxConnection(workerBlobUrl);
+              const currentTransport = await connection.getTransport();
+              if (!currentTransport) {
+                await connection.setTransport('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-client@latest/dist/index.mjs', [__uv$config.bare]);
+              }
+            } catch (e) {
+              console.warn('BareMux CDN init notice:', e);
             }
-          });
+          }
+
+          return reg;
         })();
       }
       return swPromise;
     }
 
-    // Register on load in background
+    // Initialize SW & BareMux on page load
     ensureSWActive().catch(err => console.error('SW activation error:', err));
 
     async function launchProxy() {
@@ -84,7 +98,6 @@
       if (!input) return;
 
       try {
-        // MUST wait until the worker is guaranteed active before loading iframe
         await ensureSWActive();
       } catch (err) {
         console.error('Service worker not ready:', err);
