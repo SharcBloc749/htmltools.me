@@ -5,13 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Proxy Web Client</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       display: flex;
       flex-direction: column;
       height: 100vh;
@@ -36,9 +32,7 @@
       font-size: 1rem;
       outline: none;
     }
-    input[type="text"]:focus {
-      border-color: #38bdf8;
-    }
+    input[type="text"]:focus { border-color: #38bdf8; }
     button {
       padding: 0.75rem 1.5rem;
       border-radius: 0.5rem;
@@ -46,41 +40,29 @@
       background-color: #0284c7;
       color: white;
       font-weight: 600;
-      font-size: 1rem;
       cursor: pointer;
-      transition: background-color 0.2s;
     }
-    button:hover {
-      background-color: #0369a1;
-    }
+    button:hover { background-color: #0369a1; }
     .status {
       font-size: 0.85rem;
       color: #94a3b8;
       padding: 0.5rem 1rem;
       background-color: #1e293b;
     }
-    iframe {
-      flex: 1;
-      border: none;
-      width: 100%;
-      background-color: #ffffff;
-    }
+    iframe { flex: 1; border: none; width: 100%; background: #fff; }
   </style>
 
-  <!-- Bare-Mux loaded via CDN -->
+  <!-- Bare-Mux CDN Index -->
   <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.3/dist/index.js"></script>
-  
-  <!-- Local Ultraviolet scripts -->
   <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js?v=13"></script>
+  <script src="/URL/uv/uv.config.js"></script>
 </head>
 <body>
-
   <div class="header">
-    <input type="text" id="url-input" placeholder="Enter a URL or search query (e.g., https://wikipedia.org)" />
+    <input type="text" id="url-input" placeholder="Enter URL or search (e.g. https://wikipedia.org)" />
     <button id="search-btn">Go</button>
   </div>
-  <div class="status" id="status-text">Initializing Bare-Mux and Epoxy Transport...</div>
+  <div class="status" id="status-text">Initializing proxy transport...</div>
   <iframe id="proxy-iframe" src="about:blank"></iframe>
 
   <script>
@@ -91,7 +73,7 @@
 
     async function initProxy() {
       if (!('serviceWorker' in navigator)) {
-        statusText.textContent = 'Error: Service Workers are not supported in this browser.';
+        statusText.textContent = 'Service Workers not supported.';
         return;
       }
 
@@ -99,59 +81,44 @@
         if (typeof window.__uv$config === 'undefined') window.__uv$config = {};
         window.__uv$config.prefix = '/URL/uv/service/';
 
-        // 1. Same-origin Blob worker for Bare-Mux
+        // Blob worker for bare-mux
         const workerBlob = new Blob(
           [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.3/dist/worker.js');`],
           { type: 'application/javascript' }
         );
         const workerUrl = URL.createObjectURL(workerBlob);
 
-        // 2. Initialize BareMux Connection
         const connection = new BareMux.BareMuxConnection(workerUrl);
 
-        // 3. Set Transport using Epoxy Transport via ESM CDN linked to a high-speed public Wisp server
+        // FIXED: Using direct distribution path instead of +esm wrapper
         await connection.setTransport(
-          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.3/+esm',
+          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.3/dist/index.mjs',
           [{ wisp: 'wss://wisp.mercuryworkshop.sub.id/' }]
         );
 
-        // 4. Register UV Service Worker
         await navigator.serviceWorker.register('/URL/sw.js', {
           scope: '/URL/uv/service/'
         });
 
-        statusText.textContent = 'Status: Connected via Epoxy Transport & Wisp. Ready to browse!';
+        statusText.textContent = 'Status: Connected successfully via Epoxy & Wisp!';
       } catch (err) {
         statusText.textContent = 'Setup failed: ' + err.message;
-        console.error('Initialization Error:', err);
+        console.error(err);
       }
-    }
-
-    function processUrl(value) {
-      if (!value) return 'about:blank';
-      if (value.startsWith('http://') || value.startsWith('https://')) {
-        return value;
-      }
-      if (value.includes('.')) {
-        return 'https://' + value;
-      }
-      return 'https://www.google.com/search?q=' + encodeURIComponent(value);
     }
 
     function loadPage() {
-      const rawUrl = input.value.trim();
-      if (!rawUrl) return;
-
-      const formattedUrl = processUrl(rawUrl);
-      const proxyUrl = window.__uv$config.prefix + window.__uv$config.encodeUrl(formattedUrl);
-      
-      iframe.src = proxyUrl;
+      const val = input.value.trim();
+      if (!val) return;
+      let target = val;
+      if (!target.startsWith('http://') && !target.startsWith('https://')) {
+        target = target.includes('.') ? 'https://' + target : 'https://www.google.com/search?q=' + encodeURIComponent(target);
+      }
+      iframe.src = window.__uv$config.prefix + window.__uv$config.encodeUrl(target);
     }
 
     btn.addEventListener('click', loadPage);
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') loadPage();
-    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPage(); });
 
     initProxy();
   </script>
