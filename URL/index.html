@@ -72,7 +72,7 @@
   
   <!-- Local Ultraviolet scripts -->
   <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js?v=8"></script>
+  <script src="/URL/uv/uv.config.js?v=9"></script>
 </head>
 <body>
 
@@ -88,18 +88,6 @@
     const btn = document.getElementById('search-btn');
     const iframe = document.getElementById('proxy-iframe');
     const statusText = document.getElementById('status-text');
-
-    // Helper to turn remote transport code into a safe same-origin Blob
-    async function setCdnTransport(connection, cdnUrl, transportArgs) {
-      const response = await fetch(cdnUrl);
-      if (!response.ok) throw new Error(`Failed to load CDN transport (${response.status})`);
-      
-      const scriptText = await response.text();
-      const blob = new Blob([scriptText], { type: 'application/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-
-      await connection.setTransport(blobUrl, transportArgs);
-    }
 
     async function initProxy() {
       if (!('serviceWorker' in navigator)) {
@@ -121,19 +109,17 @@
         // 2. Initialize BareMux Connection
         const connection = new BareMux.BareMuxConnection(workerUrl);
 
-        // 3. Load Epoxy Transport dynamically using the explicit file path
-        await setCdnTransport(
-          connection,
-          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.0.1/dist/index.mjs',
-          [{ wisp: 'wss://wisp.mercuryworkshop.sub.id/' }]
-        );
+        // 3. Use the built-in standard client transport bundle from Bare-Mux directly (No external .mjs 404s)
+        await connection.setTransport('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/transports/node.mjs', [
+          'https://my-htmltools-bare.onrender.com/'
+        ]);
 
         // 4. Register UV Service Worker
         await navigator.serviceWorker.register('/URL/sw.js', {
           scope: '/URL/uv/service/'
         });
 
-        statusText.textContent = 'Status: Connected via Epoxy Transport. Ready to browse!';
+        statusText.textContent = 'Status: Connected successfully! Ready to browse!';
       } catch (err) {
         statusText.textContent = 'Setup failed: ' + err.message;
         console.error('Initialization Error:', err);
