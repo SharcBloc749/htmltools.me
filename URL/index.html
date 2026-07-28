@@ -1,133 +1,912 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Proxy Web Client</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      background-color: #0f172a;
-      color: #f8fafc;
-    }
-    .header {
-      padding: 1rem;
-      background-color: #1e293b;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      border-bottom: 1px solid #334155;
-    }
-    input[type="text"] {
-      flex: 1;
-      padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
-      border: 1px solid #475569;
-      background-color: #0f172a;
-      color: #ffffff;
-      font-size: 1rem;
-      outline: none;
-    }
-    input[type="text"]:focus { border-color: #38bdf8; }
-    button {
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
-      border: none;
-      background-color: #0284c7;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    button:hover { background-color: #0369a1; }
-    .status {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      padding: 0.5rem 1rem;
-      background-color: #1e293b;
-    }
-    iframe { flex: 1; border: none; width: 100%; background: #fff; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Proxy · HTMLTools</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png?v=2"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#000000;--surface:#0a0a0a;--panel:#121212;--panel-2:#1a1a1a;
+  --border:#232323;--border-2:#333333;--border-hi:#555555;
+  --tx:#f5f5f5;--tx-2:#c7c7c7;--tx-3:#7a7a7a;
+  --white:#fff;--wfg:#000;
+  --accent:#ffffff;--accent-dim:#d0d0d0;
+  --red:#e5484d;
+  --r:8px;--r-md:12px;--r-lg:16px;--r-xl:24px;--nav-h:48px;
+  --font:'IBM Plex Sans',arial,-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{color:var(--tx);font-family:var(--font);font-size:14px;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--tx-3);}
 
-  <!-- Bare-Mux CDN Index -->
-  <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.3/dist/index.js"></script>
-  <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js?v=14"></script>
+/* NAV */
+nav{background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;height:var(--nav-h);gap:8px;flex-shrink:0;}
+.nav-brand{display:flex;align-items:center;gap:7px;padding-right:12px;margin-right:4px;border-right:1px solid var(--border);flex-shrink:0;}
+.nav-mark{width:24px;height:24px;background:var(--white);color:var(--wfg);border-radius:5px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+.nav-mark img{width:24px;height:24px;object-fit:contain;display:block;filter:grayscale(1) contrast(1.1);}
+.nav-name{font-size:.78rem;font-weight:600;color:var(--tx-3);letter-spacing:-.01em;white-space:nowrap;}
+.nav-title{font-size:.8rem;font-weight:600;color:var(--tx);white-space:nowrap;}
+.nav-sub{font-size:.68rem;color:var(--tx-3);font-family:var(--mono);white-space:nowrap;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.icon-btn{background:transparent;border:1px solid var(--border);color:var(--tx-3);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;flex-shrink:0;}
+.icon-btn:hover{border-color:var(--border-hi);color:var(--tx);background:var(--panel);}
+.icon-btn:disabled{opacity:.35;cursor:default;}
+.icon-btn:disabled:hover{border-color:var(--border);color:var(--tx-3);background:transparent;}
+
+/* SEARCH BAR ROW */
+.bar-row{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.bar-row.show{display:flex;}
+.bar-logo-sm{width:32px;height:32px;flex-shrink:0;cursor:pointer;}
+.bar-logo-sm img{width:32px;height:32px;object-fit:contain;display:block;filter:grayscale(1) contrast(1.1);}
+.bar-nav-btns{display:flex;gap:2px;flex-shrink:0;}
+.url-form{flex:1;display:flex;gap:8px;align-items:center;min-width:0;}
+.url-row{flex:1;display:flex;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:24px;padding:2px 4px 2px 16px;align-items:center;transition:all .13s;min-width:0;height:40px;}
+.url-row:hover{background:var(--panel-2);border-color:var(--border-2);}
+.url-row:focus-within{background:var(--panel-2);border-color:var(--border-hi);}
+.url-row i.lead-icon{color:var(--tx-3);font-size:13px;flex-shrink:0;}
+.url-row input{flex:1;background:transparent;border:none;color:var(--tx);font-size:14.5px;outline:none;font-family:var(--font);min-width:0;height:36px;padding:0 10px;}
+.url-row input::placeholder{color:var(--tx-3);}
+.url-row .row-actions{display:flex;gap:2px;flex-shrink:0;}
+.row-icon-btn{background:transparent;border:none;color:var(--tx-3);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .13s;}
+.row-icon-btn:hover{background:var(--panel-2);color:var(--tx);}
+.row-icon-btn.active{color:var(--white);}
+
+/* SEARCH TABS */
+.search-tabs{display:none;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);gap:2px;flex-shrink:0;}
+.search-tabs.show{display:flex;}
+.s-tab{display:flex;align-items:center;gap:6px;padding:11px 4px;margin-right:26px;font-size:12.5px;color:var(--tx-3);border-bottom:3px solid transparent;font-weight:500;transition:color .13s;background:transparent;border-top:none;border-left:none;border-right:none;}
+.s-tab i{font-size:12px;}
+.s-tab:hover{color:var(--tx);}
+.s-tab.active{color:var(--tx);border-bottom-color:var(--white);font-weight:600;}
+
+/* VIEWPORT */
+.viewport{flex:1;position:relative;overflow:hidden;min-height:0;background:var(--bg);}
+.state{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:2rem;text-align:center;}
+.state.show{display:flex;}
+.state i{font-size:1.8rem;color:var(--tx-3);}
+.spin{animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.state h3{font-size:.95rem;font-weight:600;color:var(--tx-2);letter-spacing:-.01em;}
+.state p{font-size:.8rem;color:var(--tx-3);max-width:380px;line-height:1.6;}
+
+#frameHost{position:absolute;inset:0;display:none;}
+#frameHost.show{display:block;}
+#proxyFrame{width:100%;height:100%;border:none;background:#fff;display:block;}
+
+/* Blocked-proxy state (shown instead of raw worker error/blank frame) */
+.blocked-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:2rem;text-align:center;max-width:460px;}
+.blocked-icon{width:56px;height:56px;border-radius:50%;background:var(--panel);border:1px solid var(--border-2);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--tx-2);}
+.blocked-wrap h3{font-size:1.05rem;font-weight:600;color:var(--tx);letter-spacing:-.01em;}
+.blocked-wrap p{font-size:13px;color:var(--tx-3);line-height:1.6;}
+.blocked-host{font-family:var(--mono);color:var(--tx-2);}
+.blocked-actions{display:flex;gap:10px;margin-top:4px;}
+.blocked-btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);font-size:12.5px;font-weight:500;padding:9px 16px;border-radius:20px;transition:all .13s;display:flex;align-items:center;gap:7px;}
+.blocked-btn:hover{border-color:var(--tx-3);color:var(--tx);background:var(--panel-2);}
+.blocked-btn.primary{background:var(--white);color:var(--wfg);border-color:var(--white);}
+.blocked-btn.primary:hover{opacity:.85;}
+
+/* HOME */
+#stateIdle{gap:0;}
+.home-wrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:640px;padding-top:min(16vh,140px);}
+.home-mark{width:92px;height:92px;display:flex;align-items:center;justify-content:center;margin-bottom:24px;}
+.home-mark img{width:64px;height:64px;object-fit:contain;filter:grayscale(1) contrast(1.1) brightness(1.3);}
+.home-title{font-size:2.1rem;font-weight:600;color:var(--tx);letter-spacing:-.02em;margin-bottom:26px;font-family:var(--font);}
+.home-search{width:100%;max-width:580px;display:flex;gap:10px;background:var(--panel);border:1px solid var(--border-2);border-radius:26px;padding:6px 8px 6px 20px;align-items:center;transition:all .15s;}
+.home-search:hover{border-color:var(--border-hi);}
+.home-search:focus-within{border-color:var(--tx-3);}
+.home-search i.lead-icon{color:var(--tx-3);font-size:14px;flex-shrink:0;}
+.home-search input{flex:1;background:transparent;border:none;outline:none;color:var(--tx);font-size:15px;font-family:var(--font);height:40px;padding:0 8px;min-width:0;}
+.home-search input::placeholder{color:var(--tx-3);}
+.home-search button.mic-btn{background:transparent;border:none;color:var(--tx-3);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.home-btn-row{display:flex;gap:10px;margin-top:26px;}
+.home-btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);font-size:13px;padding:9px 16px;border-radius:6px;transition:all .13s;}
+.home-btn:hover{border-color:var(--tx-3);color:var(--tx);background:var(--panel-2);}
+.home-hint{margin-top:40px;font-size:11.5px;color:var(--tx-3);display:flex;align-items:center;gap:6px;}
+.home-hint kbd{background:var(--panel);border:1px solid var(--border-2);border-radius:4px;padding:1px 6px;font-family:var(--mono);font-size:10px;color:var(--tx-2);}
+.home-recent{margin-top:30px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:560px;}
+.home-recent-chip{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--border);color:var(--tx-2);font-size:12px;padding:6px 12px;border-radius:16px;transition:all .13s;}
+.home-recent-chip:hover{border-color:var(--border-hi);color:var(--tx);background:var(--panel-2);}
+.home-recent-chip i{font-size:10px;color:var(--tx-3);}
+
+/* SEARCH RESULTS — Google-style: constrained column, left aligned */
+#searchHost{position:absolute;inset:0;display:none;overflow-y:auto;}
+#searchHost.show{display:block;}
+.search-wrap{max-width:640px;margin:0;padding:18px 24px 60px 24px;}
+.search-meta{font-size:12px;color:var(--tx-3);margin-bottom:18px;}
+
+.pinned-card{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--border-2);border-radius:var(--r);padding:12px 14px;margin-bottom:16px;cursor:pointer;transition:all .13s;}
+.pinned-card:hover{background:var(--panel-2);border-color:var(--border-hi);}
+.pinned-fav{width:34px;height:34px;border-radius:8px;background:var(--panel-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;color:var(--tx);overflow:hidden;}
+.pinned-fav img{width:20px;height:20px;object-fit:contain;}
+.pinned-title{font-size:15px;font-weight:600;color:var(--tx);margin-bottom:2px;display:flex;align-items:center;gap:6px;}
+.pinned-url{font-size:11.5px;color:var(--tx-3);font-family:var(--mono);}
+.pinned-badge{margin-left:auto;font-size:9.5px;color:var(--tx-3);border:1px solid var(--border-2);border-radius:10px;padding:2px 8px;flex-shrink:0;letter-spacing:.03em;}
+
+.result-card{display:flex;flex-direction:column;gap:2px;margin-bottom:22px;cursor:pointer;}
+.result-top{display:flex;align-items:center;gap:8px;margin-bottom:2px;}
+.result-fav{width:20px;height:20px;border-radius:50%;background:var(--panel);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
+.result-fav img{width:13px;height:13px;object-fit:contain;}
+.result-fav i{font-size:9px;color:var(--tx-3);}
+.result-breadcrumb{display:flex;flex-direction:column;line-height:1.25;min-width:0;}
+.result-site{font-size:13px;color:var(--tx-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.result-url{font-size:11.5px;color:var(--tx-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);}
+.result-title{font-size:18px;color:#8ab4f8;margin-bottom:3px;letter-spacing:-.01em;font-weight:400;}
+.result-card:hover .result-title{text-decoration:underline;}
+.result-snippet{font-size:13.5px;color:var(--tx-2);line-height:1.55;}
+.result-blocked-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--tx-3);border:1px solid var(--border-2);border-radius:8px;padding:1px 7px;margin-top:5px;width:fit-content;}
+.result-blocked-tag i{font-size:9px;}
+
+.load-more-row{display:flex;justify-content:center;margin-top:18px;}
+.load-more-btn{background:var(--panel);border:1px solid var(--border-2);color:var(--tx-2);font-size:12.5px;font-weight:500;padding:9px 20px;border-radius:20px;transition:all .13s;display:flex;align-items:center;gap:8px;}
+.load-more-btn:hover{border-color:var(--tx-3);color:var(--tx);background:var(--panel-2);}
+.load-more-btn:disabled{opacity:.5;cursor:default;}
+
+/* IMAGES GRID — Google-style: left aligned, full width, masonry-ish fixed grid */
+.img-wrap{max-width:none;padding:18px 24px 60px 24px;}
+.img-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;justify-content:start;}
+.img-strip a{display:block;position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);background:var(--panel);transition:all .15s;aspect-ratio:1;}
+.img-strip a:hover{border-color:var(--border-hi);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.5);}
+.img-strip img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s;}
+.img-strip a:hover img{transform:scale(1.04);}
+.img-skel{width:100%;height:100%;background:linear-gradient(100deg,var(--panel) 30%,var(--panel-2) 50%,var(--panel) 70%);background-size:200% 100%;animation:shimmer 1.3s infinite;}
+@keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+
+/* VIDEOS PANEL */
+.video-jump{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:60px 20px;}
+.video-jump i{font-size:2.4rem;color:var(--tx-3);}
+.video-jump h3{font-size:1.1rem;font-weight:600;color:var(--tx);}
+.video-jump p{font-size:13px;color:var(--tx-3);max-width:420px;line-height:1.6;}
+.video-jump .go-mattube{background:var(--white);color:var(--wfg);border:none;padding:11px 22px;border-radius:22px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;transition:opacity .13s;}
+.video-jump .go-mattube:hover{opacity:.85;}
+
+footer{padding:8px 16px;font-size:10.5px;color:var(--tx-3);background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.5rem;font-family:var(--mono);letter-spacing:.01em;}
+footer strong{color:var(--tx-2);font-weight:500;}
+footer .f-dot{color:var(--border-2);}
+footer a{color:var(--tx-2);}
+footer a:hover{color:var(--tx);}
+
+/* Toast (used for "copied link" etc.) */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel-2);border:1px solid var(--border-2);color:var(--tx);font-size:12.5px;padding:9px 18px;border-radius:20px;opacity:0;pointer-events:none;transition:all .18s;z-index:50;display:flex;align-items:center;gap:8px;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:639px){
+  .nav-title,.nav-sub{display:none;}
+  .home-title{font-size:1.5rem;}
+  .home-mark{width:64px;height:64px;}
+  .home-mark img{width:44px;height:44px;}
+  .search-tabs{overflow-x:auto;}
+  .img-strip{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));}
+  .search-wrap,.img-wrap{padding:14px 14px 60px 14px;}
+}
+</style>
 </head>
 <body>
-  <div class="header">
-    <input type="text" id="url-input" placeholder="Enter URL or search (e.g. https://youtube.com)" />
-    <button id="search-btn">Go</button>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-mark"><img src="https://htmltools.me/logo3.png?v=2" alt="HT"/></div>
+    <span class="nav-name">HTML Tools</span>
   </div>
-  <div class="status" id="status-text">Initializing proxy transport...</div>
-  <iframe id="proxy-iframe" src="about:blank"></iframe>
+  <span class="nav-title">Proxy</span>
+  <span class="nav-sub">/ browse &amp; search</span>
+  <div class="nav-right">
+    <button class="icon-btn" id="btnCopyLink" title="Copy current link"><i class="fas fa-link"></i></button>
+    <a class="icon-btn" href="https://htmltools.me/" title="Back to HTMLTools"><i class="fas fa-home"></i></a>
+  </div>
+</nav>
 
-  <script>
-    const input = document.getElementById('url-input');
-    const btn = document.getElementById('search-btn');
-    const iframe = document.getElementById('proxy-iframe');
-    const statusText = document.getElementById('status-text');
+<div class="bar-row" id="barRow">
+  <div class="bar-logo-sm" id="logoHome" title="Home"><img src="https://htmltools.me/logo3.png?v=2" alt="HT"/></div>
+  <div class="bar-nav-btns" id="frameNavBtns">
+    <button class="icon-btn" id="btnBack" title="Back"><i class="fas fa-arrow-left"></i></button>
+    <button class="icon-btn" id="btnFwd" title="Forward"><i class="fas fa-arrow-right"></i></button>
+    <button class="icon-btn" id="btnReload" title="Reload"><i class="fas fa-redo"></i></button>
+  </div>
+  <form class="url-form" id="mainForm">
+    <div class="url-row">
+      <i class="fas fa-search lead-icon" id="barIcon"></i>
+      <input type="text" id="mainInput" placeholder="Search or enter a URL" autocomplete="off" inputmode="url"/>
+      <div class="row-actions">
+        <button type="button" class="row-icon-btn" id="btnStar" title="Bookmark this page"><i class="far fa-star"></i></button>
+        <button type="submit" class="row-icon-btn" title="Go"><i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+  </form>
+</div>
 
-    async function initProxy() {
-      if (!('serviceWorker' in navigator)) {
-        statusText.textContent = 'Service Workers not supported.';
+<div class="search-tabs" id="searchTabs">
+  <button class="s-tab active" data-tab="all" onclick="setTab('all')"><i class="fas fa-globe"></i> All</button>
+  <button class="s-tab" data-tab="images" onclick="setTab('images')"><i class="fas fa-image"></i> Images</button>
+  <button class="s-tab" data-tab="videos" onclick="setTab('videos')"><i class="fab fa-youtube"></i> Videos</button>
+</div>
+
+<div class="viewport" id="viewport">
+
+  <div class="state show" id="stateIdle">
+    <div class="home-wrap">
+      <div class="home-mark"><img src="https://htmltools.me/logo3.png?v=2" alt="HT"/></div>
+      <div class="home-title">Search or browse</div>
+      <form class="home-search" id="homeForm">
+        <i class="fas fa-search lead-icon"></i>
+        <input type="text" id="homeInput" placeholder="Search the web or enter a URL" autocomplete="off"/>
+      </form>
+      <div class="home-btn-row">
+        <button type="button" class="home-btn" id="homeSearchBtn">HTMLTools Search</button>
+        <button type="button" class="home-btn" id="homeLuckyBtn">I'm Feeling Lucky</button>
+      </div>
+      <div class="home-hint">Tip: type a website name (like <kbd>youtube.com</kbd>) to open it directly</div>
+      <div class="home-recent" id="homeRecent"></div>
+    </div>
+  </div>
+
+  <div class="state" id="stateLoading">
+    <i class="fas fa-circle-notch spin"></i>
+    <h3 id="loadingLabel">Loading…</h3>
+  </div>
+
+  <div class="state" id="stateError">
+    <i class="fas fa-triangle-exclamation" style="color:var(--red)"></i>
+    <h3>Couldn't load that</h3>
+    <p id="errorDetail">Something went wrong.</p>
+  </div>
+
+  <div class="state" id="stateBlocked">
+    <div class="blocked-wrap">
+      <div class="blocked-icon"><i class="fas fa-shield-halved"></i></div>
+      <h3>This website blocks proxies</h3>
+      <p id="blockedDetail"><span class="blocked-host" id="blockedHost">This site</span> won't allow itself to be shown inside a proxy or iframe. That's a restriction the site itself puts in place — it's not an error with HTMLTools. You can still open it directly in a new tab.</p>
+      <div class="blocked-actions">
+        <a class="blocked-btn primary" id="blockedOpenDirect" href="#" target="_blank" rel="noopener"><i class="fas fa-arrow-up-right-from-square"></i> Open directly</a>
+        <button type="button" class="blocked-btn" id="blockedGoHome"><i class="fas fa-house"></i> Go home</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="searchHost">
+    <div class="search-wrap" id="searchResults"></div>
+  </div>
+
+  <div id="frameHost">
+    <iframe id="proxyFrame"></iframe>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer><strong>HTML Tools</strong><span class="f-dot">·</span><span>Proxy</span><span class="f-dot">·</span><a href="https://htmltools.me/">htmltools.me</a></footer>
+
+<script>
+// ── CONFIG ──
+const WORKER_ORIGIN = 'https://restless-hill-0a7b.bozhetarnikmatthew.workers.dev';
+const MATTUBE_ORIGIN = 'https://mattube.htmltools.me';
+
+let currentTab = 'all';
+
+// ── UNIFIED HISTORY ──
+// Each entry is either { kind:'search', query } or { kind:'url', url }.
+// This lets Back/Forward move between "I searched Bananas" and
+// "I opened bananas.com" as distinct steps, instead of only tracking
+// iframe navigations (which was the bug: search -> click result -> Back
+// used to skip straight to whatever URL was open before the search).
+let navHistory = [];
+let navIdx = -1;
+let suppressHistoryPush = false; // true while replaying Back/Forward
+
+function pushHistoryEntry(entry){
+  if(suppressHistoryPush) return;
+  // Avoid pushing an identical duplicate of the current entry
+  const cur = navHistory[navIdx];
+  if(cur && cur.kind === entry.kind &&
+     ((entry.kind==='search' && cur.query === entry.query) ||
+      (entry.kind==='url' && cur.url === entry.url))){
+    return;
+  }
+  navHistory = navHistory.slice(0, navIdx + 1);
+  navHistory.push(entry);
+  navIdx = navHistory.length - 1;
+  updateNavButtons();
+}
+
+function updateNavButtons(){
+  const back = document.getElementById('btnBack');
+  const fwd = document.getElementById('btnFwd');
+  if(back) back.disabled = navIdx <= 0;
+  if(fwd) fwd.disabled = navIdx >= navHistory.length - 1;
+}
+
+function goToHistoryEntry(entry){
+  suppressHistoryPush = true;
+  if(entry.kind === 'search'){
+    document.getElementById('mainInput').value = entry.query;
+    runSearch(entry.query, true);
+  } else {
+    document.getElementById('mainInput').value = entry.url;
+    openUrl(entry.url, true);
+  }
+  // Release the suppression once the (async) navigation has kicked off.
+  // runSearch/openUrl are async internally but we don't need to await —
+  // no further pushes happen until the user does something new.
+  setTimeout(()=>{ suppressHistoryPush = false; }, 0);
+}
+
+let currentQuery = '';
+let resultsOffset = 0;
+let allResults = [];
+let hasMoreResults = false;
+
+let imagesLoaded = false;
+let imagesOffset = 0;
+let allImages = [];
+let hasMoreImages = false;
+
+const PAGE_SIZE_RESULTS = 10;
+// Bumped up so "More images" actually feels like it's loading a meaningful
+// batch instead of a trickle, and images are cheap/cheap-ish per request.
+const PAGE_SIZE_IMAGES = 24;
+
+// ── Recently visited (for the home screen) ──
+const RECENTS_KEY = null; // no browser storage available in this environment
+let recentSites = []; // in-memory only, per session
+
+function addRecent(label, kind, value){
+  recentSites = recentSites.filter(r => !(r.kind===kind && r.value===value));
+  recentSites.unshift({ label, kind, value });
+  recentSites = recentSites.slice(0, 6);
+  renderRecents();
+}
+
+function renderRecents(){
+  const host = document.getElementById('homeRecent');
+  if(!host) return;
+  if(!recentSites.length){ host.innerHTML=''; return; }
+  host.innerHTML = recentSites.map(r=>{
+    const icon = r.kind === 'search' ? 'fa-search' : 'fa-globe';
+    return '<button type="button" class="home-recent-chip" data-kind="'+r.kind+'" data-value="'+esc(r.value)+'"><i class="fas '+icon+'"></i>'+esc(r.label)+'</button>';
+  }).join('');
+  host.querySelectorAll('.home-recent-chip').forEach(chip=>{
+    chip.addEventListener('click', function(){
+      const kind = this.getAttribute('data-kind');
+      const value = this.getAttribute('data-value');
+      if(kind === 'search'){
+        document.getElementById('mainInput').value = value;
+        runSearch(value);
+      } else {
+        document.getElementById('mainInput').value = value;
+        openUrl(value, true);
+      }
+    });
+  });
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function showState(which){
+  ['stateIdle','stateLoading','stateError','stateBlocked','searchHost','frameHost'].forEach(id=>{
+    document.getElementById(id).classList.remove('show');
+  });
+  document.getElementById(which).classList.add('show');
+  document.getElementById('barRow').classList.toggle('show', which!=='stateIdle');
+  document.getElementById('searchTabs').classList.toggle('show', which==='searchHost');
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function faviconFor(u){
+  try{
+    const h = new URL(u).hostname;
+    return 'https://www.google.com/s2/favicons?domain=' + h + '&sz=64';
+  }catch(e){ return ''; }
+}
+
+function hostnameFor(u){
+  try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return u; }
+}
+
+// ── URL vs search detection ──
+const TLDS = /\.(com|org|net|io|dev|app|co|me|gg|tv|edu|gov|us|uk|ca|de|fr|jp|ai|xyz|info|biz|online|store|tech|site|club|live|news|blog|shop)(\/|$|\?|#|:)/i;
+
+function looksLikeUrl(raw){
+  const s = raw.trim();
+  if(!s) return false;
+  if(/\s/.test(s)) return false;
+  if(/^https?:\/\//i.test(s)) return true;
+  if(/^[a-z0-9.-]+\.[a-z]{2,}(:\d+)?(\/[^\s]*)?$/i.test(s) && TLDS.test(s)) return true;
+  if(/^localhost(:\d+)?(\/.*)?$/i.test(s)) return true;
+  return false;
+}
+
+function normalizeUrl(raw){
+  let u = raw.trim();
+  if(!u) return null;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  try{ new URL(u); return u; }catch(e){ return null; }
+}
+
+function routeInput(raw, pushHistory){
+  const val = raw.trim();
+  if(!val) return;
+  if(looksLikeUrl(val)){
+    openUrl(val, pushHistory !== false);
+  } else {
+    runSearch(val, pushHistory !== false ? false : true);
+  }
+}
+
+document.getElementById('mainForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  routeInput(document.getElementById('mainInput').value);
+});
+document.getElementById('homeForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const val = document.getElementById('homeInput').value;
+  document.getElementById('mainInput').value = val;
+  routeInput(val);
+});
+document.getElementById('homeSearchBtn').addEventListener('click', function(){
+  const val = document.getElementById('homeInput').value;
+  if(!val.trim()) return;
+  document.getElementById('mainInput').value = val;
+  runSearch(val);
+});
+document.getElementById('homeLuckyBtn').addEventListener('click', function(){
+  const val = document.getElementById('homeInput').value;
+  if(!val.trim()) return;
+  document.getElementById('mainInput').value = val;
+  luckySearch(val);
+});
+document.getElementById('logoHome').addEventListener('click', function(){
+  showState('stateIdle');
+  document.getElementById('mainInput').value = '';
+  document.getElementById('homeInput').value = '';
+  document.getElementById('homeInput').focus();
+});
+document.getElementById('blockedGoHome').addEventListener('click', function(){
+  showState('stateIdle');
+  document.getElementById('mainInput').value = '';
+  document.getElementById('homeInput').value = '';
+  document.getElementById('homeInput').focus();
+});
+
+// Copy-link feature: grabs whatever's currently loaded (search query or URL)
+// and copies a shareable deep-link back into HTMLTools.
+document.getElementById('btnCopyLink').addEventListener('click', async function(){
+  let link = null;
+  const cur = navHistory[navIdx];
+  if(cur){
+    if(cur.kind === 'search') link = location.origin + location.pathname + '?q=' + encodeURIComponent(cur.query);
+    else link = location.origin + location.pathname + '?website=' + encodeURIComponent(cur.url);
+  }
+  if(!link){ showToast('Nothing to copy yet'); return; }
+  try{
+    await navigator.clipboard.writeText(link);
+    showToast('Link copied');
+  }catch(e){
+    showToast('Could not copy link');
+  }
+});
+
+// Simple bookmark-star toggle (session-only, no storage backend attached).
+let starred = new Set();
+document.getElementById('btnStar').addEventListener('click', function(){
+  const cur = navHistory[navIdx];
+  if(!cur || cur.kind !== 'url'){ showToast('Open a page to bookmark it'); return; }
+  const icon = this.querySelector('i');
+  if(starred.has(cur.url)){
+    starred.delete(cur.url);
+    icon.className = 'far fa-star';
+    showToast('Removed bookmark');
+  } else {
+    starred.add(cur.url);
+    icon.className = 'fas fa-star';
+    showToast('Bookmarked');
+  }
+});
+
+// ── TABS ──
+function setTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.s-tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===tab));
+  if(tab === 'videos'){
+    openMatTube(currentQuery);
+    renderCurrentTabView();
+    return;
+  }
+  if(tab === 'images' && !imagesLoaded){
+    loadImages(true);
+  }
+  renderCurrentTabView();
+}
+
+function openMatTube(query){
+  const q = query && query.trim() ? query.trim() : '';
+  const link = MATTUBE_ORIGIN + '/?search=' + encodeURIComponent(q);
+  window.open(link, '_blank', 'noopener');
+}
+
+// ── SEARCH (web results) ──
+async function runSearch(query, skipHistoryPush){
+  showState('stateLoading');
+  document.getElementById('loadingLabel').textContent = 'Searching…';
+
+  currentQuery = query;
+  currentTab = 'all';
+  document.querySelectorAll('.s-tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')==='all'));
+  resultsOffset = 0;
+  allResults = [];
+  hasMoreResults = false;
+  imagesLoaded = false;
+  imagesOffset = 0;
+  allImages = [];
+  hasMoreImages = false;
+
+  if(!skipHistoryPush){
+    pushHistoryEntry({ kind:'search', query });
+  }
+  addRecent(query, 'search', query);
+
+  try{
+    const data = await fetchResultsPage(query, 0);
+    allResults = data.results || [];
+    resultsOffset = allResults.length;
+    hasMoreResults = !!data.has_more_results;
+    renderCurrentTabView();
+    showState('searchHost');
+  }catch(err){
+    showState('stateError');
+    document.getElementById('errorDetail').textContent = err.message || 'Search failed.';
+  }
+}
+
+async function luckySearch(query){
+  showState('stateLoading');
+  document.getElementById('loadingLabel').textContent = 'Feeling lucky…';
+  try{
+    const data = await fetchResultsPage(query, 0);
+    const results = data.results || [];
+    if(results.length){
+      openUrl(results[0].url, true);
+    } else {
+      runSearch(query);
+    }
+  }catch(err){
+    showState('stateError');
+    document.getElementById('errorDetail').textContent = err.message || 'Search failed.';
+  }
+}
+
+async function fetchResultsPage(query, offset){
+  const params = new URLSearchParams({ q: query, offset: String(offset), limit: String(PAGE_SIZE_RESULTS) });
+  const resp = await fetch(WORKER_ORIGIN + '/api/search?' + params.toString());
+  const data = await resp.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadMoreResults(){
+  const btn = document.getElementById('loadMoreResultsBtn');
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> Loading…'; }
+  try{
+    const data = await fetchResultsPage(currentQuery, resultsOffset);
+    const more = data.results || [];
+    allResults = allResults.concat(more);
+    resultsOffset += more.length;
+    hasMoreResults = !!data.has_more_results;
+    renderCurrentTabView();
+  }catch(err){
+    if(btn){ btn.disabled = false; btn.innerHTML = 'More results'; }
+  }
+}
+
+// ── IMAGES ──
+async function fetchImagesPage(query, offset){
+  const params = new URLSearchParams({ q: query, offset: String(offset), limit: String(PAGE_SIZE_IMAGES) });
+  const resp = await fetch(WORKER_ORIGIN + '/api/images?' + params.toString());
+  const data = await resp.json();
+  if(data.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadImages(first){
+  if(first){
+    showState('stateLoading');
+    document.getElementById('loadingLabel').textContent = 'Loading images…';
+  }
+  try{
+    const data = await fetchImagesPage(currentQuery, 0);
+    allImages = data.images || [];
+    imagesOffset = allImages.length;
+    hasMoreImages = !!data.has_more_images;
+    imagesLoaded = true;
+    renderCurrentTabView();
+    showState('searchHost');
+  }catch(err){
+    showState('stateError');
+    document.getElementById('errorDetail').textContent = err.message || 'Could not load images.';
+  }
+}
+
+async function loadMoreImages(){
+  const btn = document.getElementById('loadMoreImagesBtn');
+  if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> Loading…'; }
+  try{
+    const data = await fetchImagesPage(currentQuery, imagesOffset);
+    const more = data.images || [];
+    allImages = allImages.concat(more);
+    imagesOffset += more.length;
+    hasMoreImages = !!data.has_more_images;
+    renderCurrentTabView();
+  }catch(err){
+    if(btn){ btn.disabled = false; btn.innerHTML = 'More images'; }
+  }
+}
+
+// ── RENDER ──
+function renderCurrentTabView(){
+  document.getElementById('searchResults').parentElement.classList.toggle('img-wrap', currentTab === 'images');
+  if(currentTab === 'all') renderAllTab();
+  else if(currentTab === 'images') renderImagesTab();
+  else if(currentTab === 'videos') renderVideosTab();
+}
+
+function renderAllTab(){
+  const host = document.getElementById('searchResults');
+  let html = '<div class="search-meta">Results for "' + esc(currentQuery) + '"</div>';
+
+  if(allResults.length){
+    allResults.forEach(r=>{
+      const fav = faviconFor(r.url);
+      const site = hostnameFor(r.url);
+      if(r.pinned){
+        html += '<div class="pinned-card" data-url="'+esc(r.url)+'" data-blocked="'+(r.blocks_proxy?'1':'0')+'">'
+          + '<div class="pinned-fav">'+(fav?'<img src="'+esc(fav)+'" alt="" onerror="this.parentElement.innerHTML=\'<i class=&quot;fas fa-star&quot;></i>\'"/>':'<i class="fas fa-star"></i>')+'</div>'
+          + '<div><div class="pinned-title">'+esc(r.title)+(r.blocks_proxy?' <i class="fas fa-shield-halved" style="font-size:10px;color:var(--tx-3)" title="Blocks proxies"></i>':'')+'</div><div class="pinned-url">'+esc(site)+'</div></div>'
+          + '<div class="pinned-badge">Official site</div>'
+          + '</div>';
+      } else {
+        html += '<div class="result-card" data-url="'+esc(r.url)+'" data-blocked="'+(r.blocks_proxy?'1':'0')+'">'
+          + '<div class="result-top">'
+          + '<div class="result-fav">'+(fav?'<img src="'+esc(fav)+'" alt="" onerror="this.parentElement.innerHTML=\'<i class=&quot;fas fa-globe&quot;></i>\'"/>':'<i class="fas fa-globe"></i>')+'</div>'
+          + '<div class="result-breadcrumb"><span class="result-site">'+esc(site)+'</span><span class="result-url">'+esc(r.url)+'</span></div>'
+          + '</div>'
+          + '<div class="result-title">'+esc(r.title)+'</div>'
+          + '<div class="result-snippet">'+esc(r.snippet||'')+'</div>'
+          + (r.blocks_proxy ? '<div class="result-blocked-tag"><i class="fas fa-shield-halved"></i> May block proxies</div>' : '')
+          + '</div>';
+      }
+    });
+    if(hasMoreResults){
+      html += '<div class="load-more-row"><button type="button" class="load-more-btn" id="loadMoreResultsBtn"><i class="fas fa-plus"></i> More results</button></div>';
+    }
+  } else {
+    html += '<p style="color:var(--tx-3);font-size:13px;">No results found.</p>';
+  }
+
+  host.innerHTML = html;
+
+  host.querySelectorAll('.result-card, .pinned-card').forEach(card=>{
+    card.addEventListener('click', function(){
+      openUrl(this.getAttribute('data-url'), true);
+    });
+  });
+  const lmr = document.getElementById('loadMoreResultsBtn');
+  if(lmr) lmr.addEventListener('click', loadMoreResults);
+}
+
+function renderImagesTab(){
+  const host = document.getElementById('searchResults');
+  let html = '<div class="search-meta">Images for "' + esc(currentQuery) + '"</div>';
+
+  if(!imagesLoaded){
+    html += '<div class="img-strip">' + Array(8).fill('<a><div class="img-skel"></div></a>').join('') + '</div>';
+  } else if(allImages.length){
+    html += '<div class="img-strip" id="imgStrip">';
+    allImages.forEach(img=>{
+      html += '<a href="'+esc(img)+'" class="img-link" data-url="'+esc(img)+'"><img src="'+esc(img)+'" loading="lazy" onerror="this.closest(\'a\').style.display=\'none\'"/></a>';
+    });
+    html += '</div>';
+    if(hasMoreImages){
+      html += '<div class="load-more-row"><button type="button" class="load-more-btn" id="loadMoreImagesBtn"><i class="fas fa-plus"></i> More images</button></div>';
+    }
+  } else {
+    html += '<p style="color:var(--tx-3);font-size:13px;">No images found.</p>';
+  }
+
+  host.innerHTML = html;
+
+  host.querySelectorAll('.img-link').forEach(link=>{
+    link.addEventListener('click', function(e){
+      e.preventDefault();
+      openUrl(this.getAttribute('data-url'), true);
+    });
+  });
+  const lmi = document.getElementById('loadMoreImagesBtn');
+  if(lmi) lmi.addEventListener('click', loadMoreImages);
+}
+
+function renderVideosTab(){
+  const host = document.getElementById('searchResults');
+  const link = MATTUBE_ORIGIN + '/?search=' + encodeURIComponent(currentQuery||'');
+  host.innerHTML =
+    '<div class="video-jump">'
+    + '<i class="fab fa-youtube"></i>'
+    + '<h3>Opened in MatTube</h3>'
+    + '<p>Video results for "'+esc(currentQuery)+'" just opened in a new tab on MatTube.</p>'
+    + '<button type="button" class="go-mattube" id="reopenMatTube"><i class="fas fa-arrow-up-right-from-square"></i> Open again</button>'
+    + '</div>';
+  const btn = document.getElementById('reopenMatTube');
+  if(btn) btn.addEventListener('click', function(){ openMatTube(currentQuery); });
+}
+
+// ── BLOCKED-PROXY STATE ──
+// This is the friendly screen shown whenever a site can't be embedded —
+// whether we detected it ahead of time, or the iframe itself came back
+// with a raw error code like "Error 1003" (Cloudflare's frame-block code),
+// "ERR_BLOCKED_BY_RESPONSE", or similar. Users should never see those raw
+// codes; they should just see "this website blocks proxies."
+function showBlocked(targetUrl){
+  const host = hostnameFor(targetUrl);
+  document.getElementById('blockedHost').textContent = host;
+  document.getElementById('blockedDetail').innerHTML =
+    '<span class="blocked-host">' + esc(host) + '</span> won\'t allow itself to be shown inside a proxy or iframe. ' +
+    'That\'s a restriction the site itself puts in place — it\'s not an error with HTMLTools. You can still open it directly in a new tab.';
+  document.getElementById('blockedOpenDirect').href = targetUrl;
+  showState('stateBlocked');
+}
+
+// ── URL PROXY ──
+function openUrl(raw, pushHistory){
+  const url = normalizeUrl(raw);
+  if(!url){
+    showState('stateError');
+    document.getElementById('errorDetail').textContent = 'That doesn\'t look like a valid URL.';
+    return;
+  }
+  showState('stateLoading');
+  document.getElementById('loadingLabel').textContent = 'Loading page…';
+  document.getElementById('mainInput').value = url;
+
+  const proxied = WORKER_ORIGIN + '/view?u=' + encodeURIComponent(url);
+
+  // Pre-check for a known-blocked host before even touching the iframe,
+  // so the person gets the dedicated message instead of the frame trying
+  // (and failing) to load the raw worker JSON error, or a raw Cloudflare
+  // error code like "Error 1003" showing up inside the frame itself.
+  fetch(proxied, { method: 'GET' }).then(async (resp) => {
+    const ct = resp.headers.get('content-type') || '';
+
+    if(resp.status === 409 && ct.includes('application/json')){
+      let data = {};
+      try{ data = await resp.json(); }catch(e){}
+      if(data.error === 'site_blocks_proxy'){
+        showBlocked(url);
         return;
       }
-
-      try {
-        if (typeof window.__uv$config === 'undefined') window.__uv$config = {};
-        window.__uv$config.prefix = '/URL/uv/service/';
-
-        // Blob worker for bare-mux
-        const workerBlob = new Blob(
-          [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.3/dist/worker.js');`],
-          { type: 'application/javascript' }
-        );
-        const workerUrl = URL.createObjectURL(workerBlob);
-
-        const connection = new BareMux.BareMuxConnection(workerUrl);
-
-        await connection.setTransport(
-          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.3/dist/index.mjs',
-          [{ wisp: 'wss://wisp.mercurywork.shop/' }]
-        );
-
-        // Register Service Worker with absolute scope covering /URL/
-        await navigator.serviceWorker.register('/URL/sw.js', {
-          scope: '/URL/'
-        });
-
-        statusText.textContent = 'Status: Connected successfully via Epoxy & Wisp!';
-      } catch (err) {
-        statusText.textContent = 'Setup failed: ' + err.message;
-        console.error(err);
-      }
     }
 
-    function processUrl(value) {
-      const val = value.trim();
-      if (!val) return 'about:blank';
-      if (val.startsWith('http://') || val.startsWith('https://')) {
-        return val;
-      }
-      if (val.includes('.')) {
-        return 'https://' + val;
-      }
-      return 'https://www.google.com/search?q=' + encodeURIComponent(val);
+    // Any hard failure status (site refused the embed, edge network
+    // blocked it, etc.) should also fall back to the friendly screen
+    // rather than letting the frame render a raw error/blank page.
+    if(resp.status >= 400){
+      showBlocked(url);
+      return;
     }
 
-    function loadPage() {
-      const target = processUrl(input.value);
-      iframe.src = window.__uv$config.prefix + window.__uv$config.encodeUrl(target);
+    // Peek at a slice of the body for tell-tale raw error signatures
+    // (Cloudflare "Error 1003"/"Error 1020", generic frame-block pages)
+    // that sometimes come back with a 200 status from the upstream site.
+    let bodyPeek = '';
+    try{
+      const clone = resp.clone();
+      bodyPeek = (await clone.text()).slice(0, 2000);
+    }catch(e){}
+    if(/error\s*1003|error\s*1020|direct ip access not allowed|attention required.*cloudflare/i.test(bodyPeek)){
+      showBlocked(url);
+      return;
     }
 
-    btn.addEventListener('click', loadPage);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadPage(); });
+    // Not blocked — let the iframe load it directly.
+    loadIntoFrame(proxied, url, pushHistory);
+  }).catch(() => {
+    // Network hiccup on the pre-check shouldn't block the attempt — fall
+    // through to the iframe, which has its own error handling.
+    loadIntoFrame(proxied, url, pushHistory);
+  });
+}
 
-    initProxy();
-  </script>
+function loadIntoFrame(proxied, url, pushHistory){
+  const frame = document.getElementById('proxyFrame');
+  frame.onload = function(){
+    showState('frameHost');
+  };
+  frame.onerror = function(){
+    // Even a hard frame-level error now routes to the friendly screen
+    // instead of a scary generic message.
+    showBlocked(url);
+  };
+  frame.src = proxied;
+
+  if(pushHistory){
+    pushHistoryEntry({ kind:'url', url });
+  }
+  addRecent(hostnameFor(url), 'url', url);
+}
+
+document.getElementById('btnBack').addEventListener('click', function(){
+  if(navIdx > 0){
+    navIdx--;
+    updateNavButtons();
+    goToHistoryEntry(navHistory[navIdx]);
+  }
+});
+document.getElementById('btnFwd').addEventListener('click', function(){
+  if(navIdx < navHistory.length - 1){
+    navIdx++;
+    updateNavButtons();
+    goToHistoryEntry(navHistory[navIdx]);
+  }
+});
+document.getElementById('btnReload').addEventListener('click', function(){
+  const cur = navHistory[navIdx];
+  if(!cur) return;
+  if(cur.kind === 'search'){
+    runSearch(cur.query, true);
+  } else {
+    const frame = document.getElementById('proxyFrame');
+    if(frame.src) frame.src = frame.src;
+  }
+});
+
+window.addEventListener('message', function(e){
+  if(e.data && e.data.type === 'htmltools-proxy-nav' && e.data.url){
+    document.getElementById('mainInput').value = e.data.url;
+    // In-frame navigations (clicking links inside the proxied site) count
+    // as their own history steps too, so Back from a clicked-through page
+    // returns to the previous page on that same site — and eventually
+    // back out to the search that started the whole journey.
+    const cur = navHistory[navIdx];
+    if(!cur || cur.kind !== 'url' || cur.url !== e.data.url){
+      pushHistoryEntry({ kind:'url', url: e.data.url });
+    }
+    showState('frameHost');
+  }
+});
+
+// ── Deep-link support ──
+window.addEventListener('load', function(){
+  const params = new URLSearchParams(window.location.search);
+  const website = params.get('website');
+  const q = params.get('q');
+  if(website){
+    document.getElementById('mainInput').value = website;
+    openUrl(website, true);
+  } else if(q){
+    document.getElementById('mainInput').value = q;
+    runSearch(q);
+  } else {
+    document.getElementById('homeInput').focus();
+  }
+  updateNavButtons();
+});
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
