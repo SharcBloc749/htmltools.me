@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Proxy · HTMLTools</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png?v=2"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#0c0c0c;--surface:#111;--panel:#171717;--panel-2:#1e1e1e;
+  --border:#252525;--border-2:#2e2e2e;--border-hi:#404040;
+  --tx:#e8e8e8;--tx-2:#888;--tx-3:#4a4a4a;
+  --white:#fff;--wfg:#0c0c0c;
+  --red:#dc2626;--red-hi:#ef4444;
+  --r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;--nav-h:48px;
+  --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{color:var(--tx);font-family:var(--font);font-size:13.5px;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--border-hi);}
+
+/* NAV */
+nav{background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;height:var(--nav-h);gap:8px;flex-shrink:0;}
+.nav-brand{display:flex;align-items:center;gap:7px;padding-right:12px;margin-right:4px;border-right:1px solid var(--border);flex-shrink:0;}
+.nav-mark{width:24px;height:24px;background:var(--white);color:var(--wfg);border-radius:5px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+.nav-mark img{width:24px;height:24px;object-fit:contain;display:block;}
+.nav-name{font-size:.78rem;font-weight:600;color:var(--tx-2);letter-spacing:-.01em;white-space:nowrap;}
+.nav-title{font-size:.8rem;font-weight:600;color:var(--tx);white-space:nowrap;}
+.nav-sub{font-size:.68rem;color:var(--tx-3);font-family:var(--mono);white-space:nowrap;}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.icon-btn{background:transparent;border:1px solid var(--border);color:var(--tx-3);width:29px;height:29px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .15s;flex-shrink:0;}
+.icon-btn:hover{border-color:var(--border-hi);color:var(--tx);background:var(--panel);}
+
+/* ADDRESS BAR ROW */
+.bar-row{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.mode-tabs{display:flex;gap:1px;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:2px;flex-shrink:0;}
+.mode-tab{padding:6px 12px;background:transparent;border:none;color:var(--tx-3);font-size:11.5px;font-weight:600;border-radius:3px;transition:all .13s;letter-spacing:.02em;}
+.mode-tab.active{background:var(--white);color:var(--wfg);}
+.mode-tab:hover:not(.active){color:var(--tx-2);}
+.url-form{flex:1;display:flex;gap:6px;align-items:center;min-width:0;}
+.url-row{flex:1;display:flex;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:3px;align-items:center;transition:border-color .13s;min-width:0;}
+.url-row:focus-within{border-color:var(--border-hi);}
+.url-row i{color:var(--tx-3);font-size:11px;padding-left:8px;flex-shrink:0;}
+.url-row input{flex:1;background:transparent;border:none;color:var(--tx);font-size:12.5px;outline:none;font-family:var(--font);min-width:0;height:28px;padding:0 9px;}
+.url-row input::placeholder{color:var(--tx-3);}
+.go-btn{background:var(--white);color:var(--wfg);border:1px solid var(--white);padding:0 16px;height:34px;border-radius:var(--r);font-weight:600;font-size:12.5px;transition:opacity .13s;flex-shrink:0;display:flex;align-items:center;gap:6px;}
+.go-btn:hover{opacity:.88;}
+.go-btn:disabled{opacity:.5;cursor:default;}
+.bar-nav-btns{display:flex;gap:3px;flex-shrink:0;}
+
+/* VIEWPORT */
+.viewport{flex:1;position:relative;overflow:hidden;min-height:0;background:var(--bg);}
+.state{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:2rem;text-align:center;}
+.state.show{display:flex;}
+.state i{font-size:1.8rem;color:var(--tx-3);}
+.spin{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.state h3{font-size:.95rem;font-weight:600;color:var(--tx-2);letter-spacing:-.01em;}
+.state p{font-size:.8rem;color:var(--tx-3);max-width:380px;line-height:1.6;}
+
+#frameHost{position:absolute;inset:0;display:none;}
+#frameHost.show{display:block;}
+#proxyFrame{width:100%;height:100%;border:none;background:#fff;display:block;}
+
+/* SEARCH RESULTS */
+#searchHost{position:absolute;inset:0;display:none;overflow-y:auto;}
+#searchHost.show{display:block;}
+.search-wrap{max-width:720px;margin:0 auto;padding:22px 16px 60px;}
+.search-meta{font-size:11.5px;color:var(--tx-3);font-family:var(--mono);margin-bottom:14px;}
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:all .13s;}
+.result-card:hover{border-color:var(--border-hi);background:var(--panel);}
+.result-url{font-size:10.5px;color:var(--tx-3);font-family:var(--mono);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.result-title{font-size:14px;font-weight:600;color:var(--tx);margin-bottom:5px;letter-spacing:-.01em;}
+.result-snippet{font-size:12px;color:var(--tx-2);line-height:1.6;}
+.img-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:16px 0 20px;}
+.img-strip img{width:100%;height:90px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border);background:var(--panel);cursor:pointer;transition:opacity .13s;}
+.img-strip img:hover{opacity:.8;}
+.section-lbl{font-size:10px;font-weight:700;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:9px;}
+
+footer{padding:6px 14px;font-size:10.5px;color:var(--tx-3);background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.5rem;font-family:var(--mono);letter-spacing:.01em;}
+footer strong{color:var(--tx-2);font-weight:500;}
+footer .f-dot{color:var(--border-hi);}
+footer a{color:var(--tx-2);}
+footer a:hover{color:var(--tx);}
+
+@media(max-width:639px){
+  .nav-title,.nav-sub{display:none;}
+  .bar-row{flex-wrap:wrap;}
+  .mode-tabs{order:1;}
+  .url-form{order:3;width:100%;}
+  .bar-nav-btns{order:2;margin-left:auto;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-mark"><img src="https://htmltools.me/logo3.png?v=2" alt="HT"/></div>
+    <span class="nav-name">HTML Tools</span>
+  </div>
+  <span class="nav-title">Proxy</span>
+  <span class="nav-sub">/ browse &amp; search</span>
+  <div class="nav-right">
+    <a class="icon-btn" href="https://htmltools.me/" title="Back to HTMLTools"><i class="fas fa-home"></i></a>
+  </div>
+</nav>
+
+<div class="bar-row">
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabSearch" onclick="setMode('search')">Search</button>
+    <button class="mode-tab" id="tabUrl" onclick="setMode('url')">URL</button>
+  </div>
+  <div class="bar-nav-btns" id="frameNavBtns" style="display:none">
+    <button class="icon-btn" id="btnBack" title="Back"><i class="fas fa-arrow-left"></i></button>
+    <button class="icon-btn" id="btnFwd" title="Forward"><i class="fas fa-arrow-right"></i></button>
+    <button class="icon-btn" id="btnReload" title="Reload"><i class="fas fa-redo"></i></button>
+  </div>
+  <form class="url-form" id="mainForm">
+    <div class="url-row">
+      <i class="fas fa-search" id="barIcon"></i>
+      <input type="text" id="mainInput" placeholder="Search the web…" autocomplete="off" inputmode="url"/>
+    </div>
+    <button type="submit" class="go-btn" id="goBtn"><i class="fas fa-arrow-right"></i><span id="goLabel">Search</span></button>
+  </form>
+</div>
+
+<div class="viewport" id="viewport">
+
+  <div class="state show" id="stateIdle">
+    <i class="fas fa-globe"></i>
+    <h3>Search or enter a URL to get started</h3>
+    <p>Search results are pulled live, and any page can be opened right here through the proxy — no redirects, no new tab.</p>
+  </div>
+
+  <div class="state" id="stateLoading">
+    <i class="fas fa-circle-notch spin"></i>
+    <h3 id="loadingLabel">Loading…</h3>
+  </div>
+
+  <div class="state" id="stateError">
+    <i class="fas fa-triangle-exclamation" style="color:var(--red-hi)"></i>
+    <h3>Couldn't load that</h3>
+    <p id="errorDetail">Something went wrong.</p>
+  </div>
+
+  <div id="searchHost">
+    <div class="search-wrap" id="searchResults"></div>
+  </div>
+
+  <div id="frameHost">
+    <iframe id="proxyFrame"></iframe>
+  </div>
+
+</div>
+
+<footer><strong>HTML Tools</strong><span class="f-dot">·</span><span>Proxy</span><span class="f-dot">·</span><a href="https://htmltools.me/">htmltools.me</a></footer>
+
+<script>
+// ── CONFIG ──
+// Point this at your deployed Cloudflare Worker (the one with /api/search, /view, /asset).
+const WORKER_ORIGIN = 'https://proxy.htmltools.me'; // <-- replace with your actual worker URL
+
+let mode = 'search';
+let frameHistory = [];
+let frameHistoryIdx = -1;
+
+function setMode(m){
+  mode = m;
+  document.getElementById('tabSearch').classList.toggle('active', m==='search');
+  document.getElementById('tabUrl').classList.toggle('active', m==='url');
+  document.getElementById('barIcon').className = m==='search' ? 'fas fa-search' : 'fas fa-globe';
+  document.getElementById('mainInput').placeholder = m==='search' ? 'Search the web…' : 'Enter a URL (e.g. example.com)';
+  document.getElementById('goLabel').textContent = m==='search' ? 'Search' : 'Go';
+  document.getElementById('mainInput').focus();
+}
+
+function showState(which){
+  ['stateIdle','stateLoading','stateError','searchHost','frameHost'].forEach(id=>{
+    document.getElementById(id).classList.remove('show');
+  });
+  document.getElementById(which).classList.add('show');
+  document.getElementById('frameNavBtns').style.display = (which==='frameHost') ? 'flex' : 'none';
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function normalizeUrl(raw){
+  let u = raw.trim();
+  if(!u) return null;
+  if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  try{ new URL(u); return u; }catch(e){ return null; }
+}
+
+document.getElementById('mainForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const val = document.getElementById('mainInput').value.trim();
+  if(!val) return;
+  if(mode === 'search') runSearch(val);
+  else openUrl(val, true);
+});
+
+// ── SEARCH ──
+async function runSearch(query){
+  showState('stateLoading');
+  document.getElementById('loadingLabel').textContent = 'Searching…';
+  const goBtn = document.getElementById('goBtn');
+  goBtn.disabled = true;
+  try{
+    const resp = await fetch(WORKER_ORIGIN + '/api/search?q=' + encodeURIComponent(query));
+    const data = await resp.json();
+    if(data.error) throw new Error(data.error);
+    renderSearchResults(query, data);
+  }catch(err){
+    showState('stateError');
+    document.getElementById('errorDetail').textContent = err.message || 'Search failed.';
+  }finally{
+    goBtn.disabled = false;
+  }
+}
+
+function renderSearchResults(query, data){
+  const host = document.getElementById('searchResults');
+  let html = '<div class="search-meta">Results for "' + esc(query) + '"</div>';
+
+  if(data.images && data.images.length){
+    html += '<div class="section-lbl">Images</div><div class="img-strip">';
+    data.images.slice(0, 8).forEach(img=>{
+      html += '<img src="'+esc(img)+'" loading="lazy" onerror="this.style.display=\'none\'"/>';
+    });
+    html += '</div>';
+  }
+
+  if(data.results && data.results.length){
+    html += '<div class="section-lbl">Web results</div>';
+    data.results.forEach(r=>{
+      html += '<div class="result-card" data-url="'+esc(r.url)+'">'
+        + '<div class="result-url">'+esc(r.url)+'</div>'
+        + '<div class="result-title">'+esc(r.title)+'</div>'
+        + '<div class="result-snippet">'+esc(r.snippet||'')+'</div>'
+        + '</div>';
+    });
+  } else {
+    html += '<p style="color:var(--tx-3);font-size:12.5px;margin-top:10px">No results found.</p>';
+  }
+
+  host.innerHTML = html;
+  host.querySelectorAll('.result-card').forEach(card=>{
+    card.addEventListener('click', function(){
+      openUrl(this.getAttribute('data-url'), true);
+    });
+  });
+  showState('searchHost');
+}
+
+// ── URL PROXY ──
+function openUrl(raw, pushHistory){
+  const url = normalizeUrl(raw);
+  if(!url){
+    showState('stateError');
+    document.getElementById('errorDetail').textContent = 'That doesn\'t look like a valid URL.';
+    return;
+  }
+  showState('stateLoading');
+  document.getElementById('loadingLabel').textContent = 'Loading page…';
+
+  const frame = document.getElementById('proxyFrame');
+  const proxied = WORKER_ORIGIN + '/view?u=' + encodeURIComponent(url);
+
+  frame.onload = function(){
+    showState('frameHost');
+  };
+  frame.onerror = function(){
+    showState('stateError');
+    document.getElementById('errorDetail').textContent = 'The proxy could not load this page.';
+  };
+  frame.src = proxied;
+
+  if(pushHistory){
+    frameHistory = frameHistory.slice(0, frameHistoryIdx + 1);
+    frameHistory.push(url);
+    frameHistoryIdx = frameHistory.length - 1;
+  }
+
+  // reflect in address bar / mode
+  setMode('url');
+  document.getElementById('mainInput').value = url;
+}
+
+document.getElementById('btnBack').addEventListener('click', function(){
+  if(frameHistoryIdx > 0){
+    frameHistoryIdx--;
+    openUrl(frameHistory[frameHistoryIdx], false);
+  }
+});
+document.getElementById('btnFwd').addEventListener('click', function(){
+  if(frameHistoryIdx < frameHistory.length - 1){
+    frameHistoryIdx++;
+    openUrl(frameHistory[frameHistoryIdx], false);
+  }
+});
+document.getElementById('btnReload').addEventListener('click', function(){
+  const frame = document.getElementById('proxyFrame');
+  if(frame.src) frame.src = frame.src;
+});
+
+// ── Listen for in-page nav messages from the injected proxy script ──
+window.addEventListener('message', function(e){
+  if(e.data && e.data.type === 'htmltools-proxy-nav' && e.data.url){
+    document.getElementById('mainInput').value = e.data.url;
+    frameHistory = frameHistory.slice(0, frameHistoryIdx + 1);
+    if(frameHistory[frameHistoryIdx] !== e.data.url){
+      frameHistory.push(e.data.url);
+      frameHistoryIdx = frameHistory.length - 1;
+    }
+    showState('frameHost');
+  }
+});
+
+// ── Deep-link support: ?website=<url> or ?q=<query> ──
+window.addEventListener('load', function(){
+  const params = new URLSearchParams(window.location.search);
+  const website = params.get('website');
+  const q = params.get('q');
+  if(website){
+    setMode('url');
+    document.getElementById('mainInput').value = website;
+    openUrl(website, true);
+  } else if(q){
+    setMode('search');
+    document.getElementById('mainInput').value = q;
+    runSearch(q);
+  } else {
+    document.getElementById('mainInput').focus();
+  }
+});
+</script>
+</body>
+</html>
