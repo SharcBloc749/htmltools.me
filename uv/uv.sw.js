@@ -1,17 +1,6 @@
-// 1. Import dependencies in strict order (Bundle must load before Config)
-self.importScripts('/uv/uv.bundle.js');
-self.importScripts('/uv/uv.config.js');
+importScripts('/uv/uv.bundle.js');
+importScripts('/uv/uv.config.js');
 
-// 2. Force immediate worker takeover without requiring a page reload
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-    event.waitUntil(self.clients.claim());
-});
-
-// 3. Ultraviolet Core Worker Engine
 "use strict";(()=>{var h=self.Ultraviolet,O=["cross-origin-embedder-policy","cross-origin-opener-policy","cross-origin-resource-policy","content-security-policy","content-security-policy-report-only","expect-ct","feature-policy","origin-isolation","strict-transport-security","upgrade-insecure-requests","x-content-type-options","x-download-options","x-frame-options","x-permitted-cross-domain-policies","x-powered-by","x-xss-protection"],C=["GET","HEAD"],g=class extends h.EventEmitter{constructor(e=__uv$config){super(),e.prefix||(e.prefix="/uv/service/"),this.config=e,this.bareClient=new h.BareClient}route({request:e}){return!!e.url.startsWith(location.origin+this.config.prefix)}async fetch({request:e}){let s;try{if(!e.url.startsWith(location.origin+this.config.prefix))return await fetch(e);let t=new h(this.config);typeof this.config.construct=="function"&&this.config.construct(t,"service");let w=await t.cookie.db();t.meta.origin=location.origin,t.meta.base=t.meta.url=new URL(t.sourceUrl(e.url));let o=new v(e,t,C.includes(e.method.toUpperCase())?null:await e.blob());if(t.meta.url.protocol==="blob:"&&(o.blob=!0,o.base=o.url=new URL(o.url.pathname)),e.referrer&&e.referrer.startsWith(location.origin)){let i=new URL(t.sourceUrl(e.referrer));(o.headers.origin||t.meta.url.origin!==i.origin&&e.mode==="cors")&&(o.headers.origin=i.origin),o.headers.referer=i.href}let f=await t.cookie.getCookies(w)||[],x=t.cookie.serialize(f,t.meta,!1);o.headers["user-agent"]=navigator.userAgent,x&&(o.headers.cookie=x);let p=new u(o,null,null);if(this.emit("request",p),p.intercepted)return p.returnValue;s=o.blob?"blob:"+location.origin+o.url.pathname:o.url;let c=await this.bareClient.fetch(s,{headers:o.headers,method:o.method,body:o.body,credentials:o.credentials,mode:o.mode,cache:o.cache,redirect:o.redirect}),r=new y(o,c),l=new u(r,null,null);if(this.emit("beforemod",l),l.intercepted)return l.returnValue;for(let i of O)r.headers[i]&&delete r.headers[i];if(r.headers.location&&(r.headers.location=t.rewriteUrl(r.headers.location)),["document","iframe"].includes(e.destination)){let i=r.getHeader("content-disposition");if(!/\s*?((inline|attachment);\s*?)filename=/i.test(i)){let n=/^\s*?attachment/i.test(i)?"attachment":"inline",[m]=new URL(c.finalURL).pathname.split("/").slice(-1);r.headers["content-disposition"]=`${n}; filename=${JSON.stringify(m)}`}}if(r.headers["set-cookie"]&&(Promise.resolve(t.cookie.setCookies(r.headers["set-cookie"],w,t.meta)).then(()=>{self.clients.matchAll().then(function(i){i.forEach(function(n){n.postMessage({msg:"updateCookies",url:t.meta.url.href})})})}),delete r.headers["set-cookie"]),r.body)switch(e.destination){case"script":r.body=t.js.rewrite(await c.text());break;case"worker":{let i=[t.bundleScript,t.clientScript,t.configScript,t.handlerScript].map(n=>JSON.stringify(n)).join(",");r.body=`if (!self.__uv) {
                                 ${t.createJsInject(t.cookie.serialize(f,t.meta,!0),e.referrer)}
                             importScripts(${i});
@@ -23,39 +12,13 @@ self.addEventListener('activate', (event) => {
         reload.addEventListener("click", () => location.reload());
         uvVersion.textContent = ${JSON.stringify("3.2.10")};
         uvBuild.textContent = ${JSON.stringify("92d9075")};
-    `;return`<!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset='utf-8' />
-        <title>Error</title>
-        <style>
-        * { background-color: white }
-        </style>
-        </head>
-        <body>
-        <h1 id='errorTitle'>Error processing your request</h1>
-        <hr />
-        <p>Failed to load <b id="fetchedURL"></b></p>
-        <p id="errorMessage">Internal Server Error</p>
-        <textarea id="errorTrace" cols="40" rows="10" readonly></textarea>
-        <p>Try:</p>
-        <ul>
-        <li>Checking your internet connection</li>
-        <li>Verifying you entered the correct address</li>
-        <li>Clearing the site data</li>
-        <li>Contacting <b id="uvHostname"></b>'s administrator</li>
-        <li>Verify the server isn't censored</li>
-        </ul>
-        <p>If you're the administrator of <b id="uvHostname"></b>, try:</p>
-        <ul>
-        <li>Restarting your server</li>
-        <li>Updating Ultraviolet</li>
-        <li>Troubleshooting the error on the <a href="https://github.com/titaniumnetwork-dev/Ultraviolet" target="_blank">GitHub repository</a></li>
-        </ul>
-        <button id="reload">Reload</button>
-        <hr />
-        <p><i>Ultraviolet v<span id="uvVersion"></span> (build <span id="uvBuild"></span>)</i></p>
-        <script src="${"data:application/javascript,"+encodeURIComponent(s)}"><\/script>
-        </body>
-        </html>
-        `}function T(a,e){let s={"content-type":"text/html"};return crossOriginIsolated&&(s["Cross-Origin-Embedder-Policy"]="require-corp"),new Response(E(String(a),e),{status:500,headers:s})}})();
+    `;return`<!DOCTYPE html><html><head><meta charset='utf-8' /><title>Error</title></head><body><h1>Error processing request</h1></body></html>`}function T(a,e){let s={"content-type":"text/html"};return crossOriginIsolated&&(s["Cross-Origin-Embedder-Policy"]="require-corp"),new Response(E(String(a),e),{status:500,headers:s})}})();
+
+// Instantiate worker engine & register fetch interception
+const sw = new UVServiceWorker();
+
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        sw.fetch(event)
+    );
+});
