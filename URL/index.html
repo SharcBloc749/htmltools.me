@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Proxy Web Client</title>
+  <title>Proxy Web Client - HTMLTools </title>
   <style>
     * {
       box-sizing: border-box;
@@ -72,12 +72,12 @@
   
   <!-- Local Ultraviolet scripts -->
   <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js?v=10"></script>
+  <script src="/URL/uv/uv.config.js?v=11"></script>
 </head>
 <body>
 
   <div class="header">
-    <input type="text" id="url-input" placeholder="Enter a URL or search query..." />
+    <input type="text" id="url-input" placeholder="Enter a URL or search query (e.g., https://wikipedia.org)" />
     <button id="search-btn">Go</button>
   </div>
   <div class="status" id="status-text">Initializing Bare-Mux and Service Worker...</div>
@@ -88,18 +88,6 @@
     const btn = document.getElementById('search-btn');
     const iframe = document.getElementById('proxy-iframe');
     const statusText = document.getElementById('status-text');
-
-    // Helper to safely fetch remote transport code and pack into a same-origin Blob URL
-    async function setCdnTransport(connection, cdnUrl, transportArgs) {
-      const response = await fetch(cdnUrl);
-      if (!response.ok) throw new Error(`Failed to load transport module (${response.status})`);
-      
-      const scriptText = await response.text();
-      const blob = new Blob([scriptText], { type: 'application/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-
-      await connection.setTransport(blobUrl, transportArgs);
-    }
 
     async function initProxy() {
       if (!('serviceWorker' in navigator)) {
@@ -121,19 +109,17 @@
         // 2. Initialize BareMux Connection
         const connection = new BareMux.BareMuxConnection(workerUrl);
 
-        // 3. Load Epoxy transport module using the verified correct CDN path
-        await setCdnTransport(
-          connection,
-          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport/dist/index.mjs',
-          [{ wisp: 'wss://wisp.mercuryworkshop.sub.id/' }]
-        );
+        // 3. Set Transport using the native bare-as-module transport script path
+        await connection.setTransport('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3@2.2.2/dist/index.mjs', [
+          'https://my-htmltools-bare.onrender.com/'
+        ]);
 
         // 4. Register UV Service Worker
         await navigator.serviceWorker.register('/URL/sw.js', {
           scope: '/URL/uv/service/'
         });
 
-        statusText.textContent = 'Status: Connected via Epoxy Transport. Ready to browse!';
+        statusText.textContent = 'Status: Connected successfully via Bare-Mux! Ready to browse.';
       } catch (err) {
         statusText.textContent = 'Setup failed: ' + err.message;
         console.error('Initialization Error:', err);
