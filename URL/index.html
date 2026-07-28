@@ -7,7 +7,6 @@
   
   <script src="/uv/uv.bundle.js"></script>
   <script src="/uv/uv.config.js"></script>
-  <!-- BareMux CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@latest/dist/index.js"></script>
 
   <style>
@@ -40,55 +39,54 @@
   </div>
 
   <script>
-    console.log("Initializing Proxy script...");
+    let initPromise = null;
 
-    // 1. Register Service Worker immediately in background
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register(__uv$config.sw, {
-        scope: __uv$config.prefix
-      }).then((reg) => {
-        console.log("Service Worker registered on scope:", reg.scope);
-      }).catch((err) => {
-        console.error("Service Worker registration failed:", err);
-      });
-    }
+    async function initProxyEngine() {
+      if (!initPromise) {
+        initPromise = (async () => {
+          if (!('serviceWorker' in navigator)) {
+            throw new Error('Service workers not supported.');
+          }
 
-    // 2. Initialize BareMux with a 3-second safety fallback so it never hangs the UI
-    async function initBareMux() {
-      if (typeof BareMux === 'undefined') return;
-      
-      try {
-        console.log("Fetching BareMux worker...");
-        const workerRes = await fetch('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@latest/dist/worker.js');
-        const workerText = await workerRes.text();
-        const workerBlobUrl = URL.createObjectURL(new Blob([workerText], { type: 'application/javascript' }));
+          // 1. Register Service Worker
+          const reg = await navigator.serviceWorker.register(__uv$config.sw, {
+            scope: __uv$config.prefix
+          });
 
-        const connection = new BareMux.BareMuxConnection(workerBlobUrl);
-        
-        const setTransportPromise = connection.setTransport(
-          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3@latest/dist/index.mjs',
-          [__uv$config.bare]
-        );
+          // 2. Connect BareMux to local same-origin worker
+          if (typeof BareMux !== 'undefined') {
+            try {
+              const connection = new BareMux.BareMuxConnection('/uv/baremux/worker.js');
+              
+              await connection.setTransport(
+                'https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3@latest/dist/index.mjs',
+                [__uv$config.bare]
+              );
+              console.log("BareMux transport connected!");
+            } catch (e) {
+              console.error("BareMux connection error:", e);
+            }
+          }
 
-        // Timeout guard: don't let broken CDN worker hold up execution
-        const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("BareMux transport set timed out")), 3000)
-        );
-
-        await Promise.race([setTransportPromise, timeout]);
-        console.log("BareMux transport set successfully!");
-      } catch (err) {
-        console.warn("BareMux init notice:", err.message);
+          return reg;
+        })();
       }
+      return initPromise;
     }
 
-    initBareMux();
+    // Initialize engine on page load
+    initProxyEngine().catch(err => console.error("Init error:", err));
 
-    // 3. Directly load iframe on user click
-    function launchProxy() {
-      console.log("Launch triggered");
+    async function launchProxy() {
       let input = document.getElementById('target-url').value.trim();
       if (!input) return;
+
+      try {
+        await initProxyEngine();
+      } catch (err) {
+        console.error("Proxy engine failed to initialize:", err);
+        return;
+      }
 
       if (!input.startsWith('http://') && !input.startsWith('https://')) {
         if (input.includes('.') && !input.includes(' ')) {
@@ -99,7 +97,6 @@
       }
 
       const proxiedUrl = __uv$config.prefix + __uv$config.encodeUrl(input);
-      console.log("Navigating iframe to:", proxiedUrl);
       document.getElementById('proxy-frame').src = proxiedUrl;
     }
   </script>
