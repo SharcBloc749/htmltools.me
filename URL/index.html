@@ -70,9 +70,9 @@
   <!-- Bare-Mux loaded via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/index.js"></script>
   
-  <!-- Local Ultraviolet scripts -->
+  <!-- Local Ultraviolet scripts with cache-busting timestamp -->
   <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js"></script>
+  <script src="/URL/uv/uv.config.js?v=2"></script>
 </head>
 <body>
 
@@ -96,7 +96,11 @@
       }
 
       try {
-        // 1. Same-origin Blob worker importing CDN worker
+        // Force the prefix in runtime memory so cached uv.config.js cannot override it
+        if (typeof window.__uv$config === 'undefined') window.__uv$config = {};
+        window.__uv$config.prefix = '/URL/uv/service/';
+
+        // 1. Create same-origin Blob worker importing CDN worker
         const workerBlob = new Blob(
           [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/worker.js');`],
           { type: 'application/javascript' }
@@ -111,9 +115,9 @@
           'https://my-htmltools-bare.onrender.com/'
         ]);
 
-        // 4. Register Ultraviolet Service Worker
+        // 4. Register Ultraviolet Service Worker with hardcoded scope
         await navigator.serviceWorker.register('/URL/sw.js', {
-          scope: __uv$config.prefix
+          scope: '/URL/uv/service/'
         });
 
         statusText.textContent = 'Status: Connected via Bare-Mux to Render server. Ready to browse!';
@@ -139,7 +143,7 @@
       if (!rawUrl) return;
 
       const formattedUrl = processUrl(rawUrl);
-      const proxyUrl = __uv$config.prefix + __uv$config.encodeUrl(formattedUrl);
+      const proxyUrl = window.__uv$config.prefix + window.__uv$config.encodeUrl(formattedUrl);
       
       iframe.src = proxyUrl;
     }
