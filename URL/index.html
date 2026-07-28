@@ -5,70 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Proxy | htmltools.me</title>
   
-  <!-- Load Ultraviolet Core Scripts -->
   <script src="/uv/uv.bundle.js"></script>
   <script src="/uv/uv.config.js"></script>
 
   <style>
-    * { 
-      box-sizing: border-box; 
-      margin: 0; 
-      padding: 0; 
-    }
-    body, html { 
-      height: 100%; 
-      font-family: system-ui, -apple-system, sans-serif; 
-      background: #121212; 
-      color: #fff; 
-      overflow: hidden; 
-    }
-    
-    /* Top Search Bar Styling */
-    .proxy-bar {
-      display: flex;
-      gap: 10px;
-      padding: 12px;
-      background: #1e1e1e;
-      border-bottom: 1px solid #333;
-    }
-    .proxy-input {
-      flex: 1;
-      padding: 10px 14px;
-      border-radius: 6px;
-      border: 1px solid #444;
-      background: #2a2a2a;
-      color: #fff;
-      font-size: 15px;
-      outline: none;
-    }
-    .proxy-input:focus { 
-      border-color: #0070f3; 
-    }
-    .proxy-btn {
-      padding: 10px 20px;
-      background: #0070f3;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background 0.2s;
-    }
-    .proxy-btn:hover { 
-      background: #0051a8; 
-    }
-
-    /* Embedded Proxy Iframe Area */
-    .frame-container {
-      width: 100%;
-      height: calc(100vh - 61px);
-    }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: #ffffff;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { height: 100%; font-family: system-ui, -apple-system, sans-serif; background: #121212; color: #fff; overflow: hidden; }
+    .proxy-bar { display: flex; gap: 10px; padding: 12px; background: #1e1e1e; border-bottom: 1px solid #333; }
+    .proxy-input { flex: 1; padding: 10px 14px; border-radius: 6px; border: 1px solid #444; background: #2a2a2a; color: #fff; font-size: 15px; outline: none; }
+    .proxy-input:focus { border-color: #0070f3; }
+    .proxy-btn { padding: 10px 20px; background: #0070f3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .proxy-btn:hover { background: #0051a8; }
+    .frame-container { width: 100%; height: calc(100vh - 61px); }
+    iframe { width: 100%; height: 100%; border: none; background: #ffffff; }
   </style>
 </head>
 <body>
@@ -91,29 +40,39 @@
   <script>
     let swReady = false;
 
-    // 1. Register Service Worker on load
     async function initProxySW() {
-      if ('serviceWorker' in navigator) {
-        try {
-          await navigator.serviceWorker.register(__uv$config.sw, {
-            scope: __uv$config.prefix
-          });
-          
-          // Wait until worker is fully active and taking control
-          await navigator.serviceWorker.ready;
+      if (!('serviceWorker' in navigator)) {
+        alert('Your browser does not support Service Workers.');
+        return;
+      }
+
+      try {
+        const reg = await navigator.serviceWorker.register(__uv$config.sw, {
+          scope: __uv$config.prefix
+        });
+
+        // Check if service worker is active or listen for activation state
+        if (reg.active) {
           swReady = true;
-          console.log('Ultraviolet ServiceWorker registered and ready!');
-        } catch (err) {
-          console.error('ServiceWorker registration failed:', err);
+          console.log('Ultraviolet ServiceWorker is active and ready!');
+        } else {
+          const sw = reg.installing || reg.waiting;
+          if (sw) {
+            sw.addEventListener('statechange', (e) => {
+              if (e.target.state === 'activated') {
+                swReady = true;
+                console.log('Ultraviolet ServiceWorker activated!');
+              }
+            });
+          }
         }
-      } else {
-        alert('Your browser does not support Service Workers, which are required for this proxy.');
+      } catch (err) {
+        console.error('ServiceWorker registration failed:', err);
       }
     }
-    
+
     initProxySW();
 
-    // 2. Launch requested page inside the iframe
     function launchProxy() {
       let input = document.getElementById('target-url').value.trim();
       if (!input) return;
@@ -123,7 +82,6 @@
         return;
       }
 
-      // Handle raw search query vs explicit domain input
       if (!input.startsWith('http://') && !input.startsWith('https://')) {
         if (input.includes('.') && !input.includes(' ')) {
           input = 'https://' + input;
@@ -132,10 +90,7 @@
         }
       }
 
-      // Encode URL using UV XOR codec
       const proxiedUrl = __uv$config.prefix + __uv$config.encodeUrl(input);
-
-      // Route iframe src to service worker path
       document.getElementById('proxy-frame').src = proxiedUrl;
     }
   </script>
