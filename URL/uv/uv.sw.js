@@ -1,11 +1,11 @@
-importScripts('/URL/uv/uv.bundle.js');
-importScripts('/URL/uv/uv.config.js');
-importScripts('/URL/uv/uv.sw.js');
+class UVServiceWorker {
+    constructor(config = self.__uv$config) {
+        this.config = config;
+    }
 
-const sw = new UVServiceWorker();
+    async fetch(event) {
+        return fetch(event.request);
+    }
+}
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.url.startsWith(location.origin + self.__uv$config.prefix)) {
-    event.respondWith(sw.fetch(event));
-  }
-});
+self.UVServiceWorker = UVServiceWorker;
