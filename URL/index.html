@@ -96,15 +96,22 @@
       }
 
       try {
-        // 1. Initialize BareMux worker directly from CDN
-        const connection = new BareMux.BareMuxConnection('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/worker.js');
+        // 1. Create a same-origin Blob worker that safely imports the CDN worker script
+        const workerBlob = new Blob(
+          [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/worker.js');`],
+          { type: 'application/javascript' }
+        );
+        const workerUrl = URL.createObjectURL(workerBlob);
 
-        // 2. Attach transport to your live Render server
+        // 2. Initialize BareMux using the local Blob URL
+        const connection = new BareMux.BareMuxConnection(workerUrl);
+
+        // 3. Attach transport to your live Render server
         await connection.setTransport('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3@2.0.0/dist/index.js', [
           'https://my-htmltools-bare.onrender.com/'
         ]);
 
-        // 3. Register the Ultraviolet Service Worker
+        // 4. Register the Ultraviolet Service Worker
         await navigator.serviceWorker.register('/URL/sw.js', {
           scope: __uv$config.prefix
         });
