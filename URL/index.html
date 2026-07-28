@@ -53,18 +53,29 @@
             scope: __uv$config.prefix
           });
 
-          // 2. Connect BareMux to local same-origin worker
+          // Wait until SW is active
+          if (!(reg.active && reg.active.state === 'activated')) {
+            await new Promise((resolve) => {
+              const worker = reg.installing || reg.waiting || reg.active;
+              if (!worker) return resolve(reg);
+              if (worker.state === 'activated') return resolve(reg);
+              worker.addEventListener('statechange', (e) => {
+                if (e.target.state === 'activated') resolve(reg);
+              });
+            });
+          }
+
+          // 2. Connect BareMux to local worker and set Bare transport
           if (typeof BareMux !== 'undefined') {
             try {
               const connection = new BareMux.BareMuxConnection('/uv/baremux/worker.js');
-              
               await connection.setTransport(
                 'https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3@latest/dist/index.mjs',
                 [__uv$config.bare]
               );
-              console.log("BareMux transport connected!");
+              console.log('BareMux transport connected!');
             } catch (e) {
-              console.error("BareMux connection error:", e);
+              console.error('BareMux connection error:', e);
             }
           }
 
@@ -75,7 +86,7 @@
     }
 
     // Initialize engine on page load
-    initProxyEngine().catch(err => console.error("Init error:", err));
+    initProxyEngine().catch(err => console.error('Proxy initialization error:', err));
 
     async function launchProxy() {
       let input = document.getElementById('target-url').value.trim();
@@ -84,7 +95,7 @@
       try {
         await initProxyEngine();
       } catch (err) {
-        console.error("Proxy engine failed to initialize:", err);
+        console.error('Proxy engine failed to initialize:', err);
         return;
       }
 
