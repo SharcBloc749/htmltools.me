@@ -67,9 +67,10 @@
     }
   </style>
 
-  <!-- Ultraviolet core bundle scripts -->
-  <script src="/uv/uv.bundle.js"></script>
-  <script src="/uv/uv.config.js"></script>
+  <!-- Load Bare-Mux and Ultraviolet scripts -->
+  <script src="/URL/baremux/index.js"></script>
+  <script src="/URL/uv/uv.bundle.js"></script>
+  <script src="/URL/uv/uv.config.js"></script>
 </head>
 <body>
 
@@ -77,7 +78,7 @@
     <input type="text" id="url-input" placeholder="Enter a URL or search query..." />
     <button id="search-btn">Go</button>
   </div>
-  <div class="status" id="status-text">Registering Service Worker...</div>
+  <div class="status" id="status-text">Initializing Bare-Mux and Service Worker...</div>
   <iframe id="proxy-iframe" src="about:blank"></iframe>
 
   <script>
@@ -86,20 +87,30 @@
     const iframe = document.getElementById('proxy-iframe');
     const statusText = document.getElementById('status-text');
 
-    async function initServiceWorker() {
+    async function initProxy() {
       if (!('serviceWorker' in navigator)) {
         statusText.textContent = 'Error: Service Workers are not supported in this browser.';
         return;
       }
 
       try {
-        await navigator.serviceWorker.register('/sw.js', {
+        // 1. Initialize BareMux connection to worker.js
+        const connection = new BareMux.BareMuxConnection('/URL/baremux/worker.js');
+
+        // 2. Set transport to point to your live Render Bare server
+        await connection.setTransport('/URL/baremux/transport.js', [
+          'https://my-htmltools-bare.onrender.com/'
+        ]);
+
+        // 3. Register the Ultraviolet Service Worker
+        await navigator.serviceWorker.register('/URL/sw.js', {
           scope: __uv$config.prefix
         });
-        statusText.textContent = 'Status: Connected to https://my-htmltools-bare.onrender.com/. Ready to browse!';
+
+        statusText.textContent = 'Status: Connected via Bare-Mux to Render server. Ready to browse!';
       } catch (err) {
-        statusText.textContent = 'Service Worker registration failed: ' + err.message;
-        console.error('SW Error:', err);
+        statusText.textContent = 'Setup failed: ' + err.message;
+        console.error('Initialization Error:', err);
       }
     }
 
@@ -129,7 +140,7 @@
       if (e.key === 'Enter') loadPage();
     });
 
-    initServiceWorker();
+    initProxy();
   </script>
 </body>
 </html>
