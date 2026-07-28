@@ -72,7 +72,7 @@
   
   <!-- Local Ultraviolet scripts with cache-busting timestamp -->
   <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js?v=2"></script>
+  <script src="/URL/uv/uv.config.js?v=3"></script>
 </head>
 <body>
 
@@ -96,11 +96,10 @@
       }
 
       try {
-        // Force the prefix in runtime memory so cached uv.config.js cannot override it
         if (typeof window.__uv$config === 'undefined') window.__uv$config = {};
         window.__uv$config.prefix = '/URL/uv/service/';
 
-        // 1. Create same-origin Blob worker importing CDN worker
+        // 1. Same-origin Blob worker
         const workerBlob = new Blob(
           [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/worker.js');`],
           { type: 'application/javascript' }
@@ -110,17 +109,17 @@
         // 2. Initialize BareMux
         const connection = new BareMux.BareMuxConnection(workerUrl);
 
-        // 3. Attach transport
-        await connection.setTransport('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3/+esm', [
-          'https://my-htmltools-bare.onrender.com/'
+        // 3. Attach Wisp transport over WebSockets
+        await connection.setTransport('https://cdn.jsdelivr.net/npm/@mercuryworkshop/wisp-transport/+esm', [
+          'wss://wisp.mercuryworkshop.sub.id/'
         ]);
 
-        // 4. Register Ultraviolet Service Worker with hardcoded scope
+        // 4. Register UV Service Worker
         await navigator.serviceWorker.register('/URL/sw.js', {
           scope: '/URL/uv/service/'
         });
 
-        statusText.textContent = 'Status: Connected via Bare-Mux to Render server. Ready to browse!';
+        statusText.textContent = 'Status: Connected via Wisp Transport. Ready to browse!';
       } catch (err) {
         statusText.textContent = 'Setup failed: ' + err.message;
         console.error('Initialization Error:', err);
