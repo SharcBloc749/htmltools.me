@@ -1,7 +1,5 @@
 importScripts('/URL/uv/uv.bundle.js');
-importScripts('/URL/uv/uv.config.js?v=13');
-
-// Load compiled UV service worker core directly from CDN
+importScripts('/URL/uv/uv.config.js');
 importScripts('https://cdn.jsdelivr.net/npm/@titaniumnetwork-dev/ultraviolet@3.2.10/dist/uv.sw.js');
 
 const sw = new UVServiceWorker();
