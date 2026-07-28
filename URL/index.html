@@ -68,11 +68,11 @@
   </style>
 
   <!-- Bare-Mux loaded via CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.3/dist/index.js"></script>
   
   <!-- Local Ultraviolet scripts -->
   <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js?v=12"></script>
+  <script src="/URL/uv/uv.config.js?v=13"></script>
 </head>
 <body>
 
@@ -80,7 +80,7 @@
     <input type="text" id="url-input" placeholder="Enter a URL or search query (e.g., https://wikipedia.org)" />
     <button id="search-btn">Go</button>
   </div>
-  <div class="status" id="status-text">Initializing Bare-Mux and Service Worker...</div>
+  <div class="status" id="status-text">Initializing Bare-Mux and Epoxy Transport...</div>
   <iframe id="proxy-iframe" src="about:blank"></iframe>
 
   <script>
@@ -101,7 +101,7 @@
 
         // 1. Same-origin Blob worker for Bare-Mux
         const workerBlob = new Blob(
-          [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/worker.js');`],
+          [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.3/dist/worker.js');`],
           { type: 'application/javascript' }
         );
         const workerUrl = URL.createObjectURL(workerBlob);
@@ -109,17 +109,18 @@
         // 2. Initialize BareMux Connection
         const connection = new BareMux.BareMuxConnection(workerUrl);
 
-        // 3. Set Transport with trailing-slash removed from the Bare server endpoint to prevent 400 Bad Request
-        await connection.setTransport('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3@2.2.2/dist/index.mjs', [
-          'https://my-htmltools-bare.onrender.com'
-        ]);
+        // 3. Set Transport using Epoxy Transport via ESM CDN linked to a high-speed public Wisp server
+        await connection.setTransport(
+          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.3/+esm',
+          [{ wisp: 'wss://wisp.mercuryworkshop.sub.id/' }]
+        );
 
         // 4. Register UV Service Worker
         await navigator.serviceWorker.register('/URL/sw.js', {
           scope: '/URL/uv/service/'
         });
 
-        statusText.textContent = 'Status: Connected successfully via Bare-Mux! Ready to browse.';
+        statusText.textContent = 'Status: Connected via Epoxy Transport & Wisp. Ready to browse!';
       } catch (err) {
         statusText.textContent = 'Setup failed: ' + err.message;
         console.error('Initialization Error:', err);
