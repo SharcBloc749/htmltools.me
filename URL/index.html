@@ -38,49 +38,20 @@
   </div>
 
   <script>
-    let swReady = false;
-
-    async function initProxySW() {
-      if (!('serviceWorker' in navigator)) {
-        alert('Your browser does not support Service Workers.');
-        return;
-      }
-
-      try {
-        const reg = await navigator.serviceWorker.register(__uv$config.sw, {
-          scope: __uv$config.prefix
-        });
-
-        // Check if service worker is active or listen for activation state
-        if (reg.active) {
-          swReady = true;
-          console.log('Ultraviolet ServiceWorker is active and ready!');
-        } else {
-          const sw = reg.installing || reg.waiting;
-          if (sw) {
-            sw.addEventListener('statechange', (e) => {
-              if (e.target.state === 'activated') {
-                swReady = true;
-                console.log('Ultraviolet ServiceWorker activated!');
-              }
-            });
-          }
-        }
-      } catch (err) {
-        console.error('ServiceWorker registration failed:', err);
-      }
+    // Register the Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register(__uv$config.sw, {
+        scope: __uv$config.prefix
+      }).then(() => {
+        console.log('Ultraviolet Service Worker registered!');
+      }).catch((err) => {
+        console.error('Service Worker registration error:', err);
+      });
     }
-
-    initProxySW();
 
     function launchProxy() {
       let input = document.getElementById('target-url').value.trim();
       if (!input) return;
-
-      if (!swReady) {
-        alert("Proxy engine is starting up... please wait a couple seconds and click Go again!");
-        return;
-      }
 
       if (!input.startsWith('http://') && !input.startsWith('https://')) {
         if (input.includes('.') && !input.includes(' ')) {
