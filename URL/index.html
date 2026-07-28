@@ -1,43 +1,143 @@
-<script src="/uv/uv.bundle.js"></script>
-<script src="/uv/uv.config.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proxy | htmltools.me</title>
+  
+  <!-- Load Ultraviolet Core Scripts -->
+  <script src="/uv/uv.bundle.js"></script>
+  <script src="/uv/uv.config.js"></script>
 
-<script>
-let swReady = false;
-
-async function registerProxy() {
-    if (!('serviceWorker' in navigator)) {
-        console.error('Service Workers not supported in this browser.');
-        return;
+  <style>
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+    }
+    body, html { 
+      height: 100%; 
+      font-family: system-ui, -apple-system, sans-serif; 
+      background: #121212; 
+      color: #fff; 
+      overflow: hidden; 
+    }
+    
+    /* Top Search Bar Styling */
+    .proxy-bar {
+      display: flex;
+      gap: 10px;
+      padding: 12px;
+      background: #1e1e1e;
+      border-bottom: 1px solid #333;
+    }
+    .proxy-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #2a2a2a;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+    }
+    .proxy-input:focus { 
+      border-color: #0070f3; 
+    }
+    .proxy-btn {
+      padding: 10px 20px;
+      background: #0070f3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .proxy-btn:hover { 
+      background: #0051a8; 
     }
 
-    try {
-        await navigator.serviceWorker.register(__uv$config.sw, {
+    /* Embedded Proxy Iframe Area */
+    .frame-container {
+      width: 100%;
+      height: calc(100vh - 61px);
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="proxy-bar">
+    <input 
+      type="text" 
+      id="target-url" 
+      class="proxy-input" 
+      placeholder="Enter URL or search term (e.g. youtube.com)" 
+      onkeydown="if(event.key === 'Enter') launchProxy()"
+    >
+    <button class="proxy-btn" onclick="launchProxy()">Go</button>
+  </div>
+
+  <div class="frame-container">
+    <iframe id="proxy-frame"></iframe>
+  </div>
+
+  <script>
+    let swReady = false;
+
+    // 1. Register Service Worker on load
+    async function initProxySW() {
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register(__uv$config.sw, {
             scope: __uv$config.prefix
-        });
-
-        // Wait until worker is fully active and taking control
-        await navigator.serviceWorker.ready;
-        swReady = true;
-        console.log('Ultraviolet Proxy Engine is active!');
-    } catch (err) {
-        console.error('Failed to register Ultraviolet ServiceWorker:', err);
+          });
+          
+          // Wait until worker is fully active and taking control
+          await navigator.serviceWorker.ready;
+          swReady = true;
+          console.log('Ultraviolet ServiceWorker registered and ready!');
+        } catch (err) {
+          console.error('ServiceWorker registration failed:', err);
+        }
+      } else {
+        alert('Your browser does not support Service Workers, which are required for this proxy.');
+      }
     }
-}
+    
+    initProxySW();
 
-registerProxy();
+    // 2. Launch requested page inside the iframe
+    function launchProxy() {
+      let input = document.getElementById('target-url').value.trim();
+      if (!input) return;
 
-function launchUrl(targetUrl) {
-    if (!swReady) {
+      if (!swReady) {
         alert("Proxy engine is starting up... please wait a couple seconds and click Go again!");
         return;
-    }
+      }
 
-    let url = targetUrl.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-    }
+      // Handle raw search query vs explicit domain input
+      if (!input.startsWith('http://') && !input.startsWith('https://')) {
+        if (input.includes('.') && !input.includes(' ')) {
+          input = 'https://' + input;
+        } else {
+          input = 'https://www.duckduckgo.com/?q=' + encodeURIComponent(input);
+        }
+      }
 
-    const encodedPath = __uv$config.prefix + __uv$config.encodeUrl(url);
-    document.getElementById('proxy-iframe').src = encodedPath;
-}
-</script>
+      // Encode URL using UV XOR codec
+      const proxiedUrl = __uv$config.prefix + __uv$config.encodeUrl(input);
+
+      // Route iframe src to service worker path
+      document.getElementById('proxy-frame').src = proxiedUrl;
+    }
+  </script>
+</body>
+</html>
