@@ -1,11 +1,13 @@
-class UVServiceWorker {
-    constructor(config = self.__uv$config) {
-        this.config = config;
-    }
+importScripts('/URL/uv/uv.bundle.js');
+importScripts('/URL/uv/uv.config.js?v=7');
 
-    async fetch(event) {
-        return fetch(event.request);
-    }
-}
+// Load compiled UV service worker core directly from CDN
+importScripts('https://cdn.jsdelivr.net/npm/@titaniumnetwork-dev/ultraviolet@3.2.10/dist/uv.sw.js');
 
-self.UVServiceWorker = UVServiceWorker;
+const sw = new UVServiceWorker();
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.startsWith(location.origin + self.__uv$config.prefix)) {
+    event.respondWith(sw.fetch(event));
+  }
+});
