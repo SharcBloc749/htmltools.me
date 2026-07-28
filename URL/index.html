@@ -38,20 +38,58 @@
   </div>
 
   <script>
-    // Register the Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register(__uv$config.sw, {
-        scope: __uv$config.prefix
-      }).then(() => {
-        console.log('Ultraviolet Service Worker registered!');
-      }).catch((err) => {
-        console.error('Service Worker registration error:', err);
-      });
+    let swPromise = null;
+
+    function ensureSWActive() {
+      if (!swPromise) {
+        swPromise = (async () => {
+          if (!('serviceWorker' in navigator)) {
+            throw new Error('Service workers not supported.');
+          }
+
+          const reg = await navigator.serviceWorker.register(__uv$config.sw, {
+            scope: __uv$config.prefix
+          });
+
+          // Worker is already active and ready
+          if (reg.active && reg.active.state === 'activated') {
+            return reg;
+          }
+
+          // Otherwise wait for statechange to reach 'activated'
+          return new Promise((resolve) => {
+            const worker = reg.installing || reg.waiting || reg.active;
+            if (!worker) return resolve(reg);
+
+            if (worker.state === 'activated') {
+              resolve(reg);
+            } else {
+              worker.addEventListener('statechange', (e) => {
+                if (e.target.state === 'activated') {
+                  resolve(reg);
+                }
+              });
+            }
+          });
+        })();
+      }
+      return swPromise;
     }
 
-    function launchProxy() {
+    // Register on load in background
+    ensureSWActive().catch(err => console.error('SW activation error:', err));
+
+    async function launchProxy() {
       let input = document.getElementById('target-url').value.trim();
       if (!input) return;
+
+      try {
+        // MUST wait until the worker is guaranteed active before loading iframe
+        await ensureSWActive();
+      } catch (err) {
+        console.error('Service worker not ready:', err);
+        return;
+      }
 
       if (!input.startsWith('http://') && !input.startsWith('https://')) {
         if (input.includes('.') && !input.includes(' ')) {
