@@ -11,9 +11,17 @@
 
   <style>
     * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; background: #121212; color: #fff; overflow: hidden; }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      height: 100%; 
+      font-family: system-ui, -apple-system, sans-serif; 
+      background: #121212; 
+      color: #fff; 
+      overflow: hidden; 
+    }
     
-    /* Search Bar Layout */
+    /* Top Search Bar */
     .proxy-bar {
       display: flex;
       gap: 10px;
@@ -31,7 +39,9 @@
       font-size: 15px;
       outline: none;
     }
-    .proxy-input:focus { border-color: #0070f3; }
+    .proxy-input:focus { 
+      border-color: #0070f3; 
+    }
     .proxy-btn {
       padding: 10px 20px;
       background: #0070f3;
@@ -40,10 +50,13 @@
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
+      transition: background 0.2s;
     }
-    .proxy-btn:hover { background: #0051a8; }
+    .proxy-btn:hover { 
+      background: #0051a8; 
+    }
 
-    /* Fullscreen Frame Container */
+    /* Embedded Site Frame */
     .frame-container {
       width: 100%;
       height: calc(100vh - 61px);
@@ -59,7 +72,13 @@
 <body>
 
   <div class="proxy-bar">
-    <input type="text" id="target-url" class="proxy-input" placeholder="Enter URL or search term (e.g. youtube.com)" onkeydown="if(event.key==='Enter') launchProxy()">
+    <input 
+      type="text" 
+      id="target-url" 
+      class="proxy-input" 
+      placeholder="Enter URL or search term (e.g. youtube.com)" 
+      onkeydown="if(event.key==='Enter') launchProxy()"
+    >
     <button class="proxy-btn" onclick="launchProxy()">Go</button>
   </div>
 
@@ -68,14 +87,20 @@
   </div>
 
   <script>
-    // 1. Register the Service Worker on page load
+    let swReady = false;
+
+    // 1. Register the Service Worker on page load and wait for ready state
     async function initProxySW() {
       if ('serviceWorker' in navigator) {
         try {
           await navigator.serviceWorker.register('/uv/uv.sw.js', {
             scope: __uv$config.prefix
           });
-          console.log('Ultraviolet ServiceWorker registered successfully!');
+          
+          // Ensure the worker is active before allowing requests
+          await navigator.serviceWorker.ready;
+          console.log('Ultraviolet ServiceWorker registered and ready!');
+          swReady = true;
         } catch (err) {
           console.error('ServiceWorker registration failed:', err);
         }
@@ -86,12 +111,17 @@
     
     initProxySW();
 
-    // 2. Load the proxy URL into the iframe
+    // 2. Encode and load the requested URL into the iframe
     function launchProxy() {
       let input = document.getElementById('target-url').value.trim();
       if (!input) return;
 
-      // Treat non-URLs as search queries or add protocol
+      if (!swReady) {
+        alert("Proxy engine is starting up... please wait a couple seconds and click Go again!");
+        return;
+      }
+
+      // Handle search terms vs direct domains
       if (!input.startsWith('http://') && !input.startsWith('https://')) {
         if (input.includes('.') && !input.includes(' ')) {
           input = 'https://' + input;
@@ -100,10 +130,10 @@
         }
       }
 
-      // Encode URL with Ultraviolet
+      // Encode target URL with Ultraviolet XOR codec
       const proxiedUrl = __uv$config.prefix + __uv$config.encodeUrl(input);
 
-      // Set iframe source
+      // Load proxied output into iframe
       document.getElementById('proxy-frame').src = proxiedUrl;
     }
   </script>
