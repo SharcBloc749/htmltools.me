@@ -54,8 +54,8 @@
 
   <!-- Bare-Mux CDN Index -->
   <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.3/dist/index.js"></script>
-  <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js"></script>
+  <script src="./uv/uv.bundle.js"></script>
+  <script src="./uv/uv.config.js"></script>
 </head>
 <body>
   <div class="header">
@@ -79,7 +79,7 @@
 
       try {
         if (typeof window.__uv$config === 'undefined') window.__uv$config = {};
-        window.__uv$config.prefix = '/URL/uv/service/';
+        window.__uv$config.prefix = './uv/service/';
 
         // Blob worker for bare-mux
         const workerBlob = new Blob(
@@ -90,14 +90,14 @@
 
         const connection = new BareMux.BareMuxConnection(workerUrl);
 
-        // Fixed official Wisp endpoint (.shop)
         await connection.setTransport(
           'https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.3/dist/index.mjs',
           [{ wisp: 'wss://wisp.mercurywork.shop/' }]
         );
 
-        await navigator.serviceWorker.register('/URL/sw.js', {
-          scope: '/URL/uv/service/'
+        // Register Service Worker with scope covering the directory
+        await navigator.serviceWorker.register('./sw.js', {
+          scope: './'
         });
 
         statusText.textContent = 'Status: Connected successfully via Epoxy & Wisp!';
@@ -107,13 +107,20 @@
       }
     }
 
-    function loadPage() {
-      const val = input.value.trim();
-      if (!val) return;
-      let target = val;
-      if (!target.startsWith('http://') && !target.startsWith('https://')) {
-        target = target.includes('.') ? 'https://' + target : 'https://www.google.com/search?q=' + encodeURIComponent(target);
+    function processUrl(value) {
+      const val = value.trim();
+      if (!val) return 'about:blank';
+      if (val.startsWith('http://') || val.startsWith('https://')) {
+        return val;
       }
+      if (val.includes('.')) {
+        return 'https://' + val;
+      }
+      return 'https://www.google.com/search?q=' + encodeURIComponent(val);
+    }
+
+    function loadPage() {
+      const target = processUrl(input.value);
       iframe.src = window.__uv$config.prefix + window.__uv$config.encodeUrl(target);
     }
 
