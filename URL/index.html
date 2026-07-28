@@ -70,9 +70,9 @@
   <!-- Bare-Mux loaded via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/index.js"></script>
   
-  <!-- Local Ultraviolet scripts with cache-busting parameter -->
+  <!-- Local Ultraviolet scripts -->
   <script src="/URL/uv/uv.bundle.js"></script>
-  <script src="/URL/uv/uv.config.js?v=4"></script>
+  <script src="/URL/uv/uv.config.js?v=5"></script>
 </head>
 <body>
 
@@ -89,6 +89,18 @@
     const iframe = document.getElementById('proxy-iframe');
     const statusText = document.getElementById('status-text');
 
+    // Helper to turn remote transport code into a safe same-origin Blob
+    async function setCdnTransport(connection, cdnUrl, transportArgs) {
+      const response = await fetch(cdnUrl);
+      if (!response.ok) throw new Error(`Failed to load CDN transport (${response.status})`);
+      
+      const scriptText = await response.text();
+      const blob = new Blob([scriptText], { type: 'application/javascript' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      await connection.setTransport(blobUrl, transportArgs);
+    }
+
     async function initProxy() {
       if (!('serviceWorker' in navigator)) {
         statusText.textContent = 'Error: Service Workers are not supported in this browser.';
@@ -99,27 +111,29 @@
         if (typeof window.__uv$config === 'undefined') window.__uv$config = {};
         window.__uv$config.prefix = '/URL/uv/service/';
 
-        // 1. Same-origin Blob worker
+        // 1. Same-origin Blob worker for Bare-Mux
         const workerBlob = new Blob(
           [`importScripts('https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux@2.0.1/dist/worker.js');`],
           { type: 'application/javascript' }
         );
         const workerUrl = URL.createObjectURL(workerBlob);
 
-        // 2. Initialize BareMux
+        // 2. Initialize BareMux Connection
         const connection = new BareMux.BareMuxConnection(workerUrl);
 
-        // 3. Attach Wisp transport using esm.sh CDN
-        await connection.setTransport('https://esm.sh/@mercuryworkshop/wisp-transport', [
-          'wss://wisp.mercuryworkshop.sub.id/'
-        ]);
+        // 3. Load transport dynamically via same-origin Blob URL
+        await setCdnTransport(
+          connection,
+          'https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-as-module3@2.2.2/dist/index.mjs',
+          ['https://my-htmltools-bare.onrender.com/']
+        );
 
         // 4. Register UV Service Worker
         await navigator.serviceWorker.register('/URL/sw.js', {
           scope: '/URL/uv/service/'
         });
 
-        statusText.textContent = 'Status: Connected via Wisp Transport. Ready to browse!';
+        statusText.textContent = 'Status: Connected via Bare-Mux. Ready to browse!';
       } catch (err) {
         statusText.textContent = 'Setup failed: ' + err.message;
         console.error('Initialization Error:', err);
