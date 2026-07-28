@@ -1,6 +1,8 @@
 importScripts('/URL/uv/uv.bundle.js');
 importScripts('/URL/uv/uv.config.js');
-importScripts('/URL/uv/uv.sw.js');
+
+// Load the compiled UV service worker core directly from jsDelivr
+importScripts('https://cdn.jsdelivr.net/npm/@titaniumnetwork-dev/ultraviolet@3.2.10/dist/uv.sw.js');
 
 const sw = new UVServiceWorker();
 
