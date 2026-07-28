@@ -1,6 +1,6 @@
 self.__uv$config = {
   prefix: '/URL/uv/service/',
-  bare: 'wss://wisp.mercuryworkshop.sub.id/',
+  bare: 'wss://wisp.mercurywork.shop/',
   encodeUrl: Ultraviolet.codec.xor.encode,
   decodeUrl: Ultraviolet.codec.xor.decode,
   handler: '/URL/uv/uv.handler.js',
