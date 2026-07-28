@@ -1,6 +1,6 @@
 self.__uv$config = {
   prefix: '/URL/uv/service/',
-  bare: 'https://my-htmltools-bare.onrender.com/',
+  bare: 'wss://wisp.mercuryworkshop.sub.id/',
   
   encodeUrl: Ultraviolet.codec.xor.encode,
   decodeUrl: Ultraviolet.codec.xor.decode,
