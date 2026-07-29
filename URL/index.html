@@ -297,13 +297,25 @@ let currentTab = 'all';
 
 // ── UNIFIED HISTORY ──
 // Each entry is either { kind:'search', query } or { kind:'url', url }.
-// This lets Back/Forward move between "I searched Bananas" and
-// "I opened bananas.com" as distinct steps, instead of only tracking
-// iframe navigations (which was the bug: search -> click result -> Back
-// used to skip straight to whatever URL was open before the search).
+// navIdx always points at the entry currently being displayed.
+//
+// KEY FIX: navigation (openUrl/runSearch) must NEVER push a new history
+// entry while we are replaying Back/Forward. Previously `suppressHistoryPush`
+// was released via a bare `setTimeout(...,0)` immediately after *kicking off*
+// an async navigation (openUrl does an async fetch pre-check before it ever
+// calls pushHistoryEntry). That meant the flag was cleared before the async
+// work finished, so the in-flight navigation's own push (or an unrelated
+// later push, e.g. from an iframe "message" event) went through as if it
+// were a brand new action — silently corrupting navIdx / navHistory and
+// making Back "jump back" to the wrong previous page. Fix: only clear the
+// suppression flag from within the completion callback of the actual
+// navigation (openUrl's loadIntoFrame / runSearch's success path), driven by
+// an explicit generation counter so stale async responses can't stomp on a
+// newer navigation's state either.
 let navHistory = [];
 let navIdx = -1;
-let suppressHistoryPush = false; // true while replaying Back/Forward
+let suppressHistoryPush = false; // true while replaying Back/Forward/Reload
+let navGeneration = 0; // bumped on every user-initiated navigation
 
 function pushHistoryEntry(entry){
   if(suppressHistoryPush) return;
@@ -327,19 +339,23 @@ function updateNavButtons(){
   if(fwd) fwd.disabled = navIdx >= navHistory.length - 1;
 }
 
+// Replays a history entry WITHOUT pushing a new one, and only re-enables
+// history pushes once that specific navigation has actually finished
+// (success or failure), not just "been kicked off".
 function goToHistoryEntry(entry){
   suppressHistoryPush = true;
+  const myGen = ++navGeneration;
+  const done = () => {
+    // Only clear suppression if a newer navigation hasn't already started
+    if(myGen === navGeneration) suppressHistoryPush = false;
+  };
   if(entry.kind === 'search'){
     document.getElementById('mainInput').value = entry.query;
-    runSearch(entry.query, true);
+    runSearch(entry.query, true, done);
   } else {
     document.getElementById('mainInput').value = entry.url;
-    openUrl(entry.url, true);
+    openUrl(entry.url, true, done);
   }
-  // Release the suppression once the (async) navigation has kicked off.
-  // runSearch/openUrl are async internally but we don't need to await —
-  // no further pushes happen until the user does something new.
-  setTimeout(()=>{ suppressHistoryPush = false; }, 0);
 }
 
 let currentQuery = '';
@@ -358,8 +374,9 @@ const PAGE_SIZE_RESULTS = 10;
 const PAGE_SIZE_IMAGES = 24;
 
 // ── Recently visited (for the home screen) ──
-const RECENTS_KEY = null; // no browser storage available in this environment
-let recentSites = []; // in-memory only, per session
+// No browser storage available in this environment — kept in-memory, per
+// session, on purpose (localStorage/sessionStorage are unsupported here).
+let recentSites = [];
 
 function addRecent(label, kind, value){
   recentSites = recentSites.filter(r => !(r.kind===kind && r.value===value));
@@ -441,13 +458,13 @@ function normalizeUrl(raw){
   try{ new URL(u); return u; }catch(e){ return null; }
 }
 
-function routeInput(raw, pushHistory){
+function routeInput(raw){
   const val = raw.trim();
   if(!val) return;
   if(looksLikeUrl(val)){
-    openUrl(val, pushHistory !== false);
+    openUrl(val, true);
   } else {
-    runSearch(val, pushHistory !== false ? false : true);
+    runSearch(val, false);
   }
 }
 
@@ -465,7 +482,7 @@ document.getElementById('homeSearchBtn').addEventListener('click', function(){
   const val = document.getElementById('homeInput').value;
   if(!val.trim()) return;
   document.getElementById('mainInput').value = val;
-  runSearch(val);
+  runSearch(val, false);
 });
 document.getElementById('homeLuckyBtn').addEventListener('click', function(){
   const val = document.getElementById('homeInput').value;
@@ -504,21 +521,76 @@ document.getElementById('btnCopyLink').addEventListener('click', async function(
   }
 });
 
-// Simple bookmark-star toggle (session-only, no storage backend attached).
-let starred = new Set();
+// ── Bookmarks ──
+// FIX: previously this was a session-only Set with zero effect anywhere
+// else in the app — clicking it just toggled a star icon and did nothing
+// else useful ("useless bookmark button"). It now actually persists
+// bookmarks as first-class entries the person can revisit from the home
+// screen's recent/bookmarked chips, and reflects star state correctly when
+// navigating back to an already-bookmarked page.
+let bookmarks = []; // [{label, url}], in-memory per session (no storage API available)
+
+function isBookmarked(url){
+  return bookmarks.some(b => b.url === url);
+}
+
+function renderStarState(){
+  const btn = document.getElementById('btnStar');
+  const icon = btn.querySelector('i');
+  const cur = navHistory[navIdx];
+  if(!cur || cur.kind !== 'url'){
+    btn.disabled = true;
+    icon.className = 'far fa-star';
+    return;
+  }
+  btn.disabled = false;
+  icon.className = isBookmarked(cur.url) ? 'fas fa-star' : 'far fa-star';
+}
+
+function renderBookmarkChips(){
+  // Bookmarks show up alongside "recent" chips on the home screen so the
+  // star button actually leads somewhere.
+  const host = document.getElementById('homeRecent');
+  if(!host) return;
+  let html = '';
+  bookmarks.forEach(b=>{
+    html += '<button type="button" class="home-recent-chip" data-kind="bookmark" data-value="'+esc(b.url)+'"><i class="fas fa-star"></i>'+esc(b.label)+'</button>';
+  });
+  recentSites.forEach(r=>{
+    const icon = r.kind === 'search' ? 'fa-search' : 'fa-globe';
+    html += '<button type="button" class="home-recent-chip" data-kind="'+r.kind+'" data-value="'+esc(r.value)+'"><i class="fas '+icon+'"></i>'+esc(r.label)+'</button>';
+  });
+  host.innerHTML = html;
+  host.querySelectorAll('.home-recent-chip').forEach(chip=>{
+    chip.addEventListener('click', function(){
+      const kind = this.getAttribute('data-kind');
+      const value = this.getAttribute('data-value');
+      if(kind === 'search'){
+        document.getElementById('mainInput').value = value;
+        runSearch(value, false);
+      } else {
+        document.getElementById('mainInput').value = value;
+        openUrl(value, true);
+      }
+    });
+  });
+}
+// Override the earlier renderRecents so bookmarks always appear too.
+renderRecents = renderBookmarkChips;
+
 document.getElementById('btnStar').addEventListener('click', function(){
   const cur = navHistory[navIdx];
   if(!cur || cur.kind !== 'url'){ showToast('Open a page to bookmark it'); return; }
-  const icon = this.querySelector('i');
-  if(starred.has(cur.url)){
-    starred.delete(cur.url);
-    icon.className = 'far fa-star';
+  if(isBookmarked(cur.url)){
+    bookmarks = bookmarks.filter(b => b.url !== cur.url);
     showToast('Removed bookmark');
   } else {
-    starred.add(cur.url);
-    icon.className = 'fas fa-star';
+    bookmarks.unshift({ label: hostnameFor(cur.url), url: cur.url });
+    bookmarks = bookmarks.slice(0, 10);
     showToast('Bookmarked');
   }
+  renderStarState();
+  renderBookmarkChips();
 });
 
 // ── TABS ──
@@ -543,7 +615,10 @@ function openMatTube(query){
 }
 
 // ── SEARCH (web results) ──
-async function runSearch(query, skipHistoryPush){
+// `onDone` is an optional callback invoked once the search has actually
+// resolved (success or error) — used by goToHistoryEntry to know exactly
+// when it's safe to re-enable history pushes again.
+async function runSearch(query, skipHistoryPush, onDone){
   showState('stateLoading');
   document.getElementById('loadingLabel').textContent = 'Searching…';
 
@@ -562,6 +637,7 @@ async function runSearch(query, skipHistoryPush){
     pushHistoryEntry({ kind:'search', query });
   }
   addRecent(query, 'search', query);
+  renderStarState();
 
   try{
     const data = await fetchResultsPage(query, 0);
@@ -573,6 +649,8 @@ async function runSearch(query, skipHistoryPush){
   }catch(err){
     showState('stateError');
     document.getElementById('errorDetail').textContent = err.message || 'Search failed.';
+  }finally{
+    if(onDone) onDone();
   }
 }
 
@@ -585,7 +663,7 @@ async function luckySearch(query){
     if(results.length){
       openUrl(results[0].url, true);
     } else {
-      runSearch(query);
+      runSearch(query, false);
     }
   }catch(err){
     showState('stateError');
@@ -773,11 +851,14 @@ function showBlocked(targetUrl){
 }
 
 // ── URL PROXY ──
-function openUrl(raw, pushHistory){
+// `onDone` fires once this specific navigation attempt has fully settled
+// (blocked / errored / loaded), so Back/Forward can be race-free.
+function openUrl(raw, pushHistory, onDone){
   const url = normalizeUrl(raw);
   if(!url){
     showState('stateError');
     document.getElementById('errorDetail').textContent = 'That doesn\'t look like a valid URL.';
+    if(onDone) onDone();
     return;
   }
   showState('stateLoading');
@@ -785,19 +866,23 @@ function openUrl(raw, pushHistory){
   document.getElementById('mainInput').value = url;
 
   const proxied = WORKER_ORIGIN + '/view?u=' + encodeURIComponent(url);
+  const myGen = ++navGeneration; // guards against a stale async response applying after a newer nav started
 
   // Pre-check for a known-blocked host before even touching the iframe,
   // so the person gets the dedicated message instead of the frame trying
   // (and failing) to load the raw worker JSON error, or a raw Cloudflare
   // error code like "Error 1003" showing up inside the frame itself.
   fetch(proxied, { method: 'GET' }).then(async (resp) => {
+    if(myGen !== navGeneration) return; // superseded by a newer navigation
     const ct = resp.headers.get('content-type') || '';
 
     if(resp.status === 409 && ct.includes('application/json')){
       let data = {};
       try{ data = await resp.json(); }catch(e){}
+      if(myGen !== navGeneration) return;
       if(data.error === 'site_blocks_proxy'){
         showBlocked(url);
+        if(onDone) onDone();
         return;
       }
     }
@@ -807,6 +892,7 @@ function openUrl(raw, pushHistory){
     // rather than letting the frame render a raw error/blank page.
     if(resp.status >= 400){
       showBlocked(url);
+      if(onDone) onDone();
       return;
     }
 
@@ -818,29 +904,37 @@ function openUrl(raw, pushHistory){
       const clone = resp.clone();
       bodyPeek = (await clone.text()).slice(0, 2000);
     }catch(e){}
+    if(myGen !== navGeneration) return;
     if(/error\s*1003|error\s*1020|direct ip access not allowed|attention required.*cloudflare/i.test(bodyPeek)){
       showBlocked(url);
+      if(onDone) onDone();
       return;
     }
 
     // Not blocked — let the iframe load it directly.
-    loadIntoFrame(proxied, url, pushHistory);
+    loadIntoFrame(proxied, url, pushHistory, myGen, onDone);
   }).catch(() => {
+    if(myGen !== navGeneration) return;
     // Network hiccup on the pre-check shouldn't block the attempt — fall
     // through to the iframe, which has its own error handling.
-    loadIntoFrame(proxied, url, pushHistory);
+    loadIntoFrame(proxied, url, pushHistory, myGen, onDone);
   });
 }
 
-function loadIntoFrame(proxied, url, pushHistory){
+function loadIntoFrame(proxied, url, pushHistory, myGen, onDone){
   const frame = document.getElementById('proxyFrame');
   frame.onload = function(){
+    if(myGen !== undefined && myGen !== navGeneration) return; // superseded
     showState('frameHost');
+    renderStarState();
+    if(onDone) onDone();
   };
   frame.onerror = function(){
+    if(myGen !== undefined && myGen !== navGeneration) return;
     // Even a hard frame-level error now routes to the friendly screen
     // instead of a scary generic message.
     showBlocked(url);
+    if(onDone) onDone();
   };
   frame.src = proxied;
 
@@ -848,6 +942,7 @@ function loadIntoFrame(proxied, url, pushHistory){
     pushHistoryEntry({ kind:'url', url });
   }
   addRecent(hostnameFor(url), 'url', url);
+  renderStarState();
 }
 
 document.getElementById('btnBack').addEventListener('click', function(){
@@ -882,11 +977,17 @@ window.addEventListener('message', function(e){
     // as their own history steps too, so Back from a clicked-through page
     // returns to the previous page on that same site — and eventually
     // back out to the search that started the whole journey.
-    const cur = navHistory[navIdx];
-    if(!cur || cur.kind !== 'url' || cur.url !== e.data.url){
-      pushHistoryEntry({ kind:'url', url: e.data.url });
+    // Respect suppression: if we're mid-replay of Back/Forward, an iframe
+    // reporting its (expected) nav shouldn't be treated as a brand-new
+    // user action and re-push a duplicate entry.
+    if(!suppressHistoryPush){
+      const cur = navHistory[navIdx];
+      if(!cur || cur.kind !== 'url' || cur.url !== e.data.url){
+        pushHistoryEntry({ kind:'url', url: e.data.url });
+      }
     }
     showState('frameHost');
+    renderStarState();
   }
 });
 
@@ -900,11 +1001,13 @@ window.addEventListener('load', function(){
     openUrl(website, true);
   } else if(q){
     document.getElementById('mainInput').value = q;
-    runSearch(q);
+    runSearch(q, false);
   } else {
     document.getElementById('homeInput').focus();
   }
   updateNavButtons();
+  renderStarState();
+  renderBookmarkChips();
 });
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
