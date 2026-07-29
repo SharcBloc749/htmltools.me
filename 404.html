@@ -69,20 +69,51 @@
 
     const path = window.location.pathname;
     const stripped = path.replace(/^\//, '').toLowerCase();
-    const match = subRoutes[stripped] || routes[stripped];
 
-    if (match) {
-      window.location.replace(
-        '/' + match + window.location.search + window.location.hash
-      );
+    // Gemini per-chat URLs: /Gemini/Chat/<id>
+    // The URL must stay put (Chat/index.html reads the id out of
+    // location.pathname), so instead of a redirect we fetch the real
+    // Chat/index.html and swap this whole document for it in place.
+    var isGeminiChatRoute = /^gemini\/chat\/[^\/]+\/?$/.test(stripped);
+
+    if (isGeminiChatRoute) {
+      fetch('/Gemini/Chat/index.html')
+        .then(function(res){
+          if (!res.ok) throw new Error('missing chat page');
+          return res.text();
+        })
+        .then(function(html){
+          document.open();
+          document.write(html);
+          document.close();
+        })
+        .catch(function(){
+          document.addEventListener('DOMContentLoaded', function(){
+            document.getElementById('nf-root').style.display = 'flex';
+          });
+        });
+    } else {
+      const match = subRoutes[stripped] || routes[stripped];
+      if (match) {
+        window.location.replace(
+          '/' + match + window.location.search + window.location.hash
+        );
+      } else {
+        document.addEventListener('DOMContentLoaded', function(){
+          document.getElementById('nf-root').style.display = 'flex';
+        });
+      }
     }
   </script>
 </head>
 <body>
-  <img src="/logo3.png" class="logo" alt="HTMLTools">
-  <div class="code">404</div>
-  <p class="msg">Page not found</p>
-  <p class="sub">The page you're looking for doesn't exist</p>
-  <a href="/" class="btn">Return home</a>
+  <div id="nf-root" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;">
+    <img src="/logo3.png" class="logo" alt="HTMLTools">
+    <div class="code">404</div>
+    <p class="msg">Page not found</p>
+    <p class="sub">The page you're looking for doesn't exist</p>
+    <a href="/" class="btn">Return home</a>
+  </div>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
