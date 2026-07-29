@@ -797,6 +797,7 @@ var REDIRECT_TABS=[
   {label:'Make a Website',icon:'fas fa-hammer',url:'https://sitelaunch.htmltools.me',badge:'Tech'},
   {label:'Advanced HTML Runner',icon:'fas fa-rocket',url:'https://htmltools.me/Advanced',badge:'Tech'},
   {label:'Proxy',icon:'fas fa-shield-alt',url:'https://htmltools.me/URL',badge:'Tech'},
+  {label:'Translator',icon:'fas fa-language',url:'https://translate.htmltools.me',badge:'Tech'},
   {label:'Remove Background',icon:'fas fa-eraser',url:'https://htmltools.me/Removebg',badge:'Media'},
   {label:'HTMeet',icon:'fas fa-video',url:'https://htmltools.me/Meet/',badge:'Communication'},
   {label:'Maps',icon:'fas fa-map-marked-alt',url:'https://maps.htmltools.me',badge:'Maps'},
@@ -809,6 +810,33 @@ var draggedTabData=null,currentPage=0,redirectMenuOpen=false,_currentGameIdx=-1;
 
 function badgeClass(b){return 'badge-'+String(b).toLowerCase();}
 function iconClass(b){return 'redir-icon-'+String(b).toLowerCase();}
+
+// Shuffle helper (Fisher–Yates) — used to randomize the order of "More" menu categories on each page load
+function shuffleArray(arr){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var tmp=a[i];a[i]=a[j];a[j]=tmp;
+  }
+  return a;
+}
+// Groups REDIRECT_TABS by badge (keeping items within a group together and in original order),
+// then shuffles the ORDER of the groups themselves. This keeps each category's items intact
+// (so group labels still render correctly) while randomizing which category appears first.
+function getShuffledRedirectTabs(){
+  var groups={},order=[];
+  REDIRECT_TABS.forEach(function(rt){
+    if(!groups[rt.badge]){groups[rt.badge]=[];order.push(rt.badge);}
+    groups[rt.badge].push(rt);
+  });
+  var shuffledOrder=shuffleArray(order);
+  var result=[];
+  shuffledOrder.forEach(function(badge){result=result.concat(groups[badge]);});
+  return result;
+}
+// Holds the per-session shuffled order used for rendering. Falls back to the original
+// (unshuffled) array until the shuffle runs on load, so nothing ever renders empty.
+var SHUFFLED_REDIRECT_TABS=REDIRECT_TABS;
 
 function buildNav(){
   var nav=document.getElementById('mainNav'),ud=document.getElementById('user-display');
@@ -827,7 +855,7 @@ function buildNav(){
   var menu=document.createElement('div');menu.className='redir-menu'+(redirectMenuOpen?' open':'');menu.id='redirMenu';
   var handle=document.createElement('div');handle.className='redir-handle';menu.appendChild(handle);
   var lastGroup=null;
-  REDIRECT_TABS.forEach(function(rt){
+  SHUFFLED_REDIRECT_TABS.forEach(function(rt){
     if(rt.badge!==lastGroup){
       var groupLabel=document.createElement('div');
       groupLabel.className='redir-group-label';
@@ -1079,6 +1107,7 @@ function saveHistory(){localStorage.setItem('custom_tabs_history',JSON.stringify
 
 // ── INIT ──
 window.addEventListener('load',function(){
+  SHUFFLED_REDIRECT_TABS=getShuffledRedirectTabs();
   applyAllSettings();
   buildNav();
   doSync();
@@ -1092,6 +1121,7 @@ window.addEventListener('load',function(){
 </script>
 
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
