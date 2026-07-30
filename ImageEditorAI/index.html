@@ -94,9 +94,12 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
   background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;background-color:#0e0e0e;
 }
 .msg-imgwrap.is-current{border-color:var(--accent-bd);box-shadow:0 0 0 1px var(--accent-bd);}
-.msg-imgwrap img{display:block;width:100%;max-height:420px;object-fit:contain;}
+.msg-imgwrap img{display:block;width:100%;max-height:420px;object-fit:contain;cursor:pointer;transition:filter .13s;}
+.msg-imgwrap img:hover{filter:brightness(1.06);}
 .msg-img-actions{display:flex;gap:4px;padding:7px 8px;background:var(--surface);border-top:1px solid var(--border);align-items:center;}
-.current-pill{font-size:.64rem;font-weight:600;color:var(--accent);background:var(--accent-dim);border:1px solid var(--accent-bd);border-radius:99px;padding:2px 8px;margin-left:auto;}
+.current-pill{font-size:.64rem;font-weight:600;color:var(--accent);background:var(--accent-dim);border:1px solid var(--accent-bd);border-radius:99px;padding:2px 8px;margin-left:auto;display:flex;align-items:center;gap:4px;}
+.use-btn{font-size:.7rem;font-weight:500;color:var(--tx2);background:transparent;border:1px solid var(--border2);border-radius:99px;padding:3px 10px;margin-left:auto;transition:all .13s;}
+.use-btn:hover{color:var(--accent);border-color:var(--accent-bd);background:var(--accent-dim);}
 
 .thinking-row{display:flex;align-items:center;gap:9px;padding:2px 2px;color:var(--tx3);font-size:.8rem;}
 .think-spin{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--tx2);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
@@ -147,6 +150,13 @@ textarea.composer-inp::placeholder{color:var(--tx3);}
 
 .hint-line{font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px;}
 .hint-line b{color:var(--tx2);}
+
+.editing-base{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-md);padding:6px 8px;margin-bottom:8px;}
+.editing-base img{width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border2);}
+.editing-base-text{flex:1;font-size:.72rem;color:var(--tx2);overflow:hidden;}
+.editing-base-text b{color:var(--tx);font-weight:600;}
+.editing-base-clear{font-size:.68rem;color:var(--tx3);padding:3px 8px;border-radius:4px;flex-shrink:0;}
+.editing-base-clear:hover{color:var(--tx);background:var(--panel2);}
 
 footer{padding:5px 14px;font-size:.68rem;color:var(--tx3);background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.5rem;font-family:var(--mono);}
 footer strong{color:var(--tx2);font-weight:500;}
@@ -279,7 +289,7 @@ input.inp::placeholder{color:var(--tx3);}
             <div class="chat-empty-card">
               <div class="chat-empty-icon">&#128172;</div>
               <h2>Edit an image by chatting</h2>
-              <p>Attach a photo, describe the change, and send. The router reads your request and picks the right tool automatically — say things like "go back to the original and remove the background," or click the tool icon to choose one yourself.</p>
+              <p>Attach a photo, describe the change, and send. Scroll up anytime and click an older image — yours or an AI result — to edit from that one instead of the latest. The router reads your request and picks the right tool automatically, or click the tool icon to choose one yourself.</p>
             </div>
           </div>
         </div>
@@ -287,6 +297,11 @@ input.inp::placeholder{color:var(--tx3);}
 
       <div class="composer-wrap">
         <div class="composer-inner">
+          <div class="editing-base" id="editingBase" style="display:none;">
+            <img id="editingBaseImg" src="" alt=""/>
+            <span class="editing-base-text" id="editingBaseText"></span>
+            <button class="editing-base-clear" id="editingBaseClear">Use latest instead</button>
+          </div>
           <div class="attach-preview" id="attachPreview" style="display:none;">
             <img id="attachThumb" src="" alt=""/>
             <span class="attach-preview-name" id="attachName"></span>
@@ -405,6 +420,7 @@ var conversations = [];   // sidebar list, lightweight
 var activeConv = null;    // full loaded conversation object
 var attachedImage = null; // { dataUrl, name }
 var selectedTool = 'auto';
+var selectedBaseImage = null; // { dataUrl, label } — manually picked from history, overrides "latest"
 var isSending = false;
 
 const chatInner = document.getElementById('chatInner');
@@ -575,6 +591,8 @@ async function openConversation(id) {
     if (!snap.exists()) { showToast('Conversation not found.'); return; }
     var v = snap.val();
     activeConv = { id: id, title: v.title || 'Untitled edit', created: v.created, updated: v.updated, messages: v.messages || [] };
+    selectedBaseImage = null;
+    renderEditingBase();
     renderConvList();
     renderMessages();
   } catch (e) { showToast('Failed to open conversation.'); }
@@ -582,6 +600,8 @@ async function openConversation(id) {
 
 function startNewConversation() {
   activeConv = { id: null, title: 'New conversation', created: Date.now(), updated: Date.now(), messages: [] };
+  selectedBaseImage = null;
+  renderEditingBase();
   renderConvList();
   renderMessages();
 }
@@ -631,6 +651,7 @@ composerInput.addEventListener('keydown', (e) => {
 attachBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => { if (e.target.files[0]) attachFile(e.target.files[0]); });
 attachRemove.addEventListener('click', () => { attachedImage = null; renderAttachPreview(); });
+document.getElementById('editingBaseClear').addEventListener('click', () => clearBaseImage());
 
 function attachFile(file) {
   const reader = new FileReader();
@@ -710,13 +731,48 @@ function getImageTimeline() {
   });
   return imgs;
 }
-function getCurrentImage() {
+function getLatestImage() {
   var imgs = getImageTimeline();
   return imgs.length ? imgs[imgs.length - 1] : null;
+}
+function getCurrentImage() {
+  // If the user manually picked an image from the scroll history, that
+  // wins over "whatever came last" — this is what lets someone scroll
+  // up, tap an older AI result or one of their own uploads, and edit
+  // from there instead of always continuing off the newest image.
+  if (selectedBaseImage) return selectedBaseImage.dataUrl;
+  return getLatestImage();
 }
 function getOriginalImage() {
   var imgs = getImageTimeline();
   return imgs.length ? imgs[0] : null;
+}
+function setBaseImage(dataUrl, label) {
+  var latest = getLatestImage();
+  if (dataUrl === latest) {
+    selectedBaseImage = null; // matches latest anyway, no need to pin it
+  } else {
+    selectedBaseImage = { dataUrl: dataUrl, label: label };
+  }
+  renderEditingBase();
+  renderMessages();
+}
+function clearBaseImage() {
+  selectedBaseImage = null;
+  renderEditingBase();
+  renderMessages();
+}
+function renderEditingBase() {
+  var bar = document.getElementById('editingBase');
+  var img = document.getElementById('editingBaseImg');
+  var text = document.getElementById('editingBaseText');
+  if (selectedBaseImage) {
+    bar.style.display = 'flex';
+    img.src = selectedBaseImage.dataUrl;
+    text.innerHTML = 'Editing from <b>' + escHtml(selectedBaseImage.label) + '</b> — not the latest image';
+  } else {
+    bar.style.display = 'none';
+  }
 }
 
 /* ---------- Rendering ---------- */
@@ -761,10 +817,13 @@ function renderMessages() {
     }
     if (m.image) {
       const isCurrent = m.image === currentImg;
+      const label = m.role === 'user' ? ('your upload #' + (imgSeenCount + 1)) : ('AI result #' + (imgSeenCount + 1));
       const wrap = document.createElement('div');
       wrap.className = 'msg-imgwrap' + (isCurrent ? ' is-current' : '');
       const img = document.createElement('img');
       img.src = m.image;
+      img.title = 'Click to edit from this image';
+      img.addEventListener('click', () => setBaseImage(m.image, label));
       wrap.appendChild(img);
       const actions = document.createElement('div');
       actions.className = 'msg-img-actions';
@@ -776,8 +835,14 @@ function renderMessages() {
       if (isCurrent) {
         const pill = document.createElement('span');
         pill.className = 'current-pill';
-        pill.textContent = 'Active image';
+        pill.innerHTML = (selectedBaseImage ? '&#128204; Editing from here' : 'Active image');
         actions.appendChild(pill);
+      } else {
+        const useBtn = document.createElement('button');
+        useBtn.className = 'use-btn';
+        useBtn.textContent = 'Edit from this image';
+        useBtn.addEventListener('click', () => setBaseImage(m.image, label));
+        actions.appendChild(useBtn);
       }
       wrap.appendChild(actions);
       row.appendChild(wrap);
@@ -862,6 +927,10 @@ async function handleSend() {
     showToast('Describe what you want to change, or pick "Remove Background".');
     return;
   }
+
+  // A fresh attach always takes priority over a manually-pinned base
+  // image from history — the user is explicitly starting from something new.
+  if (newImage) selectedBaseImage = null;
 
   // Push the user's message to the thread immediately.
   activeConv.messages.push({
@@ -948,6 +1017,9 @@ async function handleSend() {
       usedOriginal,
       meta: { actionLabel: ACTION_META[action] ? ACTION_META[action].label : action, reasoning, fallback },
     });
+    // The new result becomes the natural "active" image going forward.
+    selectedBaseImage = null;
+    renderEditingBase();
     renderMessages();
     await persistConversation();
   } catch (err) {
