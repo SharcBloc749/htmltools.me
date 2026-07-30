@@ -15,7 +15,7 @@
   --white:#fff;--wfg:#0c0c0c;
   --green:#16a34a;--greenhi:#22c55e;
   --red:#dc2626;--redhi:#ef4444;
-  --blue:#93bbf8;
+  --blue:#93bbf8;--amber:#f0b429;
   --r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;
   --nav-h:48px;--tabbar-h:38px;
   --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
@@ -67,13 +67,15 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
   background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;background-color:#0e0e0e;
 }
 
-/* Simplified toolbar: just Brush (mark what to change) and Eraser (undo mask), plus zoom controls */
-.canvas-toolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:3px;background:rgba(17,17,17,.94);border:1px solid var(--border2);border-radius:var(--r-md);padding:4px;backdrop-filter:blur(8px);z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.4);}
-.tb-btn{min-width:34px;height:34px;padding:0 9px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:var(--r);color:var(--tx2);font-size:.95rem;transition:all .13s;border:1px solid transparent;background:transparent;}
+/* Toolbar: Mask Select / AI Eraser / Background Eraser */
+.canvas-toolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:3px;background:rgba(17,17,17,.94);border:1px solid var(--border2);border-radius:var(--r-md);padding:4px;backdrop-filter:blur(8px);z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.4);flex-wrap:wrap;max-width:min(94vw,720px);justify-content:center;}
+.tb-btn{min-width:34px;height:34px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:var(--r);color:var(--tx2);font-size:.95rem;transition:all .13s;border:1px solid transparent;background:transparent;}
 .tb-btn span.tb-label{font-size:.72rem;font-weight:600;}
 .tb-btn:hover{color:var(--tx);background:var(--panel2);}
 .tb-btn.active{color:var(--wfg);background:var(--white);}
 .tb-sep{width:1px;height:20px;background:var(--border2);margin:0 4px;}
+.tb-brush-size{width:64px;accent-color:var(--white);}
+.tb-size-label{font-size:.66rem;color:var(--tx3);font-family:var(--mono);min-width:26px;text-align:right;}
 
 /* Zoom controls, bottom center */
 .zoom-controls{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;background:rgba(17,17,17,.92);border:1px solid var(--border2);border-radius:99px;padding:4px;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.4);}
@@ -90,11 +92,12 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
 .canvas-empty-card p{font-size:.78rem;color:var(--tx3);line-height:1.6;margin-bottom:18px;}
 .canvas-empty-actions{display:flex;flex-direction:column;gap:8px;}
 
-.canvas-stage-wrap{flex:1;overflow:auto;padding:60px 24px 70px;}
+.canvas-stage-wrap{flex:1;overflow:auto;padding:70px 24px 76px;}
 .canvas-stage-center{min-height:100%;display:flex;align-items:center;justify-content:center;}
-.canvas-stage{position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5);transform-origin:center center;transition:transform .06s linear;}
-.canvas-stage img{display:block;max-width:none;border-radius:2px;pointer-events:none;user-select:none;}
+.canvas-stage{position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5);transform-origin:center center;transition:transform .06s linear;line-height:0;}
+.canvas-stage img{display:block;border-radius:2px;pointer-events:none;user-select:none;}
 .mask-canvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;border-radius:2px;}
+.mask-canvas.bg-mode{cursor:default;}
 
 .loading-overlay{position:absolute;inset:0;background:rgba(12,12,12,.72);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:30;backdrop-filter:blur(2px);}
 .loading-overlay.show{display:flex;}
@@ -105,7 +108,7 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
 /* Modal for "new image" (plus button), works from any mode */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
 .modal-backdrop.show{display:flex;}
-.modal-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px 34px;text-align:center;max-width:400px;width:90%;}
+.modal-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px 34px;text-align:center;max-width:400px;width:90%;position:relative;}
 .modal-card .canvas-empty-icon{font-size:2rem;margin-bottom:14px;}
 .modal-card h2{font-size:1.05rem;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;}
 .modal-card p{font-size:.78rem;color:var(--tx3);line-height:1.6;margin-bottom:18px;}
@@ -120,6 +123,15 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
 textarea.prompt-inp{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.82rem;padding:9px 10px;border-radius:var(--r);outline:none;transition:border-color .13s;resize:vertical;min-height:64px;line-height:1.5;}
 textarea.prompt-inp:focus{border-color:var(--borderhi);}
 textarea.prompt-inp::placeholder{color:var(--tx3);}
+textarea.prompt-inp:disabled{opacity:.45;cursor:not-allowed;}
+
+.mode-row{display:flex;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r);padding:2px;margin-bottom:10px;}
+.mode-opt{flex:1;text-align:center;padding:6px 0;font-size:.71rem;font-weight:600;color:var(--tx3);border-radius:3px;transition:all .13s;}
+.mode-opt.active{background:var(--white);color:var(--wfg);}
+
+select.action-select{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.8rem;padding:0 9px;height:32px;border-radius:var(--r);outline:none;appearance:none;cursor:pointer;margin-bottom:8px;}
+select.action-select:focus{border-color:var(--borderhi);}
+.action-hint{font-size:.7rem;color:var(--tx3);line-height:1.55;margin-bottom:10px;}
 
 .enhance-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
 .enhance-label{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--tx2);}
@@ -135,19 +147,23 @@ textarea.prompt-inp::placeholder{color:var(--tx3);}
 .gen-btn:disabled{opacity:.4;cursor:not-allowed;}
 
 .route-note{display:flex;gap:7px;align-items:flex-start;font-size:.7rem;color:var(--blue);background:rgba(37,99,235,.07);border:1px solid rgba(59,130,246,.15);border-radius:var(--r);padding:8px 9px;margin-top:10px;line-height:1.55;}
-.route-note.warn{color:#f0b429;background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.2);}
+.route-note.warn{color:var(--amber);background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.2);}
 
-/* HISTORY — redesigned so it isn't cramped */
+/* HISTORY */
 .history-section{flex:1;display:flex;flex-direction:column;min-height:0;}
 .history-section .sp-section{padding-bottom:10px;}
 .history-list{flex:1;overflow-y:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:16px;}
 .hist-empty{font-size:.75rem;color:var(--tx3);font-style:italic;text-align:center;padding:32px 12px;line-height:1.6;}
 .hist-turn{display:flex;flex-direction:column;gap:8px;}
 .hist-bubble{background:var(--panel2);border:1px solid var(--border2);border-radius:10px 10px 10px 2px;padding:9px 11px;font-size:.79rem;color:var(--tx);line-height:1.55;}
+.hist-bubble.original{color:var(--tx3);font-style:italic;}
 .hist-meta{display:flex;align-items:center;gap:6px;font-size:.66rem;color:var(--tx3);font-family:var(--mono);padding:0 2px;}
 .hist-meta .hist-tag{background:var(--panel);border:1px solid var(--border2);border-radius:99px;padding:2px 8px;color:var(--tx2);font-family:var(--font);font-weight:500;}
 .hist-result-row{display:flex;gap:10px;align-items:flex-start;}
-.hist-thumb{width:96px;height:96px;border-radius:var(--r-md);object-fit:cover;border:1px solid var(--border2);cursor:pointer;transition:border-color .13s,transform .13s;flex-shrink:0;}
+.hist-thumb{width:96px;height:96px;border-radius:var(--r-md);object-fit:cover;border:1px solid var(--border2);cursor:pointer;transition:border-color .13s,transform .13s;flex-shrink:0;background:
+  linear-gradient(45deg,#1c1c1c 25%,transparent 25%),linear-gradient(-45deg,#1c1c1c 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,#1c1c1c 75%),linear-gradient(-45deg,transparent 75%,#1c1c1c 75%);
+  background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0;}
 .hist-thumb:hover{border-color:var(--borderhi);}
 .hist-thumb.current{border-color:var(--white);border-width:2px;}
 .hist-restore-hint{font-size:.68rem;color:var(--tx3);line-height:1.5;align-self:center;}
@@ -201,31 +217,37 @@ footer .dot{color:var(--borderhi);}
   <div class="canvas-area" id="canvasArea">
 
     <div class="canvas-toolbar" id="canvasToolbar" style="display:none;">
-      <button class="tb-btn active" id="toolBrush" title="Mark the area you want to change">
-        <span>&#128396;</span><span class="tb-label">Brush</span>
+      <button class="tb-btn active" id="toolMask" title="Paint the area you want the AI to change">
+        <span>&#128396;</span><span class="tb-label">Mask Select</span>
       </button>
-      <button class="tb-btn" id="toolEraser" title="Paint over something to remove it with AI">
+      <button class="tb-btn" id="toolEraser" title="Paint over something to erase it with AI">
         <span>&#10062;</span><span class="tb-label">AI Eraser</span>
       </button>
+      <button class="tb-btn" id="toolBgErase" title="Remove the background automatically, no painting needed">
+        <span>&#127960;</span><span class="tb-label">Background Eraser</span>
+      </button>
+      <div class="tb-sep" id="brushSep"></div>
+      <input type="range" class="tb-brush-size" id="brushSize" min="10" max="120" value="34" title="Brush size"/>
+      <span class="tb-size-label" id="brushSizeLabel">34px</span>
       <div class="tb-sep"></div>
-      <button class="tb-btn" id="toolClearMask" title="Clear mask">
+      <button class="tb-btn" id="toolClearMask" title="Clear painted area">
         <span>&#8634;</span>
       </button>
     </div>
 
     <div class="zoom-controls" id="zoomControls" style="display:none;">
       <button class="zoom-btn" id="zoomOut" title="Zoom out">&#8722;</button>
-      <span class="zoom-readout" id="zoomReadout" title="Reset zoom">100%</span>
+      <span class="zoom-readout" id="zoomReadout" title="Fit to screen">100%</span>
       <button class="zoom-btn" id="zoomIn" title="Zoom in">&#43;</button>
       <div class="tb-sep"></div>
-      <button class="zoom-btn" id="zoomFit" title="Fit to screen" style="font-size:.65rem;font-weight:700;">FIT</button>
+      <button class="zoom-btn" id="zoomFit" title="Fit to screen" style="font-size:.65rem;font-weight:700;width:auto;padding:0 8px;">FIT</button>
     </div>
 
     <div class="canvas-empty" id="canvasEmpty">
       <div class="canvas-empty-card" id="dropCard">
         <div class="canvas-empty-icon">&#9986;&#65039;</div>
         <h2>Start editing</h2>
-        <p>Drop an image, paste, or click to upload. Then describe the edit — Gemini will pick the right tool.</p>
+        <p>Drop an image, paste, or click to upload. Then describe the edit — Gemini will pick the right tool, or choose one yourself.</p>
         <div class="canvas-empty-actions">
           <button class="btn btn-prim" id="uploadBtn" style="height:34px;font-size:.8rem;">Upload image</button>
         </div>
@@ -238,7 +260,7 @@ footer .dot{color:var(--borderhi);}
       <div class="canvas-stage-center">
         <div class="canvas-stage" id="canvasStage">
           <img id="stageImg" alt="Current image"/>
-          <canvas class="mask-canvas" id="maskCanvas" style="display:none;"></canvas>
+          <canvas class="mask-canvas" id="maskCanvas"></canvas>
         </div>
       </div>
     </div>
@@ -258,7 +280,21 @@ footer .dot{color:var(--borderhi);}
     </div>
 
     <div class="sp-section">
-      <div class="sp-label">Describe the edit</div>
+      <div class="mode-row">
+        <div class="mode-opt active" id="modeAuto">Auto (Gemini picks)</div>
+        <div class="mode-opt" id="modeManual">Choose myself</div>
+      </div>
+
+      <select class="action-select" id="actionSelect" style="display:none;">
+        <option value="search_replace">Search &amp; Replace</option>
+        <option value="search_recolor">Search &amp; Recolor</option>
+        <option value="inpaint">Inpaint (needs Mask Select)</option>
+        <option value="erase">Erase Object (needs Mask Select or AI Eraser)</option>
+        <option value="remove_bg">Remove Background</option>
+      </select>
+      <p class="action-hint" id="actionHint" style="display:none;"></p>
+
+      <div class="sp-label" style="margin-bottom:6px;">Describe the edit</div>
       <textarea class="prompt-inp" id="promptInput" placeholder="e.g. remove the people in the background, make the sky sunset orange, turn the jacket red…"></textarea>
 
       <div class="enhance-row">
@@ -292,7 +328,7 @@ footer .dot{color:var(--borderhi);}
 
 <!-- New image modal: reachable from any tool/mode via the + tab or "New image" button -->
 <div class="modal-backdrop" id="newImageModal">
-  <div class="modal-card" id="newImageDropCard" style="position:relative;">
+  <div class="modal-card" id="newImageDropCard">
     <span class="modal-close" id="modalCloseBtn">&times;</span>
     <div class="canvas-empty-icon">&#128247;</div>
     <h2>Add an image</h2>
@@ -306,27 +342,31 @@ footer .dot{color:var(--borderhi);}
 
 <script>
 const API_ENDPOINT = "https://aged-bird-46da.bozhetarnikmatthew.workers.dev/";
-const STORAGE_KEY = "httools_image_ai_sessions_v1";
+const STORAGE_KEY = "httools_image_ai_sessions_v2";
 
-// Only two backend-relevant "manual" concepts are exposed in the UI now:
-// the brush marks a mask for AI erase, Gemini auto-picks everything else.
 const ACTION_META = {
-  search_replace: { label: "Search & Replace" },
-  search_recolor: { label: "Search & Recolor" },
-  inpaint:        { label: "Inpaint" },
-  erase:          { label: "AI Erase" },
-  remove_bg:      { label: "Remove Background" },
+  search_replace: { label: "Search & Replace", hint: "Finds an object by description and replaces it. No painting needed — just describe what to find and what to change it to." },
+  search_recolor: { label: "Search & Recolor", hint: "Finds an object by description and changes only its color." },
+  inpaint:        { label: "Inpaint", hint: "Fills your painted mask area with new content described by your prompt. Use Mask Select to paint the area first." },
+  erase:          { label: "AI Erase", hint: "Removes whatever is under your painted mask and fills it in naturally. Use Mask Select or AI Eraser to paint the area first." },
+  remove_bg:      { label: "Remove Background", hint: "Cuts out the main subject and makes the background transparent. No painting needed." },
 };
 
 let sessions = [];
 let activeSessionId = null;
-let currentTool = "brush"; // 'brush' | 'eraser' (mask-eraser, not select)
+let routeMode = "auto"; // 'auto' | 'manual'
+let currentTool = "mask"; // 'mask' | 'eraser' | 'bg'
 let isDrawing = false;
 let maskDirty = false;
+let brushSizeVal = 34;
 
-// Zoom state
+// Zoom state — zoomLevel is relative to the auto-computed "fit" scale,
+// i.e. zoomLevel 1 always means "fit to the visible stage", not "100%
+// native pixels". This is what was missing before: there was no fit
+// calculation at all, so large images rendered far bigger than the view.
 let zoomLevel = 1;
-const ZOOM_MIN = 0.1, ZOOM_MAX = 5, ZOOM_STEP = 0.15;
+let fitScale = 1;
+const ZOOM_MIN = 0.1, ZOOM_MAX = 8, ZOOM_STEP = 0.15;
 
 function persist() {
   try {
@@ -352,9 +392,9 @@ const maskCanvas = document.getElementById('maskCanvas');
 const canvasToolbar = document.getElementById('canvasToolbar');
 const zoomControls = document.getElementById('zoomControls');
 const zoomReadout = document.getElementById('zoomReadout');
-const zoomIn = document.getElementById('zoomIn');
-const zoomOut = document.getElementById('zoomOut');
-const zoomFit = document.getElementById('zoomFit');
+const zoomInBtn = document.getElementById('zoomIn');
+const zoomOutBtn = document.getElementById('zoomOut');
+const zoomFitBtn = document.getElementById('zoomFit');
 const stageWrapEl = document.getElementById('stageWrap');
 const dropCard = document.getElementById('dropCard');
 const fileInput = document.getElementById('fileInput');
@@ -365,6 +405,10 @@ const redoBtn = document.getElementById('redoBtn');
 const exportBtn = document.getElementById('exportBtn');
 const promptInput = document.getElementById('promptInput');
 const enhanceToggle = document.getElementById('enhanceToggle');
+const modeAuto = document.getElementById('modeAuto');
+const modeManual = document.getElementById('modeManual');
+const actionSelect = document.getElementById('actionSelect');
+const actionHint = document.getElementById('actionHint');
 const routeNote = document.getElementById('routeNote');
 const routeNoteIcon = document.getElementById('routeNoteIcon');
 const routeNoteText = document.getElementById('routeNoteText');
@@ -372,15 +416,17 @@ const generateBtn = document.getElementById('generateBtn');
 const historyList = document.getElementById('historyList');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingText = document.getElementById('loadingText');
-const toolBrush = document.getElementById('toolBrush');
+const toolMask = document.getElementById('toolMask');
 const toolEraser = document.getElementById('toolEraser');
+const toolBgErase = document.getElementById('toolBgErase');
 const toolClearMask = document.getElementById('toolClearMask');
+const brushSep = document.getElementById('brushSep');
+const brushSize = document.getElementById('brushSize');
+const brushSizeLabel = document.getElementById('brushSizeLabel');
 const newImageModal = document.getElementById('newImageModal');
 const newImageDropCard = document.getElementById('newImageDropCard');
 const modalUploadBtn = document.getElementById('modalUploadBtn');
 const modalCloseBtn = document.getElementById('modalCloseBtn');
-
-const BRUSH_SIZE = 32; // fixed sensible default now that the slider is gone
 
 let toastTimer;
 function showToast(msg, isErr) {
@@ -453,14 +499,12 @@ function renderTabs() {
       if (e.target.dataset.close) return;
       activeSessionId = el.dataset.id;
       resetTool();
-      resetZoom();
       renderAll();
     });
   });
   tabbar.querySelectorAll('[data-close]').forEach(el => {
     el.addEventListener('click', (e) => { e.stopPropagation(); closeSession(el.dataset.close); });
   });
-  // The "+" always opens the picker modal, regardless of which tool/mode is active.
   document.getElementById('tabAddBtn').addEventListener('click', openNewImageModal);
 }
 function closeSession(id) {
@@ -475,27 +519,59 @@ function closeSession(id) {
   renderAll();
 }
 
-/* ---------- Zoom (actually works now: buttons, scroll-wheel, pinch) ---------- */
+/* ---------- Mode toggle: Auto (Gemini) vs manual action choice ---------- */
+modeAuto.addEventListener('click', () => setRouteMode('auto'));
+modeManual.addEventListener('click', () => setRouteMode('manual'));
+function setRouteMode(m) {
+  routeMode = m;
+  modeAuto.classList.toggle('active', m === 'auto');
+  modeManual.classList.toggle('active', m === 'manual');
+  actionSelect.style.display = m === 'manual' ? 'block' : 'none';
+  actionHint.style.display = m === 'manual' ? 'block' : 'none';
+  routeNote.style.display = 'none';
+  if (m === 'manual') updateActionHint();
+}
+actionSelect.addEventListener('change', updateActionHint);
+function updateActionHint() {
+  const meta = ACTION_META[actionSelect.value];
+  actionHint.textContent = meta ? meta.hint : '';
+}
+
+/* ---------- Zoom: fit-to-screen on load, plus working zoom in/out/pinch ---------- */
+function computeFitScale() {
+  if (!stageImg.naturalWidth || !stageImg.naturalHeight) return 1;
+  const wrap = stageWrapEl;
+  const availW = wrap.clientWidth - 48;   // account for padding
+  const availH = wrap.clientHeight - 96;  // account for toolbar/zoom bar padding
+  const scaleW = availW / stageImg.naturalWidth;
+  const scaleH = availH / stageImg.naturalHeight;
+  // Never upscale small images past native size on initial fit, but do
+  // allow the user to zoom in manually afterwards.
+  return Math.min(scaleW, scaleH, 1);
+}
 function applyZoom() {
-  canvasStage.style.transform = `scale(${zoomLevel})`;
-  zoomReadout.textContent = Math.round(zoomLevel * 100) + '%';
+  const effectiveScale = fitScale * zoomLevel;
+  canvasStage.style.transform = `scale(${effectiveScale})`;
+  zoomReadout.textContent = Math.round(effectiveScale * 100) + '%';
 }
 function setZoom(z) {
   zoomLevel = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
   applyZoom();
 }
-function resetZoom() {
+function fitToScreen() {
+  fitScale = computeFitScale();
   zoomLevel = 1;
   applyZoom();
-  if (stageWrapEl) { stageWrapEl.scrollLeft = 0; stageWrapEl.scrollTop = 0; }
+  stageWrapEl.scrollLeft = 0;
+  stageWrapEl.scrollTop = 0;
 }
-zoomIn.addEventListener('click', () => setZoom(zoomLevel + ZOOM_STEP));
-zoomOut.addEventListener('click', () => setZoom(zoomLevel - ZOOM_STEP));
-zoomFit.addEventListener('click', resetZoom);
-zoomReadout.addEventListener('click', resetZoom);
+zoomInBtn.addEventListener('click', () => setZoom(zoomLevel + ZOOM_STEP));
+zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - ZOOM_STEP));
+zoomFitBtn.addEventListener('click', fitToScreen);
+zoomReadout.addEventListener('click', fitToScreen);
 
 stageWrapEl.addEventListener('wheel', (e) => {
-  if (!e.ctrlKey && !e.metaKey) return; // require ctrl/cmd+scroll like most editors, avoids hijacking normal page scroll
+  if (!e.ctrlKey && !e.metaKey) return; // ctrl/cmd+scroll to zoom, like most editors; plain scroll still scrolls the page
   e.preventDefault();
   const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
   setZoom(zoomLevel + delta);
@@ -521,6 +597,7 @@ stageWrapEl.addEventListener('touchmove', (e) => {
 stageWrapEl.addEventListener('touchend', (e) => {
   if (e.touches.length < 2) pinchStartDist = null;
 });
+window.addEventListener('resize', () => { if (currentImage(activeSession())) fitToScreen(); });
 
 function renderStage() {
   const session = activeSession();
@@ -539,32 +616,57 @@ function renderStage() {
   stageImg.onload = () => {
     maskCanvas.width = stageImg.naturalWidth;
     maskCanvas.height = stageImg.naturalHeight;
-    maskCanvas.style.width = stageImg.clientWidth + 'px';
-    maskCanvas.style.height = stageImg.clientHeight + 'px';
+    stageImg.style.width = stageImg.naturalWidth + 'px';
+    stageImg.style.height = stageImg.naturalHeight + 'px';
+    maskCanvas.style.width = stageImg.naturalWidth + 'px';
+    maskCanvas.style.height = stageImg.naturalHeight + 'px';
+    fitToScreen();
+    updateMaskInteractivity();
   };
-  applyZoom();
 }
 
+/* ---------- Tools: Mask Select / AI Eraser / Background Eraser ---------- */
 function resetTool() {
-  currentTool = 'brush';
-  toolBrush.classList.add('active');
+  currentTool = 'mask';
+  toolMask.classList.add('active');
   toolEraser.classList.remove('active');
+  toolBgErase.classList.remove('active');
   maskDirty = false;
   const ctx = maskCanvas.getContext('2d');
   if (maskCanvas.width) ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
   routeNote.style.display = 'none';
+  updateMaskInteractivity();
+}
+
+// FIX: this used to never run after initial load, leaving the mask
+// canvas permanently non-interactive (display:none with no way to
+// trigger the first mousedown). Now it's driven explicitly every time
+// the tool changes or an image loads.
+function updateMaskInteractivity() {
+  const isBg = currentTool === 'bg';
+  maskCanvas.style.display = isBg ? 'none' : 'block';
+  maskCanvas.classList.toggle('bg-mode', isBg);
+  const showBrushControls = !isBg;
+  brushSize.style.display = showBrushControls ? 'inline-block' : 'none';
+  brushSizeLabel.style.display = showBrushControls ? 'inline-block' : 'none';
+  brushSep.style.display = showBrushControls ? 'block' : 'none';
 }
 
 function setTool(tool) {
   currentTool = tool;
-  toolBrush.classList.toggle('active', tool === 'brush');
+  toolMask.classList.toggle('active', tool === 'mask');
   toolEraser.classList.toggle('active', tool === 'eraser');
+  toolBgErase.classList.toggle('active', tool === 'bg');
+  updateMaskInteractivity();
 }
-toolBrush.addEventListener('click', () => setTool('brush'));
-// "AI Eraser" — paint over an object with this and Generate will call the
-// AI erase-object action on the masked region (this used to just be a
-// mask-clearing tool; now it drives the actual erase action).
+toolMask.addEventListener('click', () => setTool('mask'));
 toolEraser.addEventListener('click', () => setTool('eraser'));
+toolBgErase.addEventListener('click', () => setTool('bg'));
+
+brushSize.addEventListener('input', () => {
+  brushSizeVal = parseInt(brushSize.value, 10);
+  brushSizeLabel.textContent = brushSizeVal + 'px';
+});
 
 toolClearMask.addEventListener('click', () => {
   const ctx = maskCanvas.getContext('2d');
@@ -583,10 +685,9 @@ function canvasPos(e) {
 
 function paintAt(x, y) {
   const ctx = maskCanvas.getContext('2d');
-  const size = BRUSH_SIZE * (maskCanvas.width / maskCanvas.getBoundingClientRect().width);
-  // Both tools paint mask pixels (white = "affect this area"); the
-  // difference is which backend action gets used at generate-time, not
-  // how the canvas itself is drawn on.
+  const size = brushSizeVal * (maskCanvas.width / maskCanvas.getBoundingClientRect().width);
+  // Soft, semi-transparent stroke — this is a region hint for the AI,
+  // not a pixel-precise cutout, so it doesn't need a hard edge.
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.beginPath();
@@ -595,15 +696,15 @@ function paintAt(x, y) {
 }
 
 function startDraw(e) {
+  if (currentTool === 'bg') return;
   isDrawing = true;
-  maskCanvas.style.display = 'block';
   const { x, y } = canvasPos(e);
   paintAt(x, y);
   maskDirty = true;
   e.preventDefault();
 }
 function moveDraw(e) {
-  if (!isDrawing) return;
+  if (!isDrawing || currentTool === 'bg') return;
   const { x, y } = canvasPos(e);
   paintAt(x, y);
   e.preventDefault();
@@ -630,6 +731,7 @@ function getMaskDataUrl() {
   return out.toDataURL('image/png');
 }
 
+/* ---------- History — original upload is now restorable too ---------- */
 function renderHistory() {
   const session = activeSession();
   if (!session) {
@@ -637,12 +739,28 @@ function renderHistory() {
     return;
   }
   if (session.history.length === 1 && !session.history[0].prompt) {
-    historyList.innerHTML = '<div class="hist-empty">Original image loaded. Describe your first edit below to start.</div>';
+    historyList.innerHTML = `<div class="hist-turn">
+      <div class="hist-bubble original">Original image</div>
+      <div class="hist-result-row">
+        <img class="hist-thumb current" data-idx="0" src="${session.history[0].image}" alt="Original"/>
+      </div>
+    </div>`;
+    attachHistoryHandlers();
     return;
   }
   historyList.innerHTML = session.history.map((turn, idx) => {
-    if (!turn.prompt) return '';
     const isCurrent = idx === session.activeIdx;
+    if (!turn.prompt) {
+      // The original upload — FIX: this used to be skipped entirely,
+      // so there was no way to click back to it.
+      return `<div class="hist-turn">
+        <div class="hist-bubble original">Original image</div>
+        <div class="hist-result-row">
+          <img class="hist-thumb${isCurrent ? ' current' : ''}" data-idx="${idx}" src="${turn.image}" alt="Original"/>
+          ${isCurrent ? '' : '<span class="hist-restore-hint">Click to restore the original</span>'}
+        </div>
+      </div>`;
+    }
     const actionLabel = ACTION_META[turn.action] ? ACTION_META[turn.action].label : (turn.action || '');
     return `<div class="hist-turn">
       <div class="hist-bubble">${escHtml(turn.prompt)}</div>
@@ -653,6 +771,10 @@ function renderHistory() {
       </div>
     </div>`;
   }).join('');
+  attachHistoryHandlers();
+  historyList.scrollTop = historyList.scrollHeight;
+}
+function attachHistoryHandlers() {
   historyList.querySelectorAll('.hist-thumb').forEach(el => {
     el.addEventListener('click', () => {
       const s = activeSession();
@@ -660,17 +782,15 @@ function renderHistory() {
       persist();
       resetTool();
       renderAll();
-      showToast('Restored to that version — new edits branch from here.');
+      showToast('Restored — new edits branch from here.');
     });
   });
-  historyList.scrollTop = historyList.scrollHeight;
 }
 
 function handleFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     createSession(e.target.result, file.name.replace(/\.[^.]+$/, '').slice(0, 24) || 'Untitled');
-    resetZoom();
   };
   reader.readAsDataURL(file);
 }
@@ -729,8 +849,6 @@ function setLoading(on, text) {
   generateBtn.disabled = on;
 }
 
-// Simple fetch-with-timeout so a hung request can't leave the user
-// staring at a spinner forever.
 async function fetchWithTimeout(url, options, ms) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -749,29 +867,52 @@ generateBtn.addEventListener('click', async () => {
   }
   let prompt = promptInput.value.trim();
   const maskDataUrl = getMaskDataUrl();
-  const eraserModeActive = currentTool === 'eraser' && maskDataUrl;
-
-  if (!prompt && !eraserModeActive) {
-    showToast('Describe what you want to change, or use the AI Eraser to remove something.', true);
-    return;
-  }
-  // A sensible default prompt for pure erase-with-brush usage.
-  if (!prompt && eraserModeActive) {
-    prompt = 'Remove the marked object and fill the area naturally.';
-  }
-
   const baseImage = currentImage(session);
 
-  try {
-    let action, searchPrompt = '', finalPrompt = prompt, routeReasoning = '', usedFallback = false;
+  // --- Determine the action ---
+  // Background Eraser: one-click, no mask, no prompt needed at all.
+  // AI Eraser: needs a painted mask, drives 'erase' directly, skips routing.
+  // Mask Select: needs a painted mask + a description -> 'inpaint', skips routing.
+  // Manual mode: whatever the user picked in the dropdown.
+  // Auto mode with no mask: ask Gemini to route.
+  let action = null, searchPrompt = '', finalPrompt = prompt, routeReasoning = '', usedFallback = false, skipRouting = false;
 
-    if (eraserModeActive) {
-      // User explicitly chose the AI Eraser tool and painted a mask —
-      // skip routing entirely and call erase directly. This is the
-      // "make the eraser actually work with AI" fix: it now calls the
-      // real Bedrock erase-object model instead of only clearing pixels.
-      action = 'erase';
-    } else {
+  if (currentTool === 'bg') {
+    action = 'remove_bg';
+    skipRouting = true;
+    if (!prompt) prompt = 'Remove the background.';
+  } else if (currentTool === 'eraser') {
+    if (!maskDataUrl) { showToast('Paint over what you want to erase first.', true); return; }
+    action = 'erase';
+    skipRouting = true;
+    if (!prompt) prompt = 'Remove the marked object and fill the area naturally.';
+  } else if (routeMode === 'manual') {
+    action = actionSelect.value;
+    skipRouting = true;
+    const meta = ACTION_META[action];
+    if ((action === 'inpaint' || action === 'erase') && !maskDataUrl) {
+      showToast(`"${meta.label}" needs a painted area — use Mask Select first.`, true);
+      return;
+    }
+    if (!prompt && action !== 'remove_bg' && action !== 'erase') {
+      showToast('Describe what you want to change.', true);
+      return;
+    }
+    if (!prompt && action === 'erase') prompt = 'Remove the marked object and fill the area naturally.';
+    searchPrompt = prompt;
+  } else if (maskDataUrl) {
+    // Mask Select tool with auto mode: it's a masked region + a
+    // description of what should appear there -> inpaint, no need to
+    // ask Gemini which tool since a mask narrows it down already.
+    if (!prompt) { showToast('Describe what should appear in the selected area.', true); return; }
+    action = 'inpaint';
+    skipRouting = true;
+  } else {
+    if (!prompt) { showToast('Describe what you want to change.', true); return; }
+  }
+
+  try {
+    if (!skipRouting) {
       setLoading(true, 'Choosing the best tool…');
       let routeData;
       try {
@@ -785,8 +926,6 @@ generateBtn.addEventListener('click', async () => {
           throw new Error(routeData.error || 'Routing failed');
         }
       } catch (routeErr) {
-        // Network-level failure (timeout, worker unreachable) — fall
-        // back locally so the user isn't stuck.
         routeData = {
           action: maskDataUrl ? 'erase' : 'search_replace',
           search_prompt: prompt,
@@ -808,13 +947,15 @@ generateBtn.addEventListener('click', async () => {
       routeNote.classList.toggle('warn', usedFallback);
       routeNoteIcon.textContent = usedFallback ? '⚠️' : '🧠';
       routeNote.style.display = 'flex';
+    } else {
+      routeNote.style.display = 'none';
     }
 
-    if (ACTION_META[action] && action !== 'erase' && ACTION_META[action] && (action === 'search_replace' || action === 'search_recolor') && !searchPrompt) {
+    if ((action === 'search_replace' || action === 'search_recolor') && !searchPrompt) {
       searchPrompt = prompt;
     }
     if ((action === 'inpaint' || action === 'erase') && !maskDataUrl) {
-      throw new Error(`That tool needs a mask — use the brush to paint the area first.`);
+      throw new Error('That tool needs a painted area — use Mask Select or AI Eraser first.');
     }
 
     setLoading(true, 'Generating your image…');
@@ -855,6 +996,7 @@ function renderAll() {
 
 sessions = loadPersisted();
 if (sessions.length) activeSessionId = sessions[0].id;
+setRouteMode('auto');
 renderAll();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
