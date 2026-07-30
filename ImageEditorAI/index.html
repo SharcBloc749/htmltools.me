@@ -43,7 +43,7 @@
     text-transform: uppercase;
     letter-spacing: 0.02em;
   }
-  input[type="text"], textarea {
+  textarea {
     width: 100%;
     background: #0f1114;
     border: 1px solid var(--border);
@@ -54,7 +54,7 @@
     font-family: inherit;
     resize: vertical;
   }
-  input[type="text"]:focus, textarea:focus { outline: 1px solid var(--accent); }
+  textarea:focus { outline: 1px solid var(--accent); }
   .drop {
     border: 1.5px dashed var(--border);
     border-radius: 8px;
@@ -78,7 +78,7 @@
     margin-top: 1rem;
   }
   button:disabled { opacity: 0.5; cursor: wait; }
-  .status { font-size: 0.85rem; color: var(--dim); margin-top: 0.75rem; min-height: 1.2em; white-space: pre-wrap; word-break: break-word; }
+  .status { font-size: 0.85rem; color: var(--dim); margin-top: 0.75rem; min-height: 1.2em; }
   .status.err { color: var(--bad); }
   .status.ok { color: var(--good); }
   .result img { width: 100%; border-radius: 8px; margin-top: 0.5rem; }
@@ -89,29 +89,12 @@
     text-decoration: none;
     font-size: 0.9rem;
   }
-  details.raw {
-    margin-top: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--dim);
-  }
-  details.raw pre {
-    white-space: pre-wrap;
-    word-break: break-word;
-    background: #0f1114;
-    padding: 0.5rem;
-    border-radius: 6px;
-  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>AI Image Editor</h1>
-  <p class="sub">Cloudflare Worker → AWS Bedrock (Titan Image Generator) test page.</p>
-
-  <div class="panel">
-    <label>Worker URL</label>
-    <input type="text" id="workerUrl" placeholder="https://ai-image-editor-worker.YOUR-SUBDOMAIN.workers.dev">
-  </div>
+  <p class="sub">Upload a photo, describe the edit, and let AI do the rest.</p>
 
   <div class="panel">
     <label>Image</label>
@@ -124,10 +107,6 @@
     <textarea id="prompt" rows="2" placeholder="Remove the people in the background">Remove the people in the background</textarea>
     <button id="editBtn" disabled>Edit image</button>
     <div class="status" id="status"></div>
-    <details class="raw" id="rawDetails" style="display:none;">
-      <summary>Raw response</summary>
-      <pre id="rawOutput"></pre>
-    </details>
   </div>
 
   <div class="panel result" id="resultPanel" style="display:none;">
@@ -139,6 +118,9 @@
 </div>
 
 <script>
+// Backend — fixed, users never see or touch this.
+const API_ENDPOINT = "https://aged-bird-46da.bozhetarnikmatthew.workers.dev/";
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const editBtn = document.getElementById('editBtn');
@@ -146,22 +128,8 @@ const statusEl = document.getElementById('status');
 const resultPanel = document.getElementById('resultPanel');
 const resultImg = document.getElementById('resultImg');
 const downloadLink = document.getElementById('downloadLink');
-const workerUrlInput = document.getElementById('workerUrl');
-const rawDetails = document.getElementById('rawDetails');
-const rawOutput = document.getElementById('rawOutput');
 
 let selectedImageDataUrl = null;
-
-// Remember the worker URL in this browser so you don't retype it each test.
-const savedUrl = localStorageSafeGet('imgEditorWorkerUrl');
-if (savedUrl) workerUrlInput.value = savedUrl;
-
-function localStorageSafeGet(key) {
-  try { return localStorage.getItem(key); } catch (e) { return null; }
-}
-function localStorageSafeSet(key, val) {
-  try { localStorage.setItem(key, val); } catch (e) { /* ignore */ }
-}
 
 dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('dragover', e => e.preventDefault());
@@ -191,21 +159,15 @@ function setStatus(msg, cls) {
 
 editBtn.addEventListener('click', async () => {
   if (!selectedImageDataUrl) return;
-
-  const workerUrl = workerUrlInput.value.trim();
-  if (!workerUrl) { setStatus('Please enter your Worker URL above.', 'err'); return; }
-  localStorageSafeSet('imgEditorWorkerUrl', workerUrl);
-
   const prompt = document.getElementById('prompt').value.trim();
   if (!prompt) { setStatus('Please describe the edit you want.', 'err'); return; }
 
   editBtn.disabled = true;
   resultPanel.style.display = 'none';
-  rawDetails.style.display = 'none';
-  setStatus('Sending to the Worker — this can take 10-30 seconds...', '');
+  setStatus('Sending to the AI — this can take 10-30 seconds...', '');
 
   try {
-    const res = await fetch(workerUrl, {
+    const res = await fetch(API_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: selectedImageDataUrl, prompt })
@@ -215,8 +177,6 @@ editBtn.addEventListener('click', async () => {
 
     if (!res.ok || data.error) {
       setStatus('Failed: ' + (data.error || res.statusText), 'err');
-      rawOutput.textContent = JSON.stringify(data, null, 2);
-      rawDetails.style.display = 'block';
       editBtn.disabled = false;
       return;
     }
@@ -228,8 +188,6 @@ editBtn.addEventListener('click', async () => {
       setStatus('Done.', 'ok');
     } else {
       setStatus('Unexpected response from server.', 'err');
-      rawOutput.textContent = JSON.stringify(data, null, 2);
-      rawDetails.style.display = 'block';
     }
   } catch (err) {
     setStatus('Network error: ' + err.message, 'err');
