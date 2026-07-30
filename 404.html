@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>404 — HTMLTools</title>
+  <link rel="icon" href="/logo3.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -86,6 +87,20 @@
           document.open();
           document.write(html);
           document.close();
+
+          // Force the favicon: since the URL stays at /Gemini/Chat/<id>/,
+          // any relative <link rel="icon"> in Chat/index.html resolves
+          // against the wrong base path and silently fails to load.
+          // Strip whatever icon links came in with the fetched markup
+          // and re-inject one with an absolute, always-correct path.
+          document.querySelectorAll('link[rel~="icon"]').forEach(function(el){
+            el.parentNode.removeChild(el);
+          });
+          var link = document.createElement('link');
+          link.rel = 'icon';
+          link.type = 'image/png';
+          link.href = '/logo3.png';
+          document.head.appendChild(link);
         })
         .catch(function(){
           document.addEventListener('DOMContentLoaded', function(){
