@@ -43,7 +43,7 @@
     text-transform: uppercase;
     letter-spacing: 0.02em;
   }
-  textarea {
+  textarea, select {
     width: 100%;
     background: #0f1114;
     border: 1px solid var(--border);
@@ -54,7 +54,16 @@
     font-family: inherit;
     resize: vertical;
   }
-  textarea:focus { outline: 1px solid var(--accent); }
+  select { appearance: none; cursor: pointer; }
+  textarea:focus, select:focus { outline: 1px solid var(--accent); }
+  .field { margin-bottom: 0.9rem; }
+  .field:last-child { margin-bottom: 0; }
+  .action-desc {
+    font-size: 0.82rem;
+    color: var(--dim);
+    margin: 0.4rem 0 0;
+    line-height: 1.4;
+  }
   .drop {
     border: 1.5px dashed var(--border);
     border-radius: 8px;
@@ -94,7 +103,7 @@
 <body>
 <div class="wrap">
   <h1>AI Image Editor</h1>
-  <p class="sub">Upload a photo, describe the edit, and let AI do the rest.</p>
+  <p class="sub">Upload a photo, pick an action, and let AI do the rest.</p>
 
   <div class="panel">
     <label>Image</label>
@@ -103,8 +112,27 @@
   </div>
 
   <div class="panel">
-    <label for="prompt">What should change?</label>
-    <textarea id="prompt" rows="2" placeholder="Remove the people in the background">Remove the people in the background</textarea>
+    <div class="field">
+      <label for="action">Action</label>
+      <select id="action">
+        <option value="search_replace">Search &amp; Replace — find an object by description, replace it</option>
+        <option value="erase">Erase Object — remove the subject (uses image transparency as mask)</option>
+        <option value="search_recolor">Search &amp; Recolor — find an object, change its color</option>
+        <option value="remove_bg">Remove Background — cut out the subject, transparent background</option>
+      </select>
+      <p class="action-desc" id="actionDesc"></p>
+    </div>
+
+    <div class="field" id="searchPromptField">
+      <label id="searchPromptLabel" for="searchPrompt">What to find</label>
+      <textarea id="searchPrompt" rows="1" placeholder="e.g. people in the background"></textarea>
+    </div>
+
+    <div class="field" id="promptField">
+      <label id="promptLabel" for="prompt">What it should become</label>
+      <textarea id="prompt" rows="2" placeholder="e.g. empty sidewalk, plain background"></textarea>
+    </div>
+
     <button id="editBtn" disabled>Edit image</button>
     <div class="status" id="status"></div>
   </div>
@@ -121,6 +149,37 @@
 // Backend — fixed, users never see or touch this.
 const API_ENDPOINT = "https://aged-bird-46da.bozhetarnikmatthew.workers.dev/";
 
+const ACTION_INFO = {
+  search_replace: {
+    desc: "Describe the object to find, and what it should be replaced with.",
+    searchLabel: "What to find",
+    searchPlaceholder: "e.g. people in the background",
+    promptLabel: "What it should become",
+    promptPlaceholder: "e.g. empty sidewalk, plain background",
+    needsSearch: true,
+    needsPrompt: true,
+  },
+  erase: {
+    desc: "Removes content based on the image's transparent areas. Works best on images that already have a transparent region (e.g. from Remove Background) marking what to erase.",
+    needsSearch: false,
+    needsPrompt: false,
+  },
+  search_recolor: {
+    desc: "Describe the object to find, and the new color/description for it.",
+    searchLabel: "What to find",
+    searchPlaceholder: "e.g. jacket",
+    promptLabel: "New color / look",
+    promptPlaceholder: "e.g. bright red jacket",
+    needsSearch: true,
+    needsPrompt: true,
+  },
+  remove_bg: {
+    desc: "Automatically isolates the main subject and makes the background transparent. No prompt needed.",
+    needsSearch: false,
+    needsPrompt: false,
+  },
+};
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const editBtn = document.getElementById('editBtn');
@@ -128,8 +187,35 @@ const statusEl = document.getElementById('status');
 const resultPanel = document.getElementById('resultPanel');
 const resultImg = document.getElementById('resultImg');
 const downloadLink = document.getElementById('downloadLink');
+const actionSelect = document.getElementById('action');
+const actionDesc = document.getElementById('actionDesc');
+const searchPromptField = document.getElementById('searchPromptField');
+const searchPromptLabel = document.getElementById('searchPromptLabel');
+const searchPromptInput = document.getElementById('searchPrompt');
+const promptField = document.getElementById('promptField');
+const promptLabel = document.getElementById('promptLabel');
+const promptInput = document.getElementById('prompt');
 
 let selectedImageDataUrl = null;
+
+function updateActionUI() {
+  const info = ACTION_INFO[actionSelect.value];
+  actionDesc.textContent = info.desc;
+
+  searchPromptField.style.display = info.needsSearch ? 'block' : 'none';
+  if (info.needsSearch) {
+    searchPromptLabel.textContent = info.searchLabel;
+    searchPromptInput.placeholder = info.searchPlaceholder;
+  }
+
+  promptField.style.display = info.needsPrompt ? 'block' : 'none';
+  if (info.needsPrompt) {
+    promptLabel.textContent = info.promptLabel;
+    promptInput.placeholder = info.promptPlaceholder;
+  }
+}
+actionSelect.addEventListener('change', updateActionUI);
+updateActionUI();
 
 dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('dragover', e => e.preventDefault());
@@ -159,8 +245,20 @@ function setStatus(msg, cls) {
 
 editBtn.addEventListener('click', async () => {
   if (!selectedImageDataUrl) return;
-  const prompt = document.getElementById('prompt').value.trim();
-  if (!prompt) { setStatus('Please describe the edit you want.', 'err'); return; }
+
+  const action = actionSelect.value;
+  const info = ACTION_INFO[action];
+  const prompt = promptInput.value.trim();
+  const searchPrompt = searchPromptInput.value.trim();
+
+  if (info.needsSearch && !searchPrompt) {
+    setStatus('Please describe what to find in the image.', 'err');
+    return;
+  }
+  if (info.needsPrompt && !prompt) {
+    setStatus('Please describe what you want to see.', 'err');
+    return;
+  }
 
   editBtn.disabled = true;
   resultPanel.style.display = 'none';
@@ -170,7 +268,12 @@ editBtn.addEventListener('click', async () => {
     const res = await fetch(API_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: selectedImageDataUrl, prompt })
+      body: JSON.stringify({
+        image: selectedImageDataUrl,
+        action,
+        prompt: info.needsPrompt ? prompt : undefined,
+        searchPrompt: info.needsSearch ? searchPrompt : undefined,
+      })
     });
 
     const data = await res.json();
