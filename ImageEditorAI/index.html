@@ -225,7 +225,7 @@ input.inp::placeholder{color:var(--tx3);}
     <span>&#10024;</span><span>Not sure? Talk about it with Gemini</span>
   </a>
   <a class="nav-link-btn" href="https://htmltools.me/ImageGeneratorAI">
-    <span>&#128444;</span><span>Text to Image</span>
+    <span>&#128247;</span><span>Text to Image</span>
   </a>
   <div class="nav-user">
     <span class="nav-user-email" id="nav-email"></span>
@@ -530,7 +530,12 @@ function convPath(id) { return 'image_ai_conversations/' + currentUser.uid + (id
 
 async function loadConversationList() {
   try {
-    var snap = await db.ref(convPath()).orderByChild('updated').get();
+    // Plain .get() with no orderByChild — ordering by a child key requires
+    // a ".indexOn" rule in the Realtime Database rules for this path, and
+    // without it Firebase can reject the query entirely (this is what was
+    // causing everything to disappear on reload). We already sort client
+    // side below, so no index is needed.
+    var snap = await db.ref(convPath()).get();
     conversations = [];
     if (snap.exists()) {
       snap.forEach(function(c) {
@@ -546,7 +551,8 @@ async function loadConversationList() {
       startNewConversation();
     }
   } catch (e) {
-    showToast('Could not load conversations.');
+    console.error('loadConversationList failed:', e);
+    showToast('Could not load conversations: ' + (e && e.message ? e.message : e));
     startNewConversation();
   }
 }
