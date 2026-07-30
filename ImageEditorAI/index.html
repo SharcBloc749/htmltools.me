@@ -9,15 +9,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#0c0c0c;--surface:#111;--panel:#171717;--panel2:#1e1e1e;
+  --bg:#0c0c0c;--surface:#111;--panel:#171717;--panel2:#1e1e1e;--panel3:#242424;
   --border:#252525;--border2:#2e2e2e;--borderhi:#404040;
   --tx:#e8e8e8;--tx2:#888;--tx3:#4a4a4a;
   --white:#fff;--wfg:#0c0c0c;
-  --green:#16a34a;--greenhi:#22c55e;
   --red:#dc2626;--redhi:#ef4444;
   --blue:#93bbf8;--amber:#f0b429;
   --r:4px;--r-md:7px;--r-lg:10px;--r-xl:14px;
-  --nav-h:48px;--tabbar-h:38px;
+  --nav-h:48px;
   --font:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
   --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
 }
@@ -44,152 +43,93 @@ nav{height:var(--nav-h);background:var(--bg);border-bottom:1px solid var(--borde
 .nav-link-btn.accent{color:var(--blue);border-color:rgba(59,130,246,.25);background:rgba(37,99,235,.07);}
 .nav-link-btn.accent:hover{background:rgba(37,99,235,.13);border-color:rgba(59,130,246,.4);}
 
-/* TAB BAR */
-.tabbar{height:var(--tabbar-h);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 8px;gap:4px;flex-shrink:0;overflow-x:auto;}
-.tabbar::-webkit-scrollbar{height:0;}
-.img-tab{display:flex;align-items:center;gap:7px;height:28px;padding:0 8px 0 10px;border-radius:var(--r);font-size:.74rem;color:var(--tx3);cursor:pointer;transition:all .13s;white-space:nowrap;border:1px solid transparent;max-width:180px;user-select:none;}
-.img-tab:hover{color:var(--tx2);background:var(--panel);}
-.img-tab.active{color:var(--tx);background:var(--panel2);border-color:var(--border2);}
-.img-tab-thumb{width:16px;height:16px;border-radius:3px;object-fit:cover;flex-shrink:0;background:var(--panel2);}
-.img-tab-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px;}
-.img-tab-close{color:var(--tx3);font-size:.85rem;line-height:1;padding:0 2px;border-radius:3px;flex-shrink:0;}
-.img-tab-close:hover{color:var(--redhi);background:rgba(220,38,38,.1);}
-.tab-add-btn{width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:var(--r);color:var(--tx3);font-size:1rem;border:1px dashed var(--border2);transition:all .13s;}
-.tab-add-btn:hover{color:var(--tx);border-color:var(--borderhi);background:var(--panel);}
+/* CHAT LAYOUT */
+.chat-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+.chat-scroll{flex:1;overflow-y:auto;padding:28px 0 20px;}
+.chat-inner{max-width:720px;margin:0 auto;padding:0 20px;display:flex;flex-direction:column;gap:22px;}
 
-/* VIEWPORT */
-.viewport{flex:1;display:flex;overflow:hidden;}
-.canvas-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;background:
-  linear-gradient(45deg,#161616 25%,transparent 25%),
-  linear-gradient(-45deg,#161616 25%,transparent 25%),
-  linear-gradient(45deg,transparent 75%,#161616 75%),
-  linear-gradient(-45deg,transparent 75%,#161616 75%);
-  background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;background-color:#0e0e0e;
+.chat-empty{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;min-height:60vh;}
+.chat-empty-card{text-align:center;max-width:420px;}
+.chat-empty-icon{font-size:2.2rem;margin-bottom:16px;}
+.chat-empty-card h2{font-size:1.15rem;font-weight:700;letter-spacing:-.02em;margin-bottom:8px;}
+.chat-empty-card p{font-size:.82rem;color:var(--tx3);line-height:1.65;}
+
+/* Message rows */
+.msg-row{display:flex;flex-direction:column;gap:8px;}
+.msg-row.user{align-items:flex-end;}
+.msg-row.assistant{align-items:flex-start;}
+
+.msg-bubble{max-width:88%;border-radius:14px;padding:10px 13px;font-size:.85rem;line-height:1.55;}
+.msg-row.user .msg-bubble{background:var(--panel2);border:1px solid var(--border2);border-radius:14px 14px 3px 14px;color:var(--tx);}
+.msg-row.assistant .msg-bubble{background:transparent;border:none;padding:0 2px;color:var(--tx2);}
+
+.msg-meta{font-size:.66rem;color:var(--tx3);font-family:var(--mono);padding:0 4px;display:flex;align-items:center;gap:6px;}
+.msg-meta .tag{background:var(--panel);border:1px solid var(--border2);border-radius:99px;padding:2px 9px;color:var(--tx2);font-family:var(--font);font-weight:500;}
+.msg-meta .tag.warn{color:var(--amber);border-color:rgba(240,180,41,.3);background:rgba(240,180,41,.07);}
+
+.msg-imgwrap{max-width:88%;border-radius:12px;overflow:hidden;border:1px solid var(--border2);position:relative;background:
+  linear-gradient(45deg,#161616 25%,transparent 25%),linear-gradient(-45deg,#161616 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,#161616 75%),linear-gradient(-45deg,transparent 75%,#161616 75%);
+  background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;background-color:#0e0e0e;
 }
+.msg-imgwrap img{display:block;width:100%;max-height:420px;object-fit:contain;}
+.msg-img-actions{display:flex;gap:4px;padding:7px 8px;background:var(--surface);border-top:1px solid var(--border);}
 
-/* Toolbar: Mask Select / AI Eraser / Background Eraser */
-.canvas-toolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:3px;background:rgba(17,17,17,.94);border:1px solid var(--border2);border-radius:var(--r-md);padding:4px;backdrop-filter:blur(8px);z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.4);flex-wrap:wrap;max-width:min(94vw,720px);justify-content:center;}
-.tb-btn{min-width:34px;height:34px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:var(--r);color:var(--tx2);font-size:.95rem;transition:all .13s;border:1px solid transparent;background:transparent;}
-.tb-btn span.tb-label{font-size:.72rem;font-weight:600;}
-.tb-btn:hover{color:var(--tx);background:var(--panel2);}
-.tb-btn.active{color:var(--wfg);background:var(--white);}
-.tb-sep{width:1px;height:20px;background:var(--border2);margin:0 4px;}
-.tb-brush-size{width:64px;accent-color:var(--white);}
-.tb-size-label{font-size:.66rem;color:var(--tx3);font-family:var(--mono);min-width:26px;text-align:right;}
-
-/* Zoom controls, bottom center */
-.zoom-controls{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;background:rgba(17,17,17,.92);border:1px solid var(--border2);border-radius:99px;padding:4px;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.4);}
-.zoom-btn{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--tx2);font-size:.9rem;transition:all .13s;background:transparent;}
-.zoom-btn:hover{color:var(--tx);background:var(--panel2);}
-.zoom-readout{font-size:.7rem;color:var(--tx3);font-family:var(--mono);padding:0 8px;min-width:44px;text-align:center;cursor:pointer;user-select:none;}
-.zoom-readout:hover{color:var(--tx2);}
-
-.canvas-empty{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
-.canvas-empty-card{background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--r-xl);padding:44px 40px;text-align:center;max-width:380px;transition:border-color .15s;}
-.canvas-empty-card.dragover{border-color:var(--white);background:var(--panel);}
-.canvas-empty-icon{font-size:2rem;margin-bottom:14px;}
-.canvas-empty-card h2{font-size:1.05rem;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;}
-.canvas-empty-card p{font-size:.78rem;color:var(--tx3);line-height:1.6;margin-bottom:18px;}
-.canvas-empty-actions{display:flex;flex-direction:column;gap:8px;}
-
-.canvas-stage-wrap{flex:1;overflow:auto;padding:70px 24px 76px;}
-.canvas-stage-center{min-height:100%;display:flex;align-items:center;justify-content:center;}
-.canvas-stage{position:relative;box-shadow:0 8px 32px rgba(0,0,0,.5);transform-origin:center center;transition:transform .06s linear;line-height:0;}
-.canvas-stage img{display:block;border-radius:2px;pointer-events:none;user-select:none;}
-.mask-canvas{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;border-radius:2px;}
-.mask-canvas.bg-mode{cursor:default;}
-
-.loading-overlay{position:absolute;inset:0;background:rgba(12,12,12,.72);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:30;backdrop-filter:blur(2px);}
-.loading-overlay.show{display:flex;}
-.spin{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--tx);border-radius:50%;animation:spin .7s linear infinite;}
+.thinking-row{display:flex;align-items:center;gap:9px;padding:2px 2px;color:var(--tx3);font-size:.8rem;}
+.think-spin{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--tx2);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-overlay span{font-size:.78rem;color:var(--tx2);}
 
-/* Modal for "new image" (plus button), works from any mode */
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
-.modal-backdrop.show{display:flex;}
-.modal-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px 34px;text-align:center;max-width:400px;width:90%;position:relative;}
-.modal-card .canvas-empty-icon{font-size:2rem;margin-bottom:14px;}
-.modal-card h2{font-size:1.05rem;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;}
-.modal-card p{font-size:.78rem;color:var(--tx3);line-height:1.6;margin-bottom:18px;}
-.modal-close{position:absolute;top:14px;right:16px;color:var(--tx3);font-size:1.2rem;}
+.err-bubble{max-width:88%;border-radius:12px;padding:10px 13px;font-size:.82rem;line-height:1.5;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);color:var(--redhi);}
 
-/* SIDE PANEL */
-.side-panel{width:340px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
-.sp-section{padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
-.sp-label{font-size:.63rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
-.sp-label-hint{font-size:.63rem;color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0;}
+/* COMPOSER */
+.composer-wrap{flex-shrink:0;border-top:1px solid var(--border);background:var(--bg);padding:14px 20px 16px;}
+.composer-inner{max-width:720px;margin:0 auto;}
+.attach-preview{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-md) var(--r-md) 0 0;padding:8px 10px;margin-bottom:-1px;}
+.attach-preview img{width:38px;height:38px;object-fit:cover;border-radius:6px;flex-shrink:0;}
+.attach-preview-name{font-size:.76rem;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.attach-remove{color:var(--tx3);font-size:1rem;padding:2px 6px;border-radius:4px;flex-shrink:0;}
+.attach-remove:hover{color:var(--redhi);background:rgba(220,38,38,.1);}
 
-textarea.prompt-inp{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.82rem;padding:9px 10px;border-radius:var(--r);outline:none;transition:border-color .13s;resize:vertical;min-height:64px;line-height:1.5;}
-textarea.prompt-inp:focus{border-color:var(--borderhi);}
-textarea.prompt-inp::placeholder{color:var(--tx3);}
-textarea.prompt-inp:disabled{opacity:.45;cursor:not-allowed;}
+.composer-box{background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-lg);padding:10px 10px 8px;transition:border-color .13s;}
+.composer-box:focus-within{border-color:var(--borderhi);}
+.composer-box.has-attach{border-radius:0 0 var(--r-lg) var(--r-lg);}
+textarea.composer-inp{width:100%;background:transparent;border:none;color:var(--tx);font-family:var(--font);font-size:.86rem;padding:4px 6px;outline:none;resize:none;min-height:22px;max-height:160px;line-height:1.5;}
+textarea.composer-inp::placeholder{color:var(--tx3);}
 
-.mode-row{display:flex;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r);padding:2px;margin-bottom:10px;}
-.mode-opt{flex:1;text-align:center;padding:6px 0;font-size:.71rem;font-weight:600;color:var(--tx3);border-radius:3px;transition:all .13s;}
-.mode-opt.active{background:var(--white);color:var(--wfg);}
+.composer-toolbar{display:flex;align-items:center;gap:6px;margin-top:6px;}
+.composer-btn{height:30px;padding:0 10px;display:flex;align-items:center;gap:6px;border-radius:var(--r);color:var(--tx2);font-size:.76rem;font-weight:500;background:transparent;border:1px solid transparent;transition:all .13s;}
+.composer-btn:hover{background:var(--panel2);color:var(--tx);}
+.composer-btn.icon-only{width:30px;padding:0;justify-content:center;}
+.composer-spacer{flex:1;}
+.send-btn{width:32px;height:32px;border-radius:50%;background:var(--white);color:var(--wfg);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;transition:opacity .13s;border:none;}
+.send-btn:hover{opacity:.85;}
+.send-btn:disabled{opacity:.35;cursor:not-allowed;}
 
-select.action-select{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.8rem;padding:0 9px;height:32px;border-radius:var(--r);outline:none;appearance:none;cursor:pointer;margin-bottom:8px;}
-select.action-select:focus{border-color:var(--borderhi);}
-.action-hint{font-size:.7rem;color:var(--tx3);line-height:1.55;margin-bottom:10px;}
+/* Tool picker dropdown, anchored above the tool button */
+.tool-picker-wrap{position:relative;}
+.tool-picker{position:absolute;bottom:calc(100% + 8px);left:0;background:var(--panel3);border:1px solid var(--border2);border-radius:var(--r-md);padding:5px;min-width:240px;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:50;display:none;}
+.tool-picker.show{display:block;}
+.tool-opt{display:flex;align-items:flex-start;gap:9px;padding:8px 9px;border-radius:6px;transition:background .12s;}
+.tool-opt:hover{background:var(--panel2);}
+.tool-opt.active{background:rgba(59,130,246,.1);}
+.tool-opt-icon{font-size:.95rem;margin-top:1px;flex-shrink:0;width:18px;text-align:center;}
+.tool-opt-text{display:flex;flex-direction:column;gap:1px;}
+.tool-opt-title{font-size:.78rem;font-weight:600;color:var(--tx);}
+.tool-opt-desc{font-size:.68rem;color:var(--tx3);line-height:1.4;}
+.tool-picker-divider{height:1px;background:var(--border);margin:4px 2px;}
 
-.enhance-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
-.enhance-label{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--tx2);}
-.switch{position:relative;width:32px;height:18px;flex-shrink:0;}
-.switch input{opacity:0;width:0;height:0;}
-.switch-track{position:absolute;inset:0;background:var(--panel2);border:1px solid var(--border2);border-radius:99px;transition:all .15s;}
-.switch-thumb{position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--tx3);border-radius:50%;transition:all .15s;}
-.switch input:checked + .switch-track{background:rgba(37,99,235,.25);border-color:rgba(59,130,246,.4);}
-.switch input:checked + .switch-track .switch-thumb{transform:translateX(14px);background:var(--blue);}
+.active-tool-chip{display:flex;align-items:center;gap:5px;height:30px;padding:0 10px 0 8px;border-radius:99px;font-size:.74rem;font-weight:600;background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.25);}
+.active-tool-chip .chip-x{font-size:.85rem;opacity:.7;margin-left:2px;}
+.active-tool-chip .chip-x:hover{opacity:1;}
 
-.gen-btn{width:100%;height:38px;background:var(--white);color:var(--wfg);border:none;border-radius:var(--r-md);font-family:var(--font);font-size:.85rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .13s;margin-top:12px;}
-.gen-btn:hover{opacity:.88;}
-.gen-btn:disabled{opacity:.4;cursor:not-allowed;}
-
-.route-note{display:flex;gap:7px;align-items:flex-start;font-size:.7rem;color:var(--blue);background:rgba(37,99,235,.07);border:1px solid rgba(59,130,246,.15);border-radius:var(--r);padding:8px 9px;margin-top:10px;line-height:1.55;}
-.route-note.warn{color:var(--amber);background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.2);}
-
-/* HISTORY */
-.history-section{flex:1;display:flex;flex-direction:column;min-height:0;}
-.history-section .sp-section{padding-bottom:10px;}
-.history-list{flex:1;overflow-y:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:16px;}
-.hist-empty{font-size:.75rem;color:var(--tx3);font-style:italic;text-align:center;padding:32px 12px;line-height:1.6;}
-.hist-turn{display:flex;flex-direction:column;gap:8px;}
-.hist-bubble{background:var(--panel2);border:1px solid var(--border2);border-radius:10px 10px 10px 2px;padding:9px 11px;font-size:.79rem;color:var(--tx);line-height:1.55;}
-.hist-bubble.original{color:var(--tx3);font-style:italic;}
-.hist-meta{display:flex;align-items:center;gap:6px;font-size:.66rem;color:var(--tx3);font-family:var(--mono);padding:0 2px;}
-.hist-meta .hist-tag{background:var(--panel);border:1px solid var(--border2);border-radius:99px;padding:2px 8px;color:var(--tx2);font-family:var(--font);font-weight:500;}
-.hist-result-row{display:flex;gap:10px;align-items:flex-start;}
-.hist-thumb{width:96px;height:96px;border-radius:var(--r-md);object-fit:cover;border:1px solid var(--border2);cursor:pointer;transition:border-color .13s,transform .13s;flex-shrink:0;background:
-  linear-gradient(45deg,#1c1c1c 25%,transparent 25%),linear-gradient(-45deg,#1c1c1c 25%,transparent 25%),
-  linear-gradient(45deg,transparent 75%,#1c1c1c 75%),linear-gradient(-45deg,transparent 75%,#1c1c1c 75%);
-  background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0;}
-.hist-thumb:hover{border-color:var(--borderhi);}
-.hist-thumb.current{border-color:var(--white);border-width:2px;}
-.hist-restore-hint{font-size:.68rem;color:var(--tx3);line-height:1.5;align-self:center;}
-
-/* PANEL TOPBAR */
-.panel-topbar{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
-.panel-topbar .btn{flex:1;}
-.btn{background:var(--panel);border:1px solid var(--border2);color:var(--tx2);padding:0 10px;border-radius:var(--r);font-size:.73rem;font-weight:500;font-family:var(--font);transition:all .13s;display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;height:29px;}
-.btn:hover{background:var(--panel2);border-color:var(--borderhi);color:var(--tx);}
-.btn:active{opacity:.75;}
-.btn:disabled{opacity:.4;cursor:not-allowed;}
-.btn-prim{background:var(--white);color:var(--wfg);border-color:var(--white);font-weight:600;}
-.btn-prim:hover{opacity:.88;background:var(--white);border-color:var(--white);color:var(--wfg);}
-.btn-icon{width:29px;padding:0;flex:none!important;}
-
-.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--panel2);border:1px solid var(--border2);padding:7px 14px;border-radius:var(--r-md);font-size:.78rem;font-weight:500;z-index:9999;opacity:0;transition:all .2s cubic-bezier(.22,1,.36,1);pointer-events:none;white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-.toast.err{color:var(--redhi);border-color:rgba(220,38,38,.3);}
+.hint-line{font-size:.68rem;color:var(--tx3);text-align:center;margin-top:8px;}
 
 footer{padding:5px 14px;font-size:.68rem;color:var(--tx3);background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.5rem;font-family:var(--mono);}
 footer strong{color:var(--tx2);font-weight:500;}
 footer .dot{color:var(--borderhi);}
 
-@media (max-width:820px){
-  .side-panel{width:280px;}
-  .hist-thumb{width:76px;height:76px;}
+@media (max-width:720px){
+  .msg-bubble,.msg-imgwrap{max-width:100%;}
 }
 </style>
 </head>
@@ -202,653 +142,313 @@ footer .dot{color:var(--borderhi);}
   </div>
   <span class="nav-title">Image AI</span>
   <div class="nav-spacer"></div>
-  <a class="nav-link-btn accent" href="https://htmltools.me/Gemini" title="Not sure what edit you want? Talk it through first.">
-    <span>&#128172;</span><span>Not sure? Ask Gemini first</span>
-  </a>
   <a class="nav-link-btn" href="https://htmltools.me/ImageGeneratorAI">
     <span>&#10024;</span><span>Text to Image</span>
   </a>
 </nav>
 
-<div class="tabbar" id="tabbar"></div>
-
-<div class="viewport">
-
-  <div class="canvas-area" id="canvasArea">
-
-    <div class="canvas-toolbar" id="canvasToolbar" style="display:none;">
-      <button class="tb-btn active" id="toolMask" title="Paint the area you want the AI to change">
-        <span>&#128396;</span><span class="tb-label">Mask Select</span>
-      </button>
-      <button class="tb-btn" id="toolEraser" title="Paint over something to erase it with AI">
-        <span>&#10062;</span><span class="tb-label">AI Eraser</span>
-      </button>
-      <button class="tb-btn" id="toolBgErase" title="Remove the background automatically, no painting needed">
-        <span>&#127960;</span><span class="tb-label">Background Eraser</span>
-      </button>
-      <div class="tb-sep" id="brushSep"></div>
-      <input type="range" class="tb-brush-size" id="brushSize" min="10" max="120" value="34" title="Brush size"/>
-      <span class="tb-size-label" id="brushSizeLabel">34px</span>
-      <div class="tb-sep"></div>
-      <button class="tb-btn" id="toolClearMask" title="Clear painted area">
-        <span>&#8634;</span>
-      </button>
-    </div>
-
-    <div class="zoom-controls" id="zoomControls" style="display:none;">
-      <button class="zoom-btn" id="zoomOut" title="Zoom out">&#8722;</button>
-      <span class="zoom-readout" id="zoomReadout" title="Fit to screen">100%</span>
-      <button class="zoom-btn" id="zoomIn" title="Zoom in">&#43;</button>
-      <div class="tb-sep"></div>
-      <button class="zoom-btn" id="zoomFit" title="Fit to screen" style="font-size:.65rem;font-weight:700;width:auto;padding:0 8px;">FIT</button>
-    </div>
-
-    <div class="canvas-empty" id="canvasEmpty">
-      <div class="canvas-empty-card" id="dropCard">
-        <div class="canvas-empty-icon">&#9986;&#65039;</div>
-        <h2>Start editing</h2>
-        <p>Drop an image, paste, or click to upload. Then describe the edit — Gemini will pick the right tool, or choose one yourself.</p>
-        <div class="canvas-empty-actions">
-          <button class="btn btn-prim" id="uploadBtn" style="height:34px;font-size:.8rem;">Upload image</button>
-        </div>
-        <p style="margin-top:10px;font-size:.68rem;color:var(--tx3);">Ctrl+V to paste from clipboard</p>
-      </div>
-    </div>
-    <input type="file" id="fileInput" accept="image/*" style="display:none">
-
-    <div class="canvas-stage-wrap" id="stageWrap" style="display:none;">
-      <div class="canvas-stage-center">
-        <div class="canvas-stage" id="canvasStage">
-          <img id="stageImg" alt="Current image"/>
-          <canvas class="mask-canvas" id="maskCanvas"></canvas>
+<div class="chat-wrap">
+  <div class="chat-scroll" id="chatScroll">
+    <div class="chat-inner" id="chatInner">
+      <div class="chat-empty" id="chatEmpty">
+        <div class="chat-empty-card">
+          <div class="chat-empty-icon">&#128172;</div>
+          <h2>Edit an image by chatting</h2>
+          <p>Attach a photo, describe the change, and send. Gemini reads the image and picks the right tool automatically — or click the tool icon to choose one yourself.</p>
         </div>
       </div>
-    </div>
-
-    <div class="loading-overlay" id="loadingOverlay">
-      <div class="spin"></div>
-      <span id="loadingText">Working on it…</span>
     </div>
   </div>
 
-  <div class="side-panel" id="sidePanel">
-    <div class="panel-topbar">
-      <button class="btn" id="newImageBtn">New image</button>
-      <button class="btn btn-icon" id="undoBtn" title="Previous version">&#8630;</button>
-      <button class="btn btn-icon" id="redoBtn" title="Next version">&#8631;</button>
-      <button class="btn btn-prim" id="exportBtn" title="Export PNG">&#8595;</button>
-    </div>
-
-    <div class="sp-section">
-      <div class="mode-row">
-        <div class="mode-opt active" id="modeAuto">Auto (Gemini picks)</div>
-        <div class="mode-opt" id="modeManual">Choose myself</div>
+  <div class="composer-wrap">
+    <div class="composer-inner">
+      <div class="attach-preview" id="attachPreview" style="display:none;">
+        <img id="attachThumb" src="" alt=""/>
+        <span class="attach-preview-name" id="attachName"></span>
+        <span class="attach-remove" id="attachRemove">&times;</span>
       </div>
+      <div class="composer-box" id="composerBox">
+        <textarea class="composer-inp" id="composerInput" rows="1" placeholder="Attach an image, then describe the edit… e.g. 'make the sky sunset orange'"></textarea>
+        <div class="composer-toolbar">
+          <button class="composer-btn icon-only" id="attachBtn" title="Attach image">&#128206;</button>
 
-      <select class="action-select" id="actionSelect" style="display:none;">
-        <option value="search_replace">Search &amp; Replace</option>
-        <option value="search_recolor">Search &amp; Recolor</option>
-        <option value="inpaint">Inpaint (needs Mask Select)</option>
-        <option value="erase">Erase Object (needs Mask Select or AI Eraser)</option>
-        <option value="remove_bg">Remove Background</option>
-      </select>
-      <p class="action-hint" id="actionHint" style="display:none;"></p>
+          <div class="tool-picker-wrap">
+            <button class="composer-btn" id="toolPickerBtn" title="Choose a tool manually">
+              <span>&#128295;</span><span id="toolPickerLabel">Auto</span>
+            </button>
+            <div class="tool-picker" id="toolPicker">
+              <div class="tool-opt active" data-tool="auto">
+                <span class="tool-opt-icon">&#129504;</span>
+                <div class="tool-opt-text"><span class="tool-opt-title">Auto (Gemini picks)</span><span class="tool-opt-desc">Reads your prompt + image and chooses the right tool</span></div>
+              </div>
+              <div class="tool-picker-divider"></div>
+              <div class="tool-opt" data-tool="search_replace">
+                <span class="tool-opt-icon">&#128269;</span>
+                <div class="tool-opt-text"><span class="tool-opt-title">Search &amp; Replace</span><span class="tool-opt-desc">Find something by description, replace or remove it</span></div>
+              </div>
+              <div class="tool-opt" data-tool="search_recolor">
+                <span class="tool-opt-icon">&#127912;</span>
+                <div class="tool-opt-text"><span class="tool-opt-title">Search &amp; Recolor</span><span class="tool-opt-desc">Find something by description, change only its color</span></div>
+              </div>
+              <div class="tool-opt" data-tool="erase">
+                <span class="tool-opt-icon">&#10062;</span>
+                <div class="tool-opt-text"><span class="tool-opt-title">Erase Object</span><span class="tool-opt-desc">Describe what to remove, fills the area naturally</span></div>
+              </div>
+              <div class="tool-opt" data-tool="remove_bg">
+                <span class="tool-opt-icon">&#127960;</span>
+                <div class="tool-opt-text"><span class="tool-opt-title">Remove Background</span><span class="tool-opt-desc">Cuts out the subject, no description needed</span></div>
+              </div>
+            </div>
+          </div>
 
-      <div class="sp-label" style="margin-bottom:6px;">Describe the edit</div>
-      <textarea class="prompt-inp" id="promptInput" placeholder="e.g. remove the people in the background, make the sky sunset orange, turn the jacket red…"></textarea>
-
-      <div class="enhance-row">
-        <div class="enhance-label"><span>&#10024;</span><span>Enhance my prompt</span></div>
-        <label class="switch">
-          <input type="checkbox" id="enhanceToggle" checked/>
-          <div class="switch-track"><div class="switch-thumb"></div></div>
-        </label>
+          <div class="composer-spacer"></div>
+          <button class="send-btn" id="sendBtn" title="Send">&#8593;</button>
+        </div>
       </div>
-
-      <button class="gen-btn" id="generateBtn">
-        <span>&#9889;</span><span id="generateBtnLabel">Generate</span>
-      </button>
-
-      <div class="route-note" id="routeNote" style="display:none;">
-        <span id="routeNoteIcon">&#129504;</span>
-        <span id="routeNoteText"></span>
-      </div>
-    </div>
-
-    <div class="history-section">
-      <div class="sp-section" style="flex-shrink:0;padding-bottom:10px;">
-        <div class="sp-label" style="margin-bottom:0;">History</div>
-      </div>
-      <div class="history-list" id="historyList">
-        <div class="hist-empty">Your edits will appear here as a running conversation. Not happy with a result? Just describe what to change next.</div>
-      </div>
+      <div class="hint-line" id="hintLine">Enter to send · Shift+Enter for a new line</div>
     </div>
   </div>
 </div>
 
-<!-- New image modal: reachable from any tool/mode via the + tab or "New image" button -->
-<div class="modal-backdrop" id="newImageModal">
-  <div class="modal-card" id="newImageDropCard">
-    <span class="modal-close" id="modalCloseBtn">&times;</span>
-    <div class="canvas-empty-icon">&#128247;</div>
-    <h2>Add an image</h2>
-    <p>Drop an image here, paste it (Ctrl+V), or click below to select a file.</p>
-    <button class="btn btn-prim" id="modalUploadBtn" style="height:34px;font-size:.8rem;width:100%;">Choose image</button>
-  </div>
-</div>
+<input type="file" id="fileInput" accept="image/*" style="display:none">
 
-<div class="toast" id="toast"></div>
 <footer><strong>HTML Tools</strong><span class="dot">·</span><span>Image AI</span><span class="dot">·</span><span>built by Matthew</span></footer>
 
 <script>
 const API_ENDPOINT = "https://aged-bird-46da.bozhetarnikmatthew.workers.dev/";
-const STORAGE_KEY = "httools_image_ai_sessions_v2";
 
 const ACTION_META = {
-  search_replace: { label: "Search & Replace", hint: "Finds an object by description and replaces it. No painting needed — just describe what to find and what to change it to." },
-  search_recolor: { label: "Search & Recolor", hint: "Finds an object by description and changes only its color." },
-  inpaint:        { label: "Inpaint", hint: "Fills your painted mask area with new content described by your prompt. Use Mask Select to paint the area first." },
-  erase:          { label: "AI Erase", hint: "Removes whatever is under your painted mask and fills it in naturally. Use Mask Select or AI Eraser to paint the area first." },
-  remove_bg:      { label: "Remove Background", hint: "Cuts out the main subject and makes the background transparent. No painting needed." },
+  search_replace: { label: "Search & Replace" },
+  search_recolor: { label: "Search & Recolor" },
+  inpaint:        { label: "Inpaint" },
+  erase:          { label: "Erase Object" },
+  remove_bg:      { label: "Remove Background" },
 };
 
-let sessions = [];
-let activeSessionId = null;
-let routeMode = "auto"; // 'auto' | 'manual'
-let currentTool = "mask"; // 'mask' | 'eraser' | 'bg'
-let isDrawing = false;
-let maskDirty = false;
-let brushSizeVal = 34;
+// Conversation state: a flat list of messages, each either a user
+// message (text + optional image) or an assistant result (image +
+// meta). The "current image" is always the most recent image in the
+// thread (either the last attach or the last result) — that's what
+// gets sent as the base for the next edit, so edits chain naturally.
+let messages = [];
+let attachedImage = null; // { dataUrl, name }
+let selectedTool = 'auto';
+let isSending = false;
 
-// Zoom state — zoomLevel is relative to the auto-computed "fit" scale,
-// i.e. zoomLevel 1 always means "fit to the visible stage", not "100%
-// native pixels". This is what was missing before: there was no fit
-// calculation at all, so large images rendered far bigger than the view.
-let zoomLevel = 1;
-let fitScale = 1;
-const ZOOM_MIN = 0.1, ZOOM_MAX = 8, ZOOM_STEP = 0.15;
-
-function persist() {
-  try {
-    const toSave = sessions.map(s => ({ id: s.id, name: s.name, history: s.history, activeIdx: s.activeIdx }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  } catch (e) { /* storage full or unavailable */ }
-}
-function loadPersisted() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return parsed.map(s => ({ ...s }));
-  } catch (e) { return []; }
-}
-
-const tabbar = document.getElementById('tabbar');
-const canvasEmpty = document.getElementById('canvasEmpty');
-const stageWrap = document.getElementById('stageWrap');
-const stageImg = document.getElementById('stageImg');
-const canvasStage = document.getElementById('canvasStage');
-const maskCanvas = document.getElementById('maskCanvas');
-const canvasToolbar = document.getElementById('canvasToolbar');
-const zoomControls = document.getElementById('zoomControls');
-const zoomReadout = document.getElementById('zoomReadout');
-const zoomInBtn = document.getElementById('zoomIn');
-const zoomOutBtn = document.getElementById('zoomOut');
-const zoomFitBtn = document.getElementById('zoomFit');
-const stageWrapEl = document.getElementById('stageWrap');
-const dropCard = document.getElementById('dropCard');
+const chatInner = document.getElementById('chatInner');
+const chatScroll = document.getElementById('chatScroll');
+const chatEmpty = document.getElementById('chatEmpty');
+const composerInput = document.getElementById('composerInput');
+const composerBox = document.getElementById('composerBox');
+const sendBtn = document.getElementById('sendBtn');
+const attachBtn = document.getElementById('attachBtn');
 const fileInput = document.getElementById('fileInput');
-const uploadBtn = document.getElementById('uploadBtn');
-const newImageBtn = document.getElementById('newImageBtn');
-const undoBtn = document.getElementById('undoBtn');
-const redoBtn = document.getElementById('redoBtn');
-const exportBtn = document.getElementById('exportBtn');
-const promptInput = document.getElementById('promptInput');
-const enhanceToggle = document.getElementById('enhanceToggle');
-const modeAuto = document.getElementById('modeAuto');
-const modeManual = document.getElementById('modeManual');
-const actionSelect = document.getElementById('actionSelect');
-const actionHint = document.getElementById('actionHint');
-const routeNote = document.getElementById('routeNote');
-const routeNoteIcon = document.getElementById('routeNoteIcon');
-const routeNoteText = document.getElementById('routeNoteText');
-const generateBtn = document.getElementById('generateBtn');
-const historyList = document.getElementById('historyList');
-const loadingOverlay = document.getElementById('loadingOverlay');
-const loadingText = document.getElementById('loadingText');
-const toolMask = document.getElementById('toolMask');
-const toolEraser = document.getElementById('toolEraser');
-const toolBgErase = document.getElementById('toolBgErase');
-const toolClearMask = document.getElementById('toolClearMask');
-const brushSep = document.getElementById('brushSep');
-const brushSize = document.getElementById('brushSize');
-const brushSizeLabel = document.getElementById('brushSizeLabel');
-const newImageModal = document.getElementById('newImageModal');
-const newImageDropCard = document.getElementById('newImageDropCard');
-const modalUploadBtn = document.getElementById('modalUploadBtn');
-const modalCloseBtn = document.getElementById('modalCloseBtn');
-
-let toastTimer;
-function showToast(msg, isErr) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (isErr ? ' err' : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
-}
-
-function genId() { return 'img_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
-function activeSession() { return sessions.find(s => s.id === activeSessionId) || null; }
-function currentImage(session) {
-  if (!session || !session.history.length) return null;
-  return session.history[session.activeIdx].image;
-}
-function createSession(imageDataUrl, name) {
-  const session = {
-    id: genId(), name: name || 'Untitled',
-    history: [{ prompt: null, action: null, image: imageDataUrl, ts: Date.now() }],
-    activeIdx: 0,
-  };
-  sessions.unshift(session);
-  activeSessionId = session.id;
-  persist();
-  resetTool();
-  renderAll();
-}
+const attachPreview = document.getElementById('attachPreview');
+const attachThumb = document.getElementById('attachThumb');
+const attachName = document.getElementById('attachName');
+const attachRemove = document.getElementById('attachRemove');
+const toolPickerBtn = document.getElementById('toolPickerBtn');
+const toolPickerLabel = document.getElementById('toolPickerLabel');
+const toolPicker = document.getElementById('toolPicker');
+const hintLine = document.getElementById('hintLine');
 
 function escHtml(t) {
   return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ---------- New image modal (the "+" tab), works regardless of tool/mode ---------- */
-function openNewImageModal() {
-  newImageModal.classList.add('show');
-}
-function closeNewImageModal() {
-  newImageModal.classList.remove('show');
-  newImageDropCard.classList.remove('dragover');
-}
-modalCloseBtn.addEventListener('click', closeNewImageModal);
-newImageModal.addEventListener('click', (e) => { if (e.target === newImageModal) closeNewImageModal(); });
-modalUploadBtn.addEventListener('click', () => fileInput.click());
-newImageDropCard.addEventListener('dragover', e => { e.preventDefault(); newImageDropCard.classList.add('dragover'); });
-newImageDropCard.addEventListener('dragleave', () => newImageDropCard.classList.remove('dragover'));
-newImageDropCard.addEventListener('drop', e => {
-  e.preventDefault();
-  newImageDropCard.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) { handleFile(e.dataTransfer.files[0]); closeNewImageModal(); }
+/* ---------- Composer: textarea auto-grow ---------- */
+composerInput.addEventListener('input', () => {
+  composerInput.style.height = 'auto';
+  composerInput.style.height = Math.min(composerInput.scrollHeight, 160) + 'px';
+});
+composerInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
+  }
 });
 
-function renderTabs() {
-  if (!sessions.length) {
-    tabbar.innerHTML = '<button class="tab-add-btn" id="tabAddBtn" title="New image">+</button>';
-    document.getElementById('tabAddBtn').addEventListener('click', openNewImageModal);
-    return;
-  }
-  tabbar.innerHTML = sessions.map(s => {
-    const thumb = currentImage(s) || '';
-    return `<div class="img-tab${s.id === activeSessionId ? ' active' : ''}" data-id="${s.id}">
-      <img class="img-tab-thumb" src="${thumb}" alt=""/>
-      <span class="img-tab-name">${escHtml(s.name)}</span>
-      <span class="img-tab-close" data-close="${s.id}">&times;</span>
-    </div>`;
-  }).join('') + '<button class="tab-add-btn" id="tabAddBtn" title="New image">+</button>';
+/* ---------- Attach image ---------- */
+attachBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) attachFile(e.target.files[0]); });
+attachRemove.addEventListener('click', () => { attachedImage = null; renderAttachPreview(); });
 
-  tabbar.querySelectorAll('.img-tab').forEach(el => {
-    el.addEventListener('click', (e) => {
-      if (e.target.dataset.close) return;
-      activeSessionId = el.dataset.id;
-      resetTool();
-      renderAll();
-    });
-  });
-  tabbar.querySelectorAll('[data-close]').forEach(el => {
-    el.addEventListener('click', (e) => { e.stopPropagation(); closeSession(el.dataset.close); });
-  });
-  document.getElementById('tabAddBtn').addEventListener('click', openNewImageModal);
-}
-function closeSession(id) {
-  const idx = sessions.findIndex(s => s.id === id);
-  if (idx === -1) return;
-  sessions.splice(idx, 1);
-  if (activeSessionId === id) {
-    activeSessionId = sessions.length ? sessions[Math.max(0, idx - 1)].id : null;
-  }
-  persist();
-  resetTool();
-  renderAll();
-}
-
-/* ---------- Mode toggle: Auto (Gemini) vs manual action choice ---------- */
-modeAuto.addEventListener('click', () => setRouteMode('auto'));
-modeManual.addEventListener('click', () => setRouteMode('manual'));
-function setRouteMode(m) {
-  routeMode = m;
-  modeAuto.classList.toggle('active', m === 'auto');
-  modeManual.classList.toggle('active', m === 'manual');
-  actionSelect.style.display = m === 'manual' ? 'block' : 'none';
-  actionHint.style.display = m === 'manual' ? 'block' : 'none';
-  routeNote.style.display = 'none';
-  if (m === 'manual') updateActionHint();
-}
-actionSelect.addEventListener('change', updateActionHint);
-function updateActionHint() {
-  const meta = ACTION_META[actionSelect.value];
-  actionHint.textContent = meta ? meta.hint : '';
-}
-
-/* ---------- Zoom: fit-to-screen on load, plus working zoom in/out/pinch ---------- */
-function computeFitScale() {
-  if (!stageImg.naturalWidth || !stageImg.naturalHeight) return 1;
-  const wrap = stageWrapEl;
-  const availW = wrap.clientWidth - 48;   // account for padding
-  const availH = wrap.clientHeight - 96;  // account for toolbar/zoom bar padding
-  const scaleW = availW / stageImg.naturalWidth;
-  const scaleH = availH / stageImg.naturalHeight;
-  // Never upscale small images past native size on initial fit, but do
-  // allow the user to zoom in manually afterwards.
-  return Math.min(scaleW, scaleH, 1);
-}
-function applyZoom() {
-  const effectiveScale = fitScale * zoomLevel;
-  canvasStage.style.transform = `scale(${effectiveScale})`;
-  zoomReadout.textContent = Math.round(effectiveScale * 100) + '%';
-}
-function setZoom(z) {
-  zoomLevel = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
-  applyZoom();
-}
-function fitToScreen() {
-  fitScale = computeFitScale();
-  zoomLevel = 1;
-  applyZoom();
-  stageWrapEl.scrollLeft = 0;
-  stageWrapEl.scrollTop = 0;
-}
-zoomInBtn.addEventListener('click', () => setZoom(zoomLevel + ZOOM_STEP));
-zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - ZOOM_STEP));
-zoomFitBtn.addEventListener('click', fitToScreen);
-zoomReadout.addEventListener('click', fitToScreen);
-
-stageWrapEl.addEventListener('wheel', (e) => {
-  if (!e.ctrlKey && !e.metaKey) return; // ctrl/cmd+scroll to zoom, like most editors; plain scroll still scrolls the page
-  e.preventDefault();
-  const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-  setZoom(zoomLevel + delta);
-}, { passive: false });
-
-// Pinch-to-zoom (trackpad/touch)
-let pinchStartDist = null;
-let pinchStartZoom = 1;
-stageWrapEl.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 2) {
-    const [a, b] = e.touches;
-    pinchStartDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    pinchStartZoom = zoomLevel;
-  }
-}, { passive: true });
-stageWrapEl.addEventListener('touchmove', (e) => {
-  if (e.touches.length === 2 && pinchStartDist) {
-    const [a, b] = e.touches;
-    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    setZoom(pinchStartZoom * (dist / pinchStartDist));
-  }
-}, { passive: true });
-stageWrapEl.addEventListener('touchend', (e) => {
-  if (e.touches.length < 2) pinchStartDist = null;
-});
-window.addEventListener('resize', () => { if (currentImage(activeSession())) fitToScreen(); });
-
-function renderStage() {
-  const session = activeSession();
-  if (!session || !currentImage(session)) {
-    canvasEmpty.style.display = 'flex';
-    stageWrap.style.display = 'none';
-    canvasToolbar.style.display = 'none';
-    zoomControls.style.display = 'none';
-    return;
-  }
-  canvasEmpty.style.display = 'none';
-  stageWrap.style.display = 'block';
-  canvasToolbar.style.display = 'flex';
-  zoomControls.style.display = 'flex';
-  stageImg.src = currentImage(session);
-  stageImg.onload = () => {
-    maskCanvas.width = stageImg.naturalWidth;
-    maskCanvas.height = stageImg.naturalHeight;
-    stageImg.style.width = stageImg.naturalWidth + 'px';
-    stageImg.style.height = stageImg.naturalHeight + 'px';
-    maskCanvas.style.width = stageImg.naturalWidth + 'px';
-    maskCanvas.style.height = stageImg.naturalHeight + 'px';
-    fitToScreen();
-    updateMaskInteractivity();
-  };
-}
-
-/* ---------- Tools: Mask Select / AI Eraser / Background Eraser ---------- */
-function resetTool() {
-  currentTool = 'mask';
-  toolMask.classList.add('active');
-  toolEraser.classList.remove('active');
-  toolBgErase.classList.remove('active');
-  maskDirty = false;
-  const ctx = maskCanvas.getContext('2d');
-  if (maskCanvas.width) ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-  routeNote.style.display = 'none';
-  updateMaskInteractivity();
-}
-
-// FIX: this used to never run after initial load, leaving the mask
-// canvas permanently non-interactive (display:none with no way to
-// trigger the first mousedown). Now it's driven explicitly every time
-// the tool changes or an image loads.
-function updateMaskInteractivity() {
-  const isBg = currentTool === 'bg';
-  maskCanvas.style.display = isBg ? 'none' : 'block';
-  maskCanvas.classList.toggle('bg-mode', isBg);
-  const showBrushControls = !isBg;
-  brushSize.style.display = showBrushControls ? 'inline-block' : 'none';
-  brushSizeLabel.style.display = showBrushControls ? 'inline-block' : 'none';
-  brushSep.style.display = showBrushControls ? 'block' : 'none';
-}
-
-function setTool(tool) {
-  currentTool = tool;
-  toolMask.classList.toggle('active', tool === 'mask');
-  toolEraser.classList.toggle('active', tool === 'eraser');
-  toolBgErase.classList.toggle('active', tool === 'bg');
-  updateMaskInteractivity();
-}
-toolMask.addEventListener('click', () => setTool('mask'));
-toolEraser.addEventListener('click', () => setTool('eraser'));
-toolBgErase.addEventListener('click', () => setTool('bg'));
-
-brushSize.addEventListener('input', () => {
-  brushSizeVal = parseInt(brushSize.value, 10);
-  brushSizeLabel.textContent = brushSizeVal + 'px';
-});
-
-toolClearMask.addEventListener('click', () => {
-  const ctx = maskCanvas.getContext('2d');
-  ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-  maskDirty = false;
-});
-
-function canvasPos(e) {
-  const rect = maskCanvas.getBoundingClientRect();
-  const scaleX = maskCanvas.width / rect.width;
-  const scaleY = maskCanvas.height / rect.height;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-}
-
-function paintAt(x, y) {
-  const ctx = maskCanvas.getContext('2d');
-  const size = brushSizeVal * (maskCanvas.width / maskCanvas.getBoundingClientRect().width);
-  // Soft, semi-transparent stroke — this is a region hint for the AI,
-  // not a pixel-precise cutout, so it doesn't need a hard edge.
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.beginPath();
-  ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function startDraw(e) {
-  if (currentTool === 'bg') return;
-  isDrawing = true;
-  const { x, y } = canvasPos(e);
-  paintAt(x, y);
-  maskDirty = true;
-  e.preventDefault();
-}
-function moveDraw(e) {
-  if (!isDrawing || currentTool === 'bg') return;
-  const { x, y } = canvasPos(e);
-  paintAt(x, y);
-  e.preventDefault();
-}
-function endDraw() {
-  isDrawing = false;
-}
-maskCanvas.addEventListener('mousedown', startDraw);
-maskCanvas.addEventListener('mousemove', moveDraw);
-window.addEventListener('mouseup', endDraw);
-maskCanvas.addEventListener('touchstart', startDraw, { passive: false });
-maskCanvas.addEventListener('touchmove', moveDraw, { passive: false });
-window.addEventListener('touchend', endDraw);
-
-function getMaskDataUrl() {
-  if (!maskDirty) return null;
-  const out = document.createElement('canvas');
-  out.width = maskCanvas.width;
-  out.height = maskCanvas.height;
-  const octx = out.getContext('2d');
-  octx.fillStyle = '#000';
-  octx.fillRect(0, 0, out.width, out.height);
-  octx.drawImage(maskCanvas, 0, 0);
-  return out.toDataURL('image/png');
-}
-
-/* ---------- History — original upload is now restorable too ---------- */
-function renderHistory() {
-  const session = activeSession();
-  if (!session) {
-    historyList.innerHTML = '<div class="hist-empty">Your edits will appear here as a running conversation. Not happy with a result? Just describe what to change next.</div>';
-    return;
-  }
-  if (session.history.length === 1 && !session.history[0].prompt) {
-    historyList.innerHTML = `<div class="hist-turn">
-      <div class="hist-bubble original">Original image</div>
-      <div class="hist-result-row">
-        <img class="hist-thumb current" data-idx="0" src="${session.history[0].image}" alt="Original"/>
-      </div>
-    </div>`;
-    attachHistoryHandlers();
-    return;
-  }
-  historyList.innerHTML = session.history.map((turn, idx) => {
-    const isCurrent = idx === session.activeIdx;
-    if (!turn.prompt) {
-      // The original upload — FIX: this used to be skipped entirely,
-      // so there was no way to click back to it.
-      return `<div class="hist-turn">
-        <div class="hist-bubble original">Original image</div>
-        <div class="hist-result-row">
-          <img class="hist-thumb${isCurrent ? ' current' : ''}" data-idx="${idx}" src="${turn.image}" alt="Original"/>
-          ${isCurrent ? '' : '<span class="hist-restore-hint">Click to restore the original</span>'}
-        </div>
-      </div>`;
-    }
-    const actionLabel = ACTION_META[turn.action] ? ACTION_META[turn.action].label : (turn.action || '');
-    return `<div class="hist-turn">
-      <div class="hist-bubble">${escHtml(turn.prompt)}</div>
-      <div class="hist-meta"><span class="hist-tag">${escHtml(actionLabel)}</span></div>
-      <div class="hist-result-row">
-        <img class="hist-thumb${isCurrent ? ' current' : ''}" data-idx="${idx}" src="${turn.image}" alt="Result"/>
-        ${isCurrent ? '' : '<span class="hist-restore-hint">Click to restore this version</span>'}
-      </div>
-    </div>`;
-  }).join('');
-  attachHistoryHandlers();
-  historyList.scrollTop = historyList.scrollHeight;
-}
-function attachHistoryHandlers() {
-  historyList.querySelectorAll('.hist-thumb').forEach(el => {
-    el.addEventListener('click', () => {
-      const s = activeSession();
-      s.activeIdx = parseInt(el.dataset.idx, 10);
-      persist();
-      resetTool();
-      renderAll();
-      showToast('Restored — new edits branch from here.');
-    });
-  });
-}
-
-function handleFile(file) {
+function attachFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
-    createSession(e.target.result, file.name.replace(/\.[^.]+$/, '').slice(0, 24) || 'Untitled');
+    attachedImage = { dataUrl: e.target.result, name: file.name };
+    renderAttachPreview();
   };
   reader.readAsDataURL(file);
 }
-uploadBtn.addEventListener('click', () => fileInput.click());
-newImageBtn.addEventListener('click', openNewImageModal);
-fileInput.addEventListener('change', e => { if (e.target.files[0]) { handleFile(e.target.files[0]); closeNewImageModal(); } });
+function renderAttachPreview() {
+  if (attachedImage) {
+    attachPreview.style.display = 'flex';
+    attachThumb.src = attachedImage.dataUrl;
+    attachName.textContent = attachedImage.name;
+    composerBox.classList.add('has-attach');
+  } else {
+    attachPreview.style.display = 'none';
+    composerBox.classList.remove('has-attach');
+  }
+}
 
-dropCard.addEventListener('dragover', e => { e.preventDefault(); dropCard.classList.add('dragover'); });
-dropCard.addEventListener('dragleave', () => dropCard.classList.remove('dragover'));
-dropCard.addEventListener('drop', e => {
-  e.preventDefault();
-  dropCard.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-});
+// Paste image directly into the composer
 window.addEventListener('paste', e => {
   const items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
   for (const item of items) {
     if (item.type.startsWith('image/')) {
       const file = item.getAsFile();
-      if (file) handleFile(file);
+      if (file) attachFile(file);
       break;
     }
   }
 });
-
-undoBtn.addEventListener('click', () => {
-  const session = activeSession();
-  if (!session || session.activeIdx === 0) return;
-  session.activeIdx -= 1;
-  persist();
-  resetTool();
-  renderAll();
-});
-redoBtn.addEventListener('click', () => {
-  const session = activeSession();
-  if (!session || session.activeIdx >= session.history.length - 1) return;
-  session.activeIdx += 1;
-  persist();
-  resetTool();
-  renderAll();
-});
-exportBtn.addEventListener('click', () => {
-  const session = activeSession();
-  const img = currentImage(session);
-  if (!img) { showToast('No image to export yet.', true); return; }
-  const a = document.createElement('a');
-  a.href = img;
-  a.download = (session.name || 'image') + '.png';
-  a.click();
+// Drag-and-drop anywhere onto the page
+['dragover'].forEach(evt => window.addEventListener(evt, e => e.preventDefault()));
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) attachFile(e.dataTransfer.files[0]);
 });
 
-function setLoading(on, text) {
-  loadingOverlay.classList.toggle('show', on);
-  loadingText.textContent = text || 'Working on it…';
-  generateBtn.disabled = on;
+/* ---------- Tool picker ---------- */
+toolPickerBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toolPicker.classList.toggle('show');
+});
+document.addEventListener('click', (e) => {
+  if (!toolPicker.contains(e.target) && e.target !== toolPickerBtn) {
+    toolPicker.classList.remove('show');
+  }
+});
+toolPicker.querySelectorAll('.tool-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    selectedTool = el.dataset.tool;
+    toolPicker.querySelectorAll('.tool-opt').forEach(o => o.classList.remove('active'));
+    el.classList.add('active');
+    toolPickerLabel.textContent = selectedTool === 'auto' ? 'Auto' : ACTION_META[selectedTool].label;
+    toolPicker.classList.remove('show');
+    updateHint();
+  });
+});
+function updateHint() {
+  if (selectedTool === 'auto') {
+    hintLine.textContent = 'Enter to send · Shift+Enter for a new line';
+  } else {
+    const needsPrompt = selectedTool !== 'remove_bg';
+    hintLine.textContent = needsPrompt
+      ? `Using "${ACTION_META[selectedTool].label}" — describe what to find/change below.`
+      : `Using "${ACTION_META[selectedTool].label}" — no description needed, just send.`;
+  }
 }
 
+/* ---------- Finding the current working image (last image in thread) ---------- */
+function getCurrentImage() {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].image) return messages[i].image;
+  }
+  return null;
+}
+
+/* ---------- Rendering ---------- */
+function scrollToBottom() {
+  requestAnimationFrame(() => { chatScroll.scrollTop = chatScroll.scrollHeight; });
+}
+
+function renderMessages() {
+  if (!messages.length) {
+    chatEmpty.style.display = 'flex';
+    return;
+  }
+  chatEmpty.style.display = 'none';
+  chatInner.querySelectorAll('.msg-row, .thinking-row').forEach(el => el.remove());
+
+  messages.forEach((m, idx) => {
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + m.role;
+
+    if (m.text) {
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = m.text;
+      row.appendChild(bubble);
+    }
+    if (m.role === 'assistant' && m.meta) {
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      meta.innerHTML = `<span class="tag${m.meta.fallback ? ' warn' : ''}">${escHtml(m.meta.actionLabel)}</span>${m.meta.reasoning ? '<span>' + escHtml(m.meta.reasoning) + '</span>' : ''}`;
+      row.appendChild(meta);
+    }
+    if (m.image) {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg-imgwrap';
+      const img = document.createElement('img');
+      img.src = m.image;
+      wrap.appendChild(img);
+      const actions = document.createElement('div');
+      actions.className = 'msg-img-actions';
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'composer-btn';
+      dlBtn.innerHTML = '&#8595; Download';
+      dlBtn.addEventListener('click', () => downloadImage(m.image, idx));
+      actions.appendChild(dlBtn);
+      if (m.role === 'assistant') {
+        const useBtn = document.createElement('button');
+        useBtn.className = 'composer-btn';
+        useBtn.innerHTML = '&#9998; Keep editing this';
+        useBtn.title = 'Make this the base for your next edit (it already is, by default)';
+        useBtn.addEventListener('click', () => { showToastLine('This is already the active image — just type your next edit.'); });
+        actions.appendChild(useBtn);
+      }
+      wrap.appendChild(actions);
+      row.appendChild(wrap);
+    }
+    if (m.error) {
+      const errB = document.createElement('div');
+      errB.className = 'err-bubble';
+      errB.textContent = m.error;
+      row.appendChild(errB);
+    }
+    chatInner.appendChild(row);
+  });
+  scrollToBottom();
+}
+
+function showThinking(text) {
+  const row = document.createElement('div');
+  row.className = 'thinking-row';
+  row.id = 'thinkingRow';
+  row.innerHTML = `<div class="think-spin"></div><span>${escHtml(text)}</span>`;
+  chatInner.appendChild(row);
+  scrollToBottom();
+}
+function updateThinking(text) {
+  const row = document.getElementById('thinkingRow');
+  if (row) row.querySelector('span').textContent = text;
+}
+function removeThinking() {
+  const row = document.getElementById('thinkingRow');
+  if (row) row.remove();
+}
+
+let toastTimer;
+function showToastLine(msg) {
+  // Lightweight inline toast, appended briefly at the bottom of the thread area via hint line
+  const prev = hintLine.textContent;
+  hintLine.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(updateHint, 2600);
+}
+
+function downloadImage(dataUrl, idx) {
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = 'image-' + (idx + 1) + '.png';
+  a.click();
+}
+
+/* ---------- Networking helpers ---------- */
 async function fetchWithTimeout(url, options, ms) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -859,145 +459,109 @@ async function fetchWithTimeout(url, options, ms) {
   }
 }
 
-generateBtn.addEventListener('click', async () => {
-  const session = activeSession();
-  if (!session || !currentImage(session)) {
-    showToast('Upload an image first.', true);
+/* ---------- Send flow ---------- */
+async function handleSend() {
+  if (isSending) return;
+  const text = composerInput.value.trim();
+  const newImage = attachedImage;
+  const baseImage = newImage ? newImage.dataUrl : getCurrentImage();
+
+  if (!baseImage) {
+    showToastLine('Attach an image first.');
     return;
   }
-  let prompt = promptInput.value.trim();
-  const maskDataUrl = getMaskDataUrl();
-  const baseImage = currentImage(session);
-
-  // --- Determine the action ---
-  // Background Eraser: one-click, no mask, no prompt needed at all.
-  // AI Eraser: needs a painted mask, drives 'erase' directly, skips routing.
-  // Mask Select: needs a painted mask + a description -> 'inpaint', skips routing.
-  // Manual mode: whatever the user picked in the dropdown.
-  // Auto mode with no mask: ask Gemini to route.
-  let action = null, searchPrompt = '', finalPrompt = prompt, routeReasoning = '', usedFallback = false, skipRouting = false;
-
-  if (currentTool === 'bg') {
-    action = 'remove_bg';
-    skipRouting = true;
-    if (!prompt) prompt = 'Remove the background.';
-  } else if (currentTool === 'eraser') {
-    if (!maskDataUrl) { showToast('Paint over what you want to erase first.', true); return; }
-    action = 'erase';
-    skipRouting = true;
-    if (!prompt) prompt = 'Remove the marked object and fill the area naturally.';
-  } else if (routeMode === 'manual') {
-    action = actionSelect.value;
-    skipRouting = true;
-    const meta = ACTION_META[action];
-    if ((action === 'inpaint' || action === 'erase') && !maskDataUrl) {
-      showToast(`"${meta.label}" needs a painted area — use Mask Select first.`, true);
-      return;
-    }
-    if (!prompt && action !== 'remove_bg' && action !== 'erase') {
-      showToast('Describe what you want to change.', true);
-      return;
-    }
-    if (!prompt && action === 'erase') prompt = 'Remove the marked object and fill the area naturally.';
-    searchPrompt = prompt;
-  } else if (maskDataUrl) {
-    // Mask Select tool with auto mode: it's a masked region + a
-    // description of what should appear there -> inpaint, no need to
-    // ask Gemini which tool since a mask narrows it down already.
-    if (!prompt) { showToast('Describe what should appear in the selected area.', true); return; }
-    action = 'inpaint';
-    skipRouting = true;
-  } else {
-    if (!prompt) { showToast('Describe what you want to change.', true); return; }
+  if (!text && selectedTool !== 'remove_bg') {
+    showToastLine('Describe what you want to change, or pick "Remove Background".');
+    return;
   }
 
+  // Push the user's message to the thread immediately.
+  messages.push({
+    role: 'user',
+    text: text || null,
+    image: newImage ? newImage.dataUrl : null,
+  });
+  composerInput.value = '';
+  composerInput.style.height = 'auto';
+  attachedImage = null;
+  renderAttachPreview();
+  renderMessages();
+
+  isSending = true;
+  sendBtn.disabled = true;
+  showThinking(selectedTool === 'auto' ? 'Reading the image and picking a tool…' : 'Working on it…');
+
   try {
-    if (!skipRouting) {
-      setLoading(true, 'Choosing the best tool…');
+    let action = selectedTool, searchPrompt = '', finalPrompt = text || '', reasoning = '', fallback = false;
+
+    if (selectedTool === 'auto') {
       let routeData;
       try {
         const routeRes = await fetchWithTimeout(API_ENDPOINT + '?mode=route', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: baseImage, prompt, hasMask: !!maskDataUrl }),
+          body: JSON.stringify({ image: baseImage, prompt: text, hasMask: false }),
         }, 12000);
         routeData = await routeRes.json();
-        if (!routeRes.ok || !routeData.action) {
-          throw new Error(routeData.error || 'Routing failed');
-        }
+        if (!routeRes.ok || !routeData.action) throw new Error(routeData.error || 'Routing failed');
       } catch (routeErr) {
         routeData = {
-          action: maskDataUrl ? 'erase' : 'search_replace',
-          search_prompt: prompt,
-          final_prompt: prompt,
+          action: 'search_replace',
+          search_prompt: text,
+          final_prompt: text,
           reasoning: 'Could not reach the routing service, used a default tool instead.',
           fallback: true,
         };
       }
-
       action = routeData.action;
       searchPrompt = routeData.search_prompt || '';
-      finalPrompt = routeData.final_prompt || prompt;
-      routeReasoning = routeData.reasoning || '';
-      usedFallback = !!routeData.fallback;
-
-      if (enhanceToggle.checked && finalPrompt) prompt = finalPrompt;
-
-      routeNoteText.textContent = `Used "${ACTION_META[action] ? ACTION_META[action].label : action}"${routeReasoning ? ' — ' + routeReasoning : ''}`;
-      routeNote.classList.toggle('warn', usedFallback);
-      routeNoteIcon.textContent = usedFallback ? '⚠️' : '🧠';
-      routeNote.style.display = 'flex';
+      finalPrompt = routeData.final_prompt || text;
+      reasoning = routeData.reasoning || '';
+      fallback = !!routeData.fallback;
     } else {
-      routeNote.style.display = 'none';
+      searchPrompt = text;
+      finalPrompt = text;
+      if (!ACTION_META[action]) action = 'search_replace';
     }
 
-    if ((action === 'search_replace' || action === 'search_recolor') && !searchPrompt) {
-      searchPrompt = prompt;
-    }
-    if ((action === 'inpaint' || action === 'erase') && !maskDataUrl) {
-      throw new Error('That tool needs a painted area — use Mask Select or AI Eraser first.');
+    if (action === 'remove_bg') {
+      finalPrompt = finalPrompt || 'Remove the background.';
     }
 
-    setLoading(true, 'Generating your image…');
+    updateThinking('Generating your image…');
     const editRes = await fetchWithTimeout(API_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: baseImage, action, prompt, searchPrompt, mask: maskDataUrl }),
+      body: JSON.stringify({ image: baseImage, action, prompt: finalPrompt, searchPrompt, mask: null }),
     }, 45000);
     const editData = await editRes.json();
     if (!editRes.ok || !editData.image) {
       throw new Error(editData.error ? (editData.error + (editData.detail ? ' — ' + JSON.stringify(editData.detail).slice(0, 200) : '')) : 'Generation failed');
     }
 
-    session.history = session.history.slice(0, session.activeIdx + 1);
-    session.history.push({ prompt, action, image: editData.image, ts: Date.now() });
-    session.activeIdx = session.history.length - 1;
-    persist();
-
-    resetTool();
-    promptInput.value = '';
-    renderAll();
-    showToast('Done.');
+    removeThinking();
+    messages.push({
+      role: 'assistant',
+      image: editData.image,
+      meta: { actionLabel: ACTION_META[action] ? ACTION_META[action].label : action, reasoning, fallback },
+    });
+    renderMessages();
   } catch (err) {
+    removeThinking();
     const msg = err && err.name === 'AbortError'
       ? 'The request took too long and was cancelled. Try again.'
       : (err.message || 'Something went wrong.');
-    showToast(msg, true);
+    messages.push({ role: 'assistant', error: msg });
+    renderMessages();
   } finally {
-    setLoading(false);
+    isSending = false;
+    sendBtn.disabled = false;
   }
-});
-
-function renderAll() {
-  renderTabs();
-  renderStage();
-  renderHistory();
 }
+sendBtn.addEventListener('click', handleSend);
 
-sessions = loadPersisted();
-if (sessions.length) activeSessionId = sessions[0].id;
-setRouteMode('auto');
-renderAll();
+updateHint();
+renderMessages();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
