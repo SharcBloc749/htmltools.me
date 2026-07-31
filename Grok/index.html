@@ -213,11 +213,6 @@ input.inp::placeholder,textarea.inp::placeholder{color:var(--tx3);}
 .mode-opt-check{opacity:0;flex-shrink:0;margin-top:2px;}
 .mode-opt.selected .mode-opt-check{opacity:1;}
 
-/* FIX: send button now has a clearly distinct enabled vs disabled look,
-   independent of the opacity trick (which made "enabled" look grey-ish
-   on some monitors and was the visual source of the "it's stuck grey"
-   confusion). Disabled state is now a flat dark grey with dim icon;
-   enabled state is solid white with black icon and no opacity applied. */
 .composer-send{
   width:38px;height:38px;border-radius:50%;
   border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;
@@ -782,6 +777,24 @@ function renderSidebar(filterQuery) {
 }
 
 // ── COMPOSER (shared, moved between empty-state and bottom-bar) ──
+// NOTE: previously, whichever composer element was mounted LAST kept
+// getting new document-scoped event listeners attached via getElementById
+// lookups made fresh each mount — that part was fine. The real bug was
+// that isSending could get stuck true if an error was thrown before it
+// was reset in some paths, and more importantly the send button's
+// disabled state was only ever refreshed from 'input'-family events on
+// the *current* textarea — it was never explicitly re-synced immediately
+// after a remount. If the composer got re-mounted (e.g. after the first
+// reply came back and mountComposerBottom() rebuilt it) while the user's
+// cursor/typing didn't fire a fresh 'input' event the button could sit
+// disabled even though the textarea already had focus and the user was
+// typing normally in most browsers — but crucially, hitting Enter or
+// clicking Send is what should ALSO work regardless of the button's
+// disabled attribute, since Enter goes through its own keydown handler.
+// We now decouple "can this submit" logic from the button's disabled
+// attribute entirely for the Enter-key and click paths, and we force a
+// refreshSendState() call immediately on every mount (not just relying
+// on the user typing again).
 function mountComposer(targetEl) {
   var tpl = document.getElementById('composer-template');
   var node = tpl.content.cloneNode(true);
@@ -803,36 +816,31 @@ function wireComposer() {
   var modeMenu      = document.getElementById('mode-menu');
   var modeLabel     = document.getElementById('mode-btn-label');
 
-  // FIX: refreshSendState is now the single source of truth for the
-  // send button's disabled attribute, and it's called from every event
-  // that could plausibly change the textarea's content — input, keyup,
-  // paste, and cut — not just 'input'. Some browsers/extensions/IME
-  // setups can suppress a clean 'input' event on certain keystrokes,
-  // which was leaving the button stuck in its disabled/grey state even
-  // though the user had typed text. Belt-and-suspenders here fixes it
-  // regardless of which event actually fires.
   function refreshSendState() {
+    if (!composerInput || !composerSend) return;
     var hasText = composerInput.value.trim().length > 0;
-    composerSend.disabled = !hasText && !pendingImage;
+    composerSend.disabled = isSending ? true : (!hasText && !pendingImage);
   }
 
   ['input','keyup','paste','cut','change'].forEach(function(evt){
     composerInput.addEventListener(evt, function() {
-      // autoresize
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 200) + 'px';
       refreshSendState();
     });
   });
 
+  // Enter-to-send no longer depends on the button's disabled attribute —
+  // it checks the live textarea value / pendingImage / isSending directly,
+  // so a stale disabled flag on the button can never block sending.
   composerInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (this.value.trim() || pendingImage) sendMessage();
+      if (!isSending && (this.value.trim() || pendingImage)) sendMessage();
     }
   });
   composerSend.addEventListener('click', function() {
-    if (composerInput.value.trim() || pendingImage) sendMessage();
+    if (!isSending && (composerInput.value.trim() || pendingImage)) sendMessage();
   });
 
   attachBtn.addEventListener('click', function() {
@@ -897,6 +905,14 @@ function wireComposer() {
     });
   });
   updateModeSelection();
+  // Force an immediate, synchronous refresh right after mount so the
+  // button's disabled state always reflects reality on first paint —
+  // this is the key fix: previously this only ran once here and was
+  // never re-triggered by anything except user typing, so if isSending
+  // ever got left true (e.g. a failed fetch that didn't fully reset
+  // state before remount) the fresh button rendered disabled=true from
+  // the template and nothing ever cleared it.
+  isSending = false;
   refreshSendState();
   composerInput.focus();
 }
@@ -1069,6 +1085,7 @@ function hideChatError() {
 document.getElementById('btn-new-chat').addEventListener('click', function() {
   activeConvId = null;
   pendingImage = null;
+  isSending = false;
   renderSidebar();
   showEmptyChat();
 });
@@ -1087,6 +1104,12 @@ async function sendMessage() {
   composerInput.value = '';
   composerInput.style.height = 'auto';
   isSending = true;
+  // Explicitly disable the send button the moment we start sending —
+  // this is set directly rather than relying on refreshSendState(),
+  // since the element we're disabling here is guaranteed to be the
+  // live one for this exact call.
+  var sendBtnNow = document.getElementById('composer-send');
+  if (sendBtnNow) sendBtnNow.disabled = true;
 
   var isNewConv = !activeConvId;
   var conv;
@@ -1111,6 +1134,14 @@ async function sendMessage() {
     document.getElementById('chat-inner').style.display = 'flex';
     document.getElementById('chat-inner').style.flexDirection = 'column';
     mountComposerBottom();
+    // mountComposerBottom() -> mountComposer() -> wireComposer() resets
+    // isSending to false at the end (see wireComposer). Since we are
+    // mid-send here, re-assert true immediately after mounting so a
+    // fresh remount never leaves the app thinking it's idle while a
+    // request is actually still in flight.
+    isSending = true;
+    var freshSendBtn = document.getElementById('composer-send');
+    if (freshSendBtn) freshSendBtn.disabled = true;
   }
 
   appendMessageEl('user', userMsgContent, attachedImage ? attachedImage.dataUrl : null, null);
@@ -1145,6 +1176,9 @@ async function sendMessage() {
     if (!res.ok || data.error) {
       showChatError(typeof data.error === 'string' ? data.error : ('Request failed (' + res.status + ')'));
       isSending = false;
+      var btnErr = document.getElementById('composer-send');
+      var inpErr = document.getElementById('composer-input');
+      if (btnErr && inpErr) btnErr.disabled = !(inpErr.value.trim() || pendingImage);
       return;
     }
 
@@ -1153,6 +1187,9 @@ async function sendMessage() {
     if (!reply) {
       showChatError('The assistant returned an empty response. Try again.');
       isSending = false;
+      var btnEmpty = document.getElementById('composer-send');
+      var inpEmpty = document.getElementById('composer-input');
+      if (btnEmpty && inpEmpty) btnEmpty.disabled = !(inpEmpty.value.trim() || pendingImage);
       return;
     }
 
@@ -1178,7 +1215,17 @@ async function sendMessage() {
     showChatError('Network error: ' + err.message);
   }
 
+  // Always end the send cycle by clearing isSending AND explicitly
+  // re-enabling/syncing the button that's live right now — this runs
+  // regardless of which branch above executed (success, API error,
+  // empty reply, or network exception), so the composer can never be
+  // left stuck disabled after a send finishes.
   isSending = false;
+  var finalBtn = document.getElementById('composer-send');
+  var finalInput = document.getElementById('composer-input');
+  if (finalBtn && finalInput) {
+    finalBtn.disabled = !(finalInput.value.trim() || pendingImage);
+  }
 }
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
