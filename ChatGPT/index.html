@@ -65,7 +65,15 @@
           return;
         }
 
-        const reply = data.choices?.[0]?.message?.content ?? JSON.stringify(data);
+        // Responses API shape: data.output is an array of items; find the
+        // assistant message item and pull its text out of its content array.
+        let reply = data.output_text; // some Mantle responses include this convenience field
+        if (!reply) {
+          const messageItem = (data.output || []).find((item) => item.type === "message");
+          const textPart = messageItem?.content?.find((c) => c.type === "output_text");
+          reply = textPart?.text;
+        }
+        if (!reply) reply = JSON.stringify(data);
         thinkingLine.textContent = "Bot: " + reply;
         history.push({ role: "assistant", content: reply });
       } catch (err) {
