@@ -43,7 +43,6 @@ nav{height:var(--nav-h);background:#000;border-bottom:1px solid var(--border);di
 .nav-user{display:flex;align-items:center;gap:14px;font-size:.84rem;color:var(--tx3);}
 .nav-user-email{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx2);}
 
-/* sidebar toggle */
 .sidebar-toggle-btn{width:36px;height:36px;border-radius:8px;background:transparent;border:none;color:var(--tx2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .13s;}
 .sidebar-toggle-btn:hover{background:var(--panel2);color:var(--tx);}
 
@@ -158,7 +157,6 @@ input.inp::placeholder,textarea.inp::placeholder{color:var(--tx3);}
 .msg-bot-hdr{display:flex;align-items:center;gap:9px;margin-bottom:4px;}
 .msg-bot-hdr span{font-size:.82rem;font-weight:600;color:var(--tx3);}
 
-/* 9-dot thinking animation — smaller + tighter, matches icon footprint */
 .thinking-dots{display:grid;grid-template-columns:repeat(3,3px);grid-template-rows:repeat(3,3px);gap:2px;padding:6px 2px;}
 .thinking-dots span{width:3px;height:3px;border-radius:1px;background:var(--border2);animation:dotpulse 1.4s infinite ease-in-out;}
 .thinking-dots span:nth-child(1){animation-delay:0s;}
@@ -203,11 +201,6 @@ input.inp::placeholder,textarea.inp::placeholder{color:var(--tx3);}
 .composer-attach-btn:hover{background:var(--panel2);color:var(--tx);border-color:var(--borderhi);}
 .composer-attach-btn.disabled{opacity:.35;cursor:not-allowed;}
 
-/* mode select — dropdown opens UPWARD but is now anchored so it never
-   gets clipped by the viewport, even when the composer sits near the
-   top of the screen (empty-state). We do this by rendering the menu
-   via position:fixed with JS-computed coordinates instead of relying
-   on the parent's overflow/stacking context. */
 .mode-select{position:relative;flex-shrink:0;}
 .mode-btn{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border2);color:var(--tx2);padding:0 13px;height:38px;border-radius:var(--r-full);font-size:.86rem;font-weight:500;transition:all .13s;}
 .mode-btn:hover{background:var(--panel2);color:var(--tx);border-color:var(--borderhi);}
@@ -219,9 +212,25 @@ input.inp::placeholder,textarea.inp::placeholder{color:var(--tx3);}
 .mode-opt-txt small{font-size:.79rem;color:var(--tx3);}
 .mode-opt-check{opacity:0;flex-shrink:0;margin-top:2px;}
 .mode-opt.selected .mode-opt-check{opacity:1;}
-.composer-send{width:38px;height:38px;border-radius:50%;background:var(--white);color:var(--wfg);border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .13s;}
-.composer-send:hover{opacity:.85;transform:scale(1.04);}
-.composer-send:disabled{opacity:.3;cursor:not-allowed;transform:none;}
+
+/* FIX: send button now has a clearly distinct enabled vs disabled look,
+   independent of the opacity trick (which made "enabled" look grey-ish
+   on some monitors and was the visual source of the "it's stuck grey"
+   confusion). Disabled state is now a flat dark grey with dim icon;
+   enabled state is solid white with black icon and no opacity applied. */
+.composer-send{
+  width:38px;height:38px;border-radius:50%;
+  border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .13s,color .13s,transform .13s;
+  background:var(--panel2);
+  color:var(--tx3);
+}
+.composer-send:not(:disabled){
+  background:var(--white);
+  color:var(--wfg);
+}
+.composer-send:not(:disabled):hover{opacity:.85;transform:scale(1.04);}
+.composer-send:disabled{cursor:not-allowed;}
 .composer-hint{text-align:center;font-size:.77rem;color:var(--tx3);margin-top:11px;}
 .err-banner{max-width:920px;margin:0 auto 10px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:var(--r);padding:10px 14px;font-size:.85rem;color:var(--redhi);}
 
@@ -412,7 +421,6 @@ function genId(len) {
   return s;
 }
 
-/* Clean, unambiguous line-icon copy/check glyphs (not emoji). */
 var ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 var ICON_CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
 
@@ -697,7 +705,6 @@ window.addEventListener('resize', function(){});
 checkMobile();
 
 document.getElementById('sb-search-btn').addEventListener('click', function() {
-  // simple client-side filter prompt over conversation list
   var q = prompt('Search conversations:');
   if (q === null) return;
   q = q.trim().toLowerCase();
@@ -796,15 +803,28 @@ function wireComposer() {
   var modeMenu      = document.getElementById('mode-menu');
   var modeLabel     = document.getElementById('mode-btn-label');
 
+  // FIX: refreshSendState is now the single source of truth for the
+  // send button's disabled attribute, and it's called from every event
+  // that could plausibly change the textarea's content — input, keyup,
+  // paste, and cut — not just 'input'. Some browsers/extensions/IME
+  // setups can suppress a clean 'input' event on certain keystrokes,
+  // which was leaving the button stuck in its disabled/grey state even
+  // though the user had typed text. Belt-and-suspenders here fixes it
+  // regardless of which event actually fires.
   function refreshSendState() {
-    composerSend.disabled = !composerInput.value.trim() && !pendingImage;
+    var hasText = composerInput.value.trim().length > 0;
+    composerSend.disabled = !hasText && !pendingImage;
   }
 
-  composerInput.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-    refreshSendState();
+  ['input','keyup','paste','cut','change'].forEach(function(evt){
+    composerInput.addEventListener(evt, function() {
+      // autoresize
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+      refreshSendState();
+    });
   });
+
   composerInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -816,7 +836,7 @@ function wireComposer() {
   });
 
   attachBtn.addEventListener('click', function() {
-    if (pendingImage) return; // only one image per prompt
+    if (pendingImage) return;
     fileInput.click();
   });
   fileInput.addEventListener('change', function() {
@@ -846,12 +866,6 @@ function wireComposer() {
     refreshSendState();
   });
 
-  /* Mode dropdown: position it as a fixed-position element computed from
-     the button's own bounding box, opening upward. This means it always
-     has room to render fully regardless of where the composer sits on
-     the page (empty-state center vs. bottom bar), so it can never get
-     clipped or "crop out" the way a purely CSS-anchored absolute menu
-     can when its ancestor is near the top of the viewport. */
   function positionModeMenu() {
     var r = modeBtn.getBoundingClientRect();
     var menuWidth = 250;
@@ -946,9 +960,6 @@ function buildSuggestionsEl(suggestions) {
     var item = document.createElement('div');
     item.className = 'sugg-item';
     item.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><span>'+esc(s)+'</span>';
-    /* Suggestion chips now actually act like suggestions: clicking one
-       sends it immediately, instead of only dropping text into the
-       composer and leaving the user to press send themselves. */
     item.addEventListener('click', function() {
       var ci = document.getElementById('composer-input');
       if (!ci) return;
@@ -1029,14 +1040,12 @@ function removeThinkingIndicator() {
   if (el) el.remove();
 }
 
-// Word-by-word reveal of the assistant's reply into a bubble element.
 function streamTextIntoBubble(bubble, fullText, onDone) {
-  var words = fullText.split(/(\s+)/); // keep whitespace tokens so spacing is preserved
+  var words = fullText.split(/(\s+)/);
   var i = 0;
   var acc = '';
   function step() {
     if (i >= words.length) { bubble.innerHTML = renderMarkdown(fullText); if (onDone) onDone(); return; }
-    // reveal a few tokens per tick for a natural pace
     var chunk = 2;
     for (var k = 0; k < chunk && i < words.length; k++, i++) acc += words[i];
     bubble.innerHTML = renderMarkdown(acc);
@@ -1096,7 +1105,6 @@ async function sendMessage() {
   var userMsgContent = text || '(image attached)';
   conv.messages.push({ role: 'user', content: userMsgContent, imageDataUrl: attachedImage ? attachedImage.dataUrl : null, ts: Date.now() });
 
-  // move into full chat view if this was the first message
   if (isNewConv) {
     document.getElementById('empty-chat').style.display = 'none';
     document.getElementById('composer-slot-bottom').style.display = 'block';
@@ -1154,7 +1162,6 @@ async function sendMessage() {
 
     conv.messages.push({ role: 'assistant', content: reply, ts: Date.now() });
 
-    // Render bot header + empty bubble, then stream words into it, then attach suggestions.
     var built = appendMessageEl('assistant', '', null, null);
     scrollChatToBottom();
     streamTextIntoBubble(built.bubble, reply, function() {
@@ -1174,5 +1181,6 @@ async function sendMessage() {
   isSending = false;
 }
 </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
