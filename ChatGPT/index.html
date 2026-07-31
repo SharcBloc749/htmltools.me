@@ -315,27 +315,37 @@ var LANG_EXT = {
 // ── MARKDOWN RENDERER ──
 // Lightweight markdown -> HTML. Handles: **bold**, *italic*, `code`,
 // ```code blocks``` (rendered with a header + copy/download actions),
-// literal <br> tags, \n line breaks, headings, lists, tables, links, hr.
-// Escapes HTML first so nothing user-provided or model-provided can
-// inject markup outside of what we explicitly render.
+// literal <br> markers, \n line breaks, headings, lists, tables, links, hr.
+//
+// IMPORTANT FIX: fenced code blocks are now extracted from the RAW source
+// (before any HTML-escaping happens) and stored/escaped exactly once, at
+// display time. Previously the whole message was escaped first, so code
+// already containing "<" and ">" got turned into "&lt;"/"&gt;", and then
+// esc() was called AGAIN inside renderCodeBlock — double-escaping the
+// content into "&amp;lt;" etc. That's why copy/download and on-screen code
+// blocks showed literal "&lt;" instead of "<". Now raw code is captured
+// once, stored raw for Copy/Download, and escaped exactly once for display.
 var _codeStore = {}; // id -> raw code, used by copy/download handlers
 var _codeStoreSeq = 0;
 
 function renderMarkdown(src) {
   if (!src) return '';
-  var text = esc(src);
 
-  // Restore literal <br> the model might emit as text (already escaped above
-  // to &lt;br&gt;) back into real line breaks.
-  text = text.replace(/&lt;br\s*\/?&gt;/gi, '\n');
-
-  // Extract fenced code blocks first so inner content isn't touched by other rules.
+  // 1) Pull fenced code blocks out of the RAW (unescaped) source first.
   var codeBlocks = [];
-  text = text.replace(/```([a-zA-Z0-9+#]*)\n?([\s\S]*?)```/g, function(_, lang, code) {
+  var withoutCode = src.replace(/```([a-zA-Z0-9+#]*)\n?([\s\S]*?)```/g, function(_, lang, code) {
     var idx = codeBlocks.length;
-    codeBlocks.push({ lang: (lang||'').toLowerCase(), code: code.replace(/\n$/,'') });
+    // Strip a single trailing newline right before the closing fence, if present.
+    codeBlocks.push({ lang: (lang || '').toLowerCase(), code: code.replace(/\n$/, '') });
     return '\u0000CODEBLOCK' + idx + '\u0000';
   });
+
+  // 2) Now escape the remaining prose (code is safely out of the way).
+  var text = esc(withoutCode);
+
+  // Restore literal <br> the model might emit as text (now escaped to
+  // &lt;br&gt;) back into real line breaks.
+  text = text.replace(/&lt;br\s*\/?&gt;/gi, '\n');
 
   var lines = text.split('\n');
   var html = [];
@@ -422,12 +432,13 @@ function renderMarkdown(src) {
   }
   closeList(); flushTable();
 
-  // Collapse consecutive empty markers, join.
   return html.filter(function(l){ return l !== ''; }).join('\n');
 }
 
 function renderCodeBlock(lang, code) {
   var storeId = 'cb' + (_codeStoreSeq++);
+  // Store the RAW code (no escaping) so Copy/Download always give back
+  // exactly what the model produced — real "<", ">", "&", quotes, etc.
   _codeStore[storeId] = code;
   var ext = LANG_EXT[lang] || (lang ? lang : 'txt');
   var label = lang ? lang : 'text';
@@ -446,6 +457,7 @@ function renderCodeBlock(lang, code) {
           '</button>' +
         '</div>' +
       '</div>' +
+      // Escape exactly once, here, for display purposes only.
       '<pre><code>' + esc(code) + '</code></pre>' +
     '</div>'
   );
@@ -838,5 +850,6 @@ async function sendMessage() {
   composerInput.focus();
 }
 </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
