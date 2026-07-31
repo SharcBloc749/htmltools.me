@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ChatGPT Test — htmltools.me</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+  #log { border: 1px solid #ccc; border-radius: 8px; padding: 12px; min-height: 200px; margin-bottom: 12px; white-space: pre-wrap; }
+  .msg-user { color: #0a5; font-weight: 600; }
+  .msg-bot { color: #333; }
+  form { display: flex; gap: 8px; }
+  input { flex: 1; padding: 8px; font-size: 16px; }
+  button { padding: 8px 16px; font-size: 16px; cursor: pointer; }
+</style>
+</head>
+<body>
+  <h1>ChatGPT Test</h1>
+  <div id="log"></div>
+  <form id="chat-form">
+    <input id="input" type="text" placeholder="Say something..." autocomplete="off" required />
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    // Point this at your deployed Worker URL
+    const WORKER_URL = "https://long-wind-242d.bozhetarnikmatthew.workers.dev/";
+
+    const log = document.getElementById("log");
+    const form = document.getElementById("chat-form");
+    const input = document.getElementById("input");
+
+    const history = []; // running list of {role, content}
+
+    function appendLine(label, text, cls) {
+      const div = document.createElement("div");
+      div.className = cls;
+      div.textContent = label + ": " + text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+
+      appendLine("You", text, "msg-user");
+      history.push({ role: "user", content: text });
+
+      appendLine("Bot", "…thinking…", "msg-bot");
+      const thinkingLine = log.lastChild;
+
+      try {
+        const res = await fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: history }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          thinkingLine.textContent = "Bot (error): " + JSON.stringify(data);
+          return;
+        }
+
+        const reply = data.choices?.[0]?.message?.content ?? JSON.stringify(data);
+        thinkingLine.textContent = "Bot: " + reply;
+        history.push({ role: "assistant", content: reply });
+      } catch (err) {
+        thinkingLine.textContent = "Bot (network error): " + err;
+      }
+    });
+  </script>
+</body>
+</html>
