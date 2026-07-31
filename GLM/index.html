@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>GLM 5 Chat</title>
+</head>
+<body>
+  <h2>GLM 5 Chat</h2>
+  <div id="chat" style="border:1px solid #ccc; padding:10px; height:300px; overflow-y:auto;"></div>
+  <input id="input" type="text" style="width:80%;" placeholder="Type a message...">
+  <button onclick="send()">Send</button>
+
+  <script>
+    const WORKER_URL = "https://round-field-a495.bozhetarnikmatthew.workers.dev/";
+
+    async function send() {
+      const input = document.getElementById("input");
+      const chat = document.getElementById("chat");
+      const message = input.value;
+      if (!message) return;
+
+      chat.innerHTML += "<p><b>You:</b> " + message + "</p>";
+      input.value = "";
+
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+
+      const data = await res.json();
+      chat.innerHTML += "<p><b>GLM 5:</b> " + (data.reply || data.error) + "</p>";
+      chat.scrollTop = chat.scrollHeight;
+    }
+  </script>
+</body>
+</html>
