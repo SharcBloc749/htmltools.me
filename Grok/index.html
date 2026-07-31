@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Grok 4.3 Test</title>
+<style>
+  body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+  textarea { width: 100%; height: 100px; font-size: 14px; }
+  input[type="file"] { margin: 10px 0; }
+  button { padding: 10px 20px; font-size: 15px; cursor: pointer; }
+  #response { white-space: pre-wrap; background: #f4f4f4; padding: 15px; margin-top: 20px; border-radius: 6px; min-height: 50px; }
+  #preview { max-width: 200px; margin-top: 10px; display: block; }
+  #status { color: #888; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Grok 4.3 Test</h1>
+
+<textarea id="prompt" placeholder="Type your prompt here..."></textarea>
+<br>
+<label>Optional image: <input type="file" id="imageInput" accept="image/*"></label>
+<img id="preview" style="display:none;">
+<br><br>
+<button id="sendBtn">Send</button>
+<div id="status"></div>
+
+<h3>Response:</h3>
+<div id="response"></div>
+
+<script>
+const WORKER_URL = "https://throbbing-grass-0c53.bozhetarnikmatthew.workers.dev/";
+
+const imageInput = document.getElementById("imageInput");
+const preview = document.getElementById("preview");
+let imageBase64 = null;
+let imageMediaType = null;
+
+imageInput.addEventListener("change", () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+  imageMediaType = file.type;
+  const reader = new FileReader();
+  reader.onload = () => {
+    // reader.result is "data:image/png;base64,AAAA..."
+    imageBase64 = reader.result.split(",")[1];
+    preview.src = reader.result;
+    preview.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("sendBtn").addEventListener("click", async () => {
+  const prompt = document.getElementById("prompt").value.trim();
+  const statusEl = document.getElementById("status");
+  const responseEl = document.getElementById("response");
+
+  if (!prompt) {
+    statusEl.textContent = "Please enter a prompt.";
+    return;
+  }
+
+  statusEl.textContent = "Sending request...";
+  responseEl.textContent = "";
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        imageBase64: imageBase64 || undefined,
+        imageMediaType: imageMediaType || undefined,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusEl.textContent = "Error " + res.status;
+      responseEl.textContent = JSON.stringify(data, null, 2);
+      return;
+    }
+
+    statusEl.textContent = "Done.";
+    responseEl.textContent = data.reply;
+  } catch (err) {
+    statusEl.textContent = "Request failed.";
+    responseEl.textContent = err.message;
+  }
+});
+</script>
+
+</body>
+</html>
