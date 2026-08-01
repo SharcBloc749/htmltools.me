@@ -958,6 +958,16 @@ function showEmptyChat() {
   document.getElementById('chat-inner').style.display = 'none';
   document.getElementById('chat-inner').innerHTML = '';
   document.getElementById('composer-slot-bottom').style.display = 'none';
+  // IMPORTANT: clear out the bottom composer slot's contents, not just
+  // hide it. Both this function and mountComposerBottom() build a
+  // composer whose button has id="composer-send" — if the old one is
+  // merely hidden via CSS instead of removed, there are briefly two
+  // elements sharing that ID, and document.getElementById() can return
+  // either one. In practice it kept returning the hidden, stale one
+  // instead of the composer actually visible on screen, so every fix
+  // that did getElementById('composer-send') was silently updating a
+  // button nobody could see or click.
+  document.getElementById('composer-slot-bottom').innerHTML = '';
   hideChatError();
   mountComposer(document.getElementById('empty-composer-slot'));
 }
