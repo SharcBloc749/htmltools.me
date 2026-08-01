@@ -330,8 +330,20 @@ footer .dot{color:var(--borderhi);}
           </div>
           <div class="chat-inner" id="chat-inner" style="display:none;"></div>
         </div>
+        <!--
+          NOTE: composer-slot-bottom now has two STABLE, PERMANENT children:
+          #err-banner and #composer-mount-bottom. Previously the whole
+          wrapper's innerHTML was wiped (via showEmptyChat) which destroyed
+          the #err-banner node forever, so the next mountComposerBottom()
+          call did document.getElementById('err-banner') -> null and then
+          wrap.appendChild(null) threw, silently breaking sendMessage() and
+          leaving the Send button stuck disabled. Now we only ever clear
+          the #composer-mount-bottom sub-container, never the wrapper
+          itself, so err-banner is never destroyed.
+        -->
         <div class="composer-wrap" id="composer-slot-bottom" style="display:none;">
           <div class="err-banner" id="err-banner" style="display:none;"></div>
+          <div id="composer-mount-bottom"></div>
         </div>
       </div>
     </div>
@@ -787,24 +799,27 @@ function renderSidebar(filterQuery) {
 }
 
 // ── COMPOSER (shared, moved between empty-state and bottom-bar) ──
-// NOTE: previously, whichever composer element was mounted LAST kept
-// getting new document-scoped event listeners attached via getElementById
-// lookups made fresh each mount — that part was fine. The real bug was
-// that isSending could get stuck true if an error was thrown before it
-// was reset in some paths, and more importantly the send button's
-// disabled state was only ever refreshed from 'input'-family events on
-// the *current* textarea — it was never explicitly re-synced immediately
-// after a remount. If the composer got re-mounted (e.g. after the first
-// reply came back and mountComposerBottom() rebuilt it) while the user's
-// cursor/typing didn't fire a fresh 'input' event the button could sit
-// disabled even though the textarea already had focus and the user was
-// typing normally in most browsers — but crucially, hitting Enter or
-// clicking Send is what should ALSO work regardless of the button's
-// disabled attribute, since Enter goes through its own keydown handler.
-// We now decouple "can this submit" logic from the button's disabled
-// attribute entirely for the Enter-key and click paths, and we force a
-// refreshSendState() call immediately on every mount (not just relying
-// on the user typing again).
+//
+// ROOT CAUSE OF THE BROKEN SEND BUTTON (fixed here):
+// Both the empty-state composer slot (#empty-composer-slot) and the
+// bottom-of-chat composer slot (#composer-mount-bottom) can render a
+// composer cloned from the same <template>, and every clone reuses the
+// SAME ids (id="composer-input", id="composer-send", etc). If both slots
+// ever contain a composer at the same time — which used to happen because
+// switching from the empty state to a conversation only *hid* the empty
+// state via CSS instead of clearing its contents — then the document has
+// two elements with id="composer-send" simultaneously. wireComposer()
+// always looks elements up via document.getElementById(), which returns
+// whichever matching element comes FIRST in the DOM. Since the empty
+// composer slot sits earlier in the markup than the bottom composer slot,
+// wireComposer() kept wiring click/keydown listeners onto the invisible,
+// orphaned composer instead of the one actually on screen — so clicking
+// the visible Send button did nothing.
+//
+// Fix: mountComposer() always fully owns its target slot, and we now make
+// sure the *other* slot is emptied out any time we mount into one of them
+// (see mountComposerBottom() and showEmptyChat() below), so there is only
+// ever a single #composer-input / #composer-send pair in the document.
 function mountComposer(targetEl) {
   var tpl = document.getElementById('composer-template');
   var node = tpl.content.cloneNode(true);
@@ -958,23 +973,18 @@ function showEmptyChat() {
   document.getElementById('chat-inner').style.display = 'none';
   document.getElementById('chat-inner').innerHTML = '';
   document.getElementById('composer-slot-bottom').style.display = 'none';
-  // IMPORTANT: clear out the bottom composer slot's contents, not just
-  // hide it. Both this function and mountComposerBottom() build a
-  // composer whose button has id="composer-send" — if the old one is
-  // merely hidden via CSS instead of removed, there are briefly two
-  // elements sharing that ID, and document.getElementById() can return
-  // either one. In practice it kept returning the hidden, stale one
-  // instead of the composer actually visible on screen, so every fix
-  // that did getElementById('composer-send') was silently updating a
-  // button nobody could see or click.
-  document.getElementById('composer-slot-bottom').innerHTML = '';
+  // Only clear the composer MOUNT sub-container here, never the whole
+  // #composer-slot-bottom wrapper — that wrapper permanently owns
+  // #err-banner, and wiping it would delete that node from the document
+  // for good (see the big note above mountComposer()).
+  var bottomMount = document.getElementById('composer-mount-bottom');
+  if (bottomMount) bottomMount.innerHTML = '';
   hideChatError();
   mountComposer(document.getElementById('empty-composer-slot'));
 }
 
 function showConversation(conv) {
   document.getElementById('empty-chat').style.display = 'none';
-  document.getElementById('composer-slot-bottom').style.display = 'block';
   var inner = document.getElementById('chat-inner');
   inner.style.display = 'flex';
   inner.style.flexDirection = 'column';
@@ -987,13 +997,14 @@ function showConversation(conv) {
 }
 
 function mountComposerBottom() {
-  var wrap = document.getElementById('composer-slot-bottom');
-  var errBanner = document.getElementById('err-banner');
-  wrap.innerHTML = '';
-  wrap.appendChild(errBanner);
-  var slot = document.createElement('div');
-  wrap.appendChild(slot);
-  mountComposer(slot);
+  // Always clear out the empty-state slot first so we never end up with
+  // two elements sharing id="composer-input"/"composer-send" at once —
+  // that duplicate-id situation was the actual cause of the Send button
+  // silently doing nothing (see the note above mountComposer()).
+  var emptySlot = document.getElementById('empty-composer-slot');
+  if (emptySlot) emptySlot.innerHTML = '';
+  document.getElementById('composer-slot-bottom').style.display = 'block';
+  mountComposer(document.getElementById('composer-mount-bottom'));
 }
 
 function scrollChatToBottom() {
@@ -1105,6 +1116,7 @@ function streamTextIntoBubble(bubble, fullText, onDone) {
 
 function showChatError(text) {
   var el = document.getElementById('err-banner');
+  if (!el) return;
   el.textContent = text;
   el.style.display = 'block';
 }
@@ -1158,7 +1170,6 @@ async function sendMessage() {
 
   if (isNewConv) {
     document.getElementById('empty-chat').style.display = 'none';
-    document.getElementById('composer-slot-bottom').style.display = 'block';
     document.getElementById('chat-inner').style.display = 'flex';
     document.getElementById('chat-inner').style.flexDirection = 'column';
     mountComposerBottom();
@@ -1270,7 +1281,6 @@ function refreshSendStateFor(inputEl, sendEl) {
   sendEl.disabled = !(inputEl.value.trim() || pendingImage);
 }
 </script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
