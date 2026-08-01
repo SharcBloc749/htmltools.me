@@ -2,60 +2,141 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>DeepSeek Bedrock Test</title>
+<title>DeepSeek Chat</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
-  textarea { width: 100%; height: 100px; font-family: inherit; font-size: 14px; }
-  select, input, button { font-size: 14px; padding: 6px; margin: 4px 0; }
-  #output { white-space: pre-wrap; background: #f4f4f4; padding: 12px; border-radius: 6px; margin-top: 16px; min-height: 60px; }
-  label { display: block; margin-top: 10px; font-weight: bold; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 720px;
+    margin: 24px auto;
+    padding: 0 16px;
+    background: #fafafa;
+  }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  select, button { font-size: 14px; padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; }
+  button { cursor: pointer; background: #222; color: #fff; border: none; }
+  button:hover { background: #444; }
+  button:disabled { background: #999; cursor: not-allowed; }
+  #chat {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px;
+    height: 60vh;
+    overflow-y: auto;
+    margin-bottom: 12px;
+  }
+  .msg { margin: 10px 0; display: flex; }
+  .msg .bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    max-width: 80%;
+    white-space: pre-wrap;
+    line-height: 1.4;
+  }
+  .msg.user { justify-content: flex-end; }
+  .msg.user .bubble { background: #2563eb; color: #fff; }
+  .msg.assistant .bubble { background: #f0f0f0; color: #111; }
+  .msg.system .bubble { background: #fff3cd; color: #664d03; font-size: 13px; }
+  .input-row { display: flex; gap: 8px; }
+  #prompt {
+    flex: 1;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    resize: none;
+    height: 48px;
+  }
+  #status { font-size: 12px; color: #888; margin-top: 6px; }
 </style>
 </head>
 <body>
 
-<h1>DeepSeek Bedrock Worker Test</h1>
+<div class="top-row">
+  <h1>DeepSeek Chat</h1>
+  <div>
+    <select id="model">
+      <option value="deepseek.v3.1" selected>DeepSeek V3.1</option>
+      <option value="deepseek.v3.2">DeepSeek V3.2</option>
+    </select>
+    <button onclick="clearChat()">New chat</button>
+  </div>
+</div>
 
-<label for="workerUrl">Worker URL</label>
-<input type="text" id="workerUrl" style="width:100%"
-       value="https://super-sun-9573.bozhetarnikmatthew.workers.dev/">
+<div id="chat"></div>
 
-<label for="apiKey">API Key (only if you set one on the worker)</label>
-<input type="text" id="apiKey" style="width:100%" placeholder="optional">
-
-<label for="model">Model</label>
-<select id="model">
-  <option value="deepseek.v3.1" selected>DeepSeek V3.1 (default)</option>
-  <option value="deepseek.v3.2">DeepSeek V3.2</option>
-</select>
-
-<label for="prompt">Message</label>
-<textarea id="prompt">Say hello and tell me which model you are.</textarea>
-
-<button onclick="send()">Send</button>
-
-<div id="output">Response will appear here...</div>
+<div class="input-row">
+  <textarea id="prompt" placeholder="Type a message..."></textarea>
+  <button id="sendBtn" onclick="send()">Send</button>
+</div>
+<div id="status"></div>
 
 <script>
+// --- Worker connection config (not shown in the UI) ---
+const WORKER_URL = "https://super-sun-9573.bozhetarnikmatthew.workers.dev/";
+const API_KEY = "PUT_YOUR_API_KEY_VALUE_HERE";
+// --------------------------------------------------------
+
+let history = []; // { role: "user"|"assistant", content: string }
+
+const chatEl = document.getElementById('chat');
+const promptEl = document.getElementById('prompt');
+const statusEl = document.getElementById('status');
+const sendBtn = document.getElementById('sendBtn');
+
+promptEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
+});
+
+function renderMessage(role, content) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = content;
+  div.appendChild(bubble);
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return bubble;
+}
+
+function clearChat() {
+  history = [];
+  chatEl.innerHTML = '';
+  statusEl.textContent = '';
+}
+
 async function send() {
-  const output = document.getElementById('output');
-  output.textContent = "Loading...";
+  const text = promptEl.value.trim();
+  if (!text) return;
 
-  const workerUrl = document.getElementById('workerUrl').value.trim();
-  const apiKey = document.getElementById('apiKey').value.trim();
   const model = document.getElementById('model').value;
-  const prompt = document.getElementById('prompt').value;
 
-  const headers = { "Content-Type": "application/json" };
-  if (apiKey) headers["x-api-key"] = apiKey;
+  history.push({ role: 'user', content: text });
+  renderMessage('user', text);
+  promptEl.value = '';
+  sendBtn.disabled = true;
+  statusEl.textContent = 'Thinking...';
 
   try {
-    const res = await fetch(workerUrl, {
+    const headers = { "Content-Type": "application/json" };
+    if (API_KEY && API_KEY !== "PUT_YOUR_API_KEY_VALUE_HERE") {
+      headers["x-api-key"] = API_KEY;
+    }
+
+    const res = await fetch(WORKER_URL, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 512,
+        messages: history,
+        max_tokens: 1024,
         temperature: 0.7
       })
     });
@@ -63,15 +144,22 @@ async function send() {
     const data = await res.json();
 
     if (!res.ok) {
-      output.textContent = "Error: " + JSON.stringify(data, null, 2);
+      renderMessage('system', 'Error: ' + (data.error || JSON.stringify(data)));
+      statusEl.textContent = '';
+      sendBtn.disabled = false;
       return;
     }
 
-    output.textContent = (data.reply || "(no reply field, showing raw)") +
-      "\n\n--- raw response ---\n" + JSON.stringify(data.raw, null, 2);
+    const reply = data.reply || '(no reply returned)';
+    history.push({ role: 'assistant', content: reply });
+    renderMessage('assistant', reply);
   } catch (e) {
-    output.textContent = "Request failed: " + e.message;
+    renderMessage('system', 'Request failed: ' + e.message);
   }
+
+  statusEl.textContent = '';
+  sendBtn.disabled = false;
+  promptEl.focus();
 }
 </script>
 
