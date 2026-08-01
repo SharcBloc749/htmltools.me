@@ -408,6 +408,14 @@ var auth = firebase.auth();
 function esc(t) {
   return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise(function(_, reject) {
+      setTimeout(function() { reject(new Error(message || 'Timed out')); }, ms);
+    })
+  ]);
+}
 function genId(len) {
   var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', s = '';
   var arr = new Uint8Array(len);
@@ -891,10 +899,20 @@ function wireComposer() {
     if (willOpen) positionModeMenu();
     modeMenu.classList.toggle('open', willOpen);
   });
-  document.addEventListener('click', function() { modeMenu.classList.remove('open'); });
-  window.addEventListener('resize', function(){ modeMenu.classList.remove('open'); });
-  window.addEventListener('scroll', function(){ modeMenu.classList.remove('open'); }, true);
-  modeMenu.addEventListener('click', function(e){ e.stopPropagation(); });
+  // These listeners were previously attached fresh to `document`/`window`
+  // on every wireComposer() call (i.e. every remount) and never removed,
+  // stacking up duplicates over a long session. Scope them to this mount
+  // via AbortController so old ones are cleaned up automatically.
+  if (window.__composerAbort) {
+    try { window.__composerAbort.abort(); } catch(e) {}
+  }
+  var composerAbort = new AbortController();
+  window.__composerAbort = composerAbort;
+
+  document.addEventListener('click', function() { modeMenu.classList.remove('open'); }, { signal: composerAbort.signal });
+  window.addEventListener('resize', function(){ modeMenu.classList.remove('open'); }, { signal: composerAbort.signal });
+  window.addEventListener('scroll', function(){ modeMenu.classList.remove('open'); }, { signal: composerAbort.signal, capture: true });
+  modeMenu.addEventListener('click', function(e){ e.stopPropagation(); }, { signal: composerAbort.signal });
   modeMenu.querySelectorAll('.mode-opt').forEach(function(opt) {
     opt.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -902,17 +920,14 @@ function wireComposer() {
       modeLabel.textContent = opt.querySelector('strong').textContent;
       modeMenu.classList.remove('open');
       updateModeSelection();
-    });
+    }, { signal: composerAbort.signal });
   });
   updateModeSelection();
-  // Force an immediate, synchronous refresh right after mount so the
-  // button's disabled state always reflects reality on first paint —
-  // this is the key fix: previously this only ran once here and was
-  // never re-triggered by anything except user typing, so if isSending
-  // ever got left true (e.g. a failed fetch that didn't fully reset
-  // state before remount) the fresh button rendered disabled=true from
-  // the template and nothing ever cleared it.
-  isSending = false;
+  // NOTE: this function must NOT unconditionally reset isSending. It runs
+  // on every composer mount, including mid-send (sendMessage() remounts
+  // the composer for a brand-new conversation while its request is still
+  // in flight). Only sendMessage() should own isSending's lifecycle; here
+  // we just sync the button's visual state to whatever isSending already is.
   refreshSendState();
   composerInput.focus();
 }
@@ -1148,7 +1163,14 @@ async function sendMessage() {
   scrollChatToBottom();
   appendThinkingIndicator();
 
-  try { conv = await persistConversation(conv); } catch(e) { console.error('Save failed', e); }
+  try {
+    conv = await withTimeout(persistConversation(conv), 8000, 'Save timed out');
+  } catch(e) {
+    // Don't let a hung/slow Firebase write block sending the message —
+    // this previously could leave isSending stuck true (and the send
+    // button permanently disabled) if the write never resolved.
+    console.error('Save failed', e);
+  }
   renderSidebar();
 
   try {
@@ -1208,7 +1230,11 @@ async function sendMessage() {
       }
     });
 
-    try { conv = await persistConversation(conv); } catch(e) { console.error('Save failed', e); }
+    try {
+      conv = await withTimeout(persistConversation(conv), 8000, 'Save timed out');
+    } catch(e) {
+      console.error('Save failed', e);
+    }
     renderSidebar();
   } catch(err) {
     removeThinkingIndicator();
@@ -1228,6 +1254,7 @@ async function sendMessage() {
   }
 }
 </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
