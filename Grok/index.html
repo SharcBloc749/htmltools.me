@@ -1187,11 +1187,15 @@ async function sendMessage() {
       payload.imageMediaType = attachedImage.mediaType;
     }
 
-    var res = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    var res = await withTimeout(
+      fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }),
+      45000,
+      'The request timed out. The assistant may be slow to respond right now — please try again.'
+    );
     var data = await res.json();
     removeThinkingIndicator();
 
