@@ -85,7 +85,8 @@ a{color:inherit;text-decoration:none;}
 .topbar-brand .sb-logo{width:28px;height:28px;}
 .topbar-brand-title{font-size:1.15rem;color:var(--tx);}
 .topbar-spacer{flex:1;}
-.topbar-del-btn{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--tx2);transition:all .13s;flex-shrink:0;}
+.topbar-del-btn{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--tx2);transition:all .13s;flex-shrink:0;opacity:0;pointer-events:none;}
+.topbar-del-btn.show{opacity:1;pointer-events:auto;}
 .topbar-del-btn:hover{background:var(--panel2);color:#f28b82;}
 
 /* ── BODY SPLIT: answer column + source rail ── */
@@ -181,10 +182,12 @@ a{color:inherit;text-decoration:none;}
 .msg-action-btn.speaking{color:var(--accent);background:var(--panel2);}
 .msg-action-labeled{display:flex;align-items:center;gap:6px;padding:0 12px;height:32px;border-radius:var(--r-full);color:var(--tx3);font-size:.78rem;font-weight:500;transition:all .13s;border:1px solid transparent;}
 .msg-action-labeled:hover{background:var(--panel2);color:var(--tx);border-color:var(--border2);}
+.msg-action-labeled.active-sources{background:var(--panel2);color:var(--accent);border-color:var(--accent-dim);}
 
 .followups{margin-top:20px;display:flex;flex-direction:column;gap:7px;}
 .followups-label{font-size:.72rem;color:var(--tx4);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;}
-.followup-btn{text-align:left;padding:11px 15px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--panel);color:var(--tx2);font-size:.85rem;transition:all .14s;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.followup-btn{text-align:left;padding:11px 15px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--panel);color:var(--tx2);font-size:.85rem;line-height:1.4;transition:all .14s;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.followup-btn>span:first-child{flex:1;min-width:0;}
 .followup-btn:hover{border-color:var(--borderhi);color:var(--tx);background:var(--panel2);transform:translateX(2px);}
 .followup-btn svg{flex-shrink:0;color:var(--accent);opacity:.7;}
 
@@ -216,7 +219,7 @@ a{color:inherit;text-decoration:none;}
 .model-pill:hover{background:var(--panel3);border-color:var(--border2);}
 .model-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;box-shadow:0 0 6px rgba(227,177,104,.6);}
 .model-pill-label{color:var(--tx);font-weight:500;}
-.model-dropdown{position:absolute;bottom:calc(100% + 10px);right:0;background:var(--panel2);border:1px solid var(--border2);border-radius:var(--r-lg);width:252px;padding:8px;display:none;box-shadow:var(--shadow-lg);z-index:50;}
+.model-dropdown{position:absolute;bottom:calc(100% + 10px);right:0;background:var(--panel2);border:1px solid var(--border2);border-radius:var(--r-lg);width:252px;max-width:calc(100vw - 40px);padding:8px;display:none;box-shadow:var(--shadow-lg);z-index:50;}
 .model-dropdown.open{display:block;animation:dropIn .14s cubic-bezier(.2,.8,.3,1);}
 @keyframes dropIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 .model-opt{padding:10px 12px;border-radius:var(--r-md);cursor:pointer;transition:background .12s;display:flex;justify-content:space-between;align-items:center;gap:8px;}
@@ -266,15 +269,22 @@ a{color:inherit;text-decoration:none;}
   .source-strip{display:flex;}
 }
 @media (max-width:820px){
-  .sidebar{position:fixed;inset:0 auto 0 0;height:100%;}
+  .sidebar{position:fixed;inset:0 auto 0 0;height:100%;width:280px;z-index:100;box-shadow:var(--shadow-lg);}
   .sidebar.collapsed{width:0;}
+  .sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90;}
+  .sidebar-backdrop.show{display:block;}
   .topbar-expand-btn{display:flex;}
   .suggest-grid{grid-template-columns:1fr;}
   .q-text{font-size:1.02rem;}
+  .composer-row{flex-wrap:wrap;row-gap:8px;}
+  .deep-toggle-label{white-space:normal;}
+  .followup-btn{flex-wrap:wrap;}
 }
 </style>
 </head>
 <body>
+
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
@@ -356,7 +366,7 @@ a{color:inherit;text-decoration:none;}
 
     <!-- Source rail (desktop) -->
     <div class="source-rail" id="sourceRail">
-      <div class="source-rail-title">Sources</div>
+      <div class="source-rail-title" id="sourceRailTitle">Sources</div>
       <div id="sourceRailList"></div>
     </div>
   </div>
@@ -472,8 +482,11 @@ var sessions = [];
 var activeId = null;
 var selectedModel = "3.6-flash";
 var deepOn = false;
-var isRunning = false;
-var currentTurns = []; // { query, answer, sources, subQueries }
+var currentTurns = []; // { query, answer, sources, subQueries, deep, pending }
+// Per-session "is a request in flight" tracking, keyed by session id, so switching
+// conversations doesn't lose or block on the wrong chat's state.
+var runningSessions = {}; // id -> true while a request is in flight for that session
+var activeSourceTurnIndex = null; // which turn's sources are currently shown in the rail
 
 function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function showToast(msg){
@@ -508,17 +521,30 @@ document.getElementById('signOutConfirm').addEventListener('click', function(){ 
 // ══════════════════════════════════════════════
 // SIDEBAR
 // ══════════════════════════════════════════════
-document.getElementById('collapseBtn').addEventListener('click', function(){
-  document.getElementById('sidebar').classList.add('collapsed');
+var sidebarEl = document.getElementById('sidebar');
+var sidebarBackdrop = document.getElementById('sidebarBackdrop');
+var isMobile = function(){ return window.matchMedia('(max-width:820px)').matches; };
+
+function collapseSidebar(){
+  sidebarEl.classList.add('collapsed');
   document.getElementById('expandBtn').classList.add('show');
   document.getElementById('topbarBrand').style.display = 'flex';
-});
-document.getElementById('expandBtn').addEventListener('click', function(){
-  document.getElementById('sidebar').classList.remove('collapsed');
+  sidebarBackdrop.classList.remove('show');
+}
+function expandSidebar(){
+  sidebarEl.classList.remove('collapsed');
   document.getElementById('expandBtn').classList.remove('show');
   document.getElementById('topbarBrand').style.display = 'none';
-});
-document.getElementById('newChatBtn').addEventListener('click', function(){ resetToWelcome(); });
+  if (isMobile()) sidebarBackdrop.classList.add('show');
+}
+
+document.getElementById('collapseBtn').addEventListener('click', collapseSidebar);
+document.getElementById('expandBtn').addEventListener('click', expandSidebar);
+sidebarBackdrop.addEventListener('click', collapseSidebar);
+document.getElementById('newChatBtn').addEventListener('click', function(){ resetToWelcome(); if (isMobile()) collapseSidebar(); });
+
+// Start collapsed on mobile so the sidebar doesn't cover the whole screen on load.
+if (isMobile()) collapseSidebar();
 
 // ══════════════════════════════════════════════
 // MODEL DROPDOWN
@@ -608,7 +634,8 @@ deepToggle.addEventListener('click', function(){
 var promptInput = document.getElementById('promptInput');
 var sendBtn = document.getElementById('sendBtn');
 function autoResize(){ promptInput.style.height='auto'; promptInput.style.height=Math.min(promptInput.scrollHeight,220)+'px'; }
-function updateSendBtn(){ sendBtn.disabled = !promptInput.value.trim() || isRunning; }
+function isActiveSessionRunning(){ return !!(activeId && runningSessions[activeId]); }
+function updateSendBtn(){ sendBtn.disabled = !promptInput.value.trim() || isActiveSessionRunning(); }
 promptInput.addEventListener('input', function(){ autoResize(); updateSendBtn(); });
 promptInput.addEventListener('keydown', function(e){
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!sendBtn.disabled) runQuery(promptInput.value.trim()); }
@@ -735,10 +762,11 @@ function buildSourceCardHTML(src, i){
     '<div class="source-title">'+esc(src.title||src.url)+'</div></a>';
 }
 
-function renderSources(sources){
+function renderSources(sources, label){
   var rail = document.getElementById('sourceRail');
   var railList = document.getElementById('sourceRailList');
   var stripMobile = document.getElementById('sourceStripMobile');
+  var railTitle = document.getElementById('sourceRailTitle');
 
   if (!sources || !sources.length) {
     rail.classList.remove('visible');
@@ -746,6 +774,7 @@ function renderSources(sources){
     return;
   }
   rail.classList.add('visible');
+  if (railTitle) railTitle.textContent = label || 'Sources';
   railList.innerHTML = sources.map(buildSourceCardHTML).join('');
   stripMobile.innerHTML = sources.map(function(s,i){
     return '<a class="source-strip-card source-card" href="'+esc(s.url)+'" target="_blank" rel="noopener">'+
@@ -753,6 +782,34 @@ function renderSources(sources){
       '<span class="source-domain">'+esc(domainOf(s.url))+'</span></div>'+
       '<div class="source-title">'+esc(s.title||s.url)+'</div></a>';
   }).join('');
+}
+
+// Shows a specific turn's sources in the rail, without losing/overwriting any other
+// turn's sources — every turn keeps its own sources array in currentTurns/Firebase
+// permanently, this just changes which one the rail is currently displaying.
+// Also visually marks which "View sources" button is the active one.
+function showSourcesForTurn(sessionId, turnIndex, sourcesOverride){
+  // Only update the visible rail if we're still looking at the session this turn
+  // belongs to (a background turn from another chat shouldn't hijack the rail).
+  if (activeId !== sessionId) return;
+
+  var turns = (sessionId === activeId) ? currentTurns : null;
+  var sources = sourcesOverride || (turns && turns[turnIndex] ? turns[turnIndex].sources : []) || [];
+  var query = turns && turns[turnIndex] ? turns[turnIndex].query : '';
+
+  activeSourceTurnIndex = turnIndex;
+  renderSources(sources, query ? ('Sources — ' + (query.length>34?query.slice(0,34)+'…':query)) : 'Sources');
+
+  document.querySelectorAll('.msg-action-labeled[data-turn-idx]').forEach(function(b){
+    b.classList.toggle('active-sources', String(b.dataset.turnIdx) === String(turnIndex));
+  });
+
+  // On mobile the sources live in a strip under the message, not a side rail —
+  // scroll it into view so clicking "View sources" actually shows something happened.
+  if (isMobile()) {
+    var strip = document.getElementById('sourceStripMobile');
+    if (strip) strip.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -767,6 +824,10 @@ function buildCitationText(src){
 // ══════════════════════════════════════════════
 // MAIN QUERY FLOW
 // ══════════════════════════════════════════════
+function updateTopDeleteBtn(){
+  document.getElementById('topDeleteBtn').classList.toggle('show', !!activeId);
+}
+
 function resetToWelcome(){
   activeId = null;
   currentTurns = [];
@@ -778,11 +839,19 @@ function resetToWelcome(){
   autoResize();
   updateSendBtn();
   renderHistory();
+  updateTopDeleteBtn();
 }
 
 async function runQuery(query){
-  if (!query || isRunning) return;
-  isRunning = true;
+  if (!query || isActiveSessionRunning()) return;
+
+  // Snapshot which session this query belongs to. If the user is starting a brand new
+  // chat, create the id now so it exists before the network call — this is what lets us
+  // save a "pending" turn immediately and recover it after a refresh.
+  var isNewSession = (currentTurns.length === 0 && !activeId);
+  if (isNewSession) activeId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  var sessionId = activeId;
+
   promptInput.value = '';
   autoResize();
   updateSendBtn();
@@ -799,9 +868,14 @@ async function runQuery(query){
   document.getElementById('welcomeWrap').style.display = 'none';
   var msgsEl = document.getElementById('messages');
   msgsEl.style.display = 'block';
+  updateTopDeleteBtn();
 
-  var isFirstTurn = currentTurns.length === 0;
-  if (isFirstTurn && !activeId) activeId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  // Push a pending turn into this session's turn list right away and persist it, so a
+  // refresh / closed tab / navigating away doesn't lose the fact that this question was asked.
+  var turnIndex = currentTurns.length;
+  currentTurns.push({ query: query, answer: '', sources: [], subQueries: null, deep: deepForThisQuery, pending: true });
+  runningSessions[sessionId] = true;
+  await saveSession(sessionId, currentTurns, /*generateTitle*/ false);
 
   var block = document.createElement('div');
   block.className = 'qa-block';
@@ -843,8 +917,15 @@ async function runQuery(query){
   avatarRow.appendChild(avatar);
   avatarRow.appendChild(col);
   block.appendChild(avatarRow);
-  msgsEl.appendChild(block);
-  scrollToBottom();
+
+  // Only touch the live DOM if we're still looking at this session — if the user has
+  // already switched to another conversation, the query keeps running in the background
+  // and we'll just re-render from Firebase-saved state when they come back to it.
+  function isStillOnThisSession(){ return activeId === sessionId; }
+  if (isStillOnThisSession()) {
+    msgsEl.appendChild(block);
+    scrollToBottom();
+  }
 
   // Simulated stage progression for deep mode (purely visual — request is one call)
   var stageTimer = null;
@@ -869,88 +950,114 @@ async function runQuery(query){
     if (stageTimer) clearInterval(stageTimer);
 
     if (attempt.error) {
-      progressBox.innerHTML = '';
-      var errBubble = document.createElement('div');
-      errBubble.className = 'msg-bubble';
-      errBubble.style.color = '#f28b82';
-      errBubble.textContent = 'Every available model is busy right now. Please try again in a moment.';
-      col.appendChild(errBubble);
-      isRunning = false;
-      updateSendBtn();
+      currentTurns[turnIndex].pending = false;
+      currentTurns[turnIndex].answer = '';
+      currentTurns[turnIndex].errored = true;
+      runningSessions[sessionId] = false;
+      await saveSession(sessionId, currentTurns, false);
+      if (isStillOnThisSession()) {
+        progressBox.innerHTML = '';
+        var errBubble = document.createElement('div');
+        errBubble.className = 'msg-bubble';
+        errBubble.style.color = '#f28b82';
+        errBubble.textContent = 'Every available model is busy right now. Please try again in a moment.';
+        col.appendChild(errBubble);
+        updateSendBtn();
+      }
+      if (activeId === sessionId || true) { /* refresh sidebar state regardless */ }
+      renderHistory();
+      updateTopDeleteBtn();
       return;
     }
 
     var data = attempt.data;
 
-    if (attempt.usedModel !== selectedModel) {
+    if (isStillOnThisSession() && attempt.usedModel !== selectedModel) {
       var fallbackNote = document.createElement('div');
       fallbackNote.className = 'fallback-note';
       fallbackNote.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3.4-7.03"/><polyline points="21 3 21 9 15 9"/></svg> Switched to '+esc(modelLabelFor(attempt.usedModel))+' to complete this answer';
       col.appendChild(fallbackNote);
     }
 
-    progressBox.innerHTML = '';
+    if (isStillOnThisSession()) progressBox.innerHTML = '';
 
-    if (data.subQueries && data.subQueries.length) {
+    if (isStillOnThisSession() && data.subQueries && data.subQueries.length) {
       var subStrip = document.createElement('div');
       subStrip.className = 'subq-strip';
       subStrip.innerHTML = data.subQueries.map(function(q){ return '<span class="subq-pill">'+esc(q)+'</span>'; }).join('');
       col.appendChild(subStrip);
     }
 
-    var bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
     var sourceCount = (data.sources||[]).length;
-    bubble.innerHTML = renderMarkdown(data.answer || '', sourceCount);
-    wireCodeCardButtons(bubble);
-    wireCitationChips(bubble, data.sources||[]);
-    col.appendChild(bubble);
 
-    var actions = document.createElement('div');
-    actions.className = 'msg-actions';
-    actions.appendChild(makeActionBtn('copy', 'Copy answer', function(){
-      navigator.clipboard.writeText(data.answer||'');
-      showToast('Answer copied');
-    }));
-    actions.appendChild(makeActionBtn('speak', 'Listen', function(btn){ speakText(data.answer||'', btn); }));
-    actions.appendChild(makeLabeledBtn('save', 'Save as notes', function(){
-      downloadMarkdown(query, data.answer||'', data.sources||[]);
-    }));
-    col.appendChild(actions);
+    if (isStillOnThisSession()) {
+      var bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.innerHTML = renderMarkdown(data.answer || '', sourceCount);
+      wireCodeCardButtons(bubble);
+      wireCitationChips(bubble, data.sources||[]);
+      col.appendChild(bubble);
 
-    // follow-up suggestions
-    var followups = buildFollowups(query);
-    var fuWrap = document.createElement('div');
-    fuWrap.className = 'followups';
-    fuWrap.innerHTML = '<div class="followups-label">Ask a follow-up</div>';
-    followups.forEach(function(f){
-      var b = document.createElement('button');
-      b.className = 'followup-btn';
-      b.innerHTML = '<span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
-      b.querySelector('span').textContent = f;
-      b.addEventListener('click', function(){ runQuery(f); });
-      fuWrap.appendChild(b);
-    });
-    col.appendChild(fuWrap);
+      var actions = document.createElement('div');
+      actions.className = 'msg-actions';
+      actions.appendChild(makeActionBtn('copy', 'Copy answer', function(){
+        navigator.clipboard.writeText(data.answer||'');
+        showToast('Answer copied');
+      }));
+      actions.appendChild(makeActionBtn('speak', 'Listen', function(btn){ speakText(data.answer||'', btn); }));
+      actions.appendChild(makeLabeledBtn('save', 'Save as notes', function(){
+        downloadMarkdown(query, data.answer||'', data.sources||[]);
+      }));
+      var srcBtn = makeLabeledBtn('sources', 'View sources ('+sourceCount+')', function(){
+        showSourcesForTurn(sessionId, turnIndex, data.sources||[]);
+      });
+      srcBtn.dataset.turnIdx = turnIndex;
+      actions.appendChild(srcBtn);
+      col.appendChild(actions);
 
-    renderSources(data.sources||[]);
+      // follow-up suggestions
+      var followups = buildFollowups(query);
+      var fuWrap = document.createElement('div');
+      fuWrap.className = 'followups';
+      fuWrap.innerHTML = '<div class="followups-label">Ask a follow-up</div>';
+      followups.forEach(function(f){
+        var b = document.createElement('button');
+        b.className = 'followup-btn';
+        b.innerHTML = '<span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+        b.querySelector('span').textContent = f;
+        b.addEventListener('click', function(){ runQuery(f); });
+        fuWrap.appendChild(b);
+      });
+      col.appendChild(fuWrap);
 
-    currentTurns.push({ query: query, answer: data.answer, sources: data.sources||[], subQueries: data.subQueries||null, deep: deepForThisQuery });
-    await saveSession();
+      showSourcesForTurn(sessionId, turnIndex, data.sources||[]);
+    }
+
+    currentTurns[turnIndex] = { query: query, answer: data.answer, sources: data.sources||[], subQueries: data.subQueries||null, deep: deepForThisQuery, pending: false };
+    runningSessions[sessionId] = false;
+    await saveSession(sessionId, currentTurns, /*generateTitle*/ isNewSession && turnIndex === 0);
 
   } catch (err) {
     if (stageTimer) clearInterval(stageTimer);
-    progressBox.innerHTML = '';
-    var eb = document.createElement('div');
-    eb.className = 'msg-bubble';
-    eb.style.color = '#f28b82';
-    eb.textContent = 'Request failed: ' + err.message;
-    col.appendChild(eb);
+    currentTurns[turnIndex].pending = false;
+    currentTurns[turnIndex].errored = true;
+    runningSessions[sessionId] = false;
+    await saveSession(sessionId, currentTurns, false);
+    if (isStillOnThisSession()) {
+      progressBox.innerHTML = '';
+      var eb = document.createElement('div');
+      eb.className = 'msg-bubble';
+      eb.style.color = '#f28b82';
+      eb.textContent = 'Request failed: ' + err.message;
+      col.appendChild(eb);
+    }
   }
 
-  isRunning = false;
-  updateSendBtn();
-  scrollToBottom();
+  if (isStillOnThisSession()) {
+    updateSendBtn();
+    scrollToBottom();
+  }
+  updateTopDeleteBtn();
 }
 
 function makeActionBtn(kind, title, onClick){
@@ -1035,17 +1142,65 @@ async function loadSessions(){
   } catch(e) {}
 }
 
-async function saveSession(){
-  if (!activeId) return;
-  var title = currentTurns[0] ? currentTurns[0].query.slice(0,60) : 'New research';
-  var sess = { id: activeId, title: title, updated: Date.now(), turns: currentTurns };
+// Ask the worker (same Gemini backend used for answers) to name this conversation,
+// the way Gemini itself titles a chat — short, specific, based on the first question
+// and its answer. Falls back to a truncated version of the question if anything fails.
+async function generateSessionTitle(query, answer){
   try {
-    await db.ref(userPath()+'/'+activeId).set(sess);
-    var i = sessions.findIndex(function(s){ return s.id===activeId; });
+    // Reuses the same /worker query endpoint the answers come from (no deep research,
+    // cheapest model) — just asks it to act as a titling step instead of a real answer.
+    var titlePrompt = 'Reply with ONLY a short chat title, 3-6 words, no quotes, no punctuation at the end, ' +
+      'summarizing this conversation topic. Do not answer the question itself.\n\n' +
+      'Question: ' + query + '\n\nAnswer given: ' + String(answer||'').slice(0,500);
+    var res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: titlePrompt, model: '3.5-flash-lite', deep: false })
+    });
+    var data = await res.json().catch(function(){ return {}; });
+    var t = (data && data.answer ? data.answer : '').toString().trim();
+    // Take just the first line in case the model adds extra commentary, and strip
+    // surrounding quotes/markdown it sometimes wraps titles in.
+    t = t.split('\n')[0].replace(/^["'“”*\s]+|["'“”*\s.]+$/g,'');
+    if (t && t.length <= 80) return t;
+  } catch(e) {}
+  return query.slice(0,60);
+}
+
+// sessionId/turns let a background query (one started, then the user switched away
+// from) save its own session correctly instead of always writing to whatever is
+// currently active — otherwise a second chat's save could clobber the first chat's data.
+// generateTitle is only true right after a brand-new session's first answer completes.
+async function saveSession(sessionId, turns, generateTitle){
+  sessionId = sessionId || activeId;
+  turns = turns || currentTurns;
+  if (!sessionId || !currentUser) return;
+
+  var existing = sessions.find(function(s){ return s.id===sessionId; });
+  var title = existing && existing.title ? existing.title : (turns[0] ? turns[0].query.slice(0,60) : 'New research');
+
+  var sess = { id: sessionId, title: title, updated: Date.now(), turns: turns };
+  try {
+    await db.ref(userPath()+'/'+sessionId).set(sess);
+    var i = sessions.findIndex(function(s){ return s.id===sessionId; });
     if (i>=0) sessions[i]=sess; else sessions.unshift(sess);
     sessions.sort(function(a,b){ return (b.updated||0)-(a.updated||0); });
     renderHistory();
   } catch(e) {}
+
+  // Fire the AI title generation after the first turn's answer has actually landed
+  // (not on the initial pending save), and patch it in without disturbing anything
+  // else that may have been saved to this session in the meantime.
+  if (generateTitle && turns[0] && !turns[0].pending && turns[0].answer) {
+    generateSessionTitle(turns[0].query, turns[0].answer).then(async function(niceTitle){
+      try {
+        await db.ref(userPath()+'/'+sessionId+'/title').set(niceTitle);
+        var s = sessions.find(function(s){ return s.id===sessionId; });
+        if (s) s.title = niceTitle;
+        renderHistory();
+      } catch(e) {}
+    });
+  }
 }
 
 function renderHistory(filterText){
@@ -1068,6 +1223,7 @@ function renderHistory(filterText){
     el.addEventListener('click', function(e){
       if (e.target.closest('.sb-conv-del')) return;
       loadSession(el.dataset.id);
+      if (isMobile()) collapseSidebar();
     });
   });
   list.querySelectorAll('.sb-conv-del').forEach(function(btn){
@@ -1084,17 +1240,21 @@ function loadSession(id){
   var msgsEl = document.getElementById('messages');
   msgsEl.style.display = 'block';
   msgsEl.innerHTML = '';
-  var lastSources = [];
-  currentTurns.forEach(function(turn){
-    appendReadonlyTurn(turn);
+  var lastIdx = -1, lastSources = [], lastQuery = '';
+  currentTurns.forEach(function(turn, idx){
+    appendReadonlyTurn(turn, idx);
+    lastIdx = idx;
     lastSources = turn.sources || [];
+    lastQuery = turn.query || '';
   });
-  renderSources(lastSources);
+  activeSourceTurnIndex = lastIdx >= 0 ? lastIdx : null;
+  renderSources(lastSources, lastQuery ? ('Sources — ' + (lastQuery.length>34?lastQuery.slice(0,34)+'…':lastQuery)) : 'Sources');
   renderHistory();
+  updateTopDeleteBtn();
   scrollToBottom();
 }
 
-function appendReadonlyTurn(turn){
+function appendReadonlyTurn(turn, turnIndex){
   var msgsEl = document.getElementById('messages');
   var block = document.createElement('div');
   block.className = 'qa-block';
@@ -1119,6 +1279,29 @@ function appendReadonlyTurn(turn){
   var col = document.createElement('div');
   col.className = 'msg-col';
 
+  // A turn can be sitting here as "pending" only because the tab was closed/refreshed
+  // mid-request — there's no running fetch to finish it anymore. Offer to retry instead
+  // of leaving it spinning forever, and don't let it block the composer.
+  if (turn.pending || turn.errored) {
+    var stuckMsg = document.createElement('div');
+    stuckMsg.className = 'msg-bubble';
+    stuckMsg.style.color = '#f28b82';
+    stuckMsg.textContent = turn.pending
+      ? 'This question was interrupted before it finished (tab closed or refreshed).'
+      : 'This question failed to get an answer.';
+    col.appendChild(stuckMsg);
+    var retryBtn = document.createElement('button');
+    retryBtn.className = 'msg-action-labeled';
+    retryBtn.innerHTML = '<span>Retry</span>';
+    retryBtn.addEventListener('click', function(){ runQuery(turn.query); });
+    col.appendChild(retryBtn);
+    avatarRow.appendChild(avatar);
+    avatarRow.appendChild(col);
+    block.appendChild(avatarRow);
+    msgsEl.appendChild(block);
+    return;
+  }
+
   if (turn.subQueries && turn.subQueries.length) {
     var subStrip = document.createElement('div');
     subStrip.className = 'subq-strip';
@@ -1139,6 +1322,12 @@ function appendReadonlyTurn(turn){
   actions.appendChild(makeActionBtn('copy','Copy answer', function(){ navigator.clipboard.writeText(turn.answer||''); showToast('Answer copied'); }));
   actions.appendChild(makeActionBtn('speak','Listen', function(btn){ speakText(turn.answer||'', btn); }));
   actions.appendChild(makeLabeledBtn('save','Save as notes', function(){ downloadMarkdown(turn.query, turn.answer||'', turn.sources||[]); }));
+  var sc2 = (turn.sources||[]).length;
+  var srcBtn2 = makeLabeledBtn('sources', 'View sources ('+sc2+')', function(){
+    showSourcesForTurn(activeId, turnIndex, turn.sources||[]);
+  });
+  srcBtn2.dataset.turnIdx = turnIndex;
+  actions.appendChild(srcBtn2);
   col.appendChild(actions);
 
   avatarRow.appendChild(avatar);
