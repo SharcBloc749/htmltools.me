@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; background:#fafafa; color:#222; }
+  h1 { font-size: 22px; }
+  textarea { width: 100%; height: 70px; font-size: 15px; padding: 8px; box-sizing: border-box; }
+  select, button { font-size: 14px; padding: 6px 10px; margin-top: 8px; }
+  label { font-size: 14px; margin-right: 12px; }
+  #controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 10px 0; }
+  #answer { white-space: pre-wrap; background: #fff; border: 1px solid #ddd; padding: 16px; margin-top: 16px; border-radius: 6px; line-height: 1.5; }
+  #sources { margin-top: 12px; font-size: 13px; }
+  #sources a { display:block; margin-bottom:4px; }
+  #status { color: #666; font-size: 14px; margin-top: 10px; }
+  .subq { font-size: 13px; color: #555; }
+</style>
+</head>
+<body>
+
+<h1>🔎 Research</h1>
+<p style="font-size:14px;color:#555;">Real-time web search + AI synthesis, with citations.</p>
+
+<textarea id="query" placeholder="Ask a research question..."></textarea>
+
+<div id="controls">
+  <label>Model:
+    <select id="model">
+      <option value="3.1-flash-lite">3.1 Flash-Lite (Lightweight & efficient)</option>
+      <option value="3.5-flash-lite">3.5 Flash-Lite (Fastest answers)</option>
+      <option value="3.6-flash" selected>3.6 Flash (All-around)</option>
+      <option value="3.5-flash">3.5 Flash (Advanced reasoning)</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="deep"> Deep research</label>
+  <button id="go">Search</button>
+</div>
+
+<div id="status"></div>
+<div id="answer" style="display:none;"></div>
+<div id="sources"></div>
+
+<script>
+const WORKER_URL = "https://young-cloud-9e1e.bozhetarnikmatthew.workers.dev/";
+
+const $ = (id) => document.getElementById(id);
+
+$("go").addEventListener("click", async () => {
+  const query = $("query").value.trim();
+  if (!query) return;
+
+  const model = $("model").value;
+  const deep = $("deep").checked;
+
+  $("go").disabled = true;
+  $("answer").style.display = "none";
+  $("sources").innerHTML = "";
+  $("status").textContent = deep
+    ? "Running deep research (this can take 20-40s)..."
+    : "Searching...";
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, model, deep }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      $("status").textContent = "Error: " + (data.error || res.status);
+      return;
+    }
+
+    $("status").textContent = "";
+    $("answer").style.display = "block";
+    $("answer").textContent = data.answer;
+
+    if (data.subQueries) {
+      const subEl = document.createElement("div");
+      subEl.className = "subq";
+      subEl.textContent = "Sub-queries: " + data.subQueries.join(" | ");
+      $("sources").appendChild(subEl);
+    }
+
+    if (data.sources && data.sources.length) {
+      const heading = document.createElement("div");
+      heading.style.marginTop = "10px";
+      heading.style.fontWeight = "bold";
+      heading.textContent = "Sources:";
+      $("sources").appendChild(heading);
+
+      data.sources.forEach((s, i) => {
+        const a = document.createElement("a");
+        a.href = s.url;
+        a.target = "_blank";
+        a.textContent = `[${i + 1}] ${s.title}`;
+        $("sources").appendChild(a);
+      });
+    }
+  } catch (e) {
+    $("status").textContent = "Request failed: " + e.message;
+  } finally {
+    $("go").disabled = false;
+  }
+});
+
+// Allow Ctrl+Enter to submit
+$("query").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("go").click();
+});
+</script>
+
+</body>
+</html>
