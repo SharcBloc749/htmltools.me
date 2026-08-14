@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pasttime - Test Page</title>
+<style>
+  body { font-family: monospace; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+  h1 { margin-bottom: 0; }
+  .sub { color: #666; margin-top: 0; }
+  section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 6px; }
+  label { display: block; margin-top: 8px; font-size: 13px; }
+  input, select, textarea { width: 100%; padding: 6px; margin-top: 2px; box-sizing: border-box; font-family: monospace; }
+  textarea { height: 80px; }
+  button { margin-top: 10px; padding: 8px 14px; cursor: pointer; }
+  pre { background: #f4f4f4; padding: 10px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+</style>
+</head>
+<body>
+
+<h1>Pasttime</h1>
+<p class="sub">Free database test page (raw, ugly on purpose)</p>
+
+<label>Worker Base URL</label>
+<input id="baseUrl" value="https://blue-fog-fb79.bozhetarnikmatthew.workers.dev">
+
+<section>
+  <h3>1. Create a database</h3>
+  <label>Mode</label>
+  <select id="createMode">
+    <option value="public">public (reads open, writes need key)</option>
+    <option value="private">private (everything needs key)</option>
+  </select>
+  <button onclick="createDb()">Create Database</button>
+  <pre id="createOutput">-</pre>
+</section>
+
+<section>
+  <h3>2. Connection</h3>
+  <label>Database ID</label>
+  <input id="dbId" placeholder="paste dbId here">
+  <label>API Key</label>
+  <input id="apiKey" placeholder="paste apiKey here">
+</section>
+
+<section>
+  <h3>3. Write / Edit a record</h3>
+  <div class="row">
+    <div>
+      <label>Collection</label>
+      <input id="writeCollection" value="messages">
+    </div>
+    <div>
+      <label>Record ID (optional, blank = auto)</label>
+      <input id="writeRecordId" placeholder="optional">
+    </div>
+  </div>
+  <label>Data (JSON)</label>
+  <textarea id="writeData">{"text": "hello world"}</textarea>
+  <button onclick="writeRecord()">Create/Overwrite Record</button>
+  <pre id="writeOutput">-</pre>
+</section>
+
+<section>
+  <h3>4. Read</h3>
+  <div class="row">
+    <div>
+      <label>Collection</label>
+      <input id="readCollection" value="messages">
+    </div>
+    <div>
+      <label>Record ID (optional, blank = whole collection)</label>
+      <input id="readRecordId" placeholder="optional">
+    </div>
+  </div>
+  <button onclick="readRecord()">Read</button>
+  <pre id="readOutput">-</pre>
+</section>
+
+<section>
+  <h3>5. Delete a record</h3>
+  <div class="row">
+    <div>
+      <label>Collection</label>
+      <input id="deleteCollection" value="messages">
+    </div>
+    <div>
+      <label>Record ID</label>
+      <input id="deleteRecordId" placeholder="required">
+    </div>
+  </div>
+  <button onclick="deleteRecord()">Delete</button>
+  <pre id="deleteOutput">-</pre>
+</section>
+
+<script>
+function base() {
+  return document.getElementById('baseUrl').value.replace(/\/$/, '');
+}
+
+async function createDb() {
+  const mode = document.getElementById('createMode').value;
+  const res = await fetch(`${base()}/db/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode })
+  });
+  const data = await res.json();
+  document.getElementById('createOutput').textContent = JSON.stringify(data, null, 2);
+  if (data.dbId) {
+    document.getElementById('dbId').value = data.dbId;
+    document.getElementById('apiKey').value = data.apiKey;
+  }
+}
+
+async function writeRecord() {
+  const dbId = document.getElementById('dbId').value;
+  const apiKey = document.getElementById('apiKey').value;
+  const collection = document.getElementById('writeCollection').value;
+  const recordId = document.getElementById('writeRecordId').value;
+  let dataInput;
+  try {
+    dataInput = JSON.parse(document.getElementById('writeData').value);
+  } catch (e) {
+    document.getElementById('writeOutput').textContent = 'Invalid JSON: ' + e.message;
+    return;
+  }
+
+  const body = { data: dataInput };
+  if (recordId) body.id = recordId;
+
+  const res = await fetch(`${base()}/db/${dbId}/${collection}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  document.getElementById('writeOutput').textContent = JSON.stringify(data, null, 2);
+}
+
+async function readRecord() {
+  const dbId = document.getElementById('dbId').value;
+  const apiKey = document.getElementById('apiKey').value;
+  const collection = document.getElementById('readCollection').value;
+  const recordId = document.getElementById('readRecordId').value;
+
+  let url = `${base()}/db/${dbId}/${collection}`;
+  if (recordId) url += `/${recordId}`;
+
+  const res = await fetch(url, {
+    headers: { 'x-api-key': apiKey }
+  });
+  const data = await res.json();
+  document.getElementById('readOutput').textContent = JSON.stringify(data, null, 2);
+}
+
+async function deleteRecord() {
+  const dbId = document.getElementById('dbId').value;
+  const apiKey = document.getElementById('apiKey').value;
+  const collection = document.getElementById('deleteCollection').value;
+  const recordId = document.getElementById('deleteRecordId').value;
+
+  const res = await fetch(`${base()}/db/${dbId}/${collection}/${recordId}`, {
+    method: 'DELETE',
+    headers: { 'x-api-key': apiKey }
+  });
+  const data = await res.json();
+  document.getElementById('deleteOutput').textContent = JSON.stringify(data, null, 2);
+}
+</script>
+
+</body>
+</html>
