@@ -151,8 +151,9 @@ input.inp::placeholder,textarea.inp::placeholder{color:var(--tx3);}
 .explorer-main-hdr{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .explorer-main-hdr-name{font-family:var(--mono);font-size:.86rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .explorer-records{flex:1;overflow-y:auto;}
-.explorer-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--tx3);font-size:.81rem;text-align:center;padding:40px;}
+.explorer-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;color:var(--tx3);font-size:.81rem;text-align:center;padding:15vh 40px 40px;overflow-y:auto;}
 .explorer-empty svg{opacity:.35;}
+.explorer-empty-icon{width:64px;height:64px;flex-shrink:0;}
 
 table.rec-table{width:100%;border-collapse:collapse;font-size:.78rem;}
 table.rec-table thead th{text-align:left;font-size:.63rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:2;}
@@ -526,18 +527,59 @@ function renderSidebar() {
 
 // ── CONFIG OBJECT / NOTES (mirrors worker's own shape) ──
 var USAGE_NOTES = [
-  "This is a Pasttime database config. Give this whole object to an AI assistant and say 'build me an app using this database' — it has everything needed.",
-  "Endpoints (baseURL is included above):",
-  "  GET  {baseURL}/db/{databaseId}/{collection}            -> list all records",
+  "This is a Pasttime database config. Give this whole object to an AI assistant and say 'build me an app using this database' — it has everything needed. Do not guess at endpoints or response shapes beyond what's written here.",
+  "",
+  "ENDPOINTS (baseURL is included above):",
+  "  GET  {baseURL}/db/{databaseId}/{collection}?limit=50    -> list recent records, newest first (limit defaults to 50; use ?limit=all for everything, or ?limit=N for a specific count)",
   "  GET  {baseURL}/db/{databaseId}/{collection}/{recordId}  -> get one record",
-  "  POST {baseURL}/db/{databaseId}/{collection}             -> create a record, body {\"data\": {...}}",
-  "  PUT  {baseURL}/db/{databaseId}/{collection}/{recordId}  -> overwrite a record, body is the raw record",
+  "  POST {baseURL}/db/{databaseId}/{collection}             -> create a record, body {\"data\": {...}} (or just {...}) — optionally include {\"id\": \"myCustomId\"} to set a specific record id instead of a random one",
+  "  PUT  {baseURL}/db/{databaseId}/{collection}/{recordId}  -> overwrite/upsert a specific record, body is the raw record data (not wrapped in a 'data' key)",
   "  DELETE {baseURL}/db/{databaseId}/{collection}/{recordId} -> delete a record",
-  "  GET  {baseURL}/get/{databaseId}/{key}    -> read a single JSON value",
-  "  POST {baseURL}/set/{databaseId}/{key}    -> body {\"value\": <any JSON>}, write a single JSON value",
-  "  DELETE {baseURL}/delete/{databaseId}/{key} -> delete a single JSON value",
-  "Auth: header 'x-api-key: {apiKey}' (or ?apiKey= query param). Public mode: reads open, writes need key. Private mode: everything needs key.",
-  "No websockets/push — poll every 2-3 seconds for 'realtime' behavior."
+  "",
+  "AUTH: header 'x-api-key: {apiKey}' (or ?apiKey={apiKey} as a query param works too).",
+  "  Public mode databases: reads (GET) need no key at all. Writes (POST/PUT/DELETE) always need the key.",
+  "  Private mode databases: every request, including reads, needs the key.",
+  "",
+  "NO REALTIME PUSH: there are no websockets or server-sent events. To fake 'realtime' (e.g. a chat app), poll the collection GET endpoint on an interval, typically every 2-3 seconds, and re-render when the data changes.",
+  "",
+  "*** CRITICAL — READ THIS BEFORE WRITING ANY CODE THAT TOUCHES A COLLECTION ***",
+  "GET on a COLLECTION (i.e. the endpoint with NO recordId at the end) returns a plain JavaScript OBJECT keyed by record id. It is NEVER an array. Example real response body:",
+  "  { \"abc123\": {\"username\":\"sam\",\"text\":\"hi\",\"ts\":1700000000000}, \"xyz789\": {\"username\":\"lee\",\"text\":\"yo\",\"ts\":1700000005000} }",
+  "It is NOT [{...}, {...}]. Calling .map(), .filter(), .forEach(), .sort(), .find(), or .some() directly on this response WILL THROW 'X.map is not a function' or similar, because those are Array methods and this is a plain object. This is the single most common mistake — check any code you write against this before giving it to the user.",
+  "An empty collection returns {} (empty object), not [] (empty array). Do not write '.length === 0' checks on it directly — use 'Object.keys(result).length === 0' instead.",
+  "To get an array (e.g. to sort chat messages by time, count records, or check if a value already exists), ALWAYS convert first, then use array methods on the converted array:",
+  "  const res = await fetch(baseURL + '/db/' + databaseId + '/messages', { headers: { 'x-api-key': apiKey } });",
+  "  const raw = await res.json();",
+  "  const records = Object.entries(raw).map(([id, data]) => ({ id, ...data }));",
+  "  records.sort((a, b) => a.ts - b.ts); // now safe, records is a real array",
+  "",
+  "GET on a SINGLE record (i.e. the endpoint WITH a recordId at the end) returns that record's data directly as a plain object — it is NOT wrapped in {id, data}, it's just the record's own fields.",
+  "",
+  "POST (create) returns {\"id\": \"...\", \"data\": {...}} for the ONE record just created. This response is NOT the whole collection and is NOT an array — don't confuse it with a collection GET response.",
+  "",
+  "OTHER GOTCHAS:",
+  "- There is no server-side filtering, sorting, or querying of any kind. Always fetch the collection (optionally with ?limit=), convert the response to an array using Object.entries as shown above, then filter/sort in your own JavaScript.",
+  "- The collection name '_meta' is reserved by the database internals. Never create or write to a collection literally named '_meta'.",
+  "- Record ids are opaque random strings unless you explicitly pass your own 'id' in the POST body. Don't assume ids are sequential, numeric, timestamps, or otherwise sortable — sort by a field you actually put in the record data (like a 'ts' or 'createdAt' field you add yourself) if order matters.",
+  "- There is no dedicated binary/file upload endpoint. To store an image, GIF, or profile picture, either (a) embed it as a base64 data URL string in a normal field (e.g. { avatar: 'data:image/png;base64,...' }), keeping individual images reasonably compressed since each record has a practical size ceiling, or (b) store an external https:// URL pointing to the image instead, which is usually the better choice for larger images or GIFs.",
+  "- A 404 response on GET .../{collection}/{recordId} means that specific record id does not exist. It does NOT mean the collection itself is empty — an empty collection is a normal 200 response with body {}.",
+  "- Failed requests return a JSON body like {\"error\": \"some message\"} together with a non-2xx HTTP status code. Always check 'res.ok' (or 'res.status') before assuming a request succeeded — a non-2xx JSON error response does NOT throw automatically inside a try/catch around fetch(), so relying on try/catch alone will silently treat failed writes as successful.",
+  "- This is intentionally a simple database for small hobby projects (chat apps, guestbooks, leaderboards, todo lists). It is not built for high-frequency writes (hundreds per second) or huge single collections — it will work fine at normal small-app scale.",
+  "",
+  "WORKED EXAMPLE — fetch, convert, sort, and render a chat-style collection end to end:",
+  "  const res = await fetch(baseURL + '/db/' + databaseId + '/messages?limit=50', { headers: { 'x-api-key': apiKey } });",
+  "  if (!res.ok) { console.error('Failed to load messages'); return; }",
+  "  const raw = await res.json();",
+  "  const messages = Object.entries(raw).map(([id, data]) => ({ id, ...data }));",
+  "  messages.sort((a, b) => a.ts - b.ts);",
+  "  messages.forEach(m => renderMessage(m.username, m.text));",
+  "",
+  "WORKED EXAMPLE — creating a record with your own timestamp field so you can sort later:",
+  "  await fetch(baseURL + '/db/' + databaseId + '/messages', {",
+  "    method: 'POST',",
+  "    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },",
+  "    body: JSON.stringify({ data: { username: 'sam', text: 'hello', ts: Date.now() } })",
+  "  });"
 ];
 
 function buildConfigObject(proj) {
@@ -733,7 +775,7 @@ function renderDataSubtab() {
       '</div>' +
       '<div class="explorer-main" id="explorer-main">' +
         '<div class="explorer-empty">' +
-          collIconSvg().replace('coll-row-icon','').replace('width="16" height="16"','') +
+          collIconSvg().replace('coll-row-icon','explorer-empty-icon') +
           '<div>Select a collection on the left,<br>or create a new one to get started.</div>' +
         '</div>' +
       '</div>' +
@@ -1238,5 +1280,6 @@ document.getElementById('ai-input').addEventListener('keydown', function(e){
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); }
 });
 </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
