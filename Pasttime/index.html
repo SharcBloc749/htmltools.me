@@ -788,9 +788,9 @@ function renderDataSubtab() {
 async function loadCollections() {
   var proj = _currentProjForView;
   try {
-    var content = await apiListDb(proj);
-    _dbContentCache = content;
-    var collNames = Object.keys(content).filter(function(k){ return k !== '_meta' && k !== '_kv'; });
+    var meta = await apiListDb(proj);
+    var collections = meta.collections || {};
+    var collNames = Object.keys(collections);
     var listEl = document.getElementById('coll-list');
     if (!listEl) return; // subtab may have changed
     if (!collNames.length) {
@@ -798,7 +798,7 @@ async function loadCollections() {
       return;
     }
     listEl.innerHTML = collNames.map(function(name){
-      var count = Object.keys(content[name] || {}).length;
+      var count = collections[name] || 0;
       return '<div class="coll-row'+(name===_activeCollection?' active':'')+'" data-coll="'+esc(name)+'">' +
         collIconSvg() +
         '<span class="coll-row-name">'+esc(name)+'</span>' +
