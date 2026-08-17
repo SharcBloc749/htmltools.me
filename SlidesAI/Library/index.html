@@ -193,6 +193,7 @@ footer .dot{color:var(--borderhi);}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
 <script>
 // ── CONFIG ──
 var FB_CONFIG = {
@@ -288,34 +289,109 @@ function renderSlideHTML(theme, slide, sceneSvg, icons) {
     '<div class="slide-content">'+inner+'</div></div>';
 }
 
-function buildStandaloneDeckHTML(entry) {
-  var theme = entry.theme;
-  var slidesHTML = theme.slides.map(function(s, i){
-    return '<section class="deck-slide" data-i="'+i+'">' + renderSlideHTML(theme, s, entry.scenes[i], entry.iconsBySlide[i]) + '</section>';
-  }).join('\n');
-  var fontLinks = [theme.heading_font, theme.body_font].filter(function(v,i,a){return v && a.indexOf(v)===i;})
-    .map(function(f){ return '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family='+encodeURIComponent(f).replace(/%20/g,'+')+':wght@400;500;600;700&display=swap">'; }).join('\n');
+// ── PPTX EXPORT (real editable pptx, built client-side with pptxgenjs) ──
+// Identical logic to the generator page — kept in sync so a deck downloads
+// the same way whether it's downloaded fresh or later from the Library.
+var PPTX_W = 10, PPTX_H = 5.625;
+function hexNoHash(h) { return (h || '000000').toString().replace('#', '').toUpperCase(); }
 
-  return '<!doctype html><html lang="en"><head><meta charset="UTF-8"/>'+
-    '<meta name="viewport" content="width=device-width,initial-scale=1"/>'+
-    '<title>'+esc(theme.name||'Deck')+' — SlidesAI</title>'+
-    fontLinks+
-    '<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#0c0c0c;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px;}'+
-    '.deck-slide{position:relative;width:100%;max-width:960px;aspect-ratio:1000/562;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.5);}'+
-    '.slide-scene{position:absolute;inset:0;width:100%;height:100%;}'+
-    '.slide-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:8% 9%;}'+
-    '.slide-eyebrow{font-size:.72em;font-weight:600;letter-spacing:.09em;text-transform:uppercase;margin-bottom:.6em;opacity:.85;}'+
-    '.slide-heading{font-size:2.1em;font-weight:700;line-height:1.15;letter-spacing:-.01em;margin-bottom:.3em;}'+
-    '.slide-body{font-size:1em;line-height:1.55;max-width:80%;}'+
-    '.slide-stat{font-size:3.4em;font-weight:700;line-height:1;letter-spacing:-.02em;margin-bottom:.15em;}'+
-    '.slide-list{display:flex;flex-direction:column;gap:.5em;margin-top:.3em;}'+
-    '.slide-list-item{display:flex;align-items:center;gap:.5em;font-size:1.05em;font-weight:500;}'+
-    '.slide-list-dot{width:.5em;height:.5em;border-radius:50%;flex-shrink:0;}'+
-    '.slide-cols{display:flex;gap:1.5em;margin-top:.3em;}.slide-col{flex:1;font-size:.95em;line-height:1.55;}'+
-    '.slide-icon-scatter{position:absolute;inset:0;pointer-events:none;}'+
-    '</style></head><body>'+slidesHTML+
-    '<p style="font-family:monospace;font-size:11px;color:#4a4a4a;">Generated with SlidesAI · htmltools.me/SlidesAI</p>'+
-    '</body></html>';
+function svgToPngDataUrl(svgString, width, height) {
+  return new Promise(function(resolve){
+    try {
+      var svg64 = btoa(unescape(encodeURIComponent(svgString)));
+      var img = new Image();
+      img.onload = function(){
+        var canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = function(){ resolve(null); };
+      img.src = 'data:image/svg+xml;base64,' + svg64;
+    } catch(e) { resolve(null); }
+  });
+}
+
+async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
+  var s = pptx.addSlide();
+  s.background = { color: hexNoHash(theme.background) };
+
+  var tx1 = hexNoHash(theme.text_primary), tx2 = hexNoHash(theme.text_secondary);
+  var a1 = hexNoHash(theme.accent_1), a2 = hexNoHash(theme.accent_2);
+  var headFont = theme.heading_font || 'Calibri';
+  var bodyFont = theme.body_font || 'Calibri';
+
+  if (sceneSvg) {
+    var scenePng = await svgToPngDataUrl(sceneSvg, 1600, 899);
+    if (scenePng) s.addImage({ data: scenePng, x: 0, y: 0, w: PPTX_W, h: PPTX_H });
+  } else if (icons && icons.length) {
+    var positions = [
+      {t:.08,l:.82,sz:.09},{t:.68,l:.88,sz:.07},{t:.42,l:.92,sz:.06},
+      {t:.85,l:.78,sz:.08},{t:.20,l:.70,sz:.05},{t:.55,l:.75,sz:.06}
+    ];
+    for (var i = 0; i < Math.min(icons.length, 6); i++) {
+      var p = positions[i % positions.length];
+      var tint = (i % 2) ? theme.accent_2 : theme.accent_1;
+      var coloredSvg = icons[i].svg.replace(/<svg/, '<svg style="color:' + tint + '"');
+      var iconPng = await svgToPngDataUrl(coloredSvg, 256, 256);
+      if (iconPng) {
+        var sizeIn = p.sz * PPTX_W;
+        s.addImage({ data: iconPng, x: p.l * PPTX_W, y: p.t * PPTX_H, w: sizeIn, h: sizeIn, transparency: 50 });
+      }
+    }
+  }
+
+  var padX = PPTX_W * 0.09, padY = PPTX_H * 0.08;
+  var contentW = PPTX_W - padX * 2;
+  var contentX = padX;
+
+  if (slide.layout === 'title') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.6, fontFace: headFont, fontSize: 40, bold: true, color: tx1, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 2.7, w: contentW * 0.8, h: 1.0, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slide.layout === 'stat') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 1.0, w: contentW * 0.8, h: 1.5, fontFace: headFont, fontSize: 54, bold: true, color: a2, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 2.8, w: contentW * 0.75, h: 0.9, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slide.layout === 'quote') {
+    s.addText('\u201C' + (slide.heading || '') + '\u201D', { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.8, fontFace: headFont, fontSize: 30, italic: true, color: tx1, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 3.0, w: contentW * 0.75, h: 0.8, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slide.layout === 'list') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    var items = (slide.body || '').split('|').map(function(t){ return t.trim(); }).filter(Boolean);
+    var listRuns = items.map(function(it){
+      return { text: it, options: { bullet: { code: '25CF', indent: 18 }, color: tx2, fontFace: bodyFont, fontSize: 16, bold: true, breakLine: true, paraSpaceAfter: 10 } };
+    });
+    s.addText(listRuns, { x: contentX, y: padY + 1.9, w: contentW * 0.7, h: 1.8, valign: 'top', margin: 0 });
+  } else if (slide.layout === 'two_column') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.85, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    var halves = (slide.body || '').split('||').map(function(t){ return t.trim(); });
+    var colW = (contentW * 0.85 - 0.3) / 2;
+    halves.slice(0,2).forEach(function(half, i){
+      var colX = contentX + i * (colW + 0.3);
+      var lineColor = (i % 2) ? a2 : a1;
+      s.addShape('line', { x: colX, y: padY + 2.0, w: 0, h: 1.6, line: { color: lineColor, width: 1.5 } });
+      s.addText(half, { x: colX + 0.15, y: padY + 2.0, w: colW - 0.15, h: 1.6, fontFace: bodyFont, fontSize: 14, color: tx2, valign: 'top' });
+    });
+  } else {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.9, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 2.0, w: contentW * 0.72, h: 1.6, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  }
+}
+
+async function buildPptx(entry) {
+  var pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_16x9';
+  pptx.title = entry.name || 'SlidesAI Deck';
+  for (var i = 0; i < entry.theme.slides.length; i++) {
+    await addSlideToPptx(pptx, entry.theme, entry.theme.slides[i], entry.scenes[i], entry.iconsBySlide[i]);
+  }
+  var fname = (entry.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.pptx';
+  await pptx.writeFile({ fileName: fname });
 }
 
 // ── AUTH STATE (viewing the Library requires being signed in, matching the rest of HTMLTools) ──
@@ -450,15 +526,20 @@ function closeViewer() { document.getElementById('viewer-bg').classList.remove('
 document.getElementById('viewer-close').addEventListener('click', closeViewer);
 document.getElementById('viewer-bg').addEventListener('click', function(e){ if (e.target === this) closeViewer(); });
 
-document.getElementById('viewer-download-btn').addEventListener('click', function(){
+document.getElementById('viewer-download-btn').addEventListener('click', async function(){
   if (!viewerEntry) return;
-  var html = buildStandaloneDeckHTML(viewerEntry);
-  var blob = new Blob([html], {type:'text/html'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (viewerEntry.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.html';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  showToast('Deck downloaded.');
+  this.disabled = true;
+  this.textContent = 'Building .pptx…';
+  try {
+    await buildPptx(viewerEntry);
+    showToast('Deck downloaded as .pptx');
+  } catch(e) {
+    console.error(e);
+    showToast('Failed to build .pptx');
+  } finally {
+    this.disabled = false;
+    this.textContent = '\u2193 Download PPTX';
+  }
 });
 
 document.getElementById('viewer-delete-btn').addEventListener('click', async function(){
