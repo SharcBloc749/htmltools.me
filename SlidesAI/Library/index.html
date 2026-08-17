@@ -340,7 +340,7 @@ function svgToPngDataUrl(svgString, width, height) {
 }
 
 async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
-  var s = pptx.addSlide();
+  var s = pptx.addSlide({ masterName: (theme && theme.name || 'Theme') + ' Master' });
   s.background = { color: hexNoHash(theme && theme.background) };
 
   // Defensive: normalize slide fields so a missing/malformed field can
@@ -473,6 +473,20 @@ async function buildPptx(entry) {
   var pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_16x9';
   pptx.title = entry.name || 'SlidesAI Deck';
+
+  // pptxgenjs auto-generates one anonymous master named "DEFAULT" with no
+  // background/objects if defineSlideMaster is never called — that's the
+  // blank thumbnail PowerPoint's Layout panel was showing. Defining a real
+  // named master (matched to the theme background) makes that panel show an
+  // actual populated layout, and gives every slide a defined base to
+  // inherit from instead of an empty placeholder.
+  var theme = entry.theme;
+  pptx.defineSlideMaster({
+    title: (theme.name || 'Theme') + ' Master',
+    background: { color: hexNoHash(theme.background) },
+    objects: [],
+  });
+
   for (var i = 0; i < entry.theme.slides.length; i++) {
     await addSlideToPptx(pptx, entry.theme, entry.theme.slides[i], entry.scenes[i], entry.iconsBySlide[i]);
   }
