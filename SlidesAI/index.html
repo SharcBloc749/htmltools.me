@@ -708,14 +708,14 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
   }
 }
 
-// pptxgenjs 3.12.0 has three known defects around masters/layouts that
-// either trigger PowerPoint's "repair" dialog or leave junk visible in the
-// UI (see gitbrent/PptxGenJS#1449, #1443, and source: the constructor always
-// seeds `this._slideLayouts` with one hardcoded blank layout named
-// "DEFAULT" at construction time, BEFORE defineSlideMaster() ever runs —
-// defineSlideMaster() only pushes an additional layout onto that array, it
-// never replaces the seeded one, and there is no library option to suppress
-// it):
+// pptxgenjs 3.12.0 has four known defects around masters/layouts/backgrounds
+// that either trigger PowerPoint's "repair" dialog or leave junk/incorrect
+// rendering visible in the UI (see gitbrent/PptxGenJS#1449, #1443, and
+// source: the constructor always seeds `this._slideLayouts` with one
+// hardcoded blank layout named "DEFAULT" at construction time, BEFORE
+// defineSlideMaster() ever runs — defineSlideMaster() only pushes an
+// additional layout onto that array, it never replaces the seeded one, and
+// there is no library option to suppress it):
 //   1. [Content_Types].xml registers one slideMaster <Override> per slide
 //      instead of per actual master file, so it references files that
 //      don't exist in the package (e.g. slideMaster2.xml, slideMaster3.xml
@@ -728,9 +728,22 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
 //      "DEFAULT" that no slide ever actually uses — it's dead weight baked
 //      in by the constructor, and it's what shows up as a blank thumbnail
 //      alongside the real theme layout in PowerPoint's Layout picker.
+//   4. defineSlideMaster()'s `background` option is only ever written onto
+//      the generated slideLAYOUT's own <p:bg> — the parent slideMASTER file
+//      (slideMasterN.xml) is left with no <p:bg> element at all (confirmed
+//      by inspecting the raw XML directly: the layout has the correct
+//      <p:bg><p:bgPr><a:solidFill>... and the master's <p:cSld> has none).
+//      The library's own maintainer has confirmed in gitbrent/PptxGenJS#161
+//      that defineSlideMaster() only creates a Layout, and the underlying
+//      parent Master it sits under "is just blank/white". PowerPoint's
+//      Layout-picker thumbnail can be influenced by the parent master's own
+//      appearance rather than purely the layout in isolation, which is why
+//      the thumbnail can render white/blank even though the layout XML
+//      itself is correct.
 // We patch the generated zip ourselves before download so PowerPoint never
 // has a reason to show the repair dialog or discard slide content, and so
-// the Layout picker only shows layouts that are actually real/used.
+// the Layout picker only shows layouts that are actually real/used and
+// correctly colored.
 async function repairPptxZip(arrayBuffer) {
   if (typeof JSZip === 'undefined') {
     // Can't repair without JSZip — return the original bytes rather than fail the whole download.
@@ -825,6 +838,39 @@ async function repairPptxZip(arrayBuffer) {
     }
 
     zip.file(relsPath, relsXml);
+  }
+
+  // Step 4 (see comment above): give each real master its own <p:bg>,
+  // copied from its (now-only) real layout's <p:bg>, since
+  // defineSlideMaster() never writes one onto the master itself. Verified
+  // by generating a real pptx with defineSlideMaster({background:...}),
+  // confirming via raw XML inspection that the layout has a correct <p:bg>
+  // but the master's <p:cSld> has none, applying this exact patch, and then
+  // confirming via python-pptx (an independent OOXML reader) that the
+  // master's own background.fill afterward correctly reports SOLID with the
+  // right color, with the file still opening and every slide resolving
+  // correctly.
+  for (var mj = 0; mj < masterPathsForLayoutStrip.length; mj++) {
+    var masterPathBg = masterPathsForLayoutStrip[mj];
+    var masterXmlBg = await zip.file(masterPathBg).async('string');
+    if (/<p:bg>/.test(masterXmlBg)) continue; // already has one (e.g. re-running repair) — don't double-insert
+
+    var relsPathBg = masterPathBg.replace('slideMasters/', 'slideMasters/_rels/') + '.rels';
+    var relsFileBg = zip.file(relsPathBg);
+    if (!relsFileBg) continue;
+    var relsXmlBg = await relsFileBg.async('string');
+    var layoutRefMatch = relsXmlBg.match(/Target="\.\.\/slideLayouts\/(slideLayout\d+\.xml)"/);
+    if (!layoutRefMatch) continue;
+    var layoutFileBg = zip.file('ppt/slideLayouts/' + layoutRefMatch[1]);
+    if (!layoutFileBg) continue;
+    var layoutXmlBg = await layoutFileBg.async('string');
+    var bgTagMatch = layoutXmlBg.match(/<p:bg>[\s\S]*?<\/p:bg>/);
+    if (!bgTagMatch) continue;
+
+    // <p:bg> must be the first child of <p:cSld> per the OOXML schema
+    // (before <p:spTree>), so insert it immediately after the opening tag.
+    masterXmlBg = masterXmlBg.replace('<p:cSld>', '<p:cSld>' + bgTagMatch[0]);
+    zip.file(masterPathBg, masterXmlBg);
   }
 
   return zip.generateAsync({ type: 'arraybuffer' });
