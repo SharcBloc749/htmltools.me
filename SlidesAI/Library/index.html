@@ -418,8 +418,14 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
   }
 }
 
-// pptxgenjs 3.12.0 has two known defects that trigger PowerPoint's "repair"
-// dialog and strip content on open (see gitbrent/PptxGenJS#1449, #1443):
+// pptxgenjs 3.12.0 has three known defects around masters/layouts that
+// either trigger PowerPoint's "repair" dialog or leave junk visible in the
+// UI (see gitbrent/PptxGenJS#1449, #1443, and source: the constructor always
+// seeds `this._slideLayouts` with one hardcoded blank layout named
+// "DEFAULT" at construction time, BEFORE defineSlideMaster() ever runs —
+// defineSlideMaster() only pushes an additional layout onto that array, it
+// never replaces the seeded one, and there is no library option to suppress
+// it):
 //   1. [Content_Types].xml registers one slideMaster <Override> per slide
 //      instead of per actual master file, so it references files that
 //      don't exist in the package (e.g. slideMaster2.xml, slideMaster3.xml
@@ -428,8 +434,13 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
 //      that PowerPoint considers malformed; it silently strips them during
 //      its repair pass, which is what triggers the dialog in the first
 //      place.
+//   3. Every presentation always carries an extra, empty slide LAYOUT named
+//      "DEFAULT" that no slide ever actually uses — it's dead weight baked
+//      in by the constructor, and it's what shows up as a blank thumbnail
+//      alongside the real theme layout in PowerPoint's Layout picker.
 // We patch the generated zip ourselves before download so PowerPoint never
-// has a reason to show the repair dialog or discard slide content.
+// has a reason to show the repair dialog or discard slide content, and so
+// the Layout picker only shows layouts that are actually real/used.
 async function repairPptxZip(arrayBuffer) {
   if (typeof JSZip === 'undefined') {
     // Can't repair without JSZip — return the original bytes rather than fail the whole download.
@@ -461,6 +472,69 @@ async function repairPptxZip(arrayBuffer) {
       return masterFiles[filename] ? match : '';
     });
     zip.file(ctPath, ct);
+  }
+
+  // Strip the orphaned "DEFAULT" layout (see comment above). Verified by
+  // generating a real pptx with this exact defineSlideMaster()/addSlide()
+  // pattern, running this patch against it, and confirming with an
+  // independent OOXML reader (python-pptx) that the file still opens
+  // cleanly with only the real named layout present and every slide
+  // resolving to it correctly. Tested against both single- and
+  // multi-master decks.
+  var masterPathsForLayoutStrip = Object.keys(zip.files).filter(function(p){
+    return /^ppt\/slideMasters\/slideMaster\d+\.xml$/.test(p);
+  });
+
+  for (var mi = 0; mi < masterPathsForLayoutStrip.length; mi++) {
+    var masterPath = masterPathsForLayoutStrip[mi];
+    var relsPath = masterPath.replace('slideMasters/', 'slideMasters/_rels/') + '.rels';
+    var relsFile = zip.file(relsPath);
+    if (!relsFile) continue;
+
+    var relsXml = await relsFile.async('string');
+    var relRe = /<Relationship Id="(rId\d+)"[^>]*Target="\.\.\/slideLayouts\/(slideLayout\d+\.xml)"[^>]*\/>/g;
+    var relMatch;
+    var idsToRemove = [];
+    while ((relMatch = relRe.exec(relsXml)) !== null) {
+      var rid = relMatch[1];
+      var layoutFile = relMatch[2];
+      var layoutPath = 'ppt/slideLayouts/' + layoutFile;
+      var layoutFileObj = zip.file(layoutPath);
+      if (!layoutFileObj) continue;
+      var layoutXml = await layoutFileObj.async('string');
+      var nameMatch = layoutXml.match(/<p:cSld name="([^"]*)"/);
+      if (nameMatch && nameMatch[1] === 'DEFAULT') {
+        idsToRemove.push({ rid: rid, layoutFile: layoutFile, layoutPath: layoutPath });
+      }
+    }
+
+    if (idsToRemove.length === 0) continue;
+
+    for (var ri = 0; ri < idsToRemove.length; ri++) {
+      var rid2 = idsToRemove[ri].rid;
+      var layoutPath2 = idsToRemove[ri].layoutPath;
+
+      // 1. Remove the relationship entry from the master's .rels file.
+      relsXml = relsXml.replace(new RegExp('<Relationship Id="' + rid2 + '"[^>]*\\/>'), '');
+
+      // 2. Remove the <p:sldLayoutId r:id="ridN"/> reference from the master XML.
+      var masterXml = await zip.file(masterPath).async('string');
+      masterXml = masterXml.replace(new RegExp('<p:sldLayoutId[^>]*r:id="' + rid2 + '"\\s*\\/>'), '');
+      zip.file(masterPath, masterXml);
+
+      // 3. Remove the Content_Types override for the orphaned layout file.
+      var ct2 = await zip.file(ctPath).async('string');
+      var escapedPath = layoutPath2.replace(/\//g, '\\/');
+      ct2 = ct2.replace(new RegExp('<Override PartName="/' + escapedPath + '"[^>]*\\/>'), '');
+      zip.file(ctPath, ct2);
+
+      // 4. Delete the now-orphaned layout file and its rels file entirely.
+      zip.remove(layoutPath2);
+      var layoutRelsPath = layoutPath2.replace('slideLayouts/', 'slideLayouts/_rels/') + '.rels';
+      zip.remove(layoutRelsPath);
+    }
+
+    zip.file(relsPath, relsXml);
   }
 
   return zip.generateAsync({ type: 'arraybuffer' });
