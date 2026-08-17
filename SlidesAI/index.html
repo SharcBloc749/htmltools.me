@@ -838,14 +838,52 @@ async function buildPptx(deck) {
   pptx.layout = 'LAYOUT_16x9';
   pptx.title = deck.theme.name || 'SlidesAI Deck';
 
-  // See note in addSlideToPptx / buildPptx history: without defineSlideMaster,
-  // pptxgenjs auto-creates one blank anonymous "DEFAULT" master, which is the
-  // empty thumbnail PowerPoint's Layout panel was showing.
+  // A master defined with objects: [] has a correct background fill in its
+  // XML (verified directly against the generated file) but literally zero
+  // shapes on it, so PowerPoint's Layout-panel thumbnail — which renders
+  // shapes, not just the bg fill at that tiny size — has nothing to draw
+  // and reads as a flat, empty swatch. Giving it real title/body
+  // placeholders plus a thin accent rule (matching what addSlideToPptx
+  // actually draws on every slide) makes that thumbnail show real content,
+  // not just a background fill with nothing on it.
   var theme = deck.theme;
+  var masterTitle = (theme.name || 'Theme') + ' Master';
+  var headFontM = theme.heading_font || 'Calibri';
+  var bodyFontM = theme.body_font || 'Calibri';
   pptx.defineSlideMaster({
-    title: (theme.name || 'Theme') + ' Master',
+    title: masterTitle,
     background: { color: hexNoHash(theme.background) },
-    objects: [],
+    objects: [
+      {
+        placeholder: {
+          options: {
+            name: 'title', type: 'title',
+            x: 0.7, y: 0.9, w: 8.6, h: 0.9,
+            fontFace: headFontM, fontSize: 28, bold: true,
+            color: hexNoHash(theme.text_primary),
+          },
+          text: '',
+        },
+      },
+      {
+        placeholder: {
+          options: {
+            name: 'body', type: 'body',
+            x: 0.7, y: 2.0, w: 7.5, h: 1.6,
+            fontFace: bodyFontM, fontSize: 15,
+            color: hexNoHash(theme.text_secondary),
+          },
+          text: '',
+        },
+      },
+      {
+        rect: {
+          x: 0.7, y: 1.75, w: 1.1, h: 0.045,
+          fill: { color: hexNoHash(theme.accent_1) },
+          line: { type: 'none' },
+        },
+      },
+    ],
   });
 
   for (var i = 0; i < deck.theme.slides.length; i++) {
