@@ -284,6 +284,7 @@ footer .dot{color:var(--borderhi);}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
 // ── CONFIG ──
 var FB_CONFIG = {
@@ -626,7 +627,7 @@ function svgToPngDataUrl(svgString, width, height) {
 }
 
 async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
-  var s = pptx.addSlide();
+  var s = pptx.addSlide({ masterName: (theme && theme.name || 'Theme') + ' Master' });
   s.background = { color: hexNoHash(theme && theme.background) };
 
   // Defensive: normalize slide fields so a missing/malformed field can
@@ -707,6 +708,50 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
   }
 }
 
+// pptxgenjs 3.12.0 has two known defects that trigger PowerPoint's "repair"
+// dialog and strip content on open (see gitbrent/PptxGenJS#1449, #1443):
+//   1. [Content_Types].xml registers one slideMaster <Override> per slide
+//      instead of per actual master file, so it references files that
+//      don't exist in the package.
+//   2. The auto-generated notesMaster1.xml contains 6 placeholder shapes
+//      that PowerPoint considers malformed and strips during repair.
+// Patched here the same way as the Library page, so exports from this page
+// don't trigger the repair dialog either.
+async function repairPptxZip(arrayBuffer) {
+  if (typeof JSZip === 'undefined') {
+    return arrayBuffer;
+  }
+  var zip = await JSZip.loadAsync(arrayBuffer);
+
+  var notesMasterPath = 'ppt/notesMasters/notesMaster1.xml';
+  if (zip.file(notesMasterPath)) {
+    var xml = await zip.file(notesMasterPath).async('string');
+    xml = xml.replace(/(<p:spTree>)[\s\S]*?(<\/p:spTree>)/, function(match, open, close){
+      var grpMatch = match.match(/<p:nvGrpSpPr>[\s\S]*?<\/p:nvGrpSpPr><p:grpSpPr>[\s\S]*?<\/p:grpSpPr>/);
+      return open + (grpMatch ? grpMatch[0] : '') + close;
+    });
+    zip.file(notesMasterPath, xml);
+  }
+
+  var ctPath = '[Content_Types].xml';
+  if (zip.file(ctPath)) {
+    var ct = await zip.file(ctPath).async('string');
+    var masterFiles = {};
+    var mastersFolder = zip.folder('ppt/slideMasters');
+    if (mastersFolder) {
+      mastersFolder.forEach(function(relPath){
+        if (/^slideMaster\d+\.xml$/.test(relPath)) masterFiles[relPath] = true;
+      });
+    }
+    ct = ct.replace(/<Override PartName="\/ppt\/slideMasters\/([^"]+)"[^>]*\/>/g, function(match, filename){
+      return masterFiles[filename] ? match : '';
+    });
+    zip.file(ctPath, ct);
+  }
+
+  return zip.generateAsync({ type: 'arraybuffer' });
+}
+
 async function buildPptx(deck) {
   if (typeof PptxGenJS === 'undefined') {
     throw new Error('PPTX library failed to load — check your connection and try again.');
@@ -714,11 +759,34 @@ async function buildPptx(deck) {
   var pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_16x9';
   pptx.title = deck.theme.name || 'SlidesAI Deck';
+
+  // See note in addSlideToPptx / buildPptx history: without defineSlideMaster,
+  // pptxgenjs auto-creates one blank anonymous "DEFAULT" master, which is the
+  // empty thumbnail PowerPoint's Layout panel was showing.
+  var theme = deck.theme;
+  pptx.defineSlideMaster({
+    title: (theme.name || 'Theme') + ' Master',
+    background: { color: hexNoHash(theme.background) },
+    objects: [],
+  });
+
   for (var i = 0; i < deck.theme.slides.length; i++) {
     await addSlideToPptx(pptx, deck.theme, deck.theme.slides[i], deck.scenes[i], deck.iconsBySlide[i]);
   }
   var fname = (deck.theme.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.pptx';
-  await pptx.writeFile({ fileName: fname });
+
+  var rawBuffer = await pptx.write({ outputType: 'arraybuffer' });
+  var finalBuffer = await repairPptxZip(rawBuffer);
+
+  var blob = new Blob([finalBuffer], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
 
 document.getElementById('download-btn').addEventListener('click', async function(){
