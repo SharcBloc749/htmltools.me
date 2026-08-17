@@ -208,6 +208,7 @@ footer .dot{color:var(--borderhi);}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script>
 // ── CONFIG ──
 var FB_CONFIG = {
@@ -417,6 +418,54 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
   }
 }
 
+// pptxgenjs 3.12.0 has two known defects that trigger PowerPoint's "repair"
+// dialog and strip content on open (see gitbrent/PptxGenJS#1449, #1443):
+//   1. [Content_Types].xml registers one slideMaster <Override> per slide
+//      instead of per actual master file, so it references files that
+//      don't exist in the package (e.g. slideMaster2.xml, slideMaster3.xml
+//      for a 4-slide deck with only one real master).
+//   2. The auto-generated notesMaster1.xml contains 6 placeholder shapes
+//      that PowerPoint considers malformed; it silently strips them during
+//      its repair pass, which is what triggers the dialog in the first
+//      place.
+// We patch the generated zip ourselves before download so PowerPoint never
+// has a reason to show the repair dialog or discard slide content.
+async function repairPptxZip(arrayBuffer) {
+  if (typeof JSZip === 'undefined') {
+    // Can't repair without JSZip — return the original bytes rather than fail the whole download.
+    return arrayBuffer;
+  }
+  var zip = await JSZip.loadAsync(arrayBuffer);
+
+  var notesMasterPath = 'ppt/notesMasters/notesMaster1.xml';
+  if (zip.file(notesMasterPath)) {
+    var xml = await zip.file(notesMasterPath).async('string');
+    xml = xml.replace(/(<p:spTree>)[\s\S]*?(<\/p:spTree>)/, function(match, open, close){
+      var grpMatch = match.match(/<p:nvGrpSpPr>[\s\S]*?<\/p:nvGrpSpPr><p:grpSpPr>[\s\S]*?<\/p:grpSpPr>/);
+      return open + (grpMatch ? grpMatch[0] : '') + close;
+    });
+    zip.file(notesMasterPath, xml);
+  }
+
+  var ctPath = '[Content_Types].xml';
+  if (zip.file(ctPath)) {
+    var ct = await zip.file(ctPath).async('string');
+    var masterFiles = {};
+    var mastersFolder = zip.folder('ppt/slideMasters');
+    if (mastersFolder) {
+      mastersFolder.forEach(function(relPath){
+        if (/^slideMaster\d+\.xml$/.test(relPath)) masterFiles[relPath] = true;
+      });
+    }
+    ct = ct.replace(/<Override PartName="\/ppt\/slideMasters\/([^"]+)"[^>]*\/>/g, function(match, filename){
+      return masterFiles[filename] ? match : '';
+    });
+    zip.file(ctPath, ct);
+  }
+
+  return zip.generateAsync({ type: 'arraybuffer' });
+}
+
 async function buildPptx(entry) {
   if (typeof PptxGenJS === 'undefined') {
     throw new Error('PPTX library failed to load — check your connection and try again.');
@@ -428,7 +477,19 @@ async function buildPptx(entry) {
     await addSlideToPptx(pptx, entry.theme, entry.theme.slides[i], entry.scenes[i], entry.iconsBySlide[i]);
   }
   var fname = (entry.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.pptx';
-  await pptx.writeFile({ fileName: fname });
+
+  var rawBuffer = await pptx.write({ outputType: 'arraybuffer' });
+  var finalBuffer = await repairPptxZip(rawBuffer);
+
+  var blob = new Blob([finalBuffer], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
 }
 
 // ── AUTH STATE (viewing the Library requires being signed in, matching the rest of HTMLTools) ──
