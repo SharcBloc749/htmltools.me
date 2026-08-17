@@ -284,7 +284,7 @@ footer .dot{color:var(--borderhi);}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" onerror="window.__jszipLoadFailed = true; console.error('SlidesAI: jszip.min.js failed to load from CDN — PPTX exports will be missing the master/layout repair patch until this is fixed.');"></script>
 <script>
 // ── CONFIG ──
 var FB_CONFIG = {
@@ -746,7 +746,16 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
 // correctly colored.
 async function repairPptxZip(arrayBuffer) {
   if (typeof JSZip === 'undefined') {
-    // Can't repair without JSZip — return the original bytes rather than fail the whole download.
+    // Can't repair without JSZip. This used to fail completely silently —
+    // the download would still "succeed" but with none of the master/layout
+    // fixes applied (blank DEFAULT layout still present, master background
+    // missing), and there was no way to tell from the UI that this had
+    // happened. Surface it so a CDN hiccup doesn't look like the fix itself
+    // is broken.
+    console.error('SlidesAI: JSZip failed to load — exporting WITHOUT the master/layout repair patch. The downloaded file may show a blank "DEFAULT" layout and an uncolored Layout thumbnail in PowerPoint. Try reloading the page.');
+    if (typeof showToast === 'function') {
+      showToast('Warning: export library failed to load — file may have a display glitch in PowerPoint\'s Layout panel. Try reloading.');
+    }
     return arrayBuffer;
   }
   var zip = await JSZip.loadAsync(arrayBuffer);
