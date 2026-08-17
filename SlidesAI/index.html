@@ -577,15 +577,26 @@ function svgToPngDataUrl(svgString, width, height) {
       var svg64 = btoa(unescape(encodeURIComponent(svgString)));
       var img = new Image();
       img.onload = function(){
-        var canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/png'));
+        try {
+          var canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/png'));
+        } catch(e) {
+          console.error('svgToPngDataUrl: canvas render/export failed', e);
+          resolve(null);
+        }
       };
-      img.onerror = function(){ resolve(null); };
+      img.onerror = function(e){
+        console.error('svgToPngDataUrl: image failed to load from SVG data URL', e);
+        resolve(null);
+      };
       img.src = 'data:image/svg+xml;base64,' + svg64;
-    } catch(e) { resolve(null); }
+    } catch(e) {
+      console.error('svgToPngDataUrl: setup failed', e);
+      resolve(null);
+    }
   });
 }
 
@@ -681,8 +692,8 @@ document.getElementById('download-btn').addEventListener('click', async function
     await buildPptx(currentDeck);
     showToast('Deck downloaded as .pptx');
   } catch(e) {
-    console.error(e);
-    showToast('Failed to build .pptx');
+    console.error('buildPptx failed:', e);
+    showToast('Failed to build .pptx: ' + (e && e.message ? e.message : 'unknown error'));
   } finally {
     this.disabled = false;
     this.textContent = '\u2193 Download PPTX';
