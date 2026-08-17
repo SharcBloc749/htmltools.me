@@ -76,6 +76,14 @@ textarea.inp::placeholder{color:var(--tx3);}
 .gen-err{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:var(--r);padding:9px 11px;font-size:.73rem;color:var(--redhi);display:none;line-height:1.5;}
 .gen-err.show{display:block;}
 .info-box{background:rgba(37,99,235,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r);padding:9px 11px;font-size:.71rem;color:#93bbf8;line-height:1.6;display:flex;gap:7px;align-items:flex-start;}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;}
+.mode-tile{background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-md);padding:8px 6px;cursor:pointer;transition:all .13s;user-select:none;text-align:center;}
+.mode-tile:hover{border-color:var(--borderhi);background:var(--panel2);}
+.mode-tile.active{border-color:var(--white);background:var(--panel2);}
+.mode-tile-label{font-size:.74rem;font-weight:600;color:var(--tx);}
+.mode-tile-sub{font-size:.6rem;color:var(--tx3);margin-top:2px;line-height:1.3;}
+.image-drop{border:1.5px dashed var(--border2);border-radius:var(--r-md);padding:14px 10px;text-align:center;font-size:.7rem;color:var(--tx3);cursor:pointer;transition:all .13s;}
+.image-drop:hover{border-color:var(--borderhi);color:var(--tx2);background:var(--panel);}
 
 .stage{flex:1;display:flex;flex-direction:column;overflow:hidden;background:
   radial-gradient(circle at 1px 1px, var(--panel2) 1px, transparent 0) 0 0/22px 22px, var(--bg);}
@@ -168,6 +176,34 @@ footer .dot{color:var(--borderhi);}
           <label class="lbl">Try an example</label>
           <div class="example-chips" id="example-chips"></div>
         </div>
+        <div>
+          <label class="lbl">Mode</label>
+          <div class="mode-grid" id="mode-grid">
+            <div class="mode-tile" data-mode="fast">
+              <div class="mode-tile-label">&#9889; Fast</div>
+              <div class="mode-tile-sub">Quickest turnaround</div>
+            </div>
+            <div class="mode-tile active" data-mode="smart">
+              <div class="mode-tile-label">&#10022; Smart</div>
+              <div class="mode-tile-sub">Balanced quality</div>
+            </div>
+            <div class="mode-tile" data-mode="thinking">
+              <div class="mode-tile-label">&#129504; Thinking</div>
+              <div class="mode-tile-sub">Most deliberate</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="lbl">Reference image <span style="text-transform:none;font-weight:400;color:var(--tx3);">(optional, 1 max)</span></label>
+          <input type="file" id="image-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;"/>
+          <div id="image-drop" class="image-drop">
+            <span id="image-drop-label">Click to attach an image for style inspiration</span>
+          </div>
+          <div id="image-preview-wrap" style="display:none;">
+            <img id="image-preview" style="width:100%;border-radius:var(--r);border:1px solid var(--border2);max-height:120px;object-fit:cover;"/>
+            <button class="btn btn-danger" id="image-remove-btn" style="margin-top:6px;height:26px;font-size:.7rem;">Remove image</button>
+          </div>
+        </div>
         <button class="btn btn-prim gen-btn btn-full" id="generate-btn">&#10024; Generate deck</button>
         <div class="gen-status" id="gen-status">
           <div class="gen-status-row"><div class="gen-status-dot" id="dot-1"></div><span>Designing theme &amp; writing content</span></div>
@@ -196,7 +232,7 @@ footer .dot{color:var(--borderhi);}
             <div class="deck-sub" id="deck-sub">—</div>
           </div>
           <div class="deck-actions">
-            <button class="btn" id="download-btn">&#8681; Download HTML</button>
+            <button class="btn" id="download-btn">&#8681; Download PPTX</button>
             <button class="btn btn-prim" id="regen-btn">&#8635; Regenerate</button>
           </div>
         </div>
@@ -222,6 +258,7 @@ footer .dot{color:var(--borderhi);}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
 <script>
 // ── CONFIG ──
 var FB_CONFIG = {
@@ -279,6 +316,45 @@ document.getElementById('example-chips').addEventListener('click', function(e){
 });
 document.getElementById('prompt-input').addEventListener('input', function(){
   document.getElementById('char-count').textContent = this.value.length;
+});
+
+// ── MODE SELECTOR ──
+var selectedMode = 'smart';
+document.getElementById('mode-grid').addEventListener('click', function(e){
+  var tile = e.target.closest('.mode-tile');
+  if (!tile) return;
+  selectedMode = tile.dataset.mode;
+  document.querySelectorAll('.mode-tile').forEach(function(t){ t.classList.remove('active'); });
+  tile.classList.add('active');
+});
+
+// ── REFERENCE IMAGE (max 1) ──
+var attachedImage = null; // { mimeType, data (base64, no prefix) }
+document.getElementById('image-drop').addEventListener('click', function(){
+  document.getElementById('image-input').click();
+});
+document.getElementById('image-input').addEventListener('change', function(e){
+  var file = e.target.files && e.target.files[0];
+  if (!file) return;
+  var allowed = ['image/png','image/jpeg','image/webp','image/gif'];
+  if (allowed.indexOf(file.type) === -1) { showToast('Use PNG, JPEG, WEBP, or GIF.'); return; }
+  if (file.size > 6 * 1024 * 1024) { showToast('Image too large (max 6MB).'); return; }
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    var result = ev.target.result; // data:image/png;base64,AAAA...
+    var base64 = result.split(',')[1];
+    attachedImage = { mimeType: file.type, data: base64 };
+    document.getElementById('image-preview').src = result;
+    document.getElementById('image-drop').style.display = 'none';
+    document.getElementById('image-preview-wrap').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById('image-remove-btn').addEventListener('click', function(){
+  attachedImage = null;
+  document.getElementById('image-input').value = '';
+  document.getElementById('image-drop').style.display = 'block';
+  document.getElementById('image-preview-wrap').style.display = 'none';
 });
 
 // ── AUTH STATE ──
@@ -398,10 +474,13 @@ document.getElementById('generate-btn').addEventListener('click', async function
   setDots(1);
 
   try {
+    var payload = { prompt: prompt, mode: selectedMode };
+    if (attachedImage) payload.image = attachedImage;
+
     var res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: prompt })
+      body: JSON.stringify(payload)
     });
     setDots(2);
     var data = await res.json();
@@ -411,6 +490,7 @@ document.getElementById('generate-btn').addEventListener('click', async function
     currentDeck = {
       id: genUid(20),
       prompt: prompt,
+      mode: selectedMode,
       theme: data.theme,
       icons: data.icons || [],
       iconsBySlide: data.iconsBySlide || {},
@@ -443,7 +523,9 @@ function renderDeckView() {
   document.getElementById('stage-empty').style.display = 'none';
   document.getElementById('deck-view').style.display = 'flex';
   document.getElementById('deck-title').textContent = currentDeck.theme.name || 'Untitled deck';
-  document.getElementById('deck-sub').textContent = currentDeck.theme.mood || '';
+  var subParts = [currentDeck.theme.mood || ''];
+  if (currentDeck.model) subParts.push(currentDeck.model);
+  document.getElementById('deck-sub').textContent = subParts.filter(Boolean).join('  ·  ');
   renderThumbs();
   renderActiveSlide();
 }
@@ -476,46 +558,135 @@ function renderActiveSlide() {
   document.getElementById('slide-frame-label').textContent = 'Slide ' + (activeSlideIdx+1) + ' of ' + currentDeck.theme.slides.length + '  ·  ' + s.layout;
 }
 
-// ── STANDALONE DOWNLOADABLE DECK ──
-function buildStandaloneDeckHTML(deck) {
-  var theme = deck.theme;
-  var slidesHTML = theme.slides.map(function(s, i){
-    return '<section class="deck-slide" data-i="'+i+'">' + renderSlideHTML(theme, s, deck.scenes[i], deck.iconsBySlide[i]) + '</section>';
-  }).join('\n');
-  var fontLinks = [theme.heading_font, theme.body_font].filter(function(v,i,a){return v && a.indexOf(v)===i;})
-    .map(function(f){ return '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family='+encodeURIComponent(f).replace(/%20/g,'+')+':wght@400;500;600;700&display=swap">'; }).join('\n');
+// ── PPTX EXPORT (real editable pptx, built client-side with pptxgenjs) ──
+// Canvas is 10" x 5.625" (pptxgenjs LAYOUT_16x9 default) mapped 1:1 onto the
+// same 1000x562 coordinate space used for the live preview, so every layout
+// function below just divides preview px by 100 to get inches.
+var PPTX_W = 10, PPTX_H = 5.625;
+function px(n) { return n / 100; } // 1000x562 space -> 10x5.625in space
 
-  return '<!doctype html><html lang="en"><head><meta charset="UTF-8"/>'+
-    '<meta name="viewport" content="width=device-width,initial-scale=1"/>'+
-    '<title>'+esc(theme.name||'Deck')+' — SlidesAI</title>'+
-    fontLinks+
-    '<style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#0c0c0c;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:24px;padding:24px;}'+
-    '.deck-slide{position:relative;width:100%;max-width:960px;aspect-ratio:1000/562;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.5);}'+
-    '.slide-scene{position:absolute;inset:0;width:100%;height:100%;}'+
-    '.slide-content{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:8% 9%;}'+
-    '.slide-eyebrow{font-size:.72em;font-weight:600;letter-spacing:.09em;text-transform:uppercase;margin-bottom:.6em;opacity:.85;}'+
-    '.slide-heading{font-size:2.1em;font-weight:700;line-height:1.15;letter-spacing:-.01em;margin-bottom:.3em;}'+
-    '.slide-body{font-size:1em;line-height:1.55;max-width:80%;}'+
-    '.slide-stat{font-size:3.4em;font-weight:700;line-height:1;letter-spacing:-.02em;margin-bottom:.15em;}'+
-    '.slide-list{display:flex;flex-direction:column;gap:.5em;margin-top:.3em;}'+
-    '.slide-list-item{display:flex;align-items:center;gap:.5em;font-size:1.05em;font-weight:500;}'+
-    '.slide-list-dot{width:.5em;height:.5em;border-radius:50%;flex-shrink:0;}'+
-    '.slide-cols{display:flex;gap:1.5em;margin-top:.3em;}.slide-col{flex:1;font-size:.95em;line-height:1.55;}'+
-    '.slide-icon-scatter{position:absolute;inset:0;pointer-events:none;}'+
-    '</style></head><body>'+slidesHTML+
-    '<p style="font-family:monospace;font-size:11px;color:#4a4a4a;">Generated with SlidesAI · htmltools.me/SlidesAI</p>'+
-    '</body></html>';
+function hexNoHash(h) {
+  return (h || '000000').toString().replace('#', '').toUpperCase();
 }
 
-document.getElementById('download-btn').addEventListener('click', function(){
+// Fetches an SVG string (scene or icon) and rasterizes it to a PNG data URL
+// via an offscreen canvas, since pptxgenjs embeds raster images, not SVG.
+function svgToPngDataUrl(svgString, width, height) {
+  return new Promise(function(resolve){
+    try {
+      var svg64 = btoa(unescape(encodeURIComponent(svgString)));
+      var img = new Image();
+      img.onload = function(){
+        var canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = function(){ resolve(null); };
+      img.src = 'data:image/svg+xml;base64,' + svg64;
+    } catch(e) { resolve(null); }
+  });
+}
+
+async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
+  var s = pptx.addSlide();
+  s.background = { color: hexNoHash(theme.background) };
+
+  var tx1 = hexNoHash(theme.text_primary), tx2 = hexNoHash(theme.text_secondary);
+  var a1 = hexNoHash(theme.accent_1), a2 = hexNoHash(theme.accent_2);
+  var headFont = theme.heading_font || 'Calibri';
+  var bodyFont = theme.body_font || 'Calibri';
+
+  // Full-bleed illustration or scattered icons, as a rasterized background image —
+  // sits behind all text placeholders.
+  if (sceneSvg) {
+    var scenePng = await svgToPngDataUrl(sceneSvg, 1600, 899);
+    if (scenePng) s.addImage({ data: scenePng, x: 0, y: 0, w: PPTX_W, h: PPTX_H });
+  } else if (icons && icons.length) {
+    var positions = [
+      {t:.08,l:.82,sz:.09},{t:.68,l:.88,sz:.07},{t:.42,l:.92,sz:.06},
+      {t:.85,l:.78,sz:.08},{t:.20,l:.70,sz:.05},{t:.55,l:.75,sz:.06}
+    ];
+    for (var i = 0; i < Math.min(icons.length, 6); i++) {
+      var p = positions[i % positions.length];
+      var tint = (i % 2) ? theme.accent_2 : theme.accent_1;
+      var coloredSvg = icons[i].svg.replace(/<svg/, '<svg style="color:' + tint + '"');
+      var iconPng = await svgToPngDataUrl(coloredSvg, 256, 256);
+      if (iconPng) {
+        var sizeIn = p.sz * PPTX_W;
+        s.addImage({ data: iconPng, x: p.l * PPTX_W, y: p.t * PPTX_H, w: sizeIn, h: sizeIn, transparency: 50 });
+      }
+    }
+  }
+
+  var padX = PPTX_W * 0.09, padY = PPTX_H * 0.08;
+  var contentW = PPTX_W - padX * 2;
+  var contentX = padX;
+
+  if (slide.layout === 'title') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.6, fontFace: headFont, fontSize: 40, bold: true, color: tx1, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 2.7, w: contentW * 0.8, h: 1.0, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slide.layout === 'stat') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 1.0, w: contentW * 0.8, h: 1.5, fontFace: headFont, fontSize: 54, bold: true, color: a2, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 2.8, w: contentW * 0.75, h: 0.9, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slide.layout === 'quote') {
+    s.addText('\u201C' + (slide.heading || '') + '\u201D', { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.8, fontFace: headFont, fontSize: 30, italic: true, color: tx1, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 3.0, w: contentW * 0.75, h: 0.8, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slide.layout === 'list') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    var items = (slide.body || '').split('|').map(function(t){ return t.trim(); }).filter(Boolean);
+    var listRuns = items.map(function(it, i){
+      return { text: it, options: { bullet: { code: '25CF', indent: 18 }, color: tx2, fontFace: bodyFont, fontSize: 16, bold: true, breakLine: true, paraSpaceAfter: 10 } };
+    });
+    s.addText(listRuns, { x: contentX, y: padY + 1.9, w: contentW * 0.7, h: 1.8, valign: 'top', margin: 0 });
+  } else if (slide.layout === 'two_column') {
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.85, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    var halves = (slide.body || '').split('||').map(function(t){ return t.trim(); });
+    var colW = (contentW * 0.85 - 0.3) / 2;
+    halves.slice(0,2).forEach(function(half, i){
+      var colX = contentX + i * (colW + 0.3);
+      var lineColor = (i % 2) ? a2 : a1;
+      s.addShape('line', { x: colX, y: padY + 2.0, w: 0, h: 1.6, line: { color: lineColor, width: 1.5 } });
+      s.addText(half, { x: colX + 0.15, y: padY + 2.0, w: colW - 0.15, h: 1.6, fontFace: bodyFont, fontSize: 14, color: tx2, valign: 'top' });
+    });
+  } else {
+    // content_icon / default
+    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.9, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    s.addText(slide.body || '', { x: contentX, y: padY + 2.0, w: contentW * 0.72, h: 1.6, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  }
+}
+
+async function buildPptx(deck) {
+  var pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_16x9';
+  pptx.title = deck.theme.name || 'SlidesAI Deck';
+  for (var i = 0; i < deck.theme.slides.length; i++) {
+    await addSlideToPptx(pptx, deck.theme, deck.theme.slides[i], deck.scenes[i], deck.iconsBySlide[i]);
+  }
+  var fname = (deck.theme.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.pptx';
+  await pptx.writeFile({ fileName: fname });
+}
+
+document.getElementById('download-btn').addEventListener('click', async function(){
   if (!currentDeck) return;
-  var html = buildStandaloneDeckHTML(currentDeck);
-  var blob = new Blob([html], {type:'text/html'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (currentDeck.theme.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.html';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  showToast('Deck downloaded.');
+  this.disabled = true;
+  this.textContent = 'Building .pptx…';
+  try {
+    await buildPptx(currentDeck);
+    showToast('Deck downloaded as .pptx');
+  } catch(e) {
+    console.error(e);
+    showToast('Failed to build .pptx');
+  } finally {
+    this.disabled = false;
+    this.textContent = '\u2193 Download PPTX';
+  }
 });
 
 // ── SAVE TO LIBRARY (always public, always uploads) ──
