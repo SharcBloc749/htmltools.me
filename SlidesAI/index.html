@@ -431,25 +431,25 @@ function renderSlideHTML(theme, slide, sceneSvg, icons) {
   var scene = sceneSvg ? '<div class="slide-scene">'+sceneSvg+'</div>' : '';
 
   var inner = '';
-  if (slide.layout === 'title') {
+  if (slideLayout === 'title') {
     inner = '<div class="slide-eyebrow" style="color:'+a1+'">'+esc(slide.eyebrow)+'</div>'+
       '<div class="slide-heading" style="color:'+tx1+';font-family:\''+headFont+'\',serif;font-size:2.6em;">'+esc(slide.heading)+'</div>'+
       '<div class="slide-body" style="color:'+tx2+';font-family:\''+bodyFont+'\',sans-serif;">'+esc(slide.body)+'</div>';
-  } else if (slide.layout === 'stat') {
+  } else if (slideLayout === 'stat') {
     inner = '<div class="slide-eyebrow" style="color:'+a1+'">'+esc(slide.eyebrow)+'</div>'+
       '<div class="slide-stat" style="color:'+a2+';font-family:\''+headFont+'\',serif;">'+esc(slide.heading)+'</div>'+
       '<div class="slide-body" style="color:'+tx2+';font-family:\''+bodyFont+'\',sans-serif;">'+esc(slide.body)+'</div>';
-  } else if (slide.layout === 'quote') {
+  } else if (slideLayout === 'quote') {
     inner = '<div class="slide-heading" style="color:'+tx1+';font-family:\''+headFont+'\',serif;font-style:italic;">&#8220;'+esc(slide.heading)+'&#8221;</div>'+
       '<div class="slide-body" style="color:'+tx2+';font-family:\''+bodyFont+'\',sans-serif;">'+esc(slide.body)+'</div>';
-  } else if (slide.layout === 'list') {
+  } else if (slideLayout === 'list') {
     var items = (slide.body||'').split('|').map(function(s){return s.trim();}).filter(Boolean);
     inner = '<div class="slide-eyebrow" style="color:'+a1+'">'+esc(slide.eyebrow)+'</div>'+
       '<div class="slide-heading" style="color:'+tx1+';font-family:\''+headFont+'\',serif;">'+esc(slide.heading)+'</div>'+
       '<div class="slide-list">'+items.map(function(it,i){
         return '<div class="slide-list-item" style="color:'+tx2+';font-family:\''+bodyFont+'\',sans-serif;"><div class="slide-list-dot" style="background:'+(i%2?a2:a1)+'"></div>'+esc(it)+'</div>';
       }).join('')+'</div>';
-  } else if (slide.layout === 'two_column') {
+  } else if (slideLayout === 'two_column') {
     var halves = (slide.body||'').split('||').map(function(s){return s.trim();});
     inner = '<div class="slide-eyebrow" style="color:'+a1+'">'+esc(slide.eyebrow)+'</div>'+
       '<div class="slide-heading" style="color:'+tx1+';font-family:\''+headFont+'\',serif;">'+esc(slide.heading)+'</div>'+
@@ -627,8 +627,17 @@ function svgToPngDataUrl(svgString, width, height) {
 
 async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
   var s = pptx.addSlide();
-  s.background = { color: hexNoHash(theme.background) };
+  s.background = { color: hexNoHash(theme && theme.background) };
 
+  // Defensive: normalize slide fields so a missing/malformed field can
+  // never silently produce a slide with no text at all.
+  slide = slide || {};
+  var slideEyebrow = (typeof slide.eyebrow === 'string') ? slide.eyebrow : '';
+  var slideHeading = (typeof slide.heading === 'string' && slide.heading.trim()) ? slide.heading : (slide.title || 'Untitled slide');
+  var slideBody = (typeof slide.body === 'string') ? slide.body : '';
+  var slideLayout = (typeof slide.layout === 'string') ? slide.layout : 'default';
+
+  theme = theme || {};
   var tx1 = hexNoHash(theme.text_primary), tx2 = hexNoHash(theme.text_secondary);
   var a1 = hexNoHash(theme.accent_1), a2 = hexNoHash(theme.accent_2);
   var headFont = theme.heading_font || 'Calibri';
@@ -660,29 +669,29 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
   var contentW = PPTX_W - padX * 2;
   var contentX = padX;
 
-  if (slide.layout === 'title') {
-    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
-    s.addText(slide.heading || '', { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.6, fontFace: headFont, fontSize: 40, bold: true, color: tx1, valign: 'top' });
-    s.addText(slide.body || '', { x: contentX, y: padY + 2.7, w: contentW * 0.8, h: 1.0, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
-  } else if (slide.layout === 'stat') {
-    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
-    s.addText(slide.heading || '', { x: contentX, y: padY + 1.0, w: contentW * 0.8, h: 1.5, fontFace: headFont, fontSize: 54, bold: true, color: a2, valign: 'top' });
-    s.addText(slide.body || '', { x: contentX, y: padY + 2.8, w: contentW * 0.75, h: 0.9, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
-  } else if (slide.layout === 'quote') {
-    s.addText('\u201C' + (slide.heading || '') + '\u201D', { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.8, fontFace: headFont, fontSize: 30, italic: true, color: tx1, valign: 'top' });
-    s.addText(slide.body || '', { x: contentX, y: padY + 3.0, w: contentW * 0.75, h: 0.8, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
-  } else if (slide.layout === 'list') {
-    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
-    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
-    var items = (slide.body || '').split('|').map(function(t){ return t.trim(); }).filter(Boolean);
+  if (slideLayout === 'title') {
+    s.addText(slideEyebrow, { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slideHeading, { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.6, fontFace: headFont, fontSize: 40, bold: true, color: tx1, valign: 'top' });
+    s.addText(slideBody, { x: contentX, y: padY + 2.7, w: contentW * 0.8, h: 1.0, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slideLayout === 'stat') {
+    s.addText(slideEyebrow, { x: contentX, y: padY + 0.6, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slideHeading, { x: contentX, y: padY + 1.0, w: contentW * 0.8, h: 1.5, fontFace: headFont, fontSize: 54, bold: true, color: a2, valign: 'top' });
+    s.addText(slideBody, { x: contentX, y: padY + 2.8, w: contentW * 0.75, h: 0.9, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slideLayout === 'quote') {
+    s.addText('\u201C' + (slideHeading) + '\u201D', { x: contentX, y: padY + 1.0, w: contentW * 0.85, h: 1.8, fontFace: headFont, fontSize: 30, italic: true, color: tx1, valign: 'top' });
+    s.addText(slideBody, { x: contentX, y: padY + 3.0, w: contentW * 0.75, h: 0.8, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+  } else if (slideLayout === 'list') {
+    s.addText(slideEyebrow, { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slideHeading, { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    var items = (slideBody).split('|').map(function(t){ return t.trim(); }).filter(Boolean);
     var listRuns = items.map(function(it, i){
       return { text: it, options: { bullet: { code: '25CF', indent: 18 }, color: tx2, fontFace: bodyFont, fontSize: 16, bold: true, breakLine: true, paraSpaceAfter: 10 } };
     });
     s.addText(listRuns, { x: contentX, y: padY + 1.9, w: contentW * 0.7, h: 1.8, valign: 'top', margin: 0 });
-  } else if (slide.layout === 'two_column') {
-    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
-    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.85, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
-    var halves = (slide.body || '').split('||').map(function(t){ return t.trim(); });
+  } else if (slideLayout === 'two_column') {
+    s.addText(slideEyebrow, { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slideHeading, { x: contentX, y: padY + 0.9, w: contentW * 0.85, h: 0.8, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    var halves = (slideBody).split('||').map(function(t){ return t.trim(); });
     var colW = (contentW * 0.85 - 0.3) / 2;
     halves.slice(0,2).forEach(function(half, i){
       var colX = contentX + i * (colW + 0.3);
@@ -692,9 +701,9 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
     });
   } else {
     // content_icon / default
-    s.addText(slide.eyebrow || '', { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
-    s.addText(slide.heading || '', { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.9, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
-    s.addText(slide.body || '', { x: contentX, y: padY + 2.0, w: contentW * 0.72, h: 1.6, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
+    s.addText(slideEyebrow, { x: contentX, y: padY + 0.5, w: contentW, h: 0.4, fontFace: bodyFont, fontSize: 13, bold: true, color: a1, charSpacing: 2 });
+    s.addText(slideHeading, { x: contentX, y: padY + 0.9, w: contentW * 0.8, h: 0.9, fontFace: headFont, fontSize: 28, bold: true, color: tx1, valign: 'top' });
+    s.addText(slideBody, { x: contentX, y: padY + 2.0, w: contentW * 0.72, h: 1.6, fontFace: bodyFont, fontSize: 15, color: tx2, valign: 'top' });
   }
 }
 
