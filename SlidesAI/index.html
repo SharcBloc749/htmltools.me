@@ -626,8 +626,13 @@ function svgToPngDataUrl(svgString, width, height) {
   });
 }
 
-async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
-  var s = pptx.addSlide({ masterName: (theme && theme.name || 'Theme') + ' Master' });
+var LAYOUT_LABELS = {
+  title: 'Title', content_icon: 'Content', stat: 'Stat',
+  quote: 'Quote', list: 'List', two_column: 'Two Column', default: 'Content'
+};
+
+async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons, masterName) {
+  var s = masterName ? pptx.addSlide({ masterName: masterName }) : pptx.addSlide();
   s.background = { color: hexNoHash(theme && theme.background) };
 
   // Defensive: normalize slide fields so a missing/malformed field can
@@ -903,56 +908,69 @@ async function buildPptx(deck) {
   pptx.layout = 'LAYOUT_16x9';
   pptx.title = deck.theme.name || 'SlidesAI Deck';
 
-  // A master defined with objects: [] has a correct background fill in its
-  // XML (verified directly against the generated file) but literally zero
-  // shapes on it, so PowerPoint's Layout-panel thumbnail — which renders
-  // shapes, not just the bg fill at that tiny size — has nothing to draw
-  // and reads as a flat, empty swatch. Giving it real title/body
-  // placeholders plus a thin accent rule (matching what addSlideToPptx
-  // actually draws on every slide) makes that thumbnail show real content,
-  // not just a background fill with nothing on it.
+  // One named master per unique layout type used in this deck (e.g.
+  // "Title — Epic Cinematic Journey", "Stat — Epic Cinematic Journey"),
+  // each carrying this deck's background and real placeholder content —
+  // this is what makes Google Slides / PowerPoint's Layout picker show
+  // real named layouts matching the 4 generated slides, instead of one
+  // single shared "<Theme> Master" that every slide silently fell back
+  // off of (masterName previously wasn't even passed to addSlide calls).
   var theme = deck.theme;
-  var masterTitle = (theme.name || 'Theme') + ' Master';
+  var themeName = theme.name || 'Deck';
+  var deckSlides = deck.theme.slides;
   var headFontM = theme.heading_font || 'Calibri';
   var bodyFontM = theme.body_font || 'Calibri';
-  pptx.defineSlideMaster({
-    title: masterTitle,
-    background: { color: hexNoHash(theme.background) },
-    objects: [
-      {
-        placeholder: {
-          options: {
-            name: 'title', type: 'title',
-            x: 0.7, y: 0.9, w: 8.6, h: 0.9,
-            fontFace: headFontM, fontSize: 28, bold: true,
-            color: hexNoHash(theme.text_primary),
-          },
-          text: '',
-        },
-      },
-      {
-        placeholder: {
-          options: {
-            name: 'body', type: 'body',
-            x: 0.7, y: 2.0, w: 7.5, h: 1.6,
-            fontFace: bodyFontM, fontSize: 15,
-            color: hexNoHash(theme.text_secondary),
-          },
-          text: '',
-        },
-      },
-      {
-        rect: {
-          x: 0.7, y: 1.75, w: 1.1, h: 0.045,
-          fill: { color: hexNoHash(theme.accent_1) },
-          line: { type: 'none' },
-        },
-      },
-    ],
-  });
+  var bgM = hexNoHash(theme.background);
 
-  for (var i = 0; i < deck.theme.slides.length; i++) {
-    await addSlideToPptx(pptx, deck.theme, deck.theme.slides[i], deck.scenes[i], deck.iconsBySlide[i]);
+  var masterNameForSlide = [];
+  var definedMasters = {};
+  for (var i = 0; i < deckSlides.length; i++) {
+    var slideLayoutType = (deckSlides[i] && typeof deckSlides[i].layout === 'string') ? deckSlides[i].layout : 'default';
+    var label = LAYOUT_LABELS[slideLayoutType] || 'Content';
+    var masterName = label + ' — ' + themeName;
+    if (!definedMasters[masterName]) {
+      definedMasters[masterName] = true;
+      pptx.defineSlideMaster({
+        title: masterName,
+        background: { color: bgM },
+        objects: [
+          {
+            placeholder: {
+              options: {
+                name: 'title', type: 'title',
+                x: 0.7, y: 0.9, w: 8.6, h: 0.9,
+                fontFace: headFontM, fontSize: 28, bold: true,
+                color: hexNoHash(theme.text_primary),
+              },
+              text: '',
+            },
+          },
+          {
+            placeholder: {
+              options: {
+                name: 'body', type: 'body',
+                x: 0.7, y: 2.0, w: 7.5, h: 1.6,
+                fontFace: bodyFontM, fontSize: 15,
+                color: hexNoHash(theme.text_secondary),
+              },
+              text: '',
+            },
+          },
+          {
+            rect: {
+              x: 0.7, y: 1.75, w: 1.1, h: 0.045,
+              fill: { color: hexNoHash(theme.accent_1) },
+              line: { type: 'none' },
+            },
+          },
+        ],
+      });
+    }
+    masterNameForSlide.push(masterName);
+  }
+
+  for (var i = 0; i < deckSlides.length; i++) {
+    await addSlideToPptx(pptx, deck.theme, deckSlides[i], deck.scenes[i], deck.iconsBySlide[i], masterNameForSlide[i]);
   }
   var fname = (deck.theme.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.pptx';
 
