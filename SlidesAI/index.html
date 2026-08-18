@@ -299,9 +299,42 @@ var FB_CONFIG = {
 var WORKER_URL = "https://soft-sea-dfff.bozhetarnikmatthew.workers.dev/generate-theme";
 var ADMIN_EMAILS = ["matthewbozhe@gmail.com"];
 
-firebase.initializeApp(FB_CONFIG);
-var db   = firebase.database();
-var auth = firebase.auth();
+function showFatalLoadError(msg) {
+  var el = document.getElementById('app-loading');
+  if (!el) return;
+  el.innerHTML = '<div style="max-width:320px;text-align:center;line-height:1.6;">' +
+    '<div style="font-weight:600;color:#c1462f;margin-bottom:6px;">Failed to load SlidesAI</div>' +
+    '<div>' + esc(msg) + '</div>' +
+    '<div style="margin-top:10px;"><button onclick="location.reload()" style="background:#c1462f;color:#f3efe4;border:none;padding:7px 14px;border-radius:3px;cursor:pointer;font-size:.75rem;">Reload</button></div>' +
+    '</div>';
+  el.classList.remove('hidden');
+}
+
+if (typeof firebase === 'undefined') {
+  // Firebase SDK scripts (gstatic.com) failed to load — usually a blocked
+  // CDN, ad-blocker, or network issue. Without this check the page hangs
+  // on the loading spinner forever with no indication of what went wrong.
+  showFatalLoadError('Could not reach Firebase (gstatic.com). Check your network connection, ad-blocker, or content-blocker settings, then reload.');
+  throw new Error('firebase SDK failed to load');
+}
+
+var db, auth;
+try {
+  firebase.initializeApp(FB_CONFIG);
+  db   = firebase.database();
+  auth = firebase.auth();
+} catch (e) {
+  console.error('Firebase init failed:', e);
+  showFatalLoadError('Firebase failed to initialize: ' + (e && e.message ? e.message : 'unknown error'));
+  throw e;
+}
+
+// Safety net: if auth.onAuthStateChanged never fires (network issue,
+// blocked auth domain, etc.) the page would otherwise be stuck on the
+// loading spinner indefinitely with no explanation.
+var __authTimeout = setTimeout(function(){
+  showFatalLoadError('Timed out waiting for sign-in check. Check your connection and reload.');
+}, 12000);
 
 function genUid(len) {
   var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', s = '';
@@ -388,17 +421,27 @@ var currentUser = null;
 var isAdmin = false;
 
 auth.onAuthStateChanged(function(user) {
-  document.getElementById('app-loading').classList.add('hidden');
-  if (user) {
-    currentUser = user;
-    isAdmin = ADMIN_EMAILS.indexOf((user.email||'').toLowerCase()) !== -1;
-    document.getElementById('main-app').style.display = 'flex';
-    document.getElementById('main-nav').style.display = 'flex';
-    document.getElementById('nav-email').textContent  = user.email || user.displayName || 'Signed in';
-    document.getElementById('admin-pill').style.display = isAdmin ? 'inline-block' : 'none';
-  } else {
-    window.location.href = '/SlidesAI/Login?redirect=' + encodeURIComponent('/SlidesAI');
+  clearTimeout(__authTimeout);
+  try {
+    document.getElementById('app-loading').classList.add('hidden');
+    if (user) {
+      currentUser = user;
+      isAdmin = ADMIN_EMAILS.indexOf((user.email||'').toLowerCase()) !== -1;
+      document.getElementById('main-app').style.display = 'flex';
+      document.getElementById('main-nav').style.display = 'flex';
+      document.getElementById('nav-email').textContent  = user.email || user.displayName || 'Signed in';
+      document.getElementById('admin-pill').style.display = isAdmin ? 'inline-block' : 'none';
+    } else {
+      window.location.href = '/SlidesAI/Login?redirect=' + encodeURIComponent('/SlidesAI');
+    }
+  } catch (e) {
+    console.error('Post-auth setup failed:', e);
+    showFatalLoadError('Something went wrong loading the page: ' + (e && e.message ? e.message : 'unknown error'));
   }
+}, function(authError){
+  clearTimeout(__authTimeout);
+  console.error('Firebase auth error:', authError);
+  showFatalLoadError('Sign-in check failed: ' + (authError && authError.message ? authError.message : 'unknown error'));
 });
 document.getElementById('signout-btn').addEventListener('click', async function() {
   await auth.signOut();
@@ -1006,23 +1049,38 @@ document.getElementById('download-btn').addEventListener('click', async function
 
 // ── SAVE TO LIBRARY (always public, always uploads) ──
 async function saveToLibrary(deck) {
+  // Defensive: never write a record the Library page can't safely render.
+  // Firebase Realtime Database also rejects writes containing `undefined`
+  // at any depth, so every field here is normalized to a concrete value.
+  if (!deck || !deck.theme || !Array.isArray(deck.theme.slides) || !deck.theme.slides.length) {
+    console.error('saveToLibrary: refusing to save incomplete deck', deck);
+    throw new Error('Deck is missing slide data — not saved to Library.');
+  }
+  if (!currentUser) {
+    throw new Error('Not signed in — deck not saved to Library.');
+  }
   var entry = {
     id: deck.id,
     name: deck.theme.name || 'Untitled deck',
     mood: deck.theme.mood || '',
-    prompt: deck.prompt,
-    keywords: (deck.theme.icon_keywords || []).map(function(k){return k.toLowerCase();}),
+    prompt: deck.prompt || '',
+    keywords: (deck.theme.icon_keywords || []).map(function(k){return String(k).toLowerCase();}),
     theme: deck.theme,
-    icons: deck.icons,
-    iconsBySlide: deck.iconsBySlide,
-    scenes: deck.scenes,
-    model: deck.model,
-    created: deck.created,
+    icons: deck.icons || [],
+    iconsBySlide: deck.iconsBySlide || {},
+    scenes: deck.scenes || {},
+    model: deck.model || null,
+    created: deck.created || Date.now(),
     // Owner is stored so admins can trace it — never surfaced to regular users.
     ownerUid: currentUser.uid,
     ownerEmail: currentUser.email || null
   };
-  await db.ref('slidesai_library/' + deck.id).set(entry);
+  try {
+    await db.ref('slidesai_library/' + deck.id).set(entry);
+  } catch (e) {
+    console.error('saveToLibrary: Firebase write failed', e);
+    throw new Error('Could not save to Library: ' + (e && e.message ? e.message : 'unknown error'));
+  }
 }
 </script>
 </body>
