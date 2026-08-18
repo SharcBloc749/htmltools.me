@@ -644,11 +644,21 @@ async function addSlideToPptx(pptx, theme, slide, sceneSvg, icons) {
   var headFont = theme.heading_font || 'Calibri';
   var bodyFont = theme.body_font || 'Calibri';
 
-  // Full-bleed illustration or scattered icons, as a rasterized background image —
-  // sits behind all text placeholders.
+  // Full-bleed illustration: set as the slide's REAL background (a true
+  // <p:bg> in the XML, verified directly), not layered on top via addImage.
+  // addImage produces a floating <p:pic> shape — selectable, draggable, and
+  // rendered ON TOP of (not behind) the master's placeholder prompts, which
+  // is exactly the bug: it showed up as a movable/resizable picture object
+  // colliding with "Click to add title" instead of sitting behind it as a
+  // real background. s.background accepts base64 image `data` directly and
+  // this was confirmed (via raw XML inspection) to produce a genuine
+  // <p:bg><p:bgPr><a:blipFill> with zero <p:pic> shapes on the slide.
+  // Scattered decorative icon accents (below) are intentionally still
+  // addImage — those really are meant to float as separate small objects,
+  // that part was never the bug.
   if (sceneSvg) {
     var scenePng = await svgToPngDataUrl(sceneSvg, 1600, 899);
-    if (scenePng) s.addImage({ data: scenePng, x: 0, y: 0, w: PPTX_W, h: PPTX_H });
+    if (scenePng) s.background = { data: scenePng };
   } else if (icons && icons.length) {
     var positions = [
       {t:.08,l:.82,sz:.09},{t:.68,l:.88,sz:.07},{t:.42,l:.92,sz:.06},
