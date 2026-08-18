@@ -561,8 +561,10 @@ async function buildPptx(entry) {
     objects: [],
   });
 
+  var scenes = entry.scenes || [];
+  var iconsBySlide = entry.iconsBySlide || {};
   for (var i = 0; i < entry.theme.slides.length; i++) {
-    await addSlideToPptx(pptx, entry.theme, entry.theme.slides[i], entry.scenes[i], entry.iconsBySlide[i]);
+    await addSlideToPptx(pptx, entry.theme, entry.theme.slides[i], scenes[i], iconsBySlide[i]);
   }
   var fname = (entry.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g,'-') + '.pptx';
 
@@ -608,12 +610,34 @@ async function loadLibrary() {
   document.getElementById('lib-count').textContent = 'Loading…';
   try {
     var snap = await db.ref('slidesai_library').get();
-    libraryEntries = [];
-    if (snap.exists()) snap.forEach(function(c){ libraryEntries.push(c.val()); });
+    var raw = [];
+    if (snap.exists()) snap.forEach(function(c){ raw.push(c.val()); });
+
+    // Defensive: skip/repair malformed entries instead of letting one bad
+    // record throw inside renderGrid and blank the whole library.
+    libraryEntries = raw.filter(function(e){
+      if (!e || typeof e !== 'object') return false;
+      if (!e.theme || !Array.isArray(e.theme.slides) || !e.theme.slides.length) return false;
+      if (!e.id) return false;
+      if (!Array.isArray(e.scenes)) e.scenes = [];
+      if (!e.iconsBySlide) e.iconsBySlide = {};
+      return true;
+    });
+
     libraryEntries.sort(function(a,b){ return (b.created||0)-(a.created||0); });
-    renderGrid(libraryEntries);
+
+    try {
+      renderGrid(libraryEntries);
+    } catch(renderErr) {
+      console.error('renderGrid failed:', renderErr);
+      document.getElementById('lib-count').textContent = 'Failed to render library: ' + (renderErr && renderErr.message ? renderErr.message : 'unknown error');
+      showToast('Some templates could not be displayed.');
+    }
   } catch(e) {
-    document.getElementById('lib-count').textContent = 'Failed to load library.';
+    console.error('loadLibrary failed:', e);
+    var msg = (e && e.code) ? (e.code + ': ' + e.message) : (e && e.message ? e.message : 'unknown error');
+    document.getElementById('lib-count').textContent = 'Failed to load library. (' + msg + ')';
+    showToast('Failed to load library: ' + msg, 4000);
   }
 }
 
@@ -632,13 +656,12 @@ function renderGrid(entries) {
   }
   grid = document.getElementById('lib-grid');
   grid.innerHTML = entries.map(function(e){
-    var theme = e.theme;
-    var titleSlide = theme.slides[0];
+    var theme = e.theme || {};
     var tags = (e.keywords||[]).slice(0,3);
     return '<div class="card" data-id="'+e.id+'">' +
       '<div class="card-thumb"><div class="card-thumb-inner" id="grid-thumb-'+e.id+'"></div></div>' +
       '<div class="card-info">' +
-        '<div class="card-name">'+esc(e.name)+'</div>' +
+        '<div class="card-name">'+esc(e.name||'Untitled')+'</div>' +
         (isAdmin ? '<div class="card-owner">'+esc(e.ownerEmail||'unknown')+'</div>' : '') +
         '<div class="card-tags">'+tags.map(function(t){return '<span class="card-tag">'+esc(t)+'</span>';}).join('')+'</div>' +
       '</div>' +
@@ -647,10 +670,15 @@ function renderGrid(entries) {
   entries.forEach(function(e){
     var theme = e.theme;
     var el = document.getElementById('grid-thumb-'+e.id);
-    if (el) {
-      el.innerHTML = renderSlideHTML(theme, theme.slides[0], e.scenes[0], e.iconsBySlide[0]);
-      loadGoogleFont(theme.heading_font);
-      loadGoogleFont(theme.body_font);
+    if (el && theme && theme.slides && theme.slides[0]) {
+      try {
+        el.innerHTML = renderSlideHTML(theme, theme.slides[0], (e.scenes||[])[0], (e.iconsBySlide||{})[0]);
+        loadGoogleFont(theme.heading_font);
+        loadGoogleFont(theme.body_font);
+      } catch(thumbErr) {
+        console.error('Failed to render thumb for entry', e.id, thumbErr);
+        el.innerHTML = '';
+      }
     }
   });
   grid.querySelectorAll('.card').forEach(function(el){
@@ -694,7 +722,11 @@ function renderViewerThumbs() {
     return '<div class="viewer-thumb'+(i===viewerSlideIdx?' active':'')+'" data-i="'+i+'"><div class="viewer-thumb-inner" id="vthumb-'+i+'"></div></div>';
   }).join('');
   viewerEntry.theme.slides.forEach(function(s,i){
-    document.getElementById('vthumb-'+i).innerHTML = renderSlideHTML(viewerEntry.theme, s, viewerEntry.scenes[i], viewerEntry.iconsBySlide[i]);
+    try {
+      document.getElementById('vthumb-'+i).innerHTML = renderSlideHTML(viewerEntry.theme, s, (viewerEntry.scenes||[])[i], (viewerEntry.iconsBySlide||{})[i]);
+    } catch(e) {
+      console.error('Failed to render viewer thumb', i, e);
+    }
   });
   wrap.querySelectorAll('.viewer-thumb').forEach(function(el){
     el.addEventListener('click', function(){
@@ -706,7 +738,12 @@ function renderViewerThumbs() {
 }
 function renderViewerSlide() {
   var s = viewerEntry.theme.slides[viewerSlideIdx];
-  document.getElementById('viewer-frame').innerHTML = renderSlideHTML(viewerEntry.theme, s, viewerEntry.scenes[viewerSlideIdx], viewerEntry.iconsBySlide[viewerSlideIdx]);
+  try {
+    document.getElementById('viewer-frame').innerHTML = renderSlideHTML(viewerEntry.theme, s, (viewerEntry.scenes||[])[viewerSlideIdx], (viewerEntry.iconsBySlide||{})[viewerSlideIdx]);
+  } catch(e) {
+    console.error('Failed to render viewer slide', viewerSlideIdx, e);
+    document.getElementById('viewer-frame').innerHTML = '';
+  }
 }
 function closeViewer() { document.getElementById('viewer-bg').classList.remove('open'); viewerEntry = null; }
 document.getElementById('viewer-close').addEventListener('click', closeViewer);
