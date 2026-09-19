@@ -384,6 +384,8 @@
     /* Top Bar */
     .top {
       height: 64px;
+      position: sticky;
+      top: 0;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
@@ -742,6 +744,14 @@
     .bubble {
       flex: 1;
       min-width: 0;
+    }
+
+    .msg.assistant .bubble {
+      padding-bottom: 2px;
+    }
+
+    .msg.assistant .who {
+      color: #a4a4ae;
     }
 
     .who {
@@ -1466,7 +1476,7 @@
       { key: "openai.gpt-oss-120b", name: "GPT-OSS 120B", group: "Open Models", vision: false, logo: "https://static.vecteezy.com/system/resources/previews/021/059/825/non_2x/chatgpt-logo-chat-gpt-icon-on-green-background-free-vector.jpg" },
       { key: "deepseek.v3.2", name: "DeepSeek V3.2", group: "Open Models", vision: false, logo: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/deepseek-logo-icon.png" },
       { key: "deepseek.v3.1", name: "DeepSeek V3.1", group: "Open Models", vision: false, logo: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/deepseek-logo-icon.png" },
-      { key: "zai.glm-4.7-flash", name: "GLM 4.7 Flash", group: "Open Models", vision: false, logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Z.ai_%28company_logo%29.svg/3840px-Z.ai_%28company_logo%29.svg.png" },
+      { key: "zai.glm-5", name: "GLM 5", group: "Open Models", vision: false, logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Z.ai_%28company_logo%29.svg/3840px-Z.ai_%28company_logo%29.svg.png" },
       { key: "xai.grok-4.3", name: "Grok 4.3", group: "Open Models", vision: true, logo: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/grok-icon.png" },
       { key: "qwen.qwen3-coder-next", name: "Qwen3 Coder Next", group: "Open Models", vision: false, logo: "https://vectorseek.com/wp-content/uploads/2025/01/Qwen-Ai-Logo-PNG-Vector.png" },
       { key: "llama-3.3-70b", name: "Llama 3.3 70B", group: "Cloudflare", vision: false, logo: "https://custom.typingmind.com/assets/models/meta.jpg" },
@@ -1661,6 +1671,8 @@
     let busy = false;
     let abortController = null;
     let conversationsCache = [];
+    let listLoadGeneration = 0;
+    let conversationLoadGeneration = 0;
 
     const MODEL_BUSY_MESSAGE = "This AI model is currently in high use, please try again later or switch to another model.";
     const MODEL_GENERIC_ERROR_MESSAGE = "This model could not complete the request. Please try again or switch to another model.";
@@ -1703,6 +1715,12 @@
       attachBtn.setAttribute("aria-label", attachBtn.title);
       fileInput.disabled = !m.vision;
       input.placeholder = m.vision ? "Type a message or drop an image…" : "Type a message…";
+      const composerHint = document.querySelector(".composer-hint");
+      if (composerHint) {
+        composerHint.textContent = m.vision
+          ? "Enter to send • Shift + Enter for new line • Paste or drop images"
+          : "Enter to send • Shift + Enter for new line • This model accepts text only";
+      }
 
       // Do not carry an image selected for one model into a text-only model.
       if (!m.vision && pendingImages.length) {
@@ -1872,6 +1890,7 @@
     };
 
     function startNewChat() {
+      conversationLoadGeneration++;
       convId = null;
       thread = [];
       window.history.pushState(null, "", "/AI-Playground/Chat/");
@@ -1882,16 +1901,27 @@
       document.getElementById("input").focus();
     }
 
-    function addMsgDOM(role, html, imgs, isModel) {
+    function modelForMessage(message) {
+      if (!message) return model;
+      return MODELS.find(m => m.key === message.model) ||
+        MODELS.find(m => m.name === message.modelName) ||
+        { name: message.modelName || "Assistant" };
+    }
+
+    function addMsgDOM(role, html, imgs, isModel, avatarModel) {
       const el = document.createElement("div");
       el.className = "msg" + (isModel ? " assistant" : " user");
 
       let avMarkup = "";
       if (isModel) {
-        const curLogo = logo(model);
+        // Use the model that produced this message, not the currently selected
+        // model. This prevents old DeepSeek/Claude replies getting Gemini's logo.
+        const messageModel = avatarModel || model;
+        const curLogo = logo(messageModel);
+        const messageName = messageModel.name || role || "Assistant";
         avMarkup = `
-          <div class="av">
-            <img src="${curLogo}" alt="" onerror="this.src='${phSvg(model.name)}'"/>
+          <div class="av" title="${esc(messageName)}">
+            <img src="${curLogo}" alt="${esc(messageName)}" onerror="this.src='${phSvg(messageName)}'"/>
           </div>
         `;
       }
@@ -1986,7 +2016,7 @@
           const imgs = Array.isArray(m.content) ? m.content.filter(p => p.type === "image") : [];
           addMsgDOM("You", md(text || "(image)"), imgs, false);
         } else {
-          addMsgDOM(m.modelName || "Assistant", md(m.content), null, true);
+          addMsgDOM(m.modelName || "Assistant", md(m.content), null, true, modelForMessage(m));
         }
       });
       box.scrollTop = 1e9;
@@ -2003,10 +2033,15 @@
 
     async function loadList() {
       if (!user) return;
+      const generation = ++listLoadGeneration;
       try {
         const snap = await db.ref("users/" + user.uid + "/conversations").once("value");
+        if (generation !== listLoadGeneration) return;
         const val = snap.val() || {};
-        conversationsCache = Object.entries(val).map(([id, v]) => ({ id, ...v })).sort((a, b) => (b.updated || 0) - (a.updated || 0));
+        conversationsCache = Object.entries(val)
+          .filter(([, v]) => v && typeof v === "object")
+          .map(([id, v]) => ({ id, ...v }))
+          .sort((a, b) => (b.updated || 0) - (a.updated || 0));
         renderList(conversationsCache);
       } catch (_) {}
     }
@@ -2021,12 +2056,14 @@
         return;
       }
 
-      listEl.innerHTML = items.map(c => `
+      listEl.innerHTML = items.map(c => {
+        const listedModel = c.modelName || MODELS.find(m => m.key === c.model)?.name || c.model || "";
+        return `
         <div class="item ${c.id === convId ? "on" : ""}" data-id="${c.id}" onclick="selectConversation('${c.id}')">
           <div class="item-body">
             <div class="t">${esc(c.title || "Untitled")}</div>
             <div class="m-row">
-              <span class="m">${esc(c.model || "")}</span>
+              <span class="m">${esc(listedModel)}</span>
               <span class="m-time">• ${timeAgo(c.updated)}</span>
             </div>
           </div>
@@ -2034,7 +2071,8 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
-      `).join("");
+      `;
+      }).join("");
     }
 
     window.selectConversation = function(id) {
@@ -2073,8 +2111,21 @@
       renderList(filtered);
     };
 
-    function payload() {
-      return thread.map(m => ({ role: m.role, content: m.content }));
+    function payload(sourceThread = thread) {
+      return sourceThread.map(m => ({ role: m.role, content: m.content }));
+    }
+
+    function conversationTitle(text, hasImages) {
+      const clean = String(text || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      const base = clean || (hasImages ? "Image prompt" : "New conversation");
+      return base.length > 72 ? base.slice(0, 69).trimEnd() + "…" : base;
+    }
+
+    function saveConversation(id, patch) {
+      if (!user || !id) return Promise.resolve();
+      return db.ref("users/" + user.uid + "/conversations/" + id).update(patch);
     }
 
     function setStatus(text, isActive) {
@@ -2088,20 +2139,26 @@
      * Run model with instant streaming and resilient error handling.
      * Guaranteed to reset busy state and clear animations in finally block.
      */
-    async function runModel() {
+    async function runModel(modelOverride = model, threadOverride = thread, convIdOverride = convId, deepOverride = deep) {
       if (busy) return;
       busy = true;
+
+      // Capture the model, conversation id, and message array for this request.
+      // This prevents a late response from overwriting another conversation if
+      // the user switches threads while generation is still running.
+      const requestModel = modelOverride;
+      const requestConvId = convIdOverride;
+      const requestThread = threadOverride;
+      const requestDeep = deepOverride;
 
       document.getElementById("send").disabled = true;
       document.getElementById("stopBtn").style.display = "flex";
       setStatus("Thinking", true);
 
-      // Add assistant placeholder to DOM
-      const wrap = addMsgDOM(model.name, "", null, true);
+      const wrap = addMsgDOM(requestModel.name, "", null, true, requestModel);
       const avEl = wrap.querySelector(".av");
       if (avEl) avEl.classList.add("spin");
 
-      // Also animate top header model icon
       document.getElementById("modelBtn").classList.add("thinking");
 
       const thinkBox = wrap.querySelector(".think");
@@ -2122,9 +2179,9 @@
             Authorization: "Bearer " + token
           },
           body: JSON.stringify({
-            model: model.key,
-            messages: payload(),
-            deepResearch: deep
+            model: requestModel.key,
+            messages: payload(requestThread),
+            deepResearch: requestDeep
           }),
           signal: abortController.signal
         });
@@ -2190,7 +2247,6 @@
                 bodyEl.innerHTML = md(acc);
                 document.getElementById("msgs").scrollTop = 1e9;
               }
-
             }
           }
         }
@@ -2205,7 +2261,6 @@
         }
         bodyEl.innerHTML = md(acc);
       } finally {
-        // ALWAYS remove spinning animation and restore UI
         if (avEl) avEl.classList.remove("spin");
         document.getElementById("modelBtn").classList.remove("thinking");
 
@@ -2215,22 +2270,29 @@
           bodyEl.innerHTML = md(acc);
         }
 
-        thread.push({
+        requestThread.push({
           role: "assistant",
           content: acc,
-          model: model.key,
-          modelName: model.name
+          model: requestModel.key,
+          modelName: requestModel.name
         });
 
-        // Persist final thread state to Firebase
-        if (convId && user) {
-          db.ref("users/" + user.uid + "/conversations/" + convId).update({
-            pending: false,
-            messages: thread,
-            model: model.key,
-            updated: Date.now()
-          }).catch(() => {});
+        // Persist only this request's conversation. Never replace its title or
+        // first-selected model when later messages use another model.
+        if (requestConvId && user) {
+          try {
+            await saveConversation(requestConvId, {
+              pending: false,
+              messages: requestThread,
+              deep: requestDeep,
+              updated: Date.now()
+            });
+          } catch (_) {}
         }
+
+        // If the user stayed on this conversation, keep the active thread in
+        // sync. If they switched away, the captured array above is still saved.
+        if (convId === requestConvId) thread = requestThread;
 
         busy = false;
         abortController = null;
@@ -2264,6 +2326,8 @@
       inputEl.value = "";
       inputEl.style.height = "auto";
 
+      const isFirstPrompt = !thread.some(m => m.role === "user");
+      const selectedModel = model;
       const content = [];
       if (text) content.push({ type: "text", text });
       imgs.forEach(im => content.push({ type: "image", mime: im.mime, data: im.data, url: im.url }));
@@ -2275,33 +2339,40 @@
 
       thread.push(userMsg);
 
-      // Remove empty starter view if present
       const emptyEl = document.getElementById("msgs").querySelector(".empty");
       if (emptyEl) emptyEl.remove();
-
-      // Immediately render user bubble
       addMsgDOM("You", md(text || "(image)"), imgs, false);
 
-      // If conversation ID doesn't exist yet, generate one on the fly
       if (!convId) {
         convId = "c_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
         window.history.pushState(null, "", "/AI-Playground/Chat/" + convId + "/");
       }
 
-      // Asynchronously update Firebase in the background with pending: true
+      const selectedThread = thread;
+      const selectedConversationId = convId;
+      const selectedDeep = deep;
+
       if (user) {
-        db.ref("users/" + user.uid + "/conversations/" + convId).update({
+        const patch = {
           owner: user.uid,
-          messages: thread,
+          messages: selectedThread,
           updated: Date.now(),
-          title: (text || "Image prompt").slice(0, 60),
-          model: model.key,
-          pending: true
-        }).catch(err => console.error("Firebase update error:", err));
+          pending: true,
+          deep: selectedDeep
+        };
+
+        // The first prompt permanently establishes the title and the model
+        // shown for this conversation. Later turns cannot rename or reassign it.
+        if (isFirstPrompt) {
+          patch.title = conversationTitle(text, imgs.length > 0);
+          patch.model = selectedModel.key;
+          patch.modelName = selectedModel.name;
+        }
+
+        saveConversation(selectedConversationId, patch).catch(err => console.error("Firebase update error:", err));
       }
 
-      // Immediately stream model response!
-      runModel();
+      runModel(selectedModel, selectedThread, selectedConversationId, selectedDeep);
     }
 
     document.getElementById("send").onclick = send;
@@ -2317,6 +2388,7 @@
      * Load a conversation with retry to eliminate race conditions on redirect.
      */
     async function loadConversation(id) {
+      const generation = ++conversationLoadGeneration;
       convId = id;
       window.history.pushState(null, "", "/AI-Playground/Chat/" + id + "/");
 
@@ -2344,6 +2416,8 @@
         }
       }
 
+      if (generation !== conversationLoadGeneration || convId !== id) return;
+
       if (!v) {
         msgsBox.innerHTML = `
           <div class="empty">
@@ -2355,7 +2429,9 @@
         return;
       }
 
-      thread = v.messages || [];
+      // Realtime Database can return a numeric-keyed object instead of an
+      // array after edits; normalize it so every saved turn is restored.
+      thread = Array.isArray(v.messages) ? v.messages : Object.values(v.messages || {});
       deep = !!v.deep;
       document.getElementById("deep").classList.toggle("on", deep);
 
@@ -2366,7 +2442,7 @@
       loadList();
 
       // If pending on load (e.g. redirected from home page), run immediately!
-      if (v.pending && thread.length && thread[thread.length - 1].role === "user") {
+      if (generation === conversationLoadGeneration && convId === id && v.pending && thread.length && thread[thread.length - 1].role === "user") {
         runModel();
       }
     }
@@ -2398,5 +2474,5 @@
       await loadList();
     });
   </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3da3c22da3075b1',t:'MTc4OTgzODE1Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
