@@ -1,50 +1,101 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HTMLTOOLS — One hub. Every shortcut.</title>
+  <title>HTMLTOOLS — One Hub. Every Shortcut.</title>
+  <meta name="description" content="A curated monochrome directory of tools, utilities, and artificial intelligence models for the modern web.">
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
 
     :root {
-      --black: #080808;
-      --surface: #111111;
-      --surface-2: #171717;
-      --border: #2b2b2b;
-      --white: #f4f4f4;
-      --muted: #858585;
-      --dim: #555;
+      --bg: #070709;
+      --surface: #101013;
+      --surface-elevated: #16161a;
+      --surface-hover: #1a1a20;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.22);
+      --border-active: rgba(255, 255, 255, 0.38);
+      --white: #f5f5f7;
+      --white-pure: #ffffff;
+      --muted: #8e8e96;
+      --dim: #54545d;
+      --glow: rgba(255, 255, 255, 0.05);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-full: 9999px;
+      --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "IBM Plex Mono", "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+      --font-serif: "Lora", "New York", "Newsreader", "Charter", Georgia, "Times New Roman", serif;
+      --transition-smooth: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     html {
       scroll-behavior: smooth;
+      background: var(--bg);
     }
 
     body {
-      margin: 0;
-      background: var(--black);
+      background-color: var(--bg);
       color: var(--white);
-      font-family: "DM Sans", sans-serif;
+      font-family: var(--font-sans);
+      line-height: 1.6;
       overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    body::before {
-      content: "";
+    /* Ambient background grid & spotlight */
+    .bg-grid {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: .06;
+      z-index: 0;
+      opacity: 0.045;
       background-image:
-        linear-gradient(#fff 1px, transparent 1px),
-        linear-gradient(90deg, #fff 1px, transparent 1px);
-      background-size: 56px 56px;
-      mask-image: linear-gradient(to bottom, black, transparent 90%);
+        linear-gradient(to right, rgba(255, 255, 255, 0.8) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 1px, transparent 1px);
+      background-size: 52px 52px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 40%, transparent 95%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 40%, transparent 95%);
+    }
+
+    .ambient-glow {
+      position: fixed;
+      top: -180px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 740px;
+      height: 500px;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.015) 45%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(50px);
+    }
+
+    /* Delicate ambient particle canvas */
+    #ambient-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 700px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.65;
     }
 
     a {
@@ -52,414 +103,1147 @@
       text-decoration: none;
     }
 
-    .container {
-      width: min(1180px, calc(100% - 40px));
-      margin: auto;
+    button, select {
+      background: none;
+      border: none;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
     }
 
-    header {
+    .container {
+      width: min(1200px, calc(100% - 48px));
+      margin: 0 auto;
       position: relative;
-      z-index: 2;
-      height: 76px;
+      z-index: 1;
+    }
+
+    /* =========================================
+       HEADER
+       ========================================= */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: 74px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255,255,255,.08);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: rgba(7, 7, 9, 0.78);
+      transition: border-color 0.25s ease;
+    }
+
+    header:hover {
+      border-bottom-color: rgba(255, 255, 255, 0.15);
     }
 
     .brand {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 13px;
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 14px;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 13px;
       font-weight: 600;
-      letter-spacing: .18em;
-    }
-
-    .brand img {
-      width: 40px;
-      height: 40px;
-      border: 1px solid #444;
-      border-radius: 10px;
-      object-fit: cover;
-      transition: transform .3s ease;
-    }
-
-    .brand:hover img {
-      transform: rotate(4deg) scale(1.05);
-    }
-
-    nav {
-      display: flex;
-      align-items: center;
-      gap: 30px;
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 11px;
-      letter-spacing: .16em;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: var(--white);
+      user-select: none;
     }
 
-    nav a {
-      transition: color .2s ease;
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #141418;
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition-smooth);
     }
 
-    nav a:hover {
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .brand-mark svg {
+      width: 20px;
+      height: 20px;
       color: var(--white);
     }
 
-    .hero {
-      position: relative;
-      padding: 120px 0 100px;
+    .brand:hover .brand-mark {
+      transform: scale(1.06) rotate(3deg);
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 18px rgba(255, 255, 255, 0.14);
     }
 
-    .hero::after {
-      content: "";
-      position: absolute;
-      right: 4%;
-      top: 70px;
-      width: 330px;
-      height: 330px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.045);
-      filter: blur(70px);
-      pointer-events: none;
-    }
-
-    .kicker {
+    .header-nav {
       display: flex;
       align-items: center;
-      gap: 13px;
-      margin-bottom: 28px;
-      color: var(--muted);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 10px;
-      letter-spacing: .24em;
+      gap: 24px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
-      animation: reveal .8s .05s both;
+      color: var(--muted);
     }
 
-    .kicker::before {
+    .header-nav a {
+      position: relative;
+      padding: 6px 0;
+      transition: color 0.2s ease;
+    }
+
+    .header-nav a::after {
       content: "";
-      width: 32px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
       height: 1px;
       background: var(--white);
+      transition: width 0.25s ease;
+    }
+
+    .header-nav a:hover {
+      color: var(--white);
+    }
+
+    .header-nav a:hover::after {
+      width: 100%;
+    }
+
+    .nav-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 10px;
+      color: var(--muted);
+      transition: var(--transition-smooth);
+    }
+
+    .nav-badge:hover {
+      color: var(--white);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 8px #ffffff;
+      animation: pulse 2.4s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.35; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 12px #ffffff; }
+    }
+
+    /* =========================================
+       HERO SECTION
+       ========================================= */
+    .hero {
+      position: relative;
+      padding: 110px 0 85px;
+    }
+
+    .kicker-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 5px 14px 5px 8px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 32px;
+      animation: fadeInDown 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .kicker-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--white);
+      font-size: 9px;
+      font-weight: 600;
     }
 
     h1 {
       position: relative;
-      z-index: 1;
-      max-width: 900px;
-      margin: 0;
-      font-family: "Lora", serif;
-      font-size: clamp(55px, 9vw, 112px);
+      max-width: 960px;
+      margin: 0 0 32px;
+      font-family: var(--font-serif);
+      font-size: clamp(48px, 8.5vw, 102px);
       font-weight: 400;
-      letter-spacing: -.06em;
-      line-height: .94;
-      animation: reveal 1s .15s both;
+      letter-spacing: -0.055em;
+      line-height: 0.95;
+      animation: fadeInUp 0.8s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
-    h1 span {
-      color: #626262;
+    h1 em {
+      font-style: italic;
+      color: #9898a3;
+    }
+
+    h1 .dimmed {
+      color: #4a4a52;
+      transition: color 0.3s ease;
+    }
+
+    h1:hover .dimmed {
+      color: #72727d;
     }
 
     .hero-bottom {
-      max-width: 680px;
+      max-width: 720px;
       display: flex;
-      align-items: end;
+      align-items: flex-end;
       justify-content: space-between;
-      gap: 30px;
-      margin-top: 42px;
-      padding-left: 23px;
-      border-left: 1px solid #555;
-      animation: reveal .9s .3s both;
+      gap: 36px;
+      padding-left: 24px;
+      border-left: 2px solid rgba(255, 255, 255, 0.18);
+      animation: fadeInUp 0.85s 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
     .hero-bottom p {
-      max-width: 390px;
-      margin: 0;
+      max-width: 420px;
       color: var(--muted);
       font-size: 16px;
-      line-height: 1.7;
+      line-height: 1.65;
+      margin: 0;
     }
 
-    .explore {
-      display: flex;
+    .hero-cta {
+      display: inline-flex;
       align-items: center;
-      gap: 13px;
-      white-space: nowrap;
-      font-family: "IBM Plex Mono", monospace;
+      gap: 12px;
+      padding: 12px 22px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--white);
+      font-family: var(--font-mono);
       font-size: 11px;
-      letter-spacing: .15em;
+      font-weight: 500;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
+      white-space: nowrap;
+      transition: var(--transition-smooth);
     }
 
-    .explore span {
+    .hero-cta .cta-icon {
       display: grid;
-      width: 38px;
-      height: 38px;
       place-items: center;
-      border: 1px solid var(--border);
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
-      transition: all .3s ease;
+      background: rgba(255, 255, 255, 0.12);
+      transition: var(--transition-smooth);
     }
 
-    .explore:hover span {
-      color: var(--black);
+    .hero-cta:hover {
       background: var(--white);
-      transform: translateX(4px);
+      color: #050505;
+      border-color: var(--white);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
     }
 
+    .hero-cta:hover .cta-icon {
+      background: #050505;
+      color: var(--white);
+      transform: translateY(2px);
+    }
+
+    /* Stats Grid */
     .stats {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      margin-top: 95px;
+      margin-top: 80px;
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
-      animation: reveal .9s .45s both;
+      animation: fadeInUp 0.9s 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
     }
 
-    .stat {
-      padding: 24px;
+    .stat-item {
+      padding: 28px 24px;
       border-right: 1px solid var(--border);
+      position: relative;
+      transition: background 0.3s ease;
     }
 
-    .stat:last-child {
-      border-right: 0;
+    .stat-item:last-child {
+      border-right: none;
     }
 
-    .stat strong {
+    .stat-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .stat-number {
       display: block;
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 25px;
-      font-weight: 400;
+      font-family: var(--font-mono);
+      font-size: clamp(26px, 3.2vw, 36px);
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      color: var(--white);
+      line-height: 1.1;
     }
 
-    .stat small {
+    .stat-label {
       display: block;
-      margin-top: 6px;
+      margin-top: 8px;
       color: var(--dim);
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 9px;
-      letter-spacing: .16em;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
+      font-weight: 500;
+      transition: color 0.25s ease;
     }
 
+    .stat-item:hover .stat-label {
+      color: var(--muted);
+    }
+
+    /* =========================================
+       DIRECTORY SECTION
+       ========================================= */
     section.directory {
-      padding: 100px 0;
+      padding: 85px 0 110px;
       border-top: 1px solid var(--border);
     }
 
-    .section-heading {
+    .section-header {
       display: flex;
-      align-items: end;
+      align-items: flex-end;
       justify-content: space-between;
-      gap: 25px;
-      margin-bottom: 30px;
+      gap: 32px;
+      margin-bottom: 28px;
     }
 
-    .section-label {
+    .section-tag {
       margin: 0 0 10px;
       color: var(--muted);
-      font-family: "IBM Plex Mono", monospace;
+      font-family: var(--font-mono);
       font-size: 10px;
-      letter-spacing: .2em;
+      letter-spacing: 0.2em;
       text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-tag::before {
+      content: "";
+      width: 14px;
+      height: 1px;
+      background: var(--muted);
     }
 
     h2 {
       margin: 0;
-      font-family: "Lora", serif;
-      font-size: clamp(34px, 5vw, 58px);
+      font-family: var(--font-serif);
+      font-size: clamp(32px, 4.5vw, 56px);
       font-weight: 400;
-      letter-spacing: -.04em;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+    }
+
+    .search-box-wrap {
+      position: relative;
+      width: 340px;
+      max-width: 100%;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--dim);
+      pointer-events: none;
+      transition: color 0.2s ease;
     }
 
     .search {
-      width: 280px;
-      padding: 13px 15px;
+      width: 100%;
+      padding: 13px 40px 13px 38px;
       border: 1px solid var(--border);
-      border-radius: 7px;
+      border-radius: var(--radius-md);
       outline: none;
       background: var(--surface);
       color: var(--white);
-      font: 12px "IBM Plex Mono", monospace;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      transition: var(--transition-smooth);
+    }
+
+    .search::placeholder {
+      color: var(--dim);
     }
 
     .search:focus {
-      border-color: #888;
+      border-color: rgba(255, 255, 255, 0.4);
+      background: var(--surface-elevated);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
     }
 
-    .filters {
+    .search:focus + .search-icon {
+      color: var(--white);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--muted);
+      display: none;
+      place-items: center;
+      font-size: 13px;
+      transition: var(--transition-smooth);
+    }
+
+    .search-clear:hover {
+      background: rgba(255, 255, 255, 0.25);
+      color: var(--white);
+    }
+
+    .search-shortcut {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--dim);
+      pointer-events: none;
+    }
+
+    /* Directory Controls Toolbar */
+    .directory-toolbar {
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .filters-wrap {
+      display: flex;
+      align-items: center;
       gap: 8px;
       overflow-x: auto;
-      padding-bottom: 13px;
-      border-bottom: 1px solid var(--border);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding: 4px 0;
+    }
+
+    .filters-wrap::-webkit-scrollbar {
+      display: none;
     }
 
     .filter {
       flex-shrink: 0;
-      padding: 9px 15px;
+      padding: 8px 16px;
       border: 1px solid var(--border);
-      border-radius: 30px;
+      border-radius: var(--radius-full);
       background: transparent;
       color: var(--muted);
       cursor: pointer;
-      font: 10px "IBM Plex Mono", monospace;
-      letter-spacing: .12em;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      transition: all .2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition-smooth);
+      user-select: none;
     }
 
-    .filter:hover,
+    .filter .count {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--dim);
+      transition: var(--transition-smooth);
+    }
+
+    .filter:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      color: var(--white);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
     .filter.active {
       border-color: var(--white);
       background: var(--white);
-      color: var(--black);
+      color: #070709;
+      font-weight: 500;
+      box-shadow: 0 4px 14px rgba(255, 255, 255, 0.14);
     }
 
-    .tools {
+    .filter.active .count {
+      background: rgba(0, 0, 0, 0.15);
+      color: #070709;
+    }
+
+    .view-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    .sort-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .sort-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 26px 6px 10px;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .sort-select:hover, .sort-select:focus {
+      border-color: rgba(255, 255, 255, 0.3);
+      color: var(--white);
+      background: var(--surface-elevated);
+      outline: none;
+    }
+
+    .sort-arrow {
+      position: absolute;
+      right: 8px;
+      pointer-events: none;
+      font-size: 9px;
+      color: var(--dim);
+    }
+
+    .results-count {
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+
+    .view-switcher {
+      display: inline-flex;
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .view-btn {
+      padding: 5px 8px;
+      border-radius: 6px;
+      color: var(--dim);
+      display: grid;
+      place-items: center;
+      transition: var(--transition-smooth);
+    }
+
+    .view-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .view-btn:hover {
+      color: var(--white);
+    }
+
+    .view-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--white);
+    }
+
+    /* =========================================
+       TOOLS GRID (DEFAULT)
+       ========================================= */
+    .tools-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 16px;
       margin-top: 28px;
     }
 
-    .tool {
+    .tool-card {
       position: relative;
-      min-height: 150px;
+      min-height: 172px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 20px;
-      overflow: hidden;
+      padding: 22px;
+      border-radius: var(--radius-md);
       border: 1px solid var(--border);
-      border-radius: 11px;
       background: var(--surface);
-      animation: card-in .65s both;
-      transition: transform .3s ease, border-color .3s ease, background .3s ease;
+      overflow: hidden;
+      transition: var(--transition-smooth);
+      text-decoration: none;
+      color: inherit;
     }
 
-    .tool::after {
+    /* Interactive cursor spotlight on card */
+    .tool-card::before {
       content: "";
       position: absolute;
-      inset: 0;
-      pointer-events: none;
-      opacity: 0;
-      background: linear-gradient(
-        115deg,
-        transparent 25%,
-        rgba(255,255,255,.1) 48%,
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: radial-gradient(
+        280px circle at var(--mouse-x, -200px) var(--mouse-y, -200px),
+        rgba(255, 255, 255, 0.35),
         transparent 70%
       );
-      transform: translateX(-120%);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      z-index: 2;
     }
 
-    .tool:hover {
-      transform: translateY(-6px);
-      border-color: #777;
-      background: var(--surface-2);
+    /* Subtle top highlight gradient */
+    .tool-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+      opacity: 0.6;
+      transition: opacity 0.3s ease;
     }
 
-    .tool:hover::after {
+    .tool-card:hover {
+      transform: translateY(-5px);
+      border-color: rgba(255, 255, 255, 0.22);
+      background: var(--surface-hover);
+      box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.75), 0 0 24px rgba(255, 255, 255, 0.03);
+    }
+
+    .tool-card:hover::before {
       opacity: 1;
-      animation: sheen .8s both;
     }
 
-    .tool-top,
+    .tool-card:hover::after {
+      opacity: 1;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    }
+
+    .tool-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .tool-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #141418;
+      display: grid;
+      place-items: center;
+      color: var(--white);
+      flex-shrink: 0;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .tool-icon-wrap svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+      transition: transform 0.3s ease;
+    }
+
+    .tool-card:hover .tool-icon-wrap {
+      transform: scale(1.08) rotate(-3deg);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: #191920;
+      box-shadow: 0 0 16px rgba(255, 255, 255, 0.08);
+    }
+
+    .tool-meta-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--dim);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 500;
+      transition: var(--transition-smooth);
+    }
+
+    .tool-card:hover .category-badge {
+      color: var(--muted);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .badge-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--dim);
+      transition: background 0.3s ease;
+    }
+
+    .tool-card:hover .badge-dot {
+      background: var(--white);
+    }
+
+    .star-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      display: grid;
+      place-items: center;
+      color: var(--dim);
+      transition: var(--transition-smooth);
+      position: relative;
+      z-index: 3;
+    }
+
+    .star-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .star-btn:hover {
+      color: var(--white);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .star-btn.starred {
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .tool-body {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 18px;
+    }
+
+    .tool-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--white);
+      letter-spacing: -0.01em;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tool-desc {
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.5;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
     .tool-bottom {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 15px;
+      gap: 12px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      z-index: 1;
     }
 
-    .tool-icon {
+    .tool-domain {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: var(--dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
+      transition: color 0.25s ease;
+    }
+
+    .tool-card:hover .tool-domain {
+      color: var(--muted);
+    }
+
+    .tool-footer-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+      z-index: 3;
+    }
+
+    .action-icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid transparent;
       display: grid;
+      place-items: center;
+      color: var(--dim);
+      transition: var(--transition-smooth);
+    }
+
+    .action-icon-btn svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .action-icon-btn:hover {
+      color: var(--white);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .launch-indicator {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+      transition: var(--transition-smooth);
+    }
+
+    .tool-card:hover .launch-indicator {
+      color: #050505;
+      background: var(--white);
+      border-color: var(--white);
+      transform: translate(2px, -2px);
+      box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
+    }
+
+    /* =========================================
+       TOOLS LIST VIEW
+       ========================================= */
+    .tools-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 28px;
+    }
+
+    .tools-list .tool-card {
+      min-height: auto;
+      flex-direction: row;
+      align-items: center;
+      padding: 14px 20px;
+      gap: 20px;
+    }
+
+    .tools-list .tool-top {
+      margin-bottom: 0;
+      gap: 16px;
+      flex: 0 0 auto;
+    }
+
+    .tools-list .tool-icon-wrap {
       width: 38px;
       height: 38px;
-      place-items: center;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: #191919;
-      color: var(--white);
-      font-size: 18px;
-      transition: transform .3s ease;
     }
 
-    .tool:hover .tool-icon {
-      transform: scale(1.12) rotate(-4deg);
+    .tools-list .tool-icon-wrap svg {
+      width: 18px;
+      height: 18px;
     }
 
-    .tool-icon img {
-      width: 21px;
-      height: 21px;
-      object-fit: contain;
+    .tools-list .tool-body {
+      margin-bottom: 0;
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      gap: 24px;
     }
 
-    .badge {
-      color: var(--dim);
-      font: 9px "IBM Plex Mono", monospace;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-    }
-
-    .tool-name {
+    .tools-list .tool-name {
+      margin-bottom: 0;
+      min-width: 170px;
       font-size: 14px;
-      font-weight: 500;
     }
 
-    .arrow {
+    .tools-list .tool-desc {
+      -webkit-line-clamp: 1;
+      font-size: 12px;
+      flex: 1;
+    }
+
+    .tools-list .tool-bottom {
+      padding-top: 0;
+      border-top: none;
+      flex: 0 0 auto;
+      gap: 18px;
+    }
+
+    .tools-list .tool-domain {
+      max-width: 140px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 80px 20px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
       color: var(--muted);
-      font-size: 18px;
-      transition: transform .3s ease, color .3s ease;
+      text-align: center;
+      margin-top: 28px;
+      background: rgba(255, 255, 255, 0.01);
     }
 
-    .tool:hover .arrow {
+    .empty-state h3 {
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 400;
       color: var(--white);
-      transform: translate(3px, -3px);
+      margin-bottom: 8px;
     }
 
+    .empty-state p {
+      font-size: 14px;
+      color: var(--dim);
+      margin-bottom: 20px;
+    }
+
+    .reset-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--white);
+      transition: var(--transition-smooth);
+    }
+
+    .reset-btn:hover {
+      background: var(--white);
+      color: #050505;
+    }
+
+    /* =========================================
+       FOOTER
+       ========================================= */
     footer {
-      padding: 45px 0;
+      margin-top: auto;
+      padding: 56px 0 44px;
       border-top: 1px solid var(--border);
-      color: var(--muted);
+      background: rgba(7, 7, 9, 0.65);
+      position: relative;
+      z-index: 10;
     }
 
     .footer-row {
       display: flex;
-      align-items: end;
+      align-items: flex-end;
       justify-content: space-between;
-      gap: 30px;
+      gap: 36px;
     }
 
-    footer p {
-      margin: 12px 0 0;
+    .footer-desc {
+      margin-top: 12px;
       font-size: 14px;
-    }
-
-    footer small {
-      font: 10px "IBM Plex Mono", monospace;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-
-    .empty {
-      padding: 70px 20px;
-      border: 1px dashed var(--border);
       color: var(--muted);
-      text-align: center;
-      font-family: "Lora", serif;
-      font-size: 24px;
+      max-width: 440px;
+      line-height: 1.6;
     }
 
-    @keyframes reveal {
+    .footer-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 14px;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .footer-links a:hover {
+      color: var(--white);
+    }
+
+    .copyright {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    /* =========================================
+       TOAST NOTIFICATION
+       ========================================= */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(40px);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border-radius: var(--radius-full);
+      background: #1b1b22;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 15px rgba(255, 255, 255, 0.1);
+      color: var(--white);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast-icon {
+      width: 16px;
+      height: 16px;
+      color: #ffffff;
+      display: grid;
+      place-items: center;
+    }
+
+    /* Back to top button */
+    .back-to-top {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: rgba(16, 16, 20, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(15px);
+      transition: var(--transition-smooth);
+      z-index: 99;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .back-to-top:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+      color: var(--white);
+      background: #1c1c24;
+      transform: translateY(-3px);
+    }
+
+    /* =========================================
+       ANIMATIONS
+       ========================================= */
+    @keyframes fadeInDown {
       from {
         opacity: 0;
-        transform: translateY(25px);
-        filter: blur(8px);
+        transform: translateY(-20px);
+        filter: blur(4px);
       }
       to {
         opacity: 1;
@@ -468,67 +1252,131 @@
       }
     }
 
-    @keyframes card-in {
+    @keyframes fadeInUp {
       from {
         opacity: 0;
-        transform: translateY(16px);
+        transform: translateY(24px);
+        filter: blur(6px);
       }
       to {
         opacity: 1;
         transform: translateY(0);
+        filter: blur(0);
       }
     }
 
-    @keyframes sheen {
+    .card-animate-in {
+      animation: cardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes cardIn {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+      }
       to {
-        transform: translateX(120%);
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
     }
 
-    @media (max-width: 760px) {
+    /* =========================================
+       RESPONSIVE MEDIA QUERIES
+       ========================================= */
+    @media (max-width: 1024px) {
+      .tools-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
       .container {
-        width: min(100% - 28px, 600px);
+        width: min(100% - 32px, 600px);
       }
 
       header {
-        height: 68px;
+        height: 66px;
       }
 
-      nav {
-        gap: 15px;
-        font-size: 9px;
+      .header-nav {
+        gap: 16px;
+        font-size: 10px;
       }
 
       .hero {
-        padding: 85px 0 70px;
+        padding: 70px 0 55px;
       }
 
-      .hero-bottom,
-      .section-heading,
-      .footer-row {
-        align-items: start;
+      .hero-bottom {
         flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+        padding-left: 18px;
       }
 
       .stats {
         grid-template-columns: repeat(2, 1fr);
-        margin-top: 65px;
+        margin-top: 55px;
       }
 
-      .stat:nth-child(2) {
-        border-right: 0;
+      .stat-item:nth-child(2) {
+        border-right: none;
       }
 
-      .stat:nth-child(n + 3) {
+      .stat-item:nth-child(n + 3) {
         border-top: 1px solid var(--border);
       }
 
-      .tools {
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+      }
+
+      .search-box-wrap {
+        width: 100%;
+      }
+
+      .directory-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .view-controls {
+        justify-content: space-between;
+        width: 100%;
+      }
+
+      .tools-grid {
         grid-template-columns: 1fr;
       }
 
-      .search {
+      .tools-list .tool-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+      }
+
+      .tools-list .tool-body {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      .tools-list .tool-bottom {
         width: 100%;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding-top: 12px;
+      }
+
+      .footer-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 26px;
+      }
+
+      .footer-right {
+        align-items: flex-start;
       }
     }
 
@@ -540,333 +1388,930 @@
         transition: none !important;
         scroll-behavior: auto !important;
       }
+      #ambient-canvas {
+        display: none !important;
+      }
     }
   </style>
 </head>
 
 <body>
+  <div class="bg-grid"></div>
+  <div class="ambient-glow"></div>
+  <canvas id="ambient-canvas"></canvas>
+
   <div class="container">
+    <!-- HEADER -->
     <header>
-      <a class="brand" href="#top">
-        <img src="https://htmltools.me/logo3.png" alt="HTMLTOOLS logo">
-        HTMLTOOLS
+      <a class="brand" href="#top" title="HTMLTOOLS Home">
+        <div class="brand-mark">
+          <img src="https://htmltools.me/logo3.png" alt="HTMLTOOLS" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <svg style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="5" stroke="rgba(255,255,255,0.4)"></rect>
+            <polyline points="9 8 5 12 9 16"></polyline>
+            <polyline points="15 8 19 12 15 16"></polyline>
+          </svg>
+        </div>
+        <span>HTMLTOOLS</span>
       </a>
 
-      <nav>
+      <nav class="header-nav">
         <a href="#directory">Directory</a>
         <a href="#about">About</a>
-        <a href="https://htmltools.me/Main" target="_blank">Main site ↗</a>
+        <a class="nav-badge" href="https://htmltools.me/Main" target="_blank" rel="noopener noreferrer">
+          <span class="pulse-dot"></span>
+          <span>Main Site ↗</span>
+        </a>
       </nav>
     </header>
 
+    <!-- HERO -->
     <main id="top">
       <section class="hero">
-        <div class="kicker">A sharper utility index</div>
+        <div class="kicker-wrap">
+          <span class="kicker-pill">INDEX v2.6</span>
+          <span>A Sharper Utility Directory</span>
+        </div>
 
         <h1>
           Tools for the<br>
-          <span>way you work.</span>
+          <em>way you work</em><span class="dimmed">.</span>
         </h1>
 
         <div class="hero-bottom">
           <p>
-            A considered collection of places to build, explore,
-            create, and get things done on the web.
+            A considered, high-performance index of utilities, sandboxes,
+            and artificial intelligence engines built for the modern web.
           </p>
 
-          <a class="explore" href="#directory">
-            Explore the index
-            <span>›</span>
+          <a class="hero-cta" href="#directory">
+            <span>Explore Index</span>
+            <span class="cta-icon">↓</span>
           </a>
         </div>
 
-        <div class="stats">
-          <div class="stat">
-            <strong>24</strong>
-            <small>Tools indexed</small>
+        <div class="stats" id="stats">
+          <div class="stat-item">
+            <strong class="stat-number" data-target="24">0</strong>
+            <span class="stat-label">Tools Indexed</span>
           </div>
-          <div class="stat">
-            <strong>04</strong>
-            <small>AI categories</small>
+          <div class="stat-item">
+            <strong class="stat-number" data-target="4" data-pad="true">0</strong>
+            <span class="stat-label">AI Categories</span>
           </div>
-          <div class="stat">
-            <strong>∞</strong>
-            <small>Possibilities</small>
+          <div class="stat-item">
+            <strong class="stat-number" data-symbol="∞">∞</strong>
+            <span class="stat-label">Possibilities</span>
           </div>
-          <div class="stat">
-            <strong>01</strong>
-            <small>Home base</small>
+          <div class="stat-item">
+            <strong class="stat-number" data-target="1" data-pad="true">0</strong>
+            <span class="stat-label">Home Base</span>
           </div>
         </div>
       </section>
 
+      <!-- DIRECTORY -->
       <section class="directory" id="directory">
-        <div class="section-heading">
+        <div class="section-header">
           <div>
-            <p class="section-label">01 / Full index</p>
+            <p class="section-tag">01 / Master Index</p>
             <h2>The directory</h2>
           </div>
 
-          <input
-            class="search"
-            id="search"
-            type="search"
-            placeholder="Search tools..."
-          >
+          <div class="search-box-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              class="search"
+              id="search"
+              type="text"
+              placeholder="Search tools, models, utilities..."
+              autocomplete="off"
+              spellcheck="false"
+            >
+            <button class="search-clear" id="search-clear" title="Clear search">×</button>
+            <span class="search-shortcut" id="search-shortcut">/</span>
+          </div>
         </div>
 
-        <div class="filters" id="filters">
-          <button class="filter active" data-category="All">All</button>
-          <button class="filter" data-category="Popular">Popular</button>
-          <button class="filter" data-category="AI">AI</button>
-          <button class="filter" data-category="Tech">Tech</button>
-          <button class="filter" data-category="Media">Media</button>
-          <button class="filter" data-category="Communication">Communication</button>
+        <div class="directory-toolbar">
+          <div class="filters-wrap" id="filters">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <div class="view-controls">
+            <!-- Sort dropdown -->
+            <div class="sort-wrap">
+              <select class="sort-select" id="sort-select" title="Sort tools" aria-label="Sort tools">
+                <option value="default">Sort: Featured</option>
+                <option value="alpha-asc">Sort: Name (A–Z)</option>
+                <option value="alpha-desc">Sort: Name (Z–A)</option>
+                <option value="category">Sort: Category</option>
+              </select>
+              <span class="sort-arrow">▼</span>
+            </div>
+
+            <span class="results-count" id="results-count">24 tools</span>
+
+            <div class="view-switcher">
+              <button class="view-btn active" id="view-grid" title="Grid View" aria-label="Grid view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </button>
+              <button class="view-btn" id="view-list" title="List View" aria-label="List view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div class="tools" id="tools"></div>
+        <!-- TOOLS CONTAINER -->
+        <div class="tools-grid" id="tools-container"></div>
       </section>
     </main>
 
+    <!-- FOOTER -->
     <footer id="about">
       <div class="footer-row">
         <div>
-          <div class="brand">
-            <img src="https://htmltools.me/logo3.png" alt="HTMLTOOLS logo">
-            HTMLTOOLS
-          </div>
-          <p>Small tools. Serious momentum. Built for the curious web.</p>
+          <a class="brand" href="#top">
+            <div class="brand-mark">
+              <img src="https://htmltools.me/logo3.png" alt="HTMLTOOLS" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+              <svg style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="5" stroke="rgba(255,255,255,0.4)"></rect>
+                <polyline points="9 8 5 12 9 16"></polyline>
+                <polyline points="15 8 19 12 15 16"></polyline>
+              </svg>
+            </div>
+            <span>HTMLTOOLS</span>
+          </a>
+          <p class="footer-desc">
+            Minimalist tools. Serious momentum. A bespoke monochrome directory curated for makers, developers, and web explorers.
+          </p>
         </div>
 
-        <small>© 2026 HTMLTOOLS</small>
+        <div class="footer-right">
+          <div class="footer-links">
+            <a href="#top">Top ↑</a>
+            <a href="#directory">Directory</a>
+            <a href="https://htmltools.me/Main" target="_blank" rel="noopener noreferrer">Main Portal ↗</a>
+          </div>
+          <small class="copyright">© 2026 HTMLTOOLS. ALL RIGHTS RESERVED.</small>
+        </div>
       </div>
     </footer>
   </div>
 
+  <!-- FLOATING TOAST -->
+  <div class="toast" id="toast">
+    <span class="toast-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </span>
+    <span id="toast-message">Copied to clipboard</span>
+  </div>
+
+  <!-- BACK TO TOP BUTTON -->
+  <button class="back-to-top" id="back-to-top" title="Scroll to top" aria-label="Scroll to top">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="18 15 12 9 6 15"></polyline>
+    </svg>
+  </button>
+
   <script>
+    /* ==========================================================
+       TOOL DATA WITH CUSTOM MONOCHROME VECTOR SVGS & DESCRIPTIONS
+       ========================================================== */
     const tools = [
       {
+        id: "mattube",
         label: "MatTube",
         category: "Popular",
         url: "https://mattube.htmltools.me/",
-        icon: "▶"
+        domain: "mattube.htmltools.me",
+        desc: "Minimalist, ad-free video player and focused streaming client.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="4"></rect><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"></polygon></svg>`
       },
       {
+        id: "html-library",
         label: "HTML Library",
         category: "Popular",
         url: "https://htmltools.me/Library",
-        icon: "◎"
+        domain: "htmltools.me/Library",
+        desc: "Curated reference vault of web components, code snippets & docs.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><path d="m9 8-2 2 2 2"></path><path d="m15 8 2 2-2 2"></path></svg>`
       },
       {
+        id: "mattok",
         label: "MatTok",
         category: "Popular",
         url: "https://htmltools.me/MatTok/",
-        icon: "♪"
+        domain: "htmltools.me/MatTok",
+        desc: "Ultra-fast vertical media feed player with refined audio playback.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3" fill="currentColor"></circle><circle cx="18" cy="16" r="3" fill="currentColor"></circle><path d="M9 9l12-2"></path></svg>`
       },
       {
+        id: "claude-ai",
         label: "Claude AI",
         category: "AI",
         url: "https://htmltools.me/Claude",
-        icon: "✦",
-        image: "https://htmltools.me/claudelogo.png"
+        domain: "htmltools.me/Claude",
+        desc: "Anthropic's flagship intelligence model for coding, analysis & prose.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-3 0v-3A1.5 1.5 0 0 1 12 2zm0 14a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-3 0v-3A1.5 1.5 0 0 1 12 16zm10-4a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1 0-3h3A1.5 1.5 0 0 1 22 12zm-14 0a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1 0-3h3A1.5 1.5 0 0 1 8 12zm10.07-7.07a1.5 1.5 0 0 1 0 2.12l-2.12 2.12a1.5 1.5 0 1 1-2.12-2.12l2.12-2.12a1.5 1.5 0 0 1 2.12 0zm-9.9 9.9a1.5 1.5 0 0 1 0 2.12l-2.12 2.12a1.5 1.5 0 0 1-2.12-2.12l2.12-2.12a1.5 1.5 0 0 1 2.12 0zm0-9.9a1.5 1.5 0 0 1 2.12 0l2.12 2.12a1.5 1.5 0 0 1-2.12 2.12l-2.12-2.12a1.5 1.5 0 0 1 0-2.12zm9.9 9.9a1.5 1.5 0 0 1 2.12 0l2.12 2.12a1.5 1.5 0 0 1-2.12 2.12l-2.12-2.12a1.5 1.5 0 0 1 0-2.12z"/></svg>`
       },
       {
+        id: "chatgpt",
         label: "ChatGPT",
         category: "AI",
         url: "https://htmltools.me/ChatGPT",
-        icon: "◎",
-        image: "https://static.vecteezy.com/system/resources/previews/021/059/825/non_2x/chatgpt-logo-chat-gpt-icon-on-green-background-free-vector.jpg"
+        domain: "htmltools.me/ChatGPT",
+        desc: "OpenAI's foundational conversational system for analysis & tasks.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.28 9.37a6.04 6.04 0 0 0-.52-4.87 6.13 6.13 0 0 0-6.49-2.9 6.03 6.03 0 0 0-4.51-2.02 6.12 6.12 0 0 0-5.83 4.23 6.03 6.03 0 0 0-3.97 2.88 6.12 6.12 0 0 0 .66 7.12 6.04 6.04 0 0 0 .52 4.87 6.13 6.13 0 0 0 6.49 2.9 6.04 6.04 0 0 0 4.51 2.02 6.12 6.12 0 0 0 5.83-4.23 6.03 6.03 0 0 0 3.97-2.88 6.12 6.12 0 0 0-.66-7.12zm-8.88 11.45a4.57 4.57 0 0 1-2.9-1.04l.13-.08 4.83-2.79a.78.78 0 0 0 .39-.68v-6.8l2.04 1.18a.07.07 0 0 1 .04.06v5.6a4.59 4.59 0 0 1-4.53 4.55zm-8.8-3.79a4.56 4.56 0 0 1-.54-3.04l.14.08 4.83 2.79a.77.77 0 0 0 .78 0l5.89-3.4v2.36a.07.07 0 0 1-.03.06l-4.85 2.8a4.58 4.58 0 0 1-6.22-1.65zm-1.42-8.54a4.57 4.57 0 0 1 2.36-2l-.01.16v5.58a.77.77 0 0 0 .39.67l5.89 3.4-2.04 1.18a.07.07 0 0 1-.07 0l-4.85-2.8a4.59 4.59 0 0 1-1.67-6.19zm15.71 2.82-5.89-3.4 2.04-1.18a.07.07 0 0 1 .07 0l4.85 2.8a4.59 4.59 0 0 1 1.67 6.19 4.56 4.56 0 0 1-2.35 2l.01-.16v-5.58a.78.78 0 0 0-.4-.67zm2.46-3.85a4.56 4.56 0 0 1 .54 3.04l-.14-.08-4.83-2.79a.77.77 0 0 0-.78 0l-5.89 3.4V9.22a.07.07 0 0 1 .03-.06l4.85-2.8a4.58 4.58 0 0 1 6.22 1.65zM9.9 12.87l2.1-1.21 2.1 1.21v2.43l-2.1 1.21-2.1-1.21v-2.43z"/></svg>`
       },
       {
+        id: "grok",
         label: "Grok",
         category: "AI",
         url: "https://htmltools.me/Grok",
-        icon: "◉",
-        image: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/grok-icon.png"
+        domain: "htmltools.me/Grok",
+        desc: "xAI's fast real-time search, reasoning & dynamic world-knowledge model.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`
       },
       {
+        id: "gemini",
         label: "Gemini",
         category: "AI",
         url: "https://htmltools.me/Gemini",
-        icon: "✦",
-        image: "https://htmltools.me/geminilogo.png"
+        domain: "htmltools.me/Gemini",
+        desc: "Google's multimodal intelligence engine built for deep context & vision.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/></svg>`
       },
       {
+        id: "make-your-own-ai",
         label: "Make Your Own AI",
         category: "AI",
         url: "https://ai.htmltools.me",
-        icon: "✧"
+        domain: "ai.htmltools.me",
+        desc: "Build, configure, and customize intelligent agents without friction.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"></rect><circle cx="12" cy="12" r="3"></circle><path d="M12 2v2m0 16v2M2 12h2m16 0h2"></path><path d="m8 8 1 1m6 6 1 1m-8 0 1-1m6-6 1-1"></path></svg>`
       },
       {
+        id: "ai-playground",
         label: "AI Playground",
         category: "AI",
         url: "https://htmltools.me/ai-playground/",
-        icon: "⚗"
+        domain: "htmltools.me/ai-playground",
+        desc: "Interactive experimental sandbox to benchmark prompts, parameters & models.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31L4.2 20a1.5 1.5 0 0 0 1.3 2.2h13a1.5 1.5 0 0 0 1.3-2.2L14 9.31V2"></path><path d="M8.5 2h7"></path><path d="M7 16h10"></path><circle cx="10" cy="12" r="1" fill="currentColor"></circle><circle cx="14" cy="14" r="1" fill="currentColor"></circle></svg>`
       },
       {
+        id: "ai-image-editor",
         label: "AI Image Editor",
         category: "AI",
         url: "https://htmltools.me/ImageEditorAI",
-        icon: "▧",
-        image: "https://hdrobots.com/wp-content/uploads/2026/07/stability-ai-logo.webp"
+        domain: "htmltools.me/ImageEditorAI",
+        desc: "Generative canvas for inpainting, style shifts, and fine-grain retouching.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 4 2 2-6 6-2-2z"></path><path d="m18 8 2 2"></path><path d="M3 21l3-3"></path><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><path d="M21 14v5a2 2 0 0 1-2 2h-5"></path><path d="M14 18h4"></path></svg>`
       },
       {
+        id: "ai-image-generator",
         label: "AI Image Generator",
         category: "AI",
         url: "https://htmltools.me/ImageGeneratorAI",
-        icon: "▧",
-        image: "https://hdrobots.com/wp-content/uploads/2026/07/stability-ai-logo.webp"
+        domain: "htmltools.me/ImageGeneratorAI",
+        desc: "High-resolution neural text-to-image synthesis and visual rendering.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m14.3 8 5.7 10"></path><path d="M9.7 8h11.5"></path><path d="m7.4 12 5.7-10"></path><path d="M9.7 16 4 6"></path><path d="M14.3 16H2.8"></path><path d="m16.6 12-5.7 10"></path></svg>`
       },
       {
+        id: "deepseek",
         label: "Deepseek",
         category: "AI",
         url: "https://htmltools.me/Deepseek/",
-        icon: "◉",
-        image: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/deepseek-logo-icon.png"
+        domain: "htmltools.me/Deepseek",
+        desc: "Deep reasoning, code generation, and mathematical reasoning architecture.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.5c3-4.5 8-6.5 13-4 2.5 1.2 4.5 4 5 6.5"></path><path d="M17 9.5c1-2 3-3 5-3"></path><circle cx="17.5" cy="9" r="1" fill="currentColor"></circle><path d="M2 19c4 1 8-1 12 1s6-1 8-2"></path></svg>`
       },
       {
+        id: "glm",
         label: "GLM",
         category: "AI",
         url: "https://htmltools.me/GLM/",
-        icon: "◈",
-        image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Z.ai_%28company_logo%29.svg/3840px-Z.ai_%28company_logo%29.svg.png"
+        domain: "htmltools.me/GLM",
+        desc: "General Language Model with bilingual contextual processing capability.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5z"></path><path d="M12 22V12"></path><path d="m21 7-9 5-9-5"></path></svg>`
       },
       {
+        id: "research-ai",
         label: "Research AI",
         category: "AI",
         url: "https://htmltools.me/Research/",
-        icon: "⌕"
+        domain: "htmltools.me/Research",
+        desc: "Deep automated research engine, paper analysis & verifiable citations.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><circle cx="11" cy="11" r="3.5"></circle><line x1="11" y1="4" x2="11" y2="6"></line><line x1="11" y1="16" x2="11" y2="18"></line></svg>`
       },
       {
+        id: "past-time",
         label: "Past Time (Database)",
         category: "Tech",
         url: "https://htmltools.me/Pasttime",
-        icon: "▤"
+        domain: "htmltools.me/Pasttime",
+        desc: "Historical web archive exploration and chronological dataset viewer.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><polyline points="12 9 12 12 14.5 13.5"></polyline></svg>`
       },
       {
+        id: "website-encryption",
         label: "Website Encryption",
         category: "Tech",
         url: "https://htmltools.me/website-encryption",
-        icon: "◇"
+        domain: "htmltools.me/website-encryption",
+        desc: "Client-side cryptographic tool for encrypting pages, ciphers & secrets.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><rect x="9" y="11" width="6" height="5" rx="1.5" fill="currentColor"></rect><path d="M10 11V8.5a2 2 0 1 1 4 0V11"></path></svg>`
       },
       {
+        id: "make-a-website",
         label: "Make a Website",
         category: "Tech",
         url: "https://sitelaunch.htmltools.me",
-        icon: "⌘"
+        domain: "sitelaunch.htmltools.me",
+        desc: "Instant static web publishing launcher and live single-page deployment.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="3"></rect><line x1="2" y1="8" x2="22" y2="8"></line><line x1="7" y1="8" x2="7" y2="21"></line><path d="m13 15 3-3 3 3"></path><path d="M16 12v6"></path></svg>`
       },
       {
+        id: "advanced-html-runner",
         label: "Advanced HTML Runner",
         category: "Tech",
         url: "https://htmltools.me/Advanced",
-        icon: "↗"
+        domain: "htmltools.me/Advanced",
+        desc: "Real-time executable sandbox runner for modern HTML, CSS, and JavaScript.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"></rect><polyline points="6 9 10 12 6 15"></polyline><line x1="12" y1="15" x2="18" y2="15"></line></svg>`
       },
       {
+        id: "proxy",
         label: "Proxy",
         category: "Tech",
         url: "https://htmltools.me/URL",
-        icon: "⬡"
+        domain: "htmltools.me/URL",
+        desc: "Secure anonymous web gateway for unblocking and routing web targets.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg>`
       },
       {
+        id: "gust-web-browser",
         label: "Gust Web Browser",
         category: "Tech",
         url: "https://htmltools.me/Gust",
-        icon: "ϟ"
+        domain: "htmltools.me/Gust",
+        desc: "Ultra-lightweight web navigator engineered for velocity and low latency.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor"></polygon><path d="M3 9h3M2 15h4"></path></svg>`
       },
       {
+        id: "translator",
         label: "Translator",
         category: "Tech",
         url: "https://translate.htmltools.me",
-        icon: "文"
+        domain: "translate.htmltools.me",
+        desc: "Polyglot translation tool with multi-language semantic conversion.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 5 11"></path><path d="m10 8-5 11"></path><path d="M4 14h7"></path><path d="M2 5h11"></path><path d="M7 2h1v3"></path><path d="m21 21-5-10-5 10"></path><path d="M13 18h6"></path></svg>`
       },
       {
+        id: "remove-background",
         label: "Remove Background",
         category: "Media",
         url: "https://htmltools.me/Removebg",
-        icon: "⌫"
+        domain: "htmltools.me/Removebg",
+        desc: "Instant automated background cutout with clean edge transparency masks.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h7"></path><circle cx="8" cy="8" r="1.5" fill="currentColor"></circle><path d="m14 14 7 7"></path><path d="m21 14-7 7"></path></svg>`
       },
       {
+        id: "art",
         label: "Art",
         category: "Media",
         url: "https://htmltools.me/Art",
-        icon: "✦"
+        domain: "htmltools.me/Art",
+        desc: "Interactive generative canvas, vector experiments & creative design tools.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.5 2 2 6.5 2 12c0 3.6 2 6.7 5 8.2 1 .5 2-.2 2-1.3v-.9c0-1.1.9-2 2-2h1.5c4.7 0 8.5-3.8 8.5-8.5C21 5.4 17 2 12 2z"></path><circle cx="7.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="12" cy="6.5" r="1.5" fill="currentColor"></circle><circle cx="16.5" cy="8.5" r="1.5" fill="currentColor"></circle></svg>`
       },
       {
+        id: "htmeet",
         label: "HTMeet",
         category: "Communication",
         url: "https://htmltools.me/Meet/",
-        icon: "●"
+        domain: "htmltools.me/Meet",
+        desc: "Peer-to-peer encrypted meeting room and web conference workspace.",
+        iconSvg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="3"></rect><polygon points="16 10 22 6 22 18 16 14" fill="currentColor"></polygon><circle cx="9" cy="12" r="2.5"></circle></svg>`
       }
     ];
 
-    const toolsElement = document.getElementById("tools");
-    const searchElement = document.getElementById("search");
-    const filterButtons = document.querySelectorAll(".filter");
-
+    /* ==========================================================
+       APP STATE & LOCAL STORAGE
+       ========================================================== */
+    const categories = ["All", "Popular", "AI", "Tech", "Media", "Communication", "Starred"];
     let selectedCategory = "All";
+    let currentView = "grid";
+    let currentSort = "default";
+    let starredTools = new Set();
 
+    // Load favorites from localStorage
+    try {
+      const saved = localStorage.getItem("htmltools_favorites_v2");
+      if (saved) {
+        starredTools = new Set(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn("localStorage unavailable:", e);
+    }
+
+    function saveFavorites() {
+      try {
+        localStorage.setItem("htmltools_favorites_v2", JSON.stringify([...starredTools]));
+      } catch (e) {}
+    }
+
+    /* ==========================================================
+       DOM ELEMENTS
+       ========================================================== */
+    const container = document.getElementById("tools-container");
+    const searchInput = document.getElementById("search");
+    const searchClearBtn = document.getElementById("search-clear");
+    const searchShortcut = document.getElementById("search-shortcut");
+    const filtersWrap = document.getElementById("filters");
+    const resultsCountEl = document.getElementById("results-count");
+    const sortSelect = document.getElementById("sort-select");
+    const viewGridBtn = document.getElementById("view-grid");
+    const viewListBtn = document.getElementById("view-list");
+    const toast = document.getElementById("toast");
+    const toastMsg = document.getElementById("toast-message");
+    const backToTopBtn = document.getElementById("back-to-top");
+
+    let toastTimer = null;
+    function showToast(text) {
+      toastMsg.textContent = text;
+      toast.classList.add("show");
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2400);
+    }
+
+    /* ==========================================================
+       FILTER PILLS RENDER
+       ========================================================== */
+    function renderFilters() {
+      filtersWrap.innerHTML = categories.map(cat => {
+        let count = 0;
+        if (cat === "All") {
+          count = tools.length;
+        } else if (cat === "Starred") {
+          count = starredTools.size;
+        } else {
+          count = tools.filter(t => t.category === cat).length;
+        }
+
+        const isActive = cat === selectedCategory;
+        const icon = cat === "Starred" ? "★ " : "";
+
+        return `
+          <button class="filter ${isActive ? 'active' : ''}" data-category="${cat}">
+            <span>${icon}${cat}</span>
+            <span class="count">${count}</span>
+          </button>
+        `;
+      }).join("");
+
+      // Re-attach listeners
+      filtersWrap.querySelectorAll(".filter").forEach(btn => {
+        btn.addEventListener("click", () => {
+          selectedCategory = btn.dataset.category;
+          renderFilters();
+          renderTools();
+        });
+      });
+    }
+
+    /* ==========================================================
+       TOOL CARDS RENDER
+       ========================================================== */
     function renderTools() {
-      const query = searchElement.value.toLowerCase();
+      const query = searchInput.value.trim().toLowerCase();
 
-      const visibleTools = tools.filter(tool => {
+      // Filter tools
+      let visibleTools = tools.filter(tool => {
         const matchesCategory =
           selectedCategory === "All" ||
+          (selectedCategory === "Starred" && starredTools.has(tool.id)) ||
           tool.category === selectedCategory;
 
         const matchesSearch =
-          tool.label.toLowerCase().includes(query);
+          tool.label.toLowerCase().includes(query) ||
+          tool.desc.toLowerCase().includes(query) ||
+          tool.category.toLowerCase().includes(query) ||
+          tool.domain.toLowerCase().includes(query);
 
         return matchesCategory && matchesSearch;
       });
 
+      // Sort tools
+      if (currentSort === "alpha-asc") {
+        visibleTools.sort((a, b) => a.label.localeCompare(b.label));
+      } else if (currentSort === "alpha-desc") {
+        visibleTools.sort((a, b) => b.label.localeCompare(a.label));
+      } else if (currentSort === "category") {
+        visibleTools.sort((a, b) => a.category.localeCompare(b.category) || a.label.localeCompare(b.label));
+      }
+
+      // Update count
+      resultsCountEl.textContent = `${visibleTools.length} ${visibleTools.length === 1 ? 'tool' : 'tools'}`;
+
+      // Update empty state
       if (!visibleTools.length) {
-        toolsElement.innerHTML =
-          '<div class="empty">Nothing matches that search.</div>';
+        container.className = currentView === "grid" ? "tools-grid" : "tools-list";
+        const emptyMsg = selectedCategory === "Starred" && !query
+          ? "You haven't starred any tools yet. Click the star icon on any tool card to save your favorites here!"
+          : `We couldn't find anything matching "${searchInput.value}" in "${selectedCategory}".`;
+
+        container.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1; width: 100%;">
+            <h3>${selectedCategory === "Starred" && !query ? "No starred tools yet" : "No tools found"}</h3>
+            <p>${emptyMsg}</p>
+            <button class="reset-btn" id="reset-filter-btn">
+              <span>${selectedCategory === "Starred" && !query ? "Browse all tools" : "Reset Filters"}</span>
+              <span>↺</span>
+            </button>
+          </div>
+        `;
+        document.getElementById("reset-filter-btn")?.addEventListener("click", () => {
+          searchInput.value = "";
+          searchClearBtn.style.display = "none";
+          searchShortcut.style.display = "block";
+          selectedCategory = "All";
+          renderFilters();
+          renderTools();
+        });
         return;
       }
 
-      toolsElement.innerHTML = visibleTools.map((tool, index) => {
-        const icon = tool.image
-          ? `<img src="${tool.image}" alt="">`
-          : tool.icon;
+      container.className = currentView === "grid" ? "tools-grid" : "tools-list";
+
+      container.innerHTML = visibleTools.map((tool, idx) => {
+        const isStarred = starredTools.has(tool.id);
 
         return `
           <a
-            class="tool"
+            class="tool-card card-animate-in"
             href="${tool.url}"
             target="_blank"
             rel="noopener noreferrer"
-            style="animation-delay:${index * 45}ms"
+            data-id="${tool.id}"
+            data-url="${tool.url}"
+            data-label="${tool.label}"
+            style="animation-delay: ${Math.min(idx * 30, 360)}ms"
           >
             <div class="tool-top">
-              <span class="tool-icon">${icon}</span>
-              <span class="badge">${tool.category}</span>
+              <div class="tool-icon-wrap" aria-hidden="true">
+                ${tool.iconSvg}
+              </div>
+
+              <div class="tool-meta-actions">
+                <span class="category-badge">
+                  <span class="badge-dot"></span>
+                  <span>${tool.category}</span>
+                </span>
+                <button
+                  class="star-btn ${isStarred ? 'starred' : ''}"
+                  type="button"
+                  title="${isStarred ? 'Remove from favorites' : 'Add to favorites'}"
+                  aria-label="Star ${tool.label}"
+                  data-star="${tool.id}"
+                >
+                  <svg viewBox="0 0 24 24" fill="${isStarred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="tool-body">
+              <div class="tool-name">
+                <span>${tool.label}</span>
+              </div>
+              <p class="tool-desc">${tool.desc}</p>
             </div>
 
             <div class="tool-bottom">
-              <span class="tool-name">${tool.label}</span>
-              <span class="arrow">↗</span>
+              <span class="tool-domain">${tool.domain}</span>
+
+              <div class="tool-footer-actions">
+                <button
+                  class="action-icon-btn copy-btn"
+                  type="button"
+                  title="Copy link to clipboard"
+                  aria-label="Copy link for ${tool.label}"
+                  data-copy="${tool.url}"
+                  data-name="${tool.label}"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+
+                <div class="launch-indicator" aria-hidden="true">↗</div>
+              </div>
             </div>
           </a>
         `;
       }).join("");
+
+      bindCardEvents();
     }
 
-    searchElement.addEventListener("input", renderTools);
-
-    filterButtons.forEach(button => {
-      button.addEventListener("click", () => {
-        selectedCategory = button.dataset.category;
-
-        filterButtons.forEach(item => {
-          item.classList.remove("active");
+    /* ==========================================================
+       CARD EVENTS (MOUSE SPOTLIGHT, STAR, COPY)
+       ========================================================== */
+    function bindCardEvents() {
+      // Dynamic mouse tracking spotlight
+      const cards = container.querySelectorAll(".tool-card");
+      cards.forEach(card => {
+        card.addEventListener("mousemove", e => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          card.style.setProperty("--mouse-x", `${x}px`);
+          card.style.setProperty("--mouse-y", `${y}px`);
         });
 
-        button.classList.add("active");
-        renderTools();
+        card.addEventListener("mouseleave", () => {
+          card.style.setProperty("--mouse-x", `-200px`);
+          card.style.setProperty("--mouse-y", `-200px`);
+        });
       });
+
+      // Star / Favorite button handler
+      container.querySelectorAll(".star-btn").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.preventDefault();
+          e.stopPropagation();
+          const toolId = btn.dataset.star;
+          if (starredTools.has(toolId)) {
+            starredTools.delete(toolId);
+            showToast("Removed from favorites");
+          } else {
+            starredTools.add(toolId);
+            showToast("Saved to favorites ★");
+          }
+          saveFavorites();
+          renderFilters();
+          renderTools();
+        });
+      });
+
+      // Copy link button handler
+      container.querySelectorAll(".copy-btn").forEach(btn => {
+        btn.addEventListener("click", async e => {
+          e.preventDefault();
+          e.stopPropagation();
+          const url = btn.dataset.copy;
+          const name = btn.dataset.name;
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(url);
+            } else {
+              const ta = document.createElement("textarea");
+              ta.value = url;
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand("copy");
+              document.body.removeChild(ta);
+            }
+            showToast(`Copied link for ${name}`);
+          } catch (err) {
+            showToast(`Link: ${url}`);
+          }
+        });
+      });
+    }
+
+    /* ==========================================================
+       SEARCH INTERACTION
+       ========================================================== */
+    searchInput.addEventListener("input", () => {
+      if (searchInput.value.length > 0) {
+        searchClearBtn.style.display = "grid";
+        searchShortcut.style.display = "none";
+      } else {
+        searchClearBtn.style.display = "none";
+        searchShortcut.style.display = "block";
+      }
+      renderTools();
     });
 
+    searchClearBtn.addEventListener("click", () => {
+      searchInput.value = "";
+      searchClearBtn.style.display = "none";
+      searchShortcut.style.display = "block";
+      searchInput.focus();
+      renderTools();
+    });
+
+    // Keyboard shortcut '/' to search
+    window.addEventListener("keydown", e => {
+      if (e.key === "/" && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+      if (e.key === "Escape" && document.activeElement === searchInput) {
+        searchInput.blur();
+      }
+    });
+
+    /* ==========================================================
+       SORT SELECT
+       ========================================================== */
+    sortSelect.addEventListener("change", () => {
+      currentSort = sortSelect.value;
+      renderTools();
+    });
+
+    /* ==========================================================
+       VIEW TOGGLE (GRID VS LIST)
+       ========================================================== */
+    viewGridBtn.addEventListener("click", () => {
+      currentView = "grid";
+      viewGridBtn.classList.add("active");
+      viewListBtn.classList.remove("active");
+      renderTools();
+    });
+
+    viewListBtn.addEventListener("click", () => {
+      currentView = "list";
+      viewListBtn.classList.add("active");
+      viewGridBtn.classList.remove("active");
+      renderTools();
+    });
+
+    /* ==========================================================
+       STATS COUNTER ANIMATION
+       ========================================================== */
+    function animateStats() {
+      const statElements = document.querySelectorAll(".stat-number[data-target]");
+      statElements.forEach(el => {
+        const target = parseInt(el.dataset.target, 10);
+        const pad = el.dataset.pad === "true";
+        const duration = 1200;
+        const start = 0;
+        const startTime = performance.now();
+
+        function updateCounter(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          // Ease out cubic
+          const easeProgress = 1 - Math.pow(1 - progress, 3);
+          const current = Math.floor(start + (target - start) * easeProgress);
+
+          let display = current.toString();
+          if (pad && display.length < 2) display = "0" + display;
+          el.textContent = display;
+
+          if (progress < 1) {
+            requestAnimationFrame(updateCounter);
+          } else {
+            let finalVal = target.toString();
+            if (pad && finalVal.length < 2) finalVal = "0" + finalVal;
+            el.textContent = finalVal;
+          }
+        }
+
+        requestAnimationFrame(updateCounter);
+      });
+    }
+
+    // Trigger stat counters when hero enters viewport or immediately if in view
+    let statsAnimated = false;
+    const statsSec = document.getElementById("stats");
+    if (statsSec) {
+      const statsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !statsAnimated) {
+            statsAnimated = true;
+            animateStats();
+          }
+        });
+      }, { threshold: 0.15 });
+
+      statsObserver.observe(statsSec);
+
+      // Check if already visible immediately on load
+      const r = statsSec.getBoundingClientRect();
+      if (r.top < window.innerHeight && r.bottom > 0) {
+        statsAnimated = true;
+        animateStats();
+      }
+    }
+
+    /* ==========================================================
+       LIGHTWEIGHT MONOCHROME AMBIENT CANVAS PARTICLES
+       ========================================================== */
+    (function initAmbientCanvas() {
+      const canvas = document.getElementById("ambient-canvas");
+      if (!canvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const ctx = canvas.getContext("2d");
+      let width, height;
+      const particles = [];
+      const particleCount = 38;
+
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = Math.min(window.innerHeight, 700);
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      class Particle {
+        constructor() {
+          this.x = Math.random() * width;
+          this.y = Math.random() * height;
+          this.vx = (Math.random() - 0.5) * 0.28;
+          this.vy = (Math.random() - 0.5) * 0.28;
+          this.size = Math.random() * 1.5 + 0.5;
+          this.alpha = Math.random() * 0.4 + 0.1;
+        }
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          if (this.x < 0) this.x = width;
+          if (this.x > width) this.x = 0;
+          if (this.y < 0) this.y = height;
+          if (this.y > height) this.y = 0;
+        }
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+          ctx.fill();
+        }
+      }
+
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+
+      function loop() {
+        ctx.clearRect(0, 0, width, height);
+        for (let i = 0; i < particles.length; i++) {
+          particles[i].update();
+          particles[i].draw();
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 100) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(255, 255, 255, ${(1 - dist / 100) * 0.1})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    })();
+
+    /* ==========================================================
+       BACK TO TOP SCROLL
+       ========================================================== */
+    window.addEventListener("scroll", () => {
+      if (window.scrollY > 340) {
+        backToTopBtn.classList.add("visible");
+      } else {
+        backToTopBtn.classList.remove("visible");
+      }
+    }, { passive: true });
+
+    backToTopBtn.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    /* ==========================================================
+       INITIAL INITIALIZATION
+       ========================================================== */
+    renderFilters();
     renderTools();
   </script>
 </body>
