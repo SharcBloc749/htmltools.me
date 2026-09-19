@@ -1662,7 +1662,17 @@
     let abortController = null;
     let conversationsCache = [];
 
-    const MODEL_ERROR_MESSAGE = "This AI model is currently in high use, please try again later or switch to another model.";
+    const MODEL_BUSY_MESSAGE = "This AI model is currently in high use, please try again later or switch to another model.";
+    const MODEL_GENERIC_ERROR_MESSAGE = "This model could not complete the request. Please try again or switch to another model.";
+
+    // Only use the high-use message for actual capacity/rate-limit failures.
+    // Invalid model, unsupported feature, authentication, and network errors get
+    // a neutral message instead of incorrectly blaming model traffic.
+    function friendlyModelError(raw) {
+      const text = String(raw || "").toLowerCase();
+      const isBusy = /\b(?:429|503)\b|rate[- ]?limit|too many requests|overload|capacity|high use|high demand|temporarily unavailable|service unavailable|try again later|\bbusy\b/.test(text);
+      return isBusy ? MODEL_BUSY_MESSAGE : MODEL_GENERIC_ERROR_MESSAGE;
+    }
 
     function pathId() {
       const p = location.pathname.replace(/\/+$/, "").split("/");
@@ -2153,7 +2163,7 @@
                 think = "";
                 thinkBox.hidden = true;
                 thinkBox.open = false;
-                acc = MODEL_ERROR_MESSAGE;
+                acc = friendlyModelError(j.error);
                 bodyEl.innerHTML = md(acc);
                 continue;
               }
@@ -2191,7 +2201,7 @@
           think = "";
           thinkBox.hidden = true;
           thinkBox.open = false;
-          acc = MODEL_ERROR_MESSAGE;
+          acc = friendlyModelError(err.message);
         }
         bodyEl.innerHTML = md(acc);
       } finally {
@@ -2201,7 +2211,7 @@
 
         if (!think) thinkBox.hidden = true;
         if (!acc) {
-          acc = MODEL_ERROR_MESSAGE;
+          acc = MODEL_GENERIC_ERROR_MESSAGE;
           bodyEl.innerHTML = md(acc);
         }
 
@@ -2388,5 +2398,5 @@
       await loadList();
     });
   </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3da2f754ffd75b1',t:'MTc4OTgzNzYzMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3da3c22da3075b1',t:'MTc4OTgzODE1Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
