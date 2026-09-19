@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Chat — HTMLTOOLS AI Playground</title>
+  <link rel="icon" href="https://htmltools.me/logo3.png"/>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
+    :root {
+      --bg: #070709; --surface: #101013; --elev: #16161a; --hover: #1a1a20;
+      --border: rgba(255,255,255,.08); --white: #f5f5f7; --muted: #8e8e96; --dim: #54545d;
+      --font-sans: "DM Sans", system-ui, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+      --font-serif: "Lora", Georgia, serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--white); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+    body { display: flex; overflow: hidden; }
+    a { color: inherit; text-decoration: none; }
+    button, select, textarea { font: inherit; color: inherit; background: none; border: none; }
+    button { cursor: pointer; }
+    .sidebar {
+      width: 280px; flex-shrink: 0; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; background: #09090c;
+    }
+    .side-head { padding: 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .brand-mark { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,.16); }
+    .brand-mark img { width: 100%; height: 100%; object-fit: cover; }
+    .side-head span { font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600; }
+    .new-btn {
+      margin: 14px 16px; padding: 10px; border: 1px solid var(--border); border-radius: 10px;
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    }
+    .new-btn:hover { background: #fff; color: #070709; }
+    .conv-list { flex: 1; overflow: auto; padding: 0 10px 16px; }
+    .conv-item { padding: 10px 10px; border-radius: 10px; margin-bottom: 4px; cursor: pointer; }
+    .conv-item:hover, .conv-item.active { background: var(--hover); }
+    .conv-item .t { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conv-item .m { font-family: var(--font-mono); font-size: 10px; color: var(--dim); margin-top: 3px; }
+    .side-foot { padding: 14px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .top {
+      height: 64px; border-bottom: 1px solid var(--border); display: flex; align-items: center;
+      justify-content: space-between; padding: 0 18px; gap: 12px;
+    }
+    .model-wrap { position: relative; }
+    .model-btn {
+      display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: 999px; background: var(--surface);
+    }
+    .model-btn img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; }
+    .info {
+      width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border);
+      display: grid; place-items: center; font-size: 10px; color: var(--muted); position: relative;
+    }
+    .info:hover::after {
+      content: attr(data-tip); position: absolute; left: 22px; top: 50%; transform: translateY(-50%);
+      white-space: nowrap; background: #1b1b22; border: 1px solid rgba(255,255,255,.2);
+      padding: 6px 10px; border-radius: 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--white); z-index: 20;
+    }
+    .menu {
+      display: none; position: absolute; top: 44px; left: 0; width: 320px; max-height: 420px; overflow: auto;
+      background: var(--elev); border: 1px solid var(--border); border-radius: 12px; padding: 6px; z-index: 30;
+    }
+    .menu.open { display: block; }
+    .menu button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; text-align: left; }
+    .menu button:hover { background: var(--hover); }
+    .menu img { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; }
+    .toggles { display: flex; align-items: center; gap: 10px; }
+    .toggle {
+      display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--border);
+      border-radius: 999px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+    }
+    .toggle.on { background: #fff; color: #070709; border-color: #fff; }
+    .messages { flex: 1; overflow: auto; padding: 28px 8%; }
+    .msg { max-width: 820px; margin: 0 auto 22px; }
+    .msg .who { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+    .msg .body { font-size: 15px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+    .msg .body code { font-family: var(--font-mono); font-size: 13px; background: #121216; padding: 1px 5px; border-radius: 4px; }
+    .codebox { margin: 12px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #0c0c10; }
+    .codebox .bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .codebox .bar span { display: flex; gap: 8px; }
+    .codebox .bar button { border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+    .codebox .bar button:hover { background: #fff; color: #070709; }
+    .codebox pre { margin: 0; padding: 14px; overflow: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.5; }
+    .thumb { max-width: 220px; border-radius: 10px; border: 1px solid var(--border); margin: 8px 0; display: block; }
+    .composer {
+      padding: 12px 8% 22px; border-top: 1px solid var(--border);
+    }
+    .box {
+      max-width: 820px; margin: 0 auto; border: 1px solid var(--border); border-radius: 16px;
+      background: var(--surface); padding: 10px 12px;
+    }
+    textarea { width: 100%; min-height: 56px; max-height: 180px; resize: none; outline: none; }
+    .row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+    .icon { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); display: grid; place-items: center; }
+    .send { padding: 8px 16px; border-radius: 999px; background: #fff; color: #070709; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
+    .send:disabled { opacity: .4; }
+    .empty { text-align: center; padding: 80px 20px; color: var(--muted); }
+    .empty h2 { font-family: var(--font-serif); font-weight: 400; font-size: 36px; color: var(--white); margin-bottom: 10px; }
+    @media (max-width: 800px) { .sidebar { display: none; } .messages, .composer { padding-left: 16px; padding-right: 16px; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="side-head">
+      <a class="brand-mark" href="/AI-Playground/"><img src="https://htmltools.me/logo3.png" alt=""/></a>
+      <span>Playground</span>
+    </div>
+    <button class="new-btn" id="newChat">New conversation</button>
+    <div class="conv-list" id="convList"></div>
+    <div class="side-foot" id="userFoot">…</div>
+  </aside>
+  <section class="main">
+    <div class="top">
+      <div class="model-wrap">
+        <button class="model-btn" id="modelBtn" type="button">
+          <img id="modelLogo" alt=""/>
+          <span id="modelName">Gemini 3.6 Flash</span>
+          <span class="info" id="modelTip" data-tip="text & image → text">!</span>
+        </button>
+        <div class="menu" id="modelMenu"></div>
+      </div>
+      <div class="toggles">
+        <button class="toggle" id="deepBtn" type="button">Deep research</button>
+      </div>
+    </div>
+    <div class="messages" id="messages">
+      <div class="empty" id="empty">
+        <h2>Begin.</h2>
+        <p>Choose a model, then send the first message. This thread gets a private ID only you can open.</p>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="box">
+        <div id="previews"></div>
+        <textarea id="input" placeholder="Message…" rows="2"></textarea>
+        <div class="row">
+          <div>
+            <button class="icon" id="attach" type="button" title="Attach image">＋</button>
+            <input id="file" type="file" accept="image/*" hidden/>
+          </div>
+          <button class="send" id="send" type="button">Send</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+  const API = "https://htmltools-me-ai-playground.bozhetarnikmatthew.workers.dev";
+  const FB_CONFIG = {
+    apiKey: "AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
+    authDomain: "website-encryption-htmltools.firebaseapp.com",
+    databaseURL: "https://website-encryption-htmltools-default-rtdb.firebaseio.com",
+    projectId: "website-encryption-htmltools",
+    storageBucket: "website-encryption-htmltools.firebasestorage.app",
+    messagingSenderId: "211271935323",
+    appId: "1:211271935323:web:1abb9d416087ea89c0e67e"
+  };
+  firebase.initializeApp(FB_CONFIG);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  const MODELS = [
+    { key: "gemini-3.6-flash", name: "Gemini 3.6 Flash", vision: true, logo: "https://htmltools.me/geminilogo.png" },
+    { key: "gemini-3.5-flash", name: "Gemini 3.5 Flash", vision: true, logo: "https://htmltools.me/geminilogo.png" },
+    { key: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash Lite", vision: true, logo: "https://htmltools.me/geminilogo.png" },
+    { key: "claude-haiku-4.5", name: "Claude Haiku 4.5", vision: true, logo: "https://htmltools.me/claudelogo.png" },
+    { key: "claude-sonnet-4.6", name: "Claude Sonnet 4.6", vision: true, logo: "https://htmltools.me/claudelogo.png" },
+    { key: "openai.gpt-oss-120b", name: "GPT-OSS 120B", vision: false, logo: "https://static.vecteezy.com/system/resources/previews/021/059/825/non_2x/chatgpt-logo-chat-gpt-icon-on-green-background-free-vector.jpg" },
+    { key: "deepseek.v3.2", name: "DeepSeek V3.2", vision: false, logo: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/deepseek-logo-icon.png" },
+    { key: "deepseek.v3.1", name: "DeepSeek V3.1", vision: false, logo: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/deepseek-logo-icon.png" },
+    { key: "zai.glm-4.7-flash", name: "GLM 4.7 Flash", vision: false, logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Z.ai_%28company_logo%29.svg/3840px-Z.ai_%28company_logo%29.svg.png" },
+    { key: "xai.grok-4.3", name: "Grok 4.3", vision: true, logo: "https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/grok-icon.png" },
+    { key: "qwen.qwen3-coder-next", name: "Qwen3 Coder Next", vision: false, logo: "https://vectorseek.com/wp-content/uploads/2025/01/Qwen-Ai-Logo-PNG-Vector.png" },
+    { key: "llama-3.3-70b", name: "Llama 3.3 70B", vision: false, logo: "" },
+    { key: "llama-4-scout", name: "Llama 4 Scout", vision: true, logo: "" },
+    { key: "gemma-4-26b", name: "Gemma 4 26B", vision: true, logo: "" }
+  ];
+
+  let user = null, convId = null, model = MODELS[0], deep = false, pendingImages = [], history = [], lockedModel = false, busy = false;
+
+  function pathId() {
+    const p = location.pathname.replace(/\/+$/, "");
+    const parts = p.split("/");
+    const i = parts.indexOf("Chat");
+    if (i >= 0 && parts[i + 1] && parts[i + 1] !== "index.html") return parts[i + 1];
+    return null;
+  }
+  function newId() {
+    return "c_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+  function setUrl(id) {
+    history.replaceState({}, "", "/AI-Playground/Chat/" + id + "/");
+  }
+  function tipFor(m) { return m.vision ? "text & image → text" : "text → text"; }
+  function placeholderLogo(name) {
+    const l = (name[0] || "M").toUpperCase();
+    return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#16161a" stroke="rgba(255,255,255,.2)"/><text x="32" y="40" text-anchor="middle" fill="#f5f5f7" font-size="28" font-family="sans-serif">' + l + "</text></svg>");
+  }
+  function setModel(m) {
+    model = m;
+    document.getElementById("modelName").textContent = m.name;
+    document.getElementById("modelLogo").src = m.logo || placeholderLogo(m.name);
+    document.getElementById("modelTip").setAttribute("data-tip", tipFor(m));
+  }
+  function renderMenu() {
+    document.getElementById("modelMenu").innerHTML = MODELS.map(m =>
+      `<button type="button" data-key="${m.key}"><img src="${m.logo || placeholderLogo(m.name)}" alt=""/><span>${m.name}</span><span class="info" data-tip="${tipFor(m)}">!</span></button>`
+    ).join("");
+    document.getElementById("modelMenu").querySelectorAll("button").forEach(b => {
+      b.onclick = () => { setModel(MODELS.find(x => x.key === b.dataset.key)); document.getElementById("modelMenu").classList.remove("open"); };
+    });
+  }
+  document.getElementById("modelBtn").onclick = () => document.getElementById("modelMenu").classList.toggle("open");
+  document.getElementById("deepBtn").onclick = function () {
+    deep = !deep; this.classList.toggle("on", deep);
+  };
+  document.getElementById("attach").onclick = () => document.getElementById("file").click();
+  document.getElementById("file").onchange = async function () {
+    const f = this.files[0]; if (!f) return;
+    const data = await fileToB64(f);
+    pendingImages.push({ mime: f.type, data, name: f.name });
+    renderPreviews();
+    this.value = "";
+  };
+  function fileToB64(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(",")[1]);
+      r.onerror = rej; r.readAsDataURL(file);
+    });
+  }
+  function renderPreviews() {
+    document.getElementById("previews").innerHTML = pendingImages.map((im, i) =>
+      `<img class="thumb" src="data:${im.mime};base64,${im.data}" alt="${im.name}"/>`
+    ).join("");
+  }
+
+  function mdToHtml(text) {
+    const blocks = [];
+    const replaced = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
+      const i = blocks.length;
+      blocks.push({ lang: lang || "text", code });
+      return `\u0000BLOCK${i}\u0000`;
+    });
+    const esc = (s) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    let html = esc(replaced).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+    html = html.replace(/\u0000BLOCK(\d+)\u0000/g, (_, i) => {
+      const b = blocks[+i];
+      const id = "cb" + i + Math.random().toString(36).slice(2,6);
+      const safe = esc(b.code);
+      return `<div class="codebox"><div class="bar"><em>${esc(b.lang)}</em><span>
+        <button type="button" onclick="copyCode('${id}')">Copy</button>
+        <button type="button" onclick="dlCode('${id}','${esc(b.lang)}')">Download</button>
+      </span></div><pre id="${id}">${safe}</pre></div>`;
+    });
+    return html;
+  }
+  window.copyCode = function (id) {
+    const t = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(t);
+  };
+  window.dlCode = function (id, lang) {
+    const t = document.getElementById(id).innerText;
+    const ext = { html: "html", javascript: "js", js: "js", css: "css", python: "py", json: "json", markdown: "md" }[lang] || "txt";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([t], { type: "text/plain" }));
+    a.download = "snippet." + ext; a.click();
+  };
+
+  function addMsg(role, html, extra) {
+    document.getElementById("empty")?.remove();
+    const el = document.createElement("div");
+    el.className = "msg";
+    el.innerHTML = `<div class="who">${role}</div><div class="body">${html}</div>`;
+    if (extra) extra.forEach(im => {
+      const img = document.createElement("img");
+      img.className = "thumb";
+      img.src = "data:" + im.mime + ";base64," + im.data;
+      el.querySelector(".body").prepend(img);
+    });
+    document.getElementById("messages").appendChild(el);
+    document.getElementById("messages").scrollTop = 1e9;
+    return el.querySelector(".body");
+  }
+
+  function renderHistory() {
+    const box = document.getElementById("messages");
+    box.innerHTML = "";
+    if (!history.length) {
+      box.innerHTML = `<div class="empty" id="empty"><h2>Begin.</h2><p>Choose a model, then send the first message.</p></div>`;
+      return;
+    }
+    history.forEach(m => {
+      if (m.role === "user") addMsg("You", mdToHtml(typeof m.content === "string" ? m.content : (m.content.find(p=>p.type==="text")||{text:""}).text), (m.content||[]).filter?.(p=>p.type==="image"));
+      else addMsg(m.modelName || "Assistant", mdToHtml(m.content));
+    });
+  }
+
+  async function loadList() {
+    const snap = await db.ref("users/" + user.uid + "/conversations").once("value");
+    const val = snap.val() || {};
+    const items = Object.entries(val).map(([id, v]) => ({ id, ...v })).sort((a,b) => (b.updated||0)-(a.updated||0));
+    document.getElementById("convList").innerHTML = items.map(c =>
+      `<div class="conv-item ${c.id===convId?"active":""}" data-id="${c.id}"><div class="t">${esc(c.title||"Untitled")}</div><div class="m">${esc(c.model||"")}</div></div>`
+    ).join("") || `<div class="m" style="padding:10px;color:var(--dim)">No threads yet</div>`;
+    document.querySelectorAll(".conv-item").forEach(el => {
+      el.onclick = () => openConv(el.dataset.id);
+    });
+  }
+  function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+  async function openConv(id) {
+    convId = id; setUrl(id);
+    const snap = await db.ref("users/" + user.uid + "/conversations/" + id).once("value");
+    const v = snap.val();
+    if (!v) { history = []; lockedModel = false; renderHistory(); loadList(); return; }
+    history = v.messages || [];
+    if (v.model) {
+      const m = MODELS.find(x => x.key === v.model);
+      if (m) { setModel(m); lockedModel = history.length > 0; }
+    }
+    renderHistory(); loadList();
+  }
+
+  document.getElementById("newChat").onclick = () => {
+    convId = newId(); history = []; lockedModel = false; pendingImages = [];
+    setUrl(convId); renderHistory(); renderPreviews(); loadList();
+  };
+
+  async function send() {
+    if (busy) return;
+    const text = document.getElementById("input").value.trim();
+    if (!text && !pendingImages.length) return;
+    if (!user) { location.href = "/AI-Playground/Login/?next=" + encodeURIComponent(location.pathname); return; }
+    if (!convId) { convId = newId(); setUrl(convId); }
+
+    const imgs = pendingImages.slice();
+    pendingImages = []; renderPreviews();
+    document.getElementById("input").value = "";
+
+    const userContent = [];
+    if (text) userContent.push({ type: "text", text });
+    imgs.forEach(im => userContent.push({ type: "image", mime: im.mime, data: im.data }));
+    const userMsg = { role: "user", content: userContent.length === 1 && userContent[0].type === "text" ? text : userContent };
+    history.push(userMsg);
+    addMsg("You", mdToHtml(text || "(image)"), imgs);
+
+    const bodyEl = addMsg(model.name, "");
+    busy = true; document.getElementById("send").disabled = true;
+
+    const token = await user.getIdToken();
+    const payloadMsgs = history.map(m => {
+      if (typeof m.content === "string") return { role: m.role, content: m.content };
+      return { role: m.role, content: m.content };
+    });
+
+    let acc = "";
+    try {
+      const r = await fetch(API + "/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ model: model.key, messages: payloadMsgs, deepResearch: deep, conversationId: convId })
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n"); buf = parts.pop() || "";
+        for (const p of parts) {
+          const line = p.split("\n").find(l => l.startsWith("data:"));
+          if (!line) continue;
+          let j; try { j = JSON.parse(line.slice(5).trim()); } catch { continue; }
+          if (j.type === "delta" && j.text) {
+            acc += j.text;
+            bodyEl.innerHTML = mdToHtml(acc);
+            document.getElementById("messages").scrollTop = 1e9;
+          }
+          if (j.type === "error") acc += "\n\n" + j.error;
+        }
+      }
+    } catch (e) {
+      acc += (acc ? "\n\n" : "") + String(e.message || e);
+      bodyEl.innerHTML = mdToHtml(acc);
+    }
+
+    history.push({ role: "assistant", content: acc, model: model.key, modelName: model.name });
+    lockedModel = true;
+    const title = (typeof userMsg.content === "string" ? userMsg.content : text || "Image").slice(0, 60);
+    await db.ref("users/" + user.uid + "/conversations/" + convId).update({
+      title, model: model.key, updated: Date.now(), messages: history,
+      owner: user.uid, created: firebase.database.ServerValue.TIMESTAMP
+    });
+    busy = false; document.getElementById("send").disabled = false;
+    loadList();
+  }
+
+  document.getElementById("send").onclick = send;
+  document.getElementById("input").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  renderMenu(); setModel(MODELS[0]);
+
+  auth.onAuthStateChanged(async u => {
+    if (!u) {
+      location.href = "/AI-Playground/Login/?next=" + encodeURIComponent(location.pathname);
+      return;
+    }
+    user = u;
+    document.getElementById("userFoot").textContent = u.email || u.uid;
+    convId = pathId() || newId();
+    if (!pathId()) setUrl(convId);
+    await openConv(convId);
+  });
+  </script>
+</body>
+</html>
