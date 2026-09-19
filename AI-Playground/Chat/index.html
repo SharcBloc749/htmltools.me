@@ -1225,6 +1225,15 @@
       background: var(--hover);
     }
 
+    .icon-btn:disabled,
+    .icon-btn:disabled:hover {
+      color: var(--dim);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+
     .composer-right {
       display: flex;
       align-items: center;
@@ -1653,6 +1662,8 @@
     let abortController = null;
     let conversationsCache = [];
 
+    const MODEL_ERROR_MESSAGE = "This AI model is currently in high use, please try again later or switch to another model.";
+
     function pathId() {
       const p = location.pathname.replace(/\/+$/, "").split("/");
       const i = p.indexOf("Chat");
@@ -1667,7 +1678,27 @@
       model = m;
       document.getElementById("modelName").textContent = m.name;
       document.getElementById("modelLogo").src = logo(m);
-      document.getElementById("modelVisionTag").textContent = m.vision ? "Vision" : "Text";
+
+      // Only show the Vision badge for models that actually accept images.
+      const visionTag = document.getElementById("modelVisionTag");
+      visionTag.textContent = "Vision";
+      visionTag.hidden = !m.vision;
+
+      // Text-only models must not allow image selection, paste, or drop.
+      const attachBtn = document.getElementById("attach");
+      const fileInput = document.getElementById("file");
+      const input = document.getElementById("input");
+      attachBtn.disabled = !m.vision;
+      attachBtn.title = m.vision ? "Attach image" : "This model does not support images";
+      attachBtn.setAttribute("aria-label", attachBtn.title);
+      fileInput.disabled = !m.vision;
+      input.placeholder = m.vision ? "Type a message or drop an image…" : "Type a message…";
+
+      // Do not carry an image selected for one model into a text-only model.
+      if (!m.vision && pendingImages.length) {
+        pendingImages = [];
+        renderPreviews();
+      }
 
       document.querySelectorAll(".menu-item").forEach(item => {
         item.classList.toggle("selected", item.dataset.key === m.key);
@@ -1731,10 +1762,13 @@
     };
 
     // File attachments
-    document.getElementById("attach").onclick = () => document.getElementById("file").click();
+    document.getElementById("attach").onclick = () => {
+      if (!model.vision) return;
+      document.getElementById("file").click();
+    };
 
     function handleFile(f) {
-      if (!f || !f.type.startsWith("image/")) return;
+      if (!model.vision || !f || !f.type || !f.type.startsWith("image/")) return;
       const reader = new FileReader();
       reader.onload = () => {
         const b64 = String(reader.result).split(",")[1];
@@ -1746,7 +1780,7 @@
 
     document.getElementById("file").onchange = function() {
       const f = this.files[0];
-      if (f) handleFile(f);
+      if (model.vision && f) handleFile(f);
       this.value = "";
     };
 
@@ -1769,7 +1803,7 @@
     document.getElementById("input").addEventListener("paste", e => {
       const items = (e.clipboardData || e.originalEvent.clipboardData).items;
       for (const item of items) {
-        if (item.kind === "file" && item.type.startsWith("image/")) {
+        if (model.vision && item.kind === "file" && item.type.startsWith("image/")) {
           const blob = item.getAsFile();
           handleFile(blob);
         }
@@ -1779,6 +1813,7 @@
     // Drag and drop images
     const composerBox = document.querySelector(".composer .box");
     composerBox.addEventListener("dragover", e => {
+      if (!model.vision) return;
       e.preventDefault();
       composerBox.style.borderColor = "var(--white)";
     });
@@ -1787,6 +1822,7 @@
       composerBox.style.borderColor = "";
     });
     composerBox.addEventListener("drop", e => {
+      if (!model.vision) return;
       e.preventDefault();
       composerBox.style.borderColor = "";
       if (e.dataTransfer && e.dataTransfer.files.length) {
@@ -2064,6 +2100,7 @@
 
       let acc = "";
       let think = "";
+      let modelError = false;
       abortController = new AbortController();
 
       try {
@@ -2111,6 +2148,18 @@
               let j;
               try { j = JSON.parse(rawData); } catch { continue; }
 
+              if (j.type === "error") {
+                modelError = true;
+                think = "";
+                thinkBox.hidden = true;
+                thinkBox.open = false;
+                acc = MODEL_ERROR_MESSAGE;
+                bodyEl.innerHTML = md(acc);
+                continue;
+              }
+
+              if (modelError) continue;
+
               if (j.type === "thinking" && j.text) {
                 think += j.text;
                 thinkBox.hidden = false;
@@ -2132,10 +2181,6 @@
                 document.getElementById("msgs").scrollTop = 1e9;
               }
 
-              if (j.type === "error" && j.error) {
-                acc += (acc ? "\n\n" : "") + "**Error:** " + j.error;
-                bodyEl.innerHTML = md(acc);
-              }
             }
           }
         }
@@ -2143,7 +2188,10 @@
         if (err.name === "AbortError") {
           acc += (acc ? "\n\n" : "") + "_Generation stopped._";
         } else {
-          acc += (acc ? "\n\n" : "") + "**Error:** " + String(err.message || err);
+          think = "";
+          thinkBox.hidden = true;
+          thinkBox.open = false;
+          acc = MODEL_ERROR_MESSAGE;
         }
         bodyEl.innerHTML = md(acc);
       } finally {
@@ -2153,7 +2201,7 @@
 
         if (!think) thinkBox.hidden = true;
         if (!acc) {
-          acc = "_No response received from the model._";
+          acc = MODEL_ERROR_MESSAGE;
           bodyEl.innerHTML = md(acc);
         }
 
@@ -2340,5 +2388,5 @@
       await loadList();
     });
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3da2f754ffd75b1',t:'MTc4OTgzNzYzMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
