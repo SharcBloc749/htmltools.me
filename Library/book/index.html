@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -312,6 +311,9 @@ initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwC
 const db=getDatabase(newApp);
 
 const OWNER_EMAIL='matthewbozhe@gmail.com';
+// GitHub backend (same Worker the Library uses) — new games' code lives ONLY there
+const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
+const GH_CACHE_KEY="htmlib_github_cache_v2"; // shared with the Library page
 
 // ── State ─────────────────────────────────────────────────────
 let currentUser=null;
@@ -389,12 +391,22 @@ async function boot(){
   bookId=getBookIdFromPath();
   if(!bookId){showNotFound();return;}
 
-  // Load book metadata
-  try{
-    const snap=await get(ref(db,'books/'+bookId));
-    if(!snap.exists()||!snap.val()||!snap.val().title){showNotFound();return;}
-    bookData=snap.val();
-  }catch(e){showNotFound();return;}
+  // Load book metadata in parallel: Firebase (fresh stats + chat settings) and
+  // GitHub index (full meta for new games — code lives only on GitHub).
+  let fbMeta=null,ghMeta=null;
+  await Promise.all([
+    (async()=>{try{const snap=await get(ref(db,'books/'+bookId));if(snap.exists()&&snap.val()&&snap.val().title)fbMeta=snap.val();}catch(e){}})(),
+    (async()=>{ghMeta=await loadGitHubMeta();})()
+  ]);
+  bookData={...(ghMeta||{}),...(fbMeta||{})};
+  if(!bookData.title){showNotFound();return;}
+  // If Firebase has no entry yet (GitHub-only game), create a lightweight one so
+  // views/likes/playtime writes have a home.
+  if(!fbMeta&&ghMeta&&ghMeta.title){
+    try{
+      await set(ref(db,'books/'+bookId),{title:ghMeta.title,ownerId:ghMeta.ownerId||null,ownerName:ghMeta.ownerName||null,createdAt:ghMeta.createdAt||Date.now(),likes:0,views:0});
+    }catch(e){}
+  }
 
   // Check chat settings from book
   const chatEnabled=bookData.chatEnabled!==false; // default true
@@ -459,7 +471,43 @@ async function boot(){
   }
 }
 
+// GitHub meta for this book: localStorage cache (shared with Library) → Worker index.
+async function loadGitHubMeta(){
+  try{
+    const cached=JSON.parse(localStorage.getItem(GH_CACHE_KEY)||'null');
+    if(cached&&cached.games&&cached.games[bookId])return cached.games[bookId];
+  }catch(e){}
+  try{
+    const res=await fetch(`${GH_WORKER}/github/index.json`,{cache:'no-store'});
+    if(!res.ok)return null;
+    const fresh=await res.json();
+    if(fresh&&fresh.games){
+      try{localStorage.setItem(GH_CACHE_KEY,JSON.stringify(fresh));}catch(e){}
+      return fresh.games[bookId]||null;
+    }
+  }catch(e){}
+  return null;
+}
+
 async function loadCode(){
+  // 1) On-device cache (games-html-v1) — instant replays
+  try{
+    const c=await caches.open('games-html-v1');
+    const hit=await c.match(`${GH_WORKER}/github/game/${bookId}`);
+    if(hit){const t=await hit.text();if(t&&t.length>20)return t;}
+  }catch(e){}
+  // 2) GitHub via Worker — where games published with the new Upload page live
+  try{
+    const r=await fetch(`${GH_WORKER}/github/game/${bookId}`,{cache:'no-store'});
+    if(r.ok){
+      const t=await r.text();
+      if(t&&t.length>20){
+        try{const c=await caches.open('games-html-v1');await c.put(`${GH_WORKER}/github/game/${bookId}`,new Response(t,{headers:{'Content-Type':'text/html'}}));}catch(e){}
+        return t;
+      }
+    }
+  }catch(e){}
+  // 3) Firebase fallback (legacy games)
   try{const s=await get(ref(db,'bookCode/'+bookId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
   try{const s=await get(ref(db,'books/'+bookId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
   return null;
@@ -661,5 +709,5 @@ document.addEventListener('keydown',e=>{
 });
 document.getElementById('rate-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('rate-overlay'))closeRate();});
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3e4b8a0fffbf52e',t:'MTc4OTk0ODEwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
