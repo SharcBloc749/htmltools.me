@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -579,6 +580,10 @@ const auth=getAuth(oldApp);
 const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
 initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
 const db=getDatabase(newApp);
+const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
+const GH_CACHE_KEY="htmlib_github_cache_v2";
+const GH_VER_KEY="htmlib_github_version_v2";
+const GH_ETAG_KEY="htmlib_github_etag_v2";
 
 // ── STATE ─────────────────────────────────────────────────────
 let CU=null,allBooks={},commentCountCache={};
@@ -629,17 +634,92 @@ function renderPresets(){const c=document.getElementById('preset-colors');if(!c)
 window.setPreset=(a,b)=>{document.getElementById('theme-color-a').value=a;document.getElementById('theme-color-b').value=b;updateThemePreview();};
 loadTheme();
 
-// ── FIREBASE LISTENERS ────────────────────────────────────────
-// Single books listener — no double-counting
-onValue(ref(db,'books'),snap=>{
-  const raw=snap.val()||{};
-  allBooks={};
-  Object.entries(raw).forEach(([id,b])=>{
-    if(b?.title){const{code:_,...meta}=b;allBooks[id]={...meta,_origId:id};}
-  });
-  _booksLoaded=true;
-  renderPins();renderBooks();
-});
+// ── GITHUB LIBRARY (Private Repo via Worker + Local Cache) ───────
+ // 1. Load instantly from localStorage (0 bandwidth)
+try{
+  const cached=JSON.parse(localStorage.getItem(GH_CACHE_KEY)||"null");
+  if(cached && cached.games){
+    const raw=cached.games;
+    allBooks={};
+    Object.entries(raw).forEach(([id,b])=>{
+      if(b?.title){ allBooks[id]={...b,_origId:id}; }
+    });
+    if(Object.keys(allBooks).length){
+      _booksLoaded=true;
+      renderPins();renderBooks();
+    }
+  }
+}catch(e){}
+
+async function mergeStatsFromFirebase(){
+  try{
+    const snap=await get(ref(db,'books'));
+    const stats=snap.val()||{};
+    Object.entries(allBooks).forEach(([id,meta])=>{
+      const s=stats[id]||{};
+      if(s.likes!==undefined) meta.likes=s.likes;
+      if(s.views!==undefined) meta.views=s.views;
+      if(s.playtimeSeconds!==undefined) meta.playtimeSeconds=s.playtimeSeconds;
+      if(s.ratingAvg!==undefined) meta.ratingAvg=s.ratingAvg;
+      if(s.ratingCount!==undefined) meta.ratingCount=s.ratingCount;
+      if(s.likedBy!==undefined) meta.likedBy=s.likedBy;
+      if(s.undeletable!==undefined) meta.undeletable=s.undeletable;
+    });
+  }catch{}
+}
+
+async function fetchGitHubLibrary(isBackground=false){
+  try{
+    const headers={};
+    const etag=localStorage.getItem(GH_ETAG_KEY);
+    if(etag) headers["If-None-Match"]=etag;
+    const res=await fetch(`${GH_WORKER}/github/index.json`,{cache:"no-store",headers});
+    if(res.status===304){
+      // Not modified - keep cache
+      if(!_booksLoaded){ _booksLoaded=true; renderPins(); renderBooks(); }
+      return;
+    }
+    if(!res.ok) throw new Error(await res.text());
+    const fresh=await res.json();
+    const newEtag=res.headers.get("ETag") || res.headers.get("X-GitHub-SHA") || String(fresh.version||Date.now());
+    if(newEtag) localStorage.setItem(GH_ETAG_KEY, newEtag);
+    localStorage.setItem(GH_CACHE_KEY, JSON.stringify(fresh));
+    if(fresh.version) localStorage.setItem(GH_VER_KEY, String(fresh.version));
+
+    const freshBooks={};
+    Object.entries(fresh.games||{}).forEach(([id,b])=>{
+      if(b?.title) freshBooks[id]={...b,_origId:id};
+    });
+
+    // Handle deletions: remove IDs that are cached but not in fresh
+    const removedIds=Object.keys(allBooks).filter(id=>!freshBooks[id]);
+    if(removedIds.length){
+      console.log("[GitHub] Deleted games detected:", removedIds);
+      removedIds.forEach(id=>{
+        delete commentCountCache[id];
+        if(savedBooks[id]){ delete savedBooks[id]; }
+      });
+      if(removedIds.some(id=>savedBooks[id])) persistSaved();
+    }
+
+    allBooks=freshBooks;
+    _booksLoaded=true;
+    await mergeStatsFromFirebase();
+    renderPins();renderBooks();
+  }catch(e){
+    console.error("[GitHub] fetch failed", e);
+    if(!_booksLoaded){
+      document.getElementById('books-grid').innerHTML=`<div class="empty-state"><div class="big">⚠️</div><p>Failed to load library: ${esc(e.message)}</p><p style="font-size:.7rem;color:var(--tx-3);margin-top:.5rem">Using cache if available...</p></div>`;
+    }
+  }
+}
+
+// Initial load + background polling
+fetchGitHubLibrary(false);
+setInterval(()=>fetchGitHubLibrary(true), 30000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) fetchGitHubLibrary(true); });
+
+// ── FIREBASE LISTENERS (remaining, lightweight) ─────────────
 
 // Comment counts — prefer dedicated node, fall back to counting comments
 onValue(ref(db,'commentCounts'),snap=>{
@@ -973,11 +1053,34 @@ window.deleteBook=async function(id){
   const{_origId}=book;
   try{
     await set(push(ref(db,'recentlyDeleted')),{...book,originalId:id,deletedAt:Date.now(),deletedBy:CU.email||''});
-    await remove(ref(db,'books/'+_origId));
+    // 1. Delete from GitHub via Worker (private repo)
+    const ghRes=await fetch(`${GH_WORKER}/github/deleteGame`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id})
+    });
+    const ghJson=await ghRes.json().catch(()=>({}));
+    if(!ghRes.ok || !ghJson.ok) throw new Error(ghJson.error||ghJson.details||`GitHub delete failed ${ghRes.status}`);
+    // 2. Delete lightweight stats from Firebase
+    try{await remove(ref(db,'books/'+_origId));}catch{}
     try{await remove(ref(db,'bookCode/'+_origId));}catch{}
     try{await remove(ref(db,'comments/'+id));}catch{}
     try{await remove(ref(db,'commentCounts/'+id));}catch{}
+    try{await remove(ref(db,'ratings/'+id));}catch{}
     if(pinnedBooks[id])try{await remove(ref(db,'siteConfig/pinnedBooks/'+id));}catch{}
+    // 3. Update local cache instantly so deleted game disappears without refresh
+    try{
+      const cached=JSON.parse(localStorage.getItem(GH_CACHE_KEY)||"null");
+      if(cached && cached.games && cached.games[id]){
+        delete cached.games[id];
+        cached.version=Date.now();
+        localStorage.setItem(GH_CACHE_KEY, JSON.stringify(cached));
+      }
+    }catch{}
+    delete allBooks[id];
+    delete commentCountCache[id];
+    if(savedBooks[id]){ delete savedBooks[id]; persistSaved(); }
+    renderBooks(); renderPins();
     showToast('Deleted','success');
   }catch(e){showToast('Error: '+e.message,'error');}
 };
