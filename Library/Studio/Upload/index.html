@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -680,6 +681,8 @@ import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/fireb
 
 /* ── FIREBASE ── */
 const WORKER='https://aged-heart-d9b9.bozhetarnikmatthew.workers.dev/';
+const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
+const GH_CACHE_KEY="htmlib_github_cache_v2";
 const MAX_LINES=2000;
 const oldApp=initializeApp({apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"},'old');
 const auth=getAuth(oldApp);
@@ -732,6 +735,22 @@ onAuthStateChanged(auth,async u=>{
 });
 
 async function fetchCode(id){
+  // Try GitHub via Worker first
+  try{
+    const cache=await caches.open('games-html-v1');
+    const hit=await cache.match(`${GH_WORKER}/github/game/${id}`);
+    if(hit){ const t=await hit.text(); if(t && t.length>20) return t; }
+  }catch{}
+  try{
+    const res=await fetch(`${GH_WORKER}/github/game/${id}`,{cache:"no-store"});
+    if(res.ok){
+      const html=await res.text();
+      if(html){
+        try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${id}`, new Response(html,{headers:{"Content-Type":"text/html"}})); }catch{}
+        return html;
+      }
+    }
+  }catch{}
   try{const s=await get(ref(db,'bookCode/'+id+'/code'));if(s.exists()&&s.val())return s.val();}catch{}
   try{const s=await get(ref(db,'books/'+id+'/code'));if(s.exists()&&s.val())return s.val();}catch{}
   return'';
@@ -1025,13 +1044,22 @@ window.aiPublish=async function(){
   _ai.publishing=true;
   const btn=document.getElementById('ai-pub-btn');btn.innerHTML='<span class="spin">⟳</span> Publishing…';btn.disabled=true;
   const co={};_ai.collabs.forEach((c,i)=>{co['c'+i]={email:c.email};});
-  const meta={title,desc:(document.getElementById('ai-desc').value||'').trim(),allowViewCode:document.getElementById('ai-allow-code').checked,platform:_ai.plat,chatEnabled:_ai.chatOn,chatScope:_ai.scope,collaborators:Object.keys(co).length?co:null,generatedByAI:true,updatedAt:Date.now(),ownerId:CU.uid,ownerName:CU.displayName||CU.email,createdAt:Date.now(),likes:0,views:0};
+  const meta={title,desc:(document.getElementById('ai-desc').value||'').trim(),allowViewCode:document.getElementById('ai-allow-code').checked,platform:_ai.plat,chatEnabled:_ai.chatOn,chatScope:_ai.scope,collaborators:Object.keys(co).length?co:null,generatedByAI:true,updatedAt:Date.now(),ownerId:CU.uid,ownerName:CU.displayName||CU.email,createdAt:Date.now(),likes:0,views:0, playtimeSeconds:0, ratingAvg:0, ratingCount:0};
   if(_ai.logo)meta.logoImage=_ai.logo;if(_ai.bg)meta.bgImage=_ai.bg;
   try{
-    const nr=push(ref(db,'books'));await set(nr,meta);await set(ref(db,'bookCode/'+nr.key+'/code'),_ai.code);
+    const newId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    const res=await fetch(`${GH_WORKER}/github/saveGame`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id:newId, html:_ai.code, meta})
+    });
+    const j=await res.json();
+    if(!res.ok || !j.ok) throw new Error(j.error||j.details||'Publish failed');
+    try{ await set(ref(db,'books/'+newId), {title: meta.title, ownerId: CU.uid, ownerName: meta.ownerName, createdAt: meta.createdAt, likes:0, views:0}); }catch{}
+    try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(_ai.code,{headers:{"Content-Type":"text/html"}})); }catch{}
     removeAutoSave('ai');
     showToast('Published! 🎉','ok');
-    setTimeout(()=>window.location.href='/Studio/',1200);
+    setTimeout(()=>window.location.href='/Library/Studio/',1200);
   }catch(e){showToast('Error: '+e.message,'err');}
   btn.innerHTML='🚀 Publish Game';btn.disabled=false;_ai.publishing=false;
 };
@@ -1154,14 +1182,23 @@ window.remixPublish=async function(){
     generatedByAI:true,
     remixOf:{id:_rx.origId,title:_rx.origTitle},
     updatedAt:Date.now(),ownerId:CU.uid,ownerName:CU.displayName||CU.email,
-    createdAt:Date.now(),likes:0,views:0
+    createdAt:Date.now(),likes:0,views:0, playtimeSeconds:0, ratingAvg:0, ratingCount:0
   };
   if(_rx.logo)meta.logoImage=_rx.logo;if(_rx.bg)meta.bgImage=_rx.bg;
   try{
-    const nr=push(ref(db,'books'));await set(nr,meta);await set(ref(db,'bookCode/'+nr.key+'/code'),_rx.code);
+    const newId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    const res=await fetch(`${GH_WORKER}/github/saveGame`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id:newId, html:_rx.code, meta})
+    });
+    const j=await res.json();
+    if(!res.ok || !j.ok) throw new Error(j.error||j.details||'Publish failed');
+    try{ await set(ref(db,'books/'+newId), {title: meta.title, ownerId: CU.uid, ownerName: meta.ownerName, createdAt: meta.createdAt, likes:0, views:0}); }catch{}
+    try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(_rx.code,{headers:{"Content-Type":"text/html"}})); }catch{}
     removeAutoSave('remix');
     showToast('Remix published! 🎛','ok');
-    setTimeout(()=>window.location.href='/Studio/',1300);
+    setTimeout(()=>window.location.href='/Library/Studio/',1300);
   }catch(e){showToast('Error: '+e.message,'err');}
   btn.innerHTML='🚀 Publish Remix';btn.disabled=false;_rx.publishing=false;
 };
@@ -1181,9 +1218,20 @@ window.remixSelPlat=p=>{_rx.plat=p;setPlat('remix-plat-row',p);};
 async function initAIEdit(id){
   document.getElementById('aiedit-game-name').textContent='Loading…';
   try{
-    const snap=await get(ref(db,'books/'+id));
-    if(!snap.exists()){showToast('Game not found.','err');return;}
-    const bk=snap.val();
+    let bk=null;
+    try{
+      const idxRes=await fetch(`${GH_WORKER}/github/index.json`,{cache:"no-store"});
+      if(idxRes.ok){
+        const idx=await idxRes.json();
+        bk=idx.games && idx.games[id] ? {...idx.games[id]} : null;
+      }
+    }catch{}
+    if(!bk){
+      const snap=await get(ref(db,'books/'+id));
+      if(!snap.exists()){showToast('Game not found.','err');return;}
+      bk=snap.val();
+    }
+    if(!bk || !bk.title){showToast('Game not found.','err');return;}
     if(bk.ownerId!==CU.uid){showToast('You can only AI-edit your own games.','err');return;}
     _ae.id=id;_ae.bk=bk;
     document.getElementById('aiedit-game-name').textContent=bk.title||'Untitled';
@@ -1271,11 +1319,26 @@ window.aieditSave=async function(){
   _ae.saving=true;
   const btn=document.getElementById('aiedit-save-btn');btn.innerHTML='<span class="spin">⟳</span> Saving…';btn.disabled=true;
   try{
-    await set(ref(db,'bookCode/'+_ae.id+'/code'),_ae.code);
-    await update(ref(db,'books/'+_ae.id),{updatedAt:Date.now()});
+    // Load current meta from GitHub index
+    let meta={};
+    try{
+      const idxRes=await fetch(`${GH_WORKER}/github/index.json`,{cache:"no-store"});
+      if(idxRes.ok){ const idx=await idxRes.json(); meta=idx.games && idx.games[_ae.id] ? {...idx.games[_ae.id]} : {}; }
+    }catch{}
+    meta.updatedAt=Date.now();
+    if(_ae.bk) meta.title=_ae.bk.title||meta.title;
+    const res=await fetch(`${GH_WORKER}/github/saveGame`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id:_ae.id, html:_ae.code, meta})
+    });
+    const j=await res.json();
+    if(!res.ok || !j.ok) throw new Error(j.error||'Save failed');
+    try{ await update(ref(db,'books/'+_ae.id),{updatedAt: Date.now()}); }catch{}
+    try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${_ae.id}`, new Response(_ae.code,{headers:{"Content-Type":"text/html"}})); }catch{}
     removeAutoSave('aiedit');
     showToast('Game updated! ✨','ok');
-    setTimeout(()=>window.location.href='/Studio/',1400);
+    setTimeout(()=>window.location.href='/Library/Studio/',1400);
   }catch(e){showToast('Error: '+e.message,'err');}
   btn.innerHTML='💾 Save Changes';btn.disabled=false;_ae.saving=false;
 };
@@ -1286,9 +1349,22 @@ window.aieditSave=async function(){
 async function initManualEdit(id){
   _m.editId=id;
   try{
-    const snap=await get(ref(db,'books/'+id));
-    if(!snap.exists()){showToast('Game not found.','err');return;}
-    const bk=snap.val();
+    let bk=null;
+    // Try GitHub index first
+    try{
+      const idxRes=await fetch(`${GH_WORKER}/github/index.json`,{cache:"no-store"});
+      if(idxRes.ok){
+        const idx=await idxRes.json();
+        bk=idx.games && idx.games[id] ? {...idx.games[id]} : null;
+      }
+    }catch{}
+    // Fallback Firebase
+    if(!bk){
+      const snap=await get(ref(db,'books/'+id));
+      if(!snap.exists()){showToast('Game not found.','err');return;}
+      bk=snap.val();
+    }
+    if(!bk || !bk.title){showToast('Game not found.','err');return;}
     if(bk.ownerId!==CU.uid){showToast('Permission denied.','err');return;}
     document.getElementById('bk-title').value=bk.title||'';
     document.getElementById('bk-desc').value=bk.desc||'';
@@ -1324,17 +1400,62 @@ window.submitManual=async function(){
   if(_m.bg!==undefined)meta.bgImage=_m.bg||null;
   try{
     if(_m.editId){
-      await update(ref(db,'books/'+_m.editId),meta);
-      await set(ref(db,'bookCode/'+_m.editId+'/code'),code);
+      // Edit existing - update GitHub via Worker
+      const saveMeta={...meta, ownerId: CU.uid, ownerName: CU.displayName||CU.email};
+      // Preserve original createdAt/likes/views from GitHub index if exists
+      try{
+        const idxRes=await fetch(`${GH_WORKER}/github/index.json`,{cache:"no-store"});
+        if(idxRes.ok){
+          const idx=await idxRes.json();
+          const old=idx.games && idx.games[_m.editId];
+          if(old){
+            saveMeta.createdAt=old.createdAt||Date.now();
+            saveMeta.likes=old.likes||0;
+            saveMeta.views=old.views||0;
+            saveMeta.ownerId=old.ownerId||CU.uid;
+            saveMeta.ownerName=old.ownerName||CU.displayName||CU.email;
+          }
+        }
+      }catch{}
+      const res=await fetch(`${GH_WORKER}/github/saveGame`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:_m.editId, html:code, meta: saveMeta})
+      });
+      const j=await res.json();
+      if(!res.ok || !j.ok) throw new Error(j.error||'Save failed');
+      // Also keep Firebase stats in sync (for likes/views) - update lightweight entry
+      try{ await update(ref(db,'books/'+_m.editId), {title: saveMeta.title, desc: saveMeta.desc, updatedAt: saveMeta.updatedAt}); }catch{}
+      try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${_m.editId}`, new Response(code,{headers:{"Content-Type":"text/html"}})); }catch{}
       showToast('Saved! ✅','ok');
     }else{
-      const nr=push(ref(db,'books'));
-      await set(nr,{...meta,ownerId:CU.uid,ownerName:CU.displayName||CU.email,createdAt:Date.now(),likes:0,views:0});
-      await set(ref(db,'bookCode/'+nr.key+'/code'),code);
+      const newId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+      const saveMeta={...meta, ownerId:CU.uid, ownerName:CU.displayName||CU.email, createdAt:Date.now(), likes:0, views:0, playtimeSeconds:0, ratingAvg:0, ratingCount:0};
+      const res=await fetch(`${GH_WORKER}/github/saveGame`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({id:newId, html:code, meta: saveMeta})
+      });
+      const j=await res.json();
+      if(!res.ok || !j.ok) throw new Error(j.error||j.details||'Publish failed');
+      // Create lightweight Firebase entry for stats
+      try{ await set(ref(db,'books/'+newId), {title: saveMeta.title, ownerId: CU.uid, ownerName: saveMeta.ownerName, createdAt: saveMeta.createdAt, likes:0, views:0, playtimeSeconds:0}); }catch{}
+      try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(code,{headers:{"Content-Type":"text/html"}})); }catch{}
       removeAutoSave('manual');
       showToast('Published! 🎉','ok');
+      _m.editId=newId;
     }
-    setTimeout(()=>window.location.href='/Studio/',1200);
+    // Update local cache instantly
+    try{
+      const cached=JSON.parse(localStorage.getItem(GH_CACHE_KEY)||"null");
+      if(cached && cached.games && _m.editId){
+        const curMeta=cached.games[_m.editId]||{};
+        cached.games[_m.editId]={...curMeta, ...meta, id:_m.editId};
+        cached.version=Date.now();
+        localStorage.setItem(GH_CACHE_KEY, JSON.stringify(cached));
+      }
+    }catch{}
+    setTimeout(()=>window.location.href='/Library/Studio/',1200);
   }catch(e){showToast('Error: '+e.message,'err');}
   btn.innerHTML=origHTML;btn.disabled=false;_m.submitting=false;
 };
