@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -502,6 +503,9 @@ const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",aut
 initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
 const db=getDatabase(newApp);
 const OWNER_EMAIL='matthewbozhe@gmail.com';
+// GitHub backend (same Worker the Library uses) — source of truth for games now
+const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
+const GH_CACHE_KEY="htmlib_github_cache_v2";
 
 let CU=null,allBooks={},myBooks={},sharedBooks={};
 let _pubPreviewCode='',_pubPreviewTitle='';
@@ -628,15 +632,25 @@ onAuthStateChanged(auth,async u=>{
 });
 window.doSignout=async()=>await fbSignOut(auth);
 
-async function loadBooks(){
-  const snap=await get(ref(db,'books'));const raw=snap.val()||{};
-  allBooks={};myBooks={};sharedBooks={};
-  Object.entries(raw).forEach(([id,b])=>{
-    if(!b||!b.title)return;
-    const{code:_,...meta}=b;allBooks[id]={...meta,_oid:id};
-    if(b.ownerId===CU.uid)myBooks[id]=allBooks[id];
-    else if(b.collaborators&&Object.values(b.collaborators).some(c=>c?.email?.toLowerCase()===CU.email.toLowerCase()))sharedBooks[id]=allBooks[id];
-  });
+// GitHub index (via Worker) is the source of truth — same as the Library page.
+// Firebase is only a background stats/settings refresh and a fallback.
+let _statsMerging=false,_lastStatsMerge=0;
+
+async function mergeStatsFromFirebase(){
+  if(_statsMerging)return;_statsMerging=true;
+  try{
+    const snap=await get(ref(db,'books'));const stats=snap.val()||{};
+    Object.entries(allBooks).forEach(([id,meta])=>{
+      const s=stats[id];if(!s)return;
+      ['likes','views','playtimeSeconds','ratingAvg','ratingCount','likedBy','undeletable','chatEnabled','chatScope','collaborators'].forEach(k=>{if(s[k]!==undefined)meta[k]=s[k];});
+    });
+    _lastStatsMerge=Date.now();
+    renderMyGames();renderShared();updateSidebarStats();
+  }catch(e){console.warn('[Stats] Firebase stats merge skipped (using GitHub data)',e);}
+  finally{_statsMerging=false;}
+}
+
+function updateSidebarStats(){
   document.getElementById('sb-count-my').textContent=Object.keys(myBooks).length;
   document.getElementById('sb-count-shared').textContent=Object.keys(sharedBooks).length;
   const tl=Object.values(myBooks).reduce((s,b)=>s+(b.likes||0),0);
@@ -646,6 +660,41 @@ async function loadBooks(){
   document.getElementById('stat-likes').textContent=tl.toLocaleString();
   document.getElementById('stat-views').textContent=tv.toLocaleString();
   document.getElementById('stat-playtime').textContent=ft(tt);
+}
+
+async function loadBooks(){
+  // 1) GitHub index first — fast and always in sync with the Library.
+  let ghOK=false;
+  try{
+    const res=await fetch(`${GH_WORKER}/github/index.json`,{cache:"no-store"});
+    if(res.ok){
+      const fresh=await res.json();
+      const raw=fresh.games||{};
+      allBooks={};myBooks={};sharedBooks={};
+      Object.entries(raw).forEach(([id,b])=>{
+        if(!b||!b.title)return;
+        const meta={...b,_oid:id};
+        allBooks[id]=meta;
+        if(b.ownerId===CU.uid)myBooks[id]=meta;
+        else if(b.collaborators&&Object.values(b.collaborators).some(c=>c?.email?.toLowerCase()===CU.email.toLowerCase()))sharedBooks[id]=meta;
+      });
+      ghOK=true;
+    }
+  }catch(e){console.warn('[GitHub] index fetch failed, falling back to Firebase',e);}
+  // 2) Fallback: Firebase (worker unreachable)
+  if(!ghOK){
+    const snap=await get(ref(db,'books'));const raw=snap.val()||{};
+    allBooks={};myBooks={};sharedBooks={};
+    Object.entries(raw).forEach(([id,b])=>{
+      if(!b||!b.title)return;
+      const{code:_,...meta}=b;allBooks[id]={...meta,_oid:id};
+      if(b.ownerId===CU.uid)myBooks[id]=allBooks[id];
+      else if(b.collaborators&&Object.values(b.collaborators).some(c=>c?.email?.toLowerCase()===CU.email.toLowerCase()))sharedBooks[id]=allBooks[id];
+    });
+  }
+  updateSidebarStats();
+  // 3) Background refresh of likes/views/chat settings from Firebase (never blocks)
+  mergeStatsFromFirebase();
 }
 
 window.switchTab=function(tab,el){
@@ -715,7 +764,7 @@ function buildCard(id,bk,isShared){
       <button class="btn btn-sm" onclick="editBook('${id}')"><i class="fas fa-edit"></i> Edit</button>
       <button class="btn btn-sm" style="color:var(--blue-hi);border-color:rgba(59,130,246,.25)" onclick="aiEditBook('${id}')"><i class="fas fa-magic"></i> AI Edit</button>
       <button class="btn btn-sm" onclick="openComments('${id}')"><i class="fas fa-comment"></i></button>
-      <button class="btn btn-sm" onclick="openPChat('${id}','${esc(bk.title)}')"><i class="fas fa-satellite-dish"></i></button>
+      <button class="btn btn-sm" onclick="openPChat('${id}','${esc(bk.title).replace(/'/g,'&#39;')}')"><i class="fas fa-satellite-dish"></i></button>
       <button class="btn btn-sm" onclick="copyLink('${id}')"><i class="fas fa-link"></i></button>
       ${!isShared?`<button class="btn btn-sm btn-danger" onclick="deleteBook('${id}')"><i class="fas fa-trash"></i></button>`:''}
     </div>
@@ -829,13 +878,29 @@ window.deleteBook=async function(id){
   if(!confirm('Delete "'+bk.title+'"? This cannot be undone.'))return;
   const{_oid}=bk;
   try{
-    await set(push(ref(db,'recentlyDeleted')),{...bk,originalId:id,deletedAt:Date.now(),deletedBy:CU.email||''});
+    // 1) GitHub first — the Library reads from there. If this fails, abort so the
+    //    game doesn't become a "ghost" that still shows in the Library.
+    try{
+      const r=await fetch(`${GH_WORKER}/github/deleteGame`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.ok)throw new Error(j.error||j.details||('HTTP '+r.status));
+    }catch(e){
+      showToast('GitHub delete failed ('+(e.message||e)+') — game NOT deleted, try again.','err');
+      return;
+    }
+    // 2) Remove from the Library's local GitHub cache too
+    try{
+      const c=JSON.parse(localStorage.getItem(GH_CACHE_KEY)||'null');
+      if(c&&c.games&&c.games[id]){delete c.games[id];c.version=Date.now();localStorage.setItem(GH_CACHE_KEY,JSON.stringify(c));}
+    }catch{}
+    // 3) Firebase cleanup (stats, code, comments, archive)
+    try{await set(push(ref(db,'recentlyDeleted')),{...bk,originalId:id,deletedAt:Date.now(),deletedBy:CU.email||''});}catch{}
     await remove(ref(db,'books/'+_oid));
     try{await remove(ref(db,'bookCode/'+_oid));}catch{}
     try{await remove(ref(db,'comments/'+id));}catch{}
-    delete allBooks[id];delete myBooks[id];
-    renderMyGames();document.getElementById('sb-count-my').textContent=Object.keys(myBooks).length;
-    showToast('Deleted.','ok');
+    delete allBooks[id];delete myBooks[id];delete sharedBooks[id];
+    renderMyGames();renderShared();updateSidebarStats();
+    showToast('Deleted everywhere (GitHub + Firebase).','ok');
   }catch(e){showToast('Error: '+e.message,'err');}
 };
 
@@ -911,5 +976,5 @@ window.saveUsername=async function(){
 };
 window.setLightMode=function(v){if(v){document.body.classList.add('light-mode');localStorage.setItem('studio_lightmode','1');}else{document.body.classList.remove('light-mode');localStorage.removeItem('studio_lightmode');}};
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3e17c4d1ba243be',t:'MTc4OTkxNDE4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
