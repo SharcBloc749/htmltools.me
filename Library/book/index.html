@@ -482,32 +482,45 @@ async function loadGitHubMeta(){
     const cached=JSON.parse(localStorage.getItem(GH_CACHE_KEY)||'null');
     if(cached&&cached.games&&cached.games[bookId])return cached.games[bookId];
   }catch(e){}
-  try{
-    const res=await fetch(`${GH_WORKER}/github/index.json`,{cache:'no-store'});
-    if(!res.ok)return null;
-    const fresh=await res.json();
-    if(fresh&&fresh.games){
-      try{localStorage.setItem(GH_CACHE_KEY,JSON.stringify(fresh));}catch(e){}
-      return fresh.games[bookId]||null;
-    }
-  }catch(e){}
+  // Retry once on transient worker failures (same cold-start issue as loadCode)
+  for(let attempt=0;attempt<2;attempt++){
+    try{
+      const res=await fetch(`${GH_WORKER}/github/index.json`,{cache:'no-store'});
+      if(res.ok){
+        const fresh=await res.json();
+        if(fresh&&fresh.games){
+          try{localStorage.setItem(GH_CACHE_KEY,JSON.stringify(fresh));}catch(e){}
+          return fresh.games[bookId]||null;
+        }
+      }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,400));
+  }
   return null;
 }
 
 async function loadCode(){
   // 1) GitHub via Worker — the ONLY place game code lives now.
   //    Network-first so players get updates (the old order could serve stale games forever).
-  try{
-    const r=await fetch(`${GH_WORKER}/github/game/${bookId}`,{cache:'no-store'});
-    if(r.ok){
-      const t=await r.text();
-      if(t&&t.length>20){
-        try{const c=await caches.open('games-html-v1');await c.put(`${GH_WORKER}/github/game/${bookId}`,new Response(t,{headers:{'Content-Type':'text/html'}}));}catch(e){}
-        return t;
+  //    Retries once on transient failures (worker cold-start 500s used to cause
+  //    random "Game Not Found" screens); 404 is treated as genuinely missing.
+  let lastStatus=0;
+  for(let attempt=0;attempt<2;attempt++){
+    try{
+      const r=await fetch(`${GH_WORKER}/github/game/${bookId}`,{cache:'no-store'});
+      lastStatus=r.status;
+      if(r.ok){
+        const t=await r.text();
+        if(t&&t.length>20){
+          try{const c=await caches.open('games-html-v1');await c.put(`${GH_WORKER}/github/game/${bookId}`,new Response(t,{headers:{'Content-Type':'text/html'}}));}catch(e){}
+          return t;
+        }
       }
-    }
-  }catch(e){}
-  // 2) On-device cache (games-html-v1) — offline replays only
+      if(r.status===404)break;
+    }catch(e){}
+    await new Promise(res=>setTimeout(res,500));
+  }
+  // 2) On-device cache (games-html-v1) — offline replays / worker hiccup fallback
   try{
     const c=await caches.open('games-html-v1');
     const hit=await c.match(`${GH_WORKER}/github/game/${bookId}`);
@@ -516,6 +529,7 @@ async function loadCode(){
   // NOTE: the Firebase code fallback (bookCode/{id}/code, books/{id}/code) was REMOVED —
   // it downloaded the entire game HTML from RTDB on every play. Run migrate-games.html
   // first to move legacy games into GitHub.
+  console.warn('[loadCode] failed for',bookId,'lastStatus',lastStatus);
   return null;
 }
 
