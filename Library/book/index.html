@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -330,6 +331,7 @@ let barVisible=true;
 let barHideTimer=null;
 let countdownTimers={};
 let chatUnsub=null;
+let pendingChatMode=null; // lazy chat: mode to subscribe to on first chat open
 
 // ── Helpers ───────────────────────────────────────────────────
 const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
@@ -446,14 +448,17 @@ async function boot(){
   updateLikeBtn();
   document.getElementById('code-btn').style.display=bookData.allowViewCode?'flex':'none';
 
-  // Chat widget
+  // Chat widget — the chat listener is now LAZY: it only starts when the player
+  // actually opens the chat. Previously every game page view auto-subscribed to the
+  // last 40 global messages (including base64 images) and kept re-downloading them
+  // on every new message — that was the #1 Firebase bandwidth drain.
   if(chatEnabled){
     document.getElementById('chat-widget').style.display='flex';
     // Show mode pills if owner allows both or user can switch
     if(chatScope==='both'){
       document.getElementById('cw-mode-pills').style.display='flex';
     }
-    initChat(chatScope==='both'?'global':chatScope);
+    pendingChatMode=(chatScope==='both'?'global':chatScope);
   }
 
   // Rating button (only for non-owners)
@@ -490,13 +495,8 @@ async function loadGitHubMeta(){
 }
 
 async function loadCode(){
-  // 1) On-device cache (games-html-v1) — instant replays
-  try{
-    const c=await caches.open('games-html-v1');
-    const hit=await c.match(`${GH_WORKER}/github/game/${bookId}`);
-    if(hit){const t=await hit.text();if(t&&t.length>20)return t;}
-  }catch(e){}
-  // 2) GitHub via Worker — where games published with the new Upload page live
+  // 1) GitHub via Worker — the ONLY place game code lives now.
+  //    Network-first so players get updates (the old order could serve stale games forever).
   try{
     const r=await fetch(`${GH_WORKER}/github/game/${bookId}`,{cache:'no-store'});
     if(r.ok){
@@ -507,9 +507,15 @@ async function loadCode(){
       }
     }
   }catch(e){}
-  // 3) Firebase fallback (legacy games)
-  try{const s=await get(ref(db,'bookCode/'+bookId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
-  try{const s=await get(ref(db,'books/'+bookId+'/code'));if(s.exists()&&s.val())return s.val();}catch(e){}
+  // 2) On-device cache (games-html-v1) — offline replays only
+  try{
+    const c=await caches.open('games-html-v1');
+    const hit=await c.match(`${GH_WORKER}/github/game/${bookId}`);
+    if(hit){const t=await hit.text();if(t&&t.length>20)return t;}
+  }catch(e){}
+  // NOTE: the Firebase code fallback (bookCode/{id}/code, books/{id}/code) was REMOVED —
+  // it downloaded the entire game HTML from RTDB on every play. Run migrate-games.html
+  // first to move legacy games into GitHub.
   return null;
 }
 
@@ -623,22 +629,30 @@ window.viewCode=async function(){
 function initChat(mode){
   chatMode=mode||'global';
   if(chatUnsub)chatUnsub();
-  const chatRef=chatMode==='book'?ref(db,'bookChat/'+bookId):ref(db,'chat');
-  const q=query(chatRef,orderByKey(),limitToLast(40));
+  // Base path for this chat (the old code used '' for global and then deleted
+  // '/{mid}' at the DATABASE ROOT — that was a data-loss bug for autoDelete msgs)
+  const basePath=chatMode==='book'?'bookChat/'+bookId:'chat';
+  const chatRef=ref(db,basePath);
+  const q=query(chatRef,orderByKey(),limitToLast(20)); // was 40 — halves every sync payload
   chatUnsub=onValue(q,snap=>{
-    const data=snap.val()||{};chatMessages=data;
-    if(chatOpen)renderChatMsgs();
-    else{
+    const data=snap.val()||{};
+    if(chatOpen){
+      chatMessages=data;
+      renderChatMsgs();
+    }else{
+      // Compute unread BEFORE replacing chatMessages (old code compared against
+      // the already-updated object, so the badge never worked)
       const prev=Object.keys(chatMessages).length;
       const nc=Object.keys(data).length;
+      chatMessages=data;
       if(nc>prev){chatUnread+=(nc-prev);updateBadge();}
     }
     // Handle auto-deletes
     Object.entries(data).forEach(([mid,msg])=>{
       if(msg&&msg.autoDelete&&!msg.deleted&&msg.sentAt){
         const rem=30000-(Date.now()-msg.sentAt);
-        if(rem<=0){remove(ref(db,(chatMode==='book'?'bookChat/'+bookId:'')+'/'+mid));}
-        else if(!countdownTimers[mid]){countdownTimers[mid]=setTimeout(()=>{remove(ref(db,(chatMode==='book'?'bookChat/'+bookId:'chat')+'/'+mid));delete countdownTimers[mid];},rem);}
+        if(rem<=0){remove(ref(db,basePath+'/'+mid));}
+        else if(!countdownTimers[mid]){countdownTimers[mid]=setTimeout(()=>{remove(ref(db,basePath+'/'+mid));delete countdownTimers[msg.id||mid];delete countdownTimers[mid];},rem);}
       }
     });
   });
@@ -656,6 +670,8 @@ window.toggleChat=function(){
   chatOpen=!chatOpen;
   const win=document.getElementById('chat-window');
   if(chatOpen){
+    // Lazy-start the chat listener on first open (keeps page views Firebase-quiet)
+    if(pendingChatMode){const m=pendingChatMode;pendingChatMode=null;initChat(m);}
     win.style.display='flex';requestAnimationFrame(()=>win.classList.add('open'));
     chatUnread=0;updateBadge();renderChatMsgs();
     setTimeout(()=>{const m=document.getElementById('cw-messages');if(m)m.scrollTop=m.scrollHeight;},100);
@@ -709,5 +725,6 @@ document.addEventListener('keydown',e=>{
 });
 document.getElementById('rate-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('rate-overlay'))closeRate();});
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3e4b8a0fffbf52e',t:'MTc4OTk0ODEwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3e4b8a0fffbf52e',t:'MTc4OTk0ODEwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
 </html>
