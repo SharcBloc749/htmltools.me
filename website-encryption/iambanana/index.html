@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Migration — Website Encryption</title>
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0a0a;--surface:#101010;--panel:#141414;--panel2:#191919;
+  --border:#232323;--border2:#2c2c2c;--borderhi:#444;
+  --tx:#ececec;--tx2:#9a9a9a;--tx3:#5a5a5a;--tx4:#3d3d3d;
+  --white:#fff;--wfg:#0a0a0a;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;
+  --r:5px;--r-md:8px;--r-lg:12px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'SF Mono',SFMono-Regular,ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--tx);font-family:var(--font);font-size:13.5px;-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+::selection{background:rgba(255,255,255,.14);}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.wrap{max-width:660px;margin:0 auto;padding:44px 20px 90px;}
+.hdr{display:flex;align-items:center;gap:11px;margin-bottom:6px;}
+.hdr-mark{width:34px;height:34px;border-radius:8px;border:1px solid var(--border2);background:var(--panel);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hdr h1{font-size:1.05rem;font-weight:650;letter-spacing:-.02em;}
+.hdr p{font-size:.75rem;color:var(--tx3);margin-top:2px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);margin-top:14px;overflow:hidden;}
+.card-hd{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;font-size:.71rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);}
+.card-bd{padding:16px;}
+.stepnum{width:17px;height:17px;border-radius:50%;background:var(--white);color:var(--wfg);font-size:.62rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.info{background:rgba(255,255,255,.028);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;font-size:.73rem;color:var(--tx2);line-height:1.65;}
+.info b{color:var(--tx);font-weight:600;}
+.info + .info{margin-top:8px;}
+.lbl{display:block;font-size:.66rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);margin-bottom:5px;}
+.inp{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--tx);font-family:var(--font);font-size:.83rem;padding:0 10px;height:33px;border-radius:var(--r);outline:none;transition:border-color .13s;}
+.inp:focus{border-color:var(--borderhi);}
+.inp::placeholder{color:var(--tx4);}
+.inp.mono{font-family:var(--mono);font-size:.75rem;}
+.field{margin-bottom:12px;}
+.field:last-child{margin-bottom:0;}
+.btn{background:var(--panel);border:1px solid var(--border2);color:var(--tx2);padding:0 12px;height:30px;border-radius:var(--r);font-size:.77rem;font-weight:500;transition:all .13s;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.btn:hover{background:var(--panel2);border-color:var(--borderhi);color:var(--tx);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-prim{background:var(--white);color:var(--wfg);border-color:var(--white);font-weight:600;}
+.btn-prim:hover{opacity:.87;background:var(--white);color:var(--wfg);}
+.btn-danger{color:var(--red);border-color:rgba(239,68,68,.28);background:transparent;}
+.btn-danger:hover{background:rgba(239,68,68,.07);border-color:var(--red);color:var(--red);}
+.btn-block{width:100%;height:34px;font-size:.8rem;}
+.row2{display:flex;gap:8px;}
+.row2 .inp{flex:1;}
+.google-btn{width:100%;height:36px;background:var(--panel);border:1px solid var(--border2);color:var(--tx2);border-radius:var(--r);font-size:.8rem;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .13s;}
+.google-btn:hover{border-color:var(--borderhi);color:var(--tx);background:var(--panel2);}
+.divider{display:flex;align-items:center;gap:10px;margin:13px 0;color:var(--tx4);font-size:.65rem;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.auth-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--r);padding:8px 11px;font-size:.74rem;color:#fca5a5;margin-bottom:12px;display:none;}
+.auth-err.show{display:block;}
+.item{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--panel);margin-bottom:6px;}
+.item-name{flex:1;min-width:0;}
+.item-name .n{font-size:.8rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-name .s{font-size:.66rem;color:var(--tx3);font-family:var(--mono);margin-top:1px;}
+.item-err{font-size:.66rem;color:#fca5a5;font-family:var(--mono);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tag{font-family:var(--mono);font-size:.59rem;font-weight:600;letter-spacing:.05em;color:var(--tx2);border:1px solid var(--border2);border-radius:3px;padding:2px 5px;flex-shrink:0;}
+.pill{font-size:.65rem;font-weight:600;border-radius:99px;padding:2px 9px;flex-shrink:0;border:1px solid;}
+.pill-q{color:var(--tx3);border-color:var(--border2);}
+.pill-r{color:var(--amber);border-color:rgba(245,158,11,.35);}
+.pill-ok{color:var(--green);border-color:rgba(34,197,94,.35);}
+.pill-no{color:var(--red);border-color:rgba(239,68,68,.35);}
+.item input[type=checkbox]{accent-color:#fff;width:14px;height:14px;flex-shrink:0;}
+#log{font-family:var(--mono);font-size:.69rem;line-height:1.9;color:var(--tx2);background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;max-height:230px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;}
+#log .ok{color:var(--green);}
+#log .bad{color:#fca5a5;}
+.keybox{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid rgba(34,197,94,.3);border-radius:var(--r);padding:10px 12px;margin-top:8px;}
+.keybox code{flex:1;font-family:var(--mono);font-size:.72rem;color:var(--green);word-break:break-all;line-height:1.6;}
+.spin{width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--tx2);border-radius:50%;animation:sp .7s linear infinite;display:inline-block;flex-shrink:0;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none!important;}
+.foot{margin-top:26px;text-align:center;font-size:.67rem;color:var(--tx3);font-family:var(--mono);}
+.warn{background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.22);border-radius:var(--r);padding:9px 12px;font-size:.72rem;color:#e7c888;line-height:1.6;margin-top:8px;}
+.warn b{color:#fcd34d;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <div class="hdr-mark">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ececec" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+    </div>
+    <div>
+      <h1>Website Encryption → GitHub</h1>
+      <p>One-time migration · paste your token, everything moves to your private repo</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="stepnum">?</span> What this does</div>
+    <div class="card-bd">
+      <div class="info"><b>1.</b> You sign in. Your current Website Encryption projects are read from Firebase and decrypted <b>locally in this browser tab</b> — plaintext never leaves it.</div>
+      <div class="info"><b>2.</b> You paste a GitHub token. Each project is re-encrypted with a master key (AES-256-GCM) and written <b>directly to your private repo</b> under <b>Website-Encryption/&lt;your@email.com&gt;/</b> — the folder is created automatically.</div>
+      <div class="info"><b>3.</b> When everything is green, one click deletes the old Firebase copies. Firebase is then used for sign-in only.</div>
+    </div>
+  </div>
+
+  <!-- 1 · SIGN IN -->
+  <div class="card" id="auth-card">
+    <div class="card-hd"><span class="stepnum">1</span> Sign in</div>
+    <div class="card-bd">
+      <div class="auth-err" id="auth-err"></div>
+      <button class="google-btn" id="google-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+      <div class="divider">or use email</div>
+      <div class="field">
+        <label class="lbl">Email</label>
+        <input class="inp" type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label class="lbl">Password</label>
+        <input class="inp" type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="btn btn-prim btn-block" id="auth-btn">Sign in</button>
+      <div style="margin-top:9px;font-size:.68rem;color:var(--tx3);line-height:1.6;">The Google popup requires this page to be on an authorized domain (e.g. htmltools.me). Opening it as a local file? Use email &amp; password.</div>
+    </div>
+  </div>
+
+  <!-- 2 · SCAN -->
+  <div class="card hidden" id="scan-card">
+    <div class="card-hd"><span class="stepnum">2</span> Projects found in Firebase</div>
+    <div class="card-bd">
+      <div id="scan-status" class="info"><span class="spin"></span>&nbsp; Reading old storage…</div>
+      <div id="proj-rows" style="margin-top:11px;"></div>
+    </div>
+  </div>
+
+  <!-- 3 · GITHUB -->
+  <div class="card hidden" id="gh-card">
+    <div class="card-hd"><span class="stepnum">3</span> GitHub destination</div>
+    <div class="card-bd">
+      <div class="field">
+        <label class="lbl">Repository (owner/repo)</label>
+        <input class="inp mono" type="text" id="gh-repo" placeholder="your-username/website-encryption-vault"/>
+      </div>
+      <div class="field">
+        <label class="lbl">GitHub token</label>
+        <input class="inp mono" type="password" id="gh-token" placeholder="github_pat_… or ghp_…" autocomplete="off"/>
+        <div style="font-size:.68rem;color:var(--tx3);margin-top:5px;line-height:1.6;">A <b>fine-grained PAT</b> scoped to this one repo with <b>Contents: Read and write</b>. It stays in this tab's memory only and is never stored. Revoke it in GitHub settings afterwards if you like.</div>
+      </div>
+      <div class="field">
+        <label class="lbl">Master encryption key (64 hex chars)</label>
+        <div class="row2">
+          <input class="inp mono" type="text" id="mk-input" placeholder="paste your key or generate one"/>
+          <button class="btn" id="mk-gen" type="button">Generate</button>
+        </div>
+        <div style="font-size:.68rem;color:var(--tx3);margin-top:5px;line-height:1.6;">This must be the same key you set as <b style="font-family:var(--mono)">MASTER_KEY</b> on the worker — otherwise it can't decrypt these files.</div>
+      </div>
+      <button class="btn btn-prim btn-block" id="run-btn">Move everything to GitHub</button>
+      <div class="warn hidden" id="mk-warn"><b>Save your generated key now.</b> It is shown once and needed as the worker's <b>MASTER_KEY</b> secret. Without it the vault can't decrypt anything.<span class="keybox"><code id="mk-show"></code><button class="btn" id="mk-copy" type="button" style="height:26px;font-size:.7rem;">Copy</button></span></div>
+    </div>
+  </div>
+
+  <!-- 4 · RESULT -->
+  <div class="card hidden" id="result-card">
+    <div class="card-hd"><span class="stepnum">4</span> Result</div>
+    <div class="card-bd">
+      <div style="display:flex;gap:10px;margin-bottom:13px;">
+        <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 13px;"><div style="font-size:1.15rem;font-weight:650;font-family:var(--mono);" id="stat-total">0</div><div style="font-size:.63rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-top:2px;">Found</div></div>
+        <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 13px;"><div style="font-size:1.15rem;font-weight:650;font-family:var(--mono);color:var(--green);" id="stat-done">0</div><div style="font-size:.63rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-top:2px;">Moved</div></div>
+        <div style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 13px;"><div style="font-size:1.15rem;font-weight:650;font-family:var(--mono);color:var(--red);" id="stat-fail">0</div><div style="font-size:.63rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-top:2px;">Failed</div></div>
+      </div>
+      <div id="log"></div>
+      <div class="field hidden" id="wipe-row" style="margin-top:13px;">
+        <button class="btn btn-danger btn-block" id="wipe-btn">Delete moved data from Firebase</button>
+      </div>
+      <div class="info hidden" id="wipe-done"><b>Old Firebase data deleted.</b> Firebase now handles authentication only — you can close this page.</div>
+      <div class="info hidden" id="apikey-note" style="margin-top:8px;"><b>API-key items</b> migrate as proxied secrets. In the new dashboard, open each one and set its proxy target (e.g. <span style="font-family:var(--mono)">https://api.groq.com</span>) before using it.</div>
+    </div>
+  </div>
+
+  <div class="foot">HTML Tools · Website Encryption migration · runs entirely in your browser</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+/* Firebase is used here ONLY for sign-in + reading the old data once.
+   Everything is written directly to GitHub from this tab. */
+var FB_CONFIG = {
+  apiKey: "AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
+  authDomain: "website-encryption-htmltools.firebaseapp.com",
+  databaseURL: "https://website-encryption-htmltools-default-rtdb.firebaseio.com",
+  projectId: "website-encryption-htmltools",
+  storageBucket: "website-encryption-htmltools.firebasestorage.app",
+  messagingSenderId: "211271935323",
+  appId: "1:211271935323:web:1abb9d416087ea89c0e67e"
+};
+firebase.initializeApp(FB_CONFIG);
+var db = firebase.database();
+var auth = firebase.auth();
+
+var currentUser = null;
+var oldProjects = [];
+var moved = [];      // {id} successfully written to GitHub
+var madeKey = false; // true if this page generated the master key
+
+function $(id) { return document.getElementById(id); }
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function log(msg, cls) {
+  var el = document.createElement('div');
+  if (cls) el.className = cls;
+  el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+  $('log').appendChild(el);
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+/* ── crypto: old format (decrypt) + vault format (encrypt) ── */
+function oldKeyBytes(k) { return new TextEncoder().encode(k.padEnd(32, '0').slice(0, 32)); }
+async function oldDecrypt(b64, k) {
+  var key = await crypto.subtle.importKey('raw', oldKeyBytes(k), 'AES-GCM', false, ['decrypt']);
+  var buf = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
+  var pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(0, 12) }, key, buf.slice(12));
+  return new TextDecoder().decode(pt);
+}
+function bytesToB64(bytes) {
+  var s = '', CH = 0x8000;
+  for (var i = 0; i < bytes.length; i += CH) s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  return btoa(s);
+}
+async function importMasterKey(hex) {
+  var bytes = new Uint8Array(32);
+  for (var i = 0; i < 32; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return crypto.subtle.importKey('raw', bytes, 'AES-GCM', false, ['encrypt']);
+}
+async function vaultEncrypt(key, text) {
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(text)));
+  return { alg: 'AES-256-GCM', iv: bytesToB64(iv), ct: bytesToB64(ct) };
+}
+function genMasterKey() {
+  var arr = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(arr).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+// must match the worker's emailSlug()
+function slugFor(email, uid) {
+  email = String(email || '').toLowerCase().trim();
+  if (!email || email.indexOf('@') === -1) return 'user-' + String(uid || '').slice(0, 28);
+  var s = email.replace(/[^a-z0-9@._-]/g, '-');
+  while (s.indexOf('--') !== -1) s = s.replace(/--/g, '-');
+  return s.slice(0, 80);
+}
+
+/* ── GitHub contents API, straight from the browser ── */
+var GH = { token: '', repo: '' };
+async function gh(path, opts) {
+  opts = opts || {};
+  var res = await fetch('https://api.github.com/repos/' + GH.repo + path, {
+    method: opts.method || 'GET',
+    headers: {
+      'authorization': 'Bearer ' + GH.token,
+      'accept': 'application/vnd.github+json',
+      'x-github-api-version': '2022-11-28',
+      'content-type': 'application/json'
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  });
+  var data = null;
+  try { data = await res.json(); } catch (e) {}
+  return { status: res.status, data: data };
+}
+async function ghWrite(rel, text, message) {
+  var enc = rel.split('/').map(encodeURIComponent).join('/');
+  var cur = await gh('/contents/' + enc);
+  var body = { message: message, content: bytesToB64(new TextEncoder().encode(text)) };
+  if (cur.status === 200 && cur.data && cur.data.sha) body.sha = cur.data.sha;
+  var r = await gh('/contents/' + enc, { method: 'PUT', body: body });
+  if (r.status === 409) { // stale sha — refetch and retry once
+    cur = await gh('/contents/' + enc);
+    if (cur.status === 200 && cur.data && cur.data.sha) { body.sha = cur.data.sha; r = await gh('/contents/' + enc, { method: 'PUT', body: body }); }
+  }
+  if (r.status !== 200 && r.status !== 201) {
+    throw new Error((r.data && r.data.message) || ('GitHub write failed (' + r.status + ')'));
+  }
+}
+
+/* ── auth ── */
+$('auth-btn').addEventListener('click', async function () {
+  var email = $('auth-email').value.trim(), pass = $('auth-pass').value;
+  var errEl = $('auth-err');
+  errEl.classList.remove('show');
+  if (!email || !pass) { errEl.textContent = 'Enter your email and password.'; errEl.classList.add('show'); return; }
+  this.disabled = true; this.textContent = 'Signing in…';
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch (e) {
+    errEl.textContent = e.message || 'Sign-in failed.'; errEl.classList.add('show');
+    this.disabled = false; this.textContent = 'Sign in';
+  }
+});
+$('auth-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('auth-btn').click(); });
+$('google-btn').addEventListener('click', async function () {
+  try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch (e) {
+    if (e.code !== 'auth/popup-closed-by-user') {
+      var errEl = $('auth-err');
+      errEl.textContent = (e.message || 'Google sign-in failed.') + ' — if this page is open as a local file, use email & password instead.';
+      errEl.classList.add('show');
+    }
+  }
+});
+auth.onAuthStateChanged(async function (user) {
+  if (!user) return;
+  currentUser = user;
+  $('auth-card').classList.add('hidden');
+  $('scan-card').classList.remove('hidden');
+  $('gh-card').classList.remove('hidden');
+  await scan();
+});
+
+/* ── scan old storage ── */
+var TYPE_LABEL = { apikey: 'KEY', firebase: 'FB', html: 'HTML', other: 'JSON', json: 'JSON', config: 'CFG' };
+function mapType(t) { return t === 'other' ? 'json' : (t || 'json'); }
+
+async function scan() {
+  var st = $('scan-status');
+  try {
+    var snap = await db.ref('we_users/' + currentUser.uid + '/projects').get();
+    oldProjects = [];
+    if (snap.exists()) snap.forEach(function (c) { oldProjects.push(c.val()); });
+    oldProjects.sort(function (a, b) { return (b.created || 0) - (a.created || 0); });
+    if (!oldProjects.length) {
+      st.innerHTML = '<b>No projects found</b> for this account. Nothing to migrate.';
+      return;
+    }
+    st.innerHTML = '<b>' + oldProjects.length + ' project(s) found.</b> Fill in the GitHub details below, then move them.';
+    $('proj-rows').innerHTML = oldProjects.map(function (p) {
+      var size = p.encrypted ? Math.round(p.encrypted.length * 3 / 4) : 0;
+      return '<div class="item">' +
+        '<input type="checkbox" checked data-id="' + esc(p.id) + '"/>' +
+        '<div class="item-name"><div class="n">' + esc(p.name) + '</div>' +
+        '<div class="s">#' + esc(String(p.id).slice(0, 12)) + ' · ~' + (size / 1024).toFixed(1) + ' kB</div>' +
+        '<div class="item-err" id="err-' + esc(p.id) + '"></div></div>' +
+        '<span class="tag">' + (TYPE_LABEL[p.type] || 'JSON') + '</span>' +
+        '<span class="pill pill-q" id="pill-' + esc(p.id) + '">queued</span>' +
+      '</div>';
+    }).join('');
+  } catch (e) {
+    st.innerHTML = '<b style="color:#fca5a5;">Failed to read old storage:</b> ' + esc(e.message);
+  }
+}
+
+function setPill(id, cls, txt) {
+  var p = $('pill-' + id);
+  if (p) { p.className = 'pill ' + cls; p.textContent = txt; }
+  if (cls !== 'pill-no') { var e = $('err-' + id); if (e) e.textContent = ''; }
+}
+function setErr(id, msg) {
+  var e = $('err-' + id); if (e) e.textContent = msg;
+}
+
+/* ── master key helper ── */
+$('mk-gen').addEventListener('click', function () {
+  var k = genMasterKey();
+  $('mk-input').value = k;
+  madeKey = true;
+  $('mk-show').textContent = k;
+  $('mk-warn').classList.remove('hidden');
+});
+$('mk-copy').addEventListener('click', function () {
+  navigator.clipboard.writeText($('mk-input').value).then(function () {
+    $('mk-copy').textContent = 'Copied!';
+    setTimeout(function () { $('mk-copy').textContent = 'Copy'; }, 1500);
+  });
+});
+
+/* ── migrate ── */
+$('run-btn').addEventListener('click', async function () {
+  var btn = this;
+  var repo = $('gh-repo').value.trim();
+  var token = $('gh-token').value.trim();
+  var mk = $('mk-input').value.trim().toLowerCase();
+
+  if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) { toastErr('Repository must look like owner/repo'); return; }
+  if (!token) { toastErr('Paste your GitHub token'); return; }
+  if (!/^[0-9a-f]{64}$/.test(mk)) { toastErr('Master key must be 64 hex characters — paste yours or click Generate'); return; }
+  if (!oldProjects.length) { toastErr('Nothing to migrate'); return; }
+
+  function toastErr(m) { log(m, 'bad'); $('result-card').classList.remove('hidden'); }
+
+  GH.repo = repo; GH.token = token;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>&nbsp; Moving…';
+  $('result-card').classList.remove('hidden');
+  moved = [];
+  $('stat-total').textContent = oldProjects.length;
+  $('stat-done').textContent = '0';
+  $('stat-fail').textContent = '0';
+
+  log('Checking token + repo…');
+  var chk = await gh('');
+  if (chk.status !== 200) {
+    log('GitHub check failed (' + chk.status + '): ' + ((chk.data && chk.data.message) || 'bad token or repo name'), 'bad');
+    btn.disabled = false; btn.textContent = 'Move everything to GitHub';
+    return;
+  }
+  log('Repo OK: ' + repo + (chk.data.private ? ' (private ✓)' : ' (⚠ this repo is PUBLIC — make it private!)'), chk.data.private ? 'ok' : 'bad');
+
+  var slug = slugFor(currentUser.email, currentUser.uid);
+  var userDir = 'Website-Encryption/' + slug;
+
+  try {
+    log('Creating Website-Encryption folder structure…');
+    await ghWrite('Website-Encryption/README.md',
+      '# Website Encryption vault\n\n' +
+      'Managed storage for HTMLTools Website Encryption.\n\n' +
+      '- One folder per user account, named by email.\n' +
+      '- One `<id>.we.json` file per item.\n' +
+      '- Each item file has a readable settings header (name, type, allowed domains)\n' +
+      '  and a `payload` field that is AES-256-GCM ciphertext. Plaintext is never stored.\n',
+      'vault: create storage root');
+    await ghWrite(userDir + '/_account.json',
+      JSON.stringify({ email: currentUser.email || null, uid: currentUser.uid, created: Date.now() }, null, 2),
+      'vault: register account');
+    log('Folder ready → ' + userDir + '/', 'ok');
+  } catch (e) {
+    log('Folder creation failed: ' + e.message, 'bad');
+    btn.disabled = false; btn.textContent = 'Move everything to GitHub';
+    return;
+  }
+
+  var masterKey;
+  try { masterKey = await importMasterKey(mk); }
+  catch (e) { log('Bad master key: ' + e.message, 'bad'); btn.disabled = false; btn.textContent = 'Move everything to GitHub'; return; }
+
+  var checked = {};
+  document.querySelectorAll('#proj-rows input[type=checkbox]').forEach(function (cb) { checked[cb.dataset.id] = cb.checked; });
+
+  var fails = 0;
+  for (var i = 0; i < oldProjects.length; i++) {
+    var p = oldProjects[i];
+    if (!checked[p.id]) { setPill(p.id, 'pill-q', 'skipped'); continue; }
+    setPill(p.id, 'pill-r', 'moving…');
+    try {
+      if (!p.encrypted || !p.encKey) throw new Error('old record is missing data');
+      var plain = await oldDecrypt(p.encrypted, p.encKey);
+      var type = mapType(p.type);
+      var meta = {
+        v: 1, id: p.id, name: p.name, type: type,
+        email: currentUser.email || null, uid: currentUser.uid,
+        created: p.created || Date.now(), updated: Date.now(),
+        domains: Array.isArray(p.domains) ? p.domains.map(String) : [],
+        rateLimit: 0, disabled: false,
+        payload: await vaultEncrypt(masterKey, plain)
+      };
+      if (type === 'apikey') { meta.target = ''; meta.authTemplate = 'Authorization: Bearer {SECRET}'; }
+      await ghWrite(userDir + '/' + p.id + '.we.json', JSON.stringify(meta, null, 2), 'vault: migrate item ' + p.id);
+      moved.push({ id: p.id, name: p.name });
+      setPill(p.id, 'pill-ok', 'moved ✓');
+      log('✓ "' + p.name + '" → ' + userDir + '/' + String(p.id).slice(0, 8) + '….we.json', 'ok');
+      if (type === 'apikey') $('apikey-note').classList.remove('hidden');
+    } catch (e) {
+      fails++;
+      setPill(p.id, 'pill-no', 'failed');
+      setErr(p.id, e.message);
+      log('✗ "' + p.name + '": ' + e.message, 'bad');
+    }
+    $('stat-done').textContent = moved.length;
+    $('stat-fail').textContent = fails;
+    await new Promise(function (r) { setTimeout(r, 350); });
+  }
+
+  log('Done: ' + moved.length + ' moved, ' + fails + ' failed.');
+  if (moved.length) $('wipe-row').classList.remove('hidden');
+  btn.disabled = false;
+  btn.textContent = fails ? 'Retry failed items' : 'Move everything to GitHub';
+});
+
+/* ── wipe old firebase data ── */
+$('wipe-btn').addEventListener('click', async function () {
+  if (!confirm('Delete the moved projects from the old Firebase storage?\n\nThis cannot be undone — only do it once everything above shows "moved ✓".')) return;
+  var btn = this;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>&nbsp; Deleting…';
+  try {
+    for (var i = 0; i < moved.length; i++) {
+      await db.ref('we_secrets/' + moved[i].id).remove();
+    }
+    await db.ref('we_users/' + currentUser.uid + '/projects').remove();
+    log('Old Firebase data deleted (' + moved.length + ' blobs + project list). Firebase now holds no Website Encryption data.', 'ok');
+    $('wipe-row').classList.add('hidden');
+    $('wipe-done').classList.remove('hidden');
+  } catch (e) {
+    log('Wipe failed: ' + e.message, 'bad');
+    btn.disabled = false; btn.textContent = 'Delete moved data from Firebase';
+  }
+});
+</script>
+</body>
+</html>
