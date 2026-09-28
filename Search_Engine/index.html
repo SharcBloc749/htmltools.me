@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTMLTools Search</title>
+<meta name="description" content="HTMLTools Search — a clean black &amp; white start page.">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="https://htmltools.me/logo3.png">
+
+<!-- ============================================================
+     ADDRESS-BAR REDIRECT
+     Chrome site-search URL:  https://htmltools.me/Search_Engine?q=%s
+     If ?q= is present we forward straight to Google before the
+     page even paints. location.replace() keeps Back from looping.
+     ============================================================ -->
+<script>
+(function () {
+  var q = new URLSearchParams(location.search).get("q");
+  if (q && q.trim()) {
+    location.replace("https://www.google.com/search?q=" + encodeURIComponent(q.trim()));
+  }
+})();
+</script>
+
+<style>
+  :root {
+    --bg: #000;
+    --surface: #0e0e0e;
+    --surface-2: #161616;
+    --border: #262626;
+    --border-2: #3a3a3a;
+    --text: #f5f5f5;
+    --muted: #a3a3a3;
+    --dim: #5c5c5c;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg) radial-gradient(ellipse 70% 55% at 50% 38%, #141414 0%, #000 70%) no-repeat;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* shared inline-svg icon */
+  .i {
+    width: 22px; height: 22px;
+    fill: none; stroke: currentColor; stroke-width: 1.8;
+    stroke-linecap: round; stroke-linejoin: round;
+    flex: none;
+  }
+
+  /* ---------- top bar ---------- */
+  .top {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 14px 18px;
+  }
+
+  .apps { position: relative; }
+
+  .apps-btn {
+    width: 40px; height: 40px;
+    border: 0; border-radius: 50%;
+    background: transparent;
+    color: #bdbdbd;
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .apps-btn:hover,
+  .apps-btn[aria-expanded="true"] { background: var(--surface-2); color: #fff; }
+  .apps-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  .apps-menu {
+    position: absolute; top: 48px; right: 0;
+    width: 312px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.8);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    z-index: 10;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-6px) scale(.98);
+    transform-origin: top right;
+    transition: opacity .15s, transform .15s, visibility 0s .15s;
+  }
+  .apps-menu.open {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition: opacity .15s, transform .15s, visibility 0s;
+  }
+  .apps-menu a {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 12px 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #bdbdbd;
+    text-align: center;
+    transition: background .15s, color .15s;
+  }
+  .apps-menu a:hover, .apps-menu a:focus-visible { background: var(--surface-2); color: #fff; outline: none; }
+  .apps-menu .ic {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #171717; border: 1px solid #2a2a2a;
+    display: grid; place-items: center; color: #fff;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .apps-menu .ic .i { width: 19px; height: 19px; }
+  .apps-menu a:hover .ic, .apps-menu a:focus-visible .ic { background: #fff; color: #000; border-color: #fff; }
+
+  /* ---------- centre ---------- */
+  main {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 12px 20px 72px;
+  }
+
+  .logo { display: block; }
+  .logo img,
+  .logo-fallback {
+    width: 104px; height: 104px;
+    border-radius: 24px;
+    display: block;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 24px 60px rgba(0,0,0,.8);
+    transition: transform .2s, box-shadow .2s;
+  }
+  .logo:hover img,
+  .logo:hover .logo-fallback {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 0 48px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.8);
+  }
+  /* shown only if logo3.png can't load */
+  .logo-fallback {
+    background: #0e0e0e;
+    border: 3px solid #fff;
+    display: grid; place-items: center;
+    font: 800 30px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    color: #fff;
+    letter-spacing: -.02em;
+  }
+
+  .wordmark {
+    margin: 22px 0 28px;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: .01em;
+    color: #fff;
+  }
+  .wordmark b { font-weight: 700; }
+  .wordmark span { font-weight: 300; color: #cfcfcf; }
+
+  .search {
+    width: 100%; max-width: 620px;
+    height: 56px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 8px 0 20px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 34px rgba(0,0,0,.6);
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .search:hover { border-color: var(--border-2); background: #111; }
+  .search:focus-within {
+    border-color: #fff;
+    background: #111;
+    box-shadow: 0 0 0 4px rgba(255,255,255,.07), 0 10px 34px rgba(0,0,0,.6);
+  }
+  .search .lead { color: #8a8a8a; }
+  .search input {
+    flex: 1; min-width: 0; height: 100%;
+    background: none; border: 0; outline: 0;
+    color: #fff;
+    font: inherit; font-size: 17px;
+  }
+  .search input::placeholder { color: #6a6a6a; }
+  .search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+  .search button {
+    flex: none;
+    width: 40px; height: 40px;
+    border: 0; border-radius: 50%;
+    background: #1c1c1c; color: #fff;
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .search button .i { width: 20px; height: 20px; stroke-width: 2; }
+  .search button:hover,
+  .search:focus-within button { background: #fff; color: #000; }
+
+  .shortcuts {
+    margin-top: 36px;
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 6px;
+    max-width: 620px;
+  }
+  .tile {
+    width: 100px;
+    padding: 12px 6px 10px;
+    border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    transition: background .15s, color .15s;
+  }
+  .tile .ic {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: #121212;
+    border: 1px solid #272727;
+    display: grid; place-items: center;
+    color: #f0f0f0;
+    transition: background .15s, color .15s, border-color .15s, transform .15s;
+  }
+  .tile:hover, .tile:focus-visible { background: rgba(255,255,255,.04); color: #fff; outline: none; }
+  .tile:hover .ic, .tile:focus-visible .ic {
+    background: #fff; color: #000; border-color: #fff;
+    transform: translateY(-2px);
+  }
+
+  /* ---------- footer (the low-key links) ---------- */
+  footer {
+    display: flex; flex-wrap: wrap;
+    justify-content: space-between; align-items: center;
+    gap: 8px 16px;
+    padding: 14px 22px;
+    border-top: 1px solid #131313;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  footer nav { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+  footer a { color: #6e6e6e; transition: color .15s; }
+  footer a:hover { color: #fff; }
+
+  @media (max-width: 520px) {
+    .logo img, .logo-fallback { width: 84px; height: 84px; border-radius: 20px; }
+    .wordmark { font-size: 26px; margin: 18px 0 24px; }
+    .search { height: 52px; }
+    .tile { width: 84px; font-size: 12px; }
+    .tile .ic { width: 50px; height: 50px; }
+    footer { justify-content: center; text-align: center; }
+    .apps-menu { width: 280px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+  }
+</style>
+</head>
+
+<body>
+
+<!-- icon sprite (all monochrome, inherit currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-arrow"  viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-grid"   viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></g></symbol>
+  <symbol id="i-play"   viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+  <symbol id="i-mail"   viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+  <symbol id="i-spark"  viewBox="0 0 24 24"><path d="M12 3c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z"/><path d="M19 15c.2 1.6 1.2 2.6 2.8 2.8-1.6.2-2.6 1.2-2.8 2.8-.2-1.6-1.2-2.6-2.8-2.8 1.6-.2 2.6-1.2 2.8-2.8z"/></symbol>
+  <symbol id="i-code"   viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+  <symbol id="i-doc"    viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-slides" viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></symbol>
+  <symbol id="i-cap"    viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><path d="M22 10v6"/></symbol>
+  <symbol id="i-home"   viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></symbol>
+</svg>
+
+<!-- ============ top bar: apps menu (has everything, incl. the low-key links) ============ -->
+<header class="top">
+  <div class="apps">
+    <button class="apps-btn" id="appsBtn" type="button" aria-label="HTMLTools apps" aria-haspopup="true" aria-expanded="false" aria-controls="appsMenu">
+      <svg class="i"><use href="#i-grid"/></svg>
+    </button>
+    <nav class="apps-menu" id="appsMenu" aria-label="All apps">
+      <a href="https://htmltools.me"><span class="ic"><svg class="i"><use href="#i-code"/></svg></span>HTMLTools</a>
+      <a href="https://mattube.htmltools.me"><span class="ic"><svg class="i"><use href="#i-play"/></svg></span>MatTube</a>
+      <a href="https://htmltools.me/Tools"><span class="ic"><svg class="i"><use href="#i-wrench"/></svg></span>Tools</a>
+      <a href="https://mail.google.com"><span class="ic"><svg class="i"><use href="#i-mail"/></svg></span>Gmail</a>
+      <a href="https://gemini.google.com"><span class="ic"><svg class="i"><use href="#i-spark"/></svg></span>Gemini</a>
+      <a href="https://docs.google.com"><span class="ic"><svg class="i"><use href="#i-doc"/></svg></span>Docs</a>
+      <a href="https://slides.google.com"><span class="ic"><svg class="i"><use href="#i-slides"/></svg></span>Slides</a>
+      <a href="https://classroom.google.com"><span class="ic"><svg class="i"><use href="#i-cap"/></svg></span>Classroom</a>
+      <a href="https://htmltools.me/Main"><span class="ic"><svg class="i"><use href="#i-home"/></svg></span>Main Page</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============ centre: logo · wordmark · search · shortcuts ============ -->
+<main>
+  <a class="logo" href="https://htmltools.me" aria-label="HTMLTools home">
+    <img src="https://htmltools.me/logo3.png" alt="HTMLTools" width="104" height="104"
+         onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'logo-fallback',textContent:'<HT>'}))">
+  </a>
+
+  <h1 class="wordmark"><a href="https://htmltools.me"><b>HTML</b><span>Tools</span></a></h1>
+
+  <!-- Searches go to Google. Works with JS off too (plain GET form). -->
+  <form class="search" id="search" action="https://www.google.com/search" method="get" role="search">
+    <svg class="i lead"><use href="#i-search"/></svg>
+    <input id="q" type="search" name="q" placeholder="Search Google" aria-label="Search Google"
+           autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus>
+    <button type="submit" aria-label="Search"><svg class="i"><use href="#i-arrow"/></svg></button>
+  </form>
+
+  <nav class="shortcuts" aria-label="Shortcuts">
+    <a class="tile" href="https://mattube.htmltools.me"><span class="ic"><svg class="i"><use href="#i-play"/></svg></span>MatTube</a>
+    <a class="tile" href="https://htmltools.me/Tools"><span class="ic"><svg class="i"><use href="#i-wrench"/></svg></span>Tools</a>
+    <a class="tile" href="https://mail.google.com"><span class="ic"><svg class="i"><use href="#i-mail"/></svg></span>Gmail</a>
+    <a class="tile" href="https://gemini.google.com"><span class="ic"><svg class="i"><use href="#i-spark"/></svg></span>Gemini</a>
+    <a class="tile" href="https://htmltools.me"><span class="ic"><svg class="i"><use href="#i-code"/></svg></span>HTMLTools</a>
+  </nav>
+</main>
+
+<!-- ============ footer: the low-key links ============ -->
+<footer>
+  <nav aria-label="More">
+    <a href="https://docs.google.com">Docs</a>
+    <a href="https://slides.google.com">Slides</a>
+    <a href="https://classroom.google.com">Classroom</a>
+    <a href="https://htmltools.me/Main">Main Page</a>
+  </nav>
+  <span>&copy; <span id="year"></span> HTMLTools</span>
+</footer>
+
+<script>
+(function () {
+  var form  = document.getElementById("search");
+  var input = document.getElementById("q");
+  var btn   = document.getElementById("appsBtn");
+  var menu  = document.getElementById("appsMenu");
+
+  document.getElementById("year").textContent = new Date().getFullYear();
+
+  /* --- search: Google, unless you clearly typed a URL --- */
+  form.addEventListener("submit", function (e) {
+    var v = input.value.trim();
+    if (!v) { e.preventDefault(); input.focus(); return; }
+    if (/^(https?:\/\/|www\.)\S+$/i.test(v)) {
+      e.preventDefault();
+      location.href = /^https?:\/\//i.test(v) ? v : "https://" + v;
+    }
+    /* otherwise the form submits to google.com/search?q=... */
+  });
+
+  /* --- apps menu --- */
+  function setMenu(open) {
+    menu.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    if (open) menu.querySelector("a").focus();
+  }
+  btn.addEventListener("click", function () { setMenu(!menu.classList.contains("open")); });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".apps")) setMenu(false);
+  });
+
+  /* --- keyboard --- */
+  document.addEventListener("keydown", function (e) {
+    var inInput = document.activeElement === input;
+    var menuOpen = menu.classList.contains("open");
+
+    if (e.key === "Escape") {
+      if (menuOpen) { setMenu(false); btn.focus(); }
+      else if (inInput) { input.value = ""; }
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey || inInput || menuOpen) return;
+
+    /* "/" or any printable key → jump to the search box (like Google's new tab) */
+    if (e.key === "/" || e.key.length === 1) {
+      if (e.key === "/") e.preventDefault();
+      input.focus();
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
