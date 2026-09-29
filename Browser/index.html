@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTMLTools Browser</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column;
+    background: #0d1117; color: #e6edf3;
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: #161b22; border-bottom: 1px solid #30363d;
+  }
+  .logo { font-weight: 700; white-space: nowrap; user-select: none; }
+  .logo span { color: #58a6ff; }
+  nav { display: flex; gap: 4px; }
+  button {
+    background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+    border-radius: 6px; padding: 6px 11px; cursor: pointer; font-size: 14px;
+  }
+  button:hover { background: #30363d; }
+  #go { flex: 1; display: flex; margin: 0 4px; }
+  #url {
+    flex: 1; background: #0d1117; color: #e6edf3;
+    border: 1px solid #30363d; border-radius: 6px; padding: 7px 12px;
+    font-size: 14px; outline: none;
+  }
+  #url:focus { border-color: #58a6ff; }
+  main { flex: 1; position: relative; }
+  #frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+  #status {
+    padding: 6px 12px; font-size: 12px; color: #8b949e;
+    background: #161b22; border-top: 1px solid #30363d;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">HTMLTools <span>Browser</span></div>
+    <nav>
+      <button id="back" title="Back">&#9664;</button>
+      <button id="fwd" title="Forward">&#9654;</button>
+      <button id="reload" title="Reload">&#8635;</button>
+      <button id="home" title="Home">&#8962;</button>
+    </nav>
+    <form id="go" autocomplete="off">
+      <input id="url" type="text" placeholder="Search or enter address" spellcheck="false" autofocus>
+    </form>
+  </header>
+  <main><iframe id="frame" title="proxied page" src="about:blank"></iframe></main>
+  <div id="status">Starting engine&hellip;</div>
+  <noscript>HTMLTools Browser needs JavaScript.</noscript>
+  <script>
+// HTMLTools Browser — app (auto-built single file)
+const BACKEND = "https://htmltools-browser-nqv1xw3k6rph.htmltools-browser.deno.net";
+const KEY = "htmltools-change-me-9f2k";
+const SEARCH = 'https://duckduckgo.com/?q=';
+// HTMLTools Browser — URL codec.
+// A proxied URL looks like:  <prefix>~/<base64url(xor-scrambled URL)>
+// Example (site root):       /~/aHR0cHM6...  (well, scrambled, not plain b64)
+// The XOR keeps the encoding compact and hides the destination from casual
+// URL inspection. The service worker decodes it before calling the backend.
+
+
+function xorStr(s) {
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    out += String.fromCharCode(s.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
+  }
+  return out;
+}
+
+function b64urlEncode(s) {
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function b64urlDecode(s) {
+  let b = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (b.length % 4) b += '=';
+  return atob(b);
+}
+
+/**
+ * Encode an absolute http(s) URL into a proxied path.
+ * @param {string} url    absolute URL, e.g. https://example.com/page
+ * @param {string} prefix base path of the app, e.g. '/' or '/browser/'
+ */
+function encodeUrl(url, prefix = '/') {
+  const p = prefix.endsWith('/') ? prefix : prefix + '/';
+  return p + '~/' + b64urlEncode(xorStr(encodeURIComponent(url)));
+}
+
+/**
+ * Decode a proxied path back into the target URL.
+ * Tolerates any prefix; returns null for non-proxied paths.
+ */
+function decodeUrl(part) {
+  const i = part.indexOf('~/');
+  if (i === -1) return null;
+  let tail = part.slice(i + 2);
+  if (!tail) return null;
+  try {
+    return decodeURIComponent(xorStr(b64urlDecode(tail)));
+  } catch {
+    return null;
+  }
+}
+
+// HTMLTools Browser — launcher UI logic. Deliberately tiny.
+
+
+
+const $ = (s) => document.querySelector(s);
+const frame = $('#frame');
+const bar = $('#url');
+const statusEl = $('#status');
+const BASE = new URL('./', location.href).pathname;
+
+// The placeholder default shipped in config.js counts as "not configured".
+const PLACEHOLDER = BACKEND.indexOf('htmltools-proxy.deno.dev') !== -1;
+
+const enc = (u) => encodeUrl(u, BASE);
+const dec = (p) => decodeUrl(p);
+
+function banner(msg, isErr = true) {
+  statusEl.textContent = msg;
+  statusEl.style.color = isErr ? '#ff7b72' : '#7ee787';
+}
+
+function normalize(input) {
+  let v = input.trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v) || /^localhost(:\d+)?/.test(v)) return 'https://' + v;
+  return SEARCH + encodeURIComponent(v);
+}
+
+function currentBackend() {
+  return localStorage.getItem('ht-backend') || BACKEND;
+}
+function backendConfigured() {
+  return !!localStorage.getItem('ht-backend') || !PLACEHOLDER;
+}
+
+async function init() {
+  if (!('serviceWorker' in navigator)) {
+    banner('This browser has no service worker support — the engine can\u2019t run here.');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('./sw.js', {});
+    const send = () => {
+      if (reg.active) reg.active.postMessage({ type: 'backend', url: currentBackend() });
+    };
+    if (reg.active) send();
+    navigator.serviceWorker.addEventListener('controllerchange', send);
+    send();
+  } catch (e) {
+    banner('Service worker failed to register: ' + e.message);
+    return;
+  }
+  wire();
+  if (!backendConfigured()) {
+    banner('One-time setup: click \u2699 and paste your Deno Deploy backend URL.');
+    openSettings();
+  } else {
+    banner('Engine ready \u2014 type a URL and hit Enter.', false);
+  }
+}
+
+function navigate(value) {
+  const target = normalize(value);
+  if (!target) return;
+  frame.src = enc(target);
+}
+
+// ── backend settings (gear) ──────────────────────────────────────────────
+function openSettings() {
+  let ov = $('#ht-settings');
+  if (ov) { ov.style.display = 'flex'; const i = $('#ht-backend-input'); i && i.focus(); return; }
+  ov = document.createElement('div');
+  ov.id = 'ht-settings';
+  ov.style.cssText =
+    'position:fixed;inset:0;background:rgba(1,4,9,.8);display:flex;align-items:center;justify-content:center;z-index:99';
+  ov.innerHTML =
+    '<div style="background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;max-width:440px;width:92%">' +
+    '<div style="font-weight:700;margin-bottom:6px">Backend URL</div>' +
+    '<div style="color:#8b949e;font-size:12.5px;line-height:1.5;margin-bottom:10px">Paste your Deno Deploy URL ' +
+    '(the one that shows <code>{"service":"htmltools-proxy"…}</code>). One time only — it\u2019s remembered.</div>' +
+    '<input id="ht-backend-input" type="url" placeholder="https://your-app.deno.dev" spellcheck="false" ' +
+    'style="width:100%;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:8px 10px;font-size:13px;outline:none">' +
+    '<div id="ht-backend-err" style="color:#ff7b72;font-size:12px;min-height:16px;margin-top:6px"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">' +
+    '<button id="ht-backend-cancel" style="background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:6px 14px;cursor:pointer">Cancel</button>' +
+    '<button id="ht-backend-save" style="background:#238636;color:#fff;border:0;border-radius:6px;padding:6px 14px;cursor:pointer;font-weight:600">Save</button>' +
+    '</div></div>';
+  document.body.appendChild(ov);
+  const input = $('#ht-backend-input');
+  const err = $('#ht-backend-err');
+  input.value = backendConfigured() && localStorage.getItem('ht-backend') ? localStorage.getItem('ht-backend') : '';
+  input.focus();
+  $('#ht-backend-cancel').onclick = () => { ov.style.display = 'none'; };
+  const save = () => {
+    const u = input.value.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\/[\w.-]+(:\d+)?(\/.*)?$/.test(u)) {
+      err.textContent = 'That doesn\u2019t look like a URL — it should start with https://';
+      return;
+    }
+    localStorage.setItem('ht-backend', u);
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'backend', url: u });
+    }
+    ov.style.display = 'none';
+    banner('Backend saved \u2014 engine ready. Type a URL and hit Enter.', false);
+  };
+  $('#ht-backend-save').onclick = save;
+  input.onkeydown = (e) => { if (e.key === 'Enter') save(); };
+}
+
+function wire() {
+  $('#go').addEventListener('submit', (e) => {
+    e.preventDefault();
+    navigate(bar.value);
+  });
+  $('#back').addEventListener('click', () => frame.contentWindow && frame.contentWindow.history.back());
+  $('#fwd').addEventListener('click', () => frame.contentWindow && frame.contentWindow.history.forward());
+  $('#reload').addEventListener('click', () => {
+    try { frame.contentWindow.location.reload(); } catch { frame.src = frame.src; }
+  });
+  $('#home').addEventListener('click', () => { frame.src = 'about:blank'; bar.value = ''; });
+
+  // ⚙ backend settings button
+  const gear = document.createElement('button');
+  gear.id = 'gear';
+  gear.title = 'Backend settings';
+  gear.textContent = '\u2699';
+  gear.style.marginLeft = '2px';
+  gear.addEventListener('click', openSettings);
+  document.querySelector('header').appendChild(gear);
+
+  frame.addEventListener('load', () => {
+    try {
+      const path = frame.contentWindow.location.pathname;
+      const real = dec(path);
+      if (real) bar.value = real;
+    } catch {}
+  });
+
+  const q = new URLSearchParams(location.search).get('q');
+  if (q) { bar.value = q; navigate(q); }
+}
+
+init();
+
+</script>
+</body>
+</html>
