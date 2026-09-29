@@ -93,6 +93,20 @@ const ATTRS =
 
 /** Rewrite every proxiable URL inside an HTML document. */
 function rewriteHtml(html, baseUrl, encode) {
+  // 0. Strip page defenses that would block rewritten resources:
+  //    - CSP meta tags (they allowlist the site's own domains → our /~/
+  //      URLs get treated as foreign and CSS/JS/images get blocked)
+  //    - integrity (SRI) hashes (our rewritten CSS no longer matches them)
+  //    - nonce attributes (meaningless once CSP is gone)
+  html = html.replace(
+    /<meta\s[^>]*http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi,
+    ''
+  );
+  html = html.replace(
+    /\s(?:integrity|nonce)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+    ''
+  );
+
   // Honor <base href> if the page declares one.
   let base = baseUrl;
   const baseTag = html.match(/<base\s[^>]*href\s*=\s*["']([^"']+)["']/i);
