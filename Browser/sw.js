@@ -1,7 +1,7 @@
 // HTMLTools Browser — engine (auto-built single file)
 const BACKEND = "https://htmltools-browser-nqv1xw3k6rph.htmltools-browser.deno.net";
 const KEY = "htmltools-change-me-9f2k";
-const SEARCH = 'https://duckduckgo.com/?q=';
+const SEARCH = "https://www.bing.com/search?q=";
 // HTMLTools Browser — URL codec.
 // A proxied URL looks like:  <prefix>~/<base64url(xor-scrambled URL)>
 // Example (site root):       /~/aHR0cHM6...  (well, scrambled, not plain b64)
