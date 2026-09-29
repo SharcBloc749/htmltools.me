@@ -376,7 +376,19 @@
   <div class="toolbar">
     <div class="search-wrap">
       <span class="search-icon">⌕</span>
-      <input type="text" id="search-input" placeholder="Search games…" oninput="renderBooks()"/>
+      <input type="text" id="search-input" placeholder="Search games…" oninput="handleSearchInput()"/>
+<script>
+  (function(){
+    try {
+      var sp = new URLSearchParams(window.location.search);
+      var q = sp.get('search') || sp.get('q');
+      if (q) {
+        var el = document.getElementById('search-input');
+        if (el) el.value = q;
+      }
+    } catch(e){}
+  })();
+</script>
     </div>
     <div class="filters">
       <button class="filter-btn active" data-filter="popular" onclick="setFilter('popular',this)">⭐ Popular</button>
@@ -844,20 +856,40 @@ onAuthStateChanged(auth,async u=>{
 
 // ── RENDER ────────────────────────────────────────────────────
 function renderPins(){
-  const pids=Object.keys(pinnedBooks).filter(id=>allBooks[id]&&pinnedBooks[id]);
+  const q=(document.getElementById('search-input')?.value||'').trim().toLowerCase();
   const banner=document.getElementById('pin-banner');
+  if(!banner)return;
+  if(q){banner.classList.remove('show');return;}
+  const pids=Object.keys(pinnedBooks).filter(id=>allBooks[id]&&pinnedBooks[id]);
   if(!pids.length){banner.classList.remove('show');return;}
   banner.classList.add('show');
   document.getElementById('pin-grid').innerHTML=pids.map(id=>buildCard(id,allBooks[id],true)).join('');
 }
 
+window.handleSearchInput=function(){
+  const input=document.getElementById('search-input');
+  const val=(input?.value||'').trim();
+  try{
+    const url=new URL(window.location.href);
+    if(val){
+      url.searchParams.set('search',input.value);
+    }else{
+      url.searchParams.delete('search');
+      url.searchParams.delete('q');
+    }
+    history.replaceState(null,'',url.pathname+(url.searchParams.toString()?'?'+url.searchParams.toString():'')+url.hash);
+  }catch(e){}
+  renderPins();
+  renderBooks();
+};
+
 window.renderBooks=function(){
   const grid=document.getElementById('books-grid');
-  const q=(document.getElementById('search-input').value||'').toLowerCase();
+  const q=(document.getElementById('search-input')?.value||'').trim().toLowerCase();
   const pinnedIds=new Set(Object.keys(pinnedBooks).filter(id=>pinnedBooks[id]));
   let entries=Object.entries(allBooks).filter(([id,b])=>{
     if(!b?.title)return false;
-    if(pinnedIds.has(id))return false;
+    if(!q && pinnedIds.has(id))return false;
     if(q&&!b.title.toLowerCase().includes(q)&&!(b.desc||'').toLowerCase().includes(q))return false;
     const p=b.platform||'computer';
     if(currentFilter==='mine')return CU&&(CU.uid===b.ownerId||isCollab(b));
@@ -1391,9 +1423,51 @@ document.addEventListener('keydown',e=>{
 });
 document.querySelectorAll('.overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});});
 
-// Legacy redirect
-const p=new URLSearchParams(location.search);const sharedBookId=p.get('book');
+// URL search param & legacy redirect handling
+const p=new URLSearchParams(location.search);
+const sharedBookId=p.get('book');
 if(sharedBookId)window.location.replace('/Library/book/'+sharedBookId);
+
+const initialSearch=p.get('search')||p.get('q');
+if(initialSearch){
+  const sInput=document.getElementById('search-input');
+  if(sInput){
+    sInput.value=initialSearch;
+    if(_booksLoaded){ renderPins(); renderBooks(); }
+  }
+}
+
+const initialFilter=p.get('filter');
+if(initialFilter){
+  const fBtn=document.querySelector(`.filter-btn[data-filter="${CSS.escape(initialFilter)}"]`);
+  if(fBtn&&typeof window.setFilter==='function'){
+    window.setFilter(initialFilter,fBtn);
+  }
+}
+
+// Support browser Back/Forward navigation with search params
+window.addEventListener('popstate',()=>{
+  try{
+    const sp=new URLSearchParams(window.location.search);
+    const s=sp.get('search')||sp.get('q')||'';
+    const sInput=document.getElementById('search-input');
+    if(sInput&&sInput.value!==s){
+      sInput.value=s;
+      renderPins();
+      renderBooks();
+    }
+  }catch(e){}
+});
+
+// Clear search with Escape key if input is active
+document.getElementById('search-input')?.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&e.target.value){
+    e.target.value='';
+    window.handleSearchInput();
+    e.stopPropagation();
+  }
+});
 </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
