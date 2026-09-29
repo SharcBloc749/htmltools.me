@@ -8,218 +8,273 @@
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="https://htmltools.me/logo3.png">
 
+<script>
+/* ======================================================================
+   CONFIG — everything you'd ever want to edit is in these two lists.
+     url  : where a search goes. {q} = the URL-encoded query
+     home : where the card goes when there's no query
+     keys : shortcut words. Typed at the END of a search they skip this
+            page:  "cute cats mattube"  →  MatTube search for "cute cats"
+   ====================================================================== */
+var ENGINES = [
+  { id: "google",     name: "Google",     url: "https://www.google.com/search?q={q}",   home: "https://www.google.com",   keys: ["google"],                             color: "#4285F4" },
+  { id: "duckduckgo", name: "DuckDuckGo", url: "https://duckduckgo.com/?q={q}",         home: "https://duckduckgo.com",   keys: ["duckduckgo", "duck duck go", "ddg"], color: "#DE5833", fav: "duckduckgo.com" },
+  { id: "bing",       name: "Bing",       url: "https://www.bing.com/search?q={q}",     home: "https://www.bing.com",     keys: ["bing"],                               color: "#0078D4", fav: "bing.com" },
+  { id: "yahoo",      name: "Yahoo",      url: "https://search.yahoo.com/search?p={q}", home: "https://search.yahoo.com", keys: ["yahoo"],                              color: "#6001D2", fav: "yahoo.com" },
+  { id: "brave",      name: "Brave",      url: "https://search.brave.com/search?q={q}", home: "https://search.brave.com", keys: ["brave"],                              color: "#FB542B", fav: "search.brave.com" }
+];
+
+var DESTS = [
+  { id: "web",        eyebrow: "Search on",      engine: true },   /* ← uses whichever engine the user picked */
+  { id: "horizon",    eyebrow: "Search on",      name: "Horizon",           url: "https://htmltools.me/Browser/?search={q}",       home: "https://htmltools.me/Browser/",            keys: ["horizon"],                      icon: "sunrise" },
+  { id: "proxy",      eyebrow: "Search on",      name: "HTMLTools Proxy",   url: "https://htmltools.me/URL/?search={q}",           home: "https://htmltools.me/URL/",                keys: ["htmltools proxy", "proxy"],     icon: "logo" },
+  { id: "mattube",    eyebrow: "Search on",      name: "MatTube",           url: "https://mattube.htmltools.me/?search={q}",       home: "https://mattube.htmltools.me/",            keys: ["mattube"],                      icon: "logo" },
+  { id: "library",    eyebrow: "Search on",      name: "HTMLTools Library", url: "https://htmltools.me/Library/?search={q}",       home: "https://htmltools.me/Library/",            keys: ["htmltools library"],            icon: "book" },
+  { id: "translate",  eyebrow: "Translate with", name: "Translate",         url: "https://translate.htmltools.me/?input={q}",      home: "https://translate.htmltools.me/",          keys: ["translate"],                    icon: "lang" },
+  { id: "playground", eyebrow: "Continue with",  name: "AI Playground",     url: "https://htmltools.me/AI-Playground/Chat/?p={q}", home: "https://htmltools.me/AI-Playground/Chat/", keys: ["ai playground", "playground"],  icon: "logo" },
+  { id: "gemini",     eyebrow: "Continue with",  name: "Gemini",            url: "https://www.google.com/search?udm=50&q={q}",     home: "https://www.google.com/search?udm=50",     keys: ["gemini"],                       icon: "gemini" },
+  { id: "image",      eyebrow: "Create with",    name: "Make an Image",     url: "https://htmltools.me/ImageGeneratorAI/?p={q}",   home: "https://htmltools.me/ImageGeneratorAI/",   keys: ["image"],                        icon: "image" }
+];
+
+var Q = (new URLSearchParams(location.search).get("q") || "").replace(/\s+/g, " ").trim();
+
+function destUrl(d, q) { return q ? d.url.replace("{q}", encodeURIComponent(q)) : d.home; }
+
+/* Shortcut = a keyword as the last word(s) of the query, case-insensitive.
+   Trailing spaces are ignored; anything else after the word ("banana image?")
+   disables it. The keyword on its own ("translate") opens that tool's front page. */
+function matchShortcut(q) {
+  var pairs = [];
+  ENGINES.forEach(function (e) { e.keys.forEach(function (k) { pairs.push([k, e]); }); });
+  DESTS.forEach(function (d) { if (!d.engine) d.keys.forEach(function (k) { pairs.push([k, d]); }); });
+  pairs.sort(function (a, b) { return b[0].length - a[0].length; });
+  for (var i = 0; i < pairs.length; i++) {
+    var k = pairs[i][0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    var m = q.match(new RegExp("^(?:(.*\\S)\\s+)?" + k + "$", "i"));
+    if (m) return { to: pairs[i][1], q: m[1] || "" };
+  }
+  return null;
+}
+
+/* fast path: a shortcut leaves right now, before anything paints */
+var SHORTCUT = Q ? matchShortcut(Q) : null;
+if (SHORTCUT) {
+  document.documentElement.className += " leaving";
+  location.replace(destUrl(SHORTCUT.to, SHORTCUT.q));
+}
+</script>
+
 <style>
   :root {
-    --bg: #000;
-    --surface: #0e0e0e;
-    --surface-2: #161616;
-    --border: #262626;
-    --text: #f5f5f5;
-    --muted: #a3a3a3;
-    --dim: #5c5c5c;
+    --surface: #0e0e0e; --surface-2: #161616; --border: #262626;
+    --text: #f5f5f5; --muted: #a3a3a3; --dim: #5c5c5c;
   }
-
+  html.leaving { visibility: hidden; }
   *, *::before, *::after { box-sizing: border-box; }
   html, body { height: 100%; }
-
   body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
     color: var(--text);
-    background: var(--bg) radial-gradient(ellipse 70% 45% at 50% 0%, #141414 0%, #000 70%) no-repeat;
+    background: #000 radial-gradient(ellipse 70% 45% at 50% 0%, #141414 0%, #000 70%) no-repeat;
     -webkit-font-smoothing: antialiased;
   }
-
   a { color: inherit; text-decoration: none; }
+  button { font: inherit; }
 
-  .i {
-    width: 22px; height: 22px;
-    fill: none; stroke: currentColor; stroke-width: 1.8;
-    stroke-linecap: round; stroke-linejoin: round;
-    flex: none;
-  }
+  .i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; }
 
   kbd {
-    font: 500 11px/1 inherit;
-    font-family: inherit;
-    color: #6f6f6f;
-    border: 1px solid #303030;
-    border-radius: 6px;
-    padding: 4px 6px;
-    min-width: 22px;
-    text-align: center;
-    display: inline-block;
-    background: rgba(0,0,0,.3);
+    font: 500 11px/1 inherit; font-family: inherit; color: #6f6f6f;
+    border: 1px solid #303030; border-radius: 6px; padding: 4px 6px; min-width: 22px;
+    text-align: center; display: inline-block; background: rgba(0,0,0,.3);
   }
 
-  /* ---------- top bar: just the apps menu ---------- */
+  /* ---------- top bar ---------- */
   .top { display: flex; justify-content: flex-end; align-items: center; padding: 14px 18px; }
   .apps { position: relative; }
-  .apps-btn {
-    width: 40px; height: 40px; border: 0; border-radius: 50%;
-    background: transparent; color: #bdbdbd;
-    display: grid; place-items: center; cursor: pointer;
-    transition: background .15s, color .15s;
-  }
+  .apps-btn { width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: #bdbdbd; display: grid; place-items: center; cursor: pointer; transition: background .15s, color .15s; }
   .apps-btn:hover, .apps-btn[aria-expanded="true"] { background: var(--surface-2); color: #fff; }
   .apps-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .apps-menu {
     position: absolute; top: 48px; right: 0; width: 312px; padding: 12px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
-    box-shadow: 0 24px 60px rgba(0,0,0,.8);
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; z-index: 10;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.8);
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; z-index: 60;
     visibility: hidden; opacity: 0; transform: translateY(-6px) scale(.98); transform-origin: top right;
     transition: opacity .15s, transform .15s, visibility 0s .15s;
   }
   .apps-menu.open { visibility: visible; opacity: 1; transform: none; transition: opacity .15s, transform .15s, visibility 0s; }
-  .apps-menu a {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    padding: 12px 4px 10px; border-radius: 12px; font-size: 12px; color: #bdbdbd; text-align: center;
-    transition: background .15s, color .15s;
-  }
+  .apps-menu a { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 4px 10px; border-radius: 12px; font-size: 12px; color: #bdbdbd; text-align: center; transition: background .15s, color .15s; }
   .apps-menu a:hover, .apps-menu a:focus-visible { background: var(--surface-2); color: #fff; outline: none; }
-  .apps-menu .ic {
-    width: 40px; height: 40px; border-radius: 50%; background: #171717; border: 1px solid #2a2a2a;
-    display: grid; place-items: center; color: #fff; transition: background .15s, color .15s, border-color .15s;
-  }
+  .apps-menu .ic { width: 40px; height: 40px; border-radius: 50%; background: #171717; border: 1px solid #2a2a2a; display: grid; place-items: center; color: #fff; transition: background .15s, color .15s, border-color .15s; }
   .apps-menu .ic .i { width: 19px; height: 19px; }
   .apps-menu a:hover .ic, .apps-menu a:focus-visible .ic { background: #fff; color: #000; border-color: #fff; }
 
   /* ---------- page ---------- */
-  main {
-    flex: 1;
-    display: flex; flex-direction: column; align-items: center;
-    padding: 6px 20px 56px;
-  }
+  main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 6px 20px 56px; }
 
-  .logo { display: block; margin-bottom: 26px; }
+  .logo { display: block; margin-bottom: 24px; }
   .logo img, .logo-fallback {
-    width: 88px; height: 88px; border-radius: 20px; display: block;
-    box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 24px 60px rgba(0,0,0,.8);
-    transition: transform .2s, box-shadow .2s;
+    width: 84px; height: 84px; border-radius: 20px; display: block;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 24px 60px rgba(0,0,0,.8); transition: transform .2s, box-shadow .2s;
   }
-  .logo:hover img, .logo:hover .logo-fallback {
-    transform: translateY(-2px);
-    box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 0 48px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.8);
-  }
-  .logo-fallback {
-    background: #0e0e0e; border: 3px solid #fff; display: grid; place-items: center;
-    font: 800 26px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; color: #fff; letter-spacing: -.02em;
-  }
+  .logo:hover img, .logo:hover .logo-fallback { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 0 48px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.8); }
+  .logo-fallback { background: #0e0e0e; border: 3px solid #fff; display: grid; place-items: center; font: 800 26px/1 ui-monospace, Consolas, monospace; color: #fff; }
 
-  .lead {
-    margin: 0 0 8px;
-    font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--dim);
-  }
-  .query {
-    margin: 0 0 34px;
-    max-width: 760px;
-    text-align: center;
-    font-size: clamp(22px, 3.4vw, 30px); font-weight: 600; line-height: 1.25;
-    color: #fff;
-    overflow-wrap: anywhere;
-  }
+  .lead { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  .query { margin: 0 0 30px; max-width: 760px; text-align: center; font-size: clamp(22px, 3.4vw, 30px); font-weight: 600; line-height: 1.25; color: #fff; overflow-wrap: anywhere; }
   .query.quoted::before { content: "\201C"; color: #444; font-weight: 400; }
   .query.quoted::after  { content: "\201D"; color: #444; font-weight: 400; }
-  .sub { margin: -22px 0 34px; font-size: 14px; color: var(--muted); text-align: center; }
+  .sub { margin: -18px 0 30px; font-size: 14px; color: var(--muted); text-align: center; }
   .sub[hidden] { display: none; }
 
-  /* ---------- destination cards ---------- */
-  .grid {
-    width: 100%; max-width: 760px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
+  /* ---------- cards ---------- */
+  .grid { width: 100%; max-width: 780px; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 12px; }
+
   .card {
-    position: relative;
-    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px;
-    padding: 28px 16px 24px;
-    border-radius: 22px;
-    background: linear-gradient(180deg, #131313 0%, #0a0a0a 100%);
-    border: 1px solid #232323;
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    padding: 24px 14px 14px; border-radius: 22px;
+    background: linear-gradient(180deg, #131313 0%, #0a0a0a 100%); border: 1px solid #232323;
     box-shadow: 0 12px 30px rgba(0,0,0,.45);
     transition: transform .18s, border-color .18s, box-shadow .18s, background .18s;
     animation: rise .4s cubic-bezier(.2,.7,.2,1) backwards;
   }
-  .card:nth-child(1) { animation-delay: 30ms; }
-  .card:nth-child(2) { animation-delay: 70ms; }
-  .card:nth-child(3) { animation-delay: 110ms; }
-  .card:nth-child(4) { animation-delay: 150ms; }
-  .card:nth-child(5) { animation-delay: 190ms; }
-  .card:nth-child(6) { animation-delay: 230ms; }
-  .card:nth-child(7) { animation-delay: 270ms; }
+  .card:nth-child(1) { animation-delay: 30ms; }  .card:nth-child(2) { animation-delay: 60ms; }  .card:nth-child(3) { animation-delay: 90ms; }
+  .card:nth-child(4) { animation-delay: 120ms; } .card:nth-child(5) { animation-delay: 150ms; } .card:nth-child(6) { animation-delay: 180ms; }
+  .card:nth-child(7) { animation-delay: 210ms; } .card:nth-child(8) { animation-delay: 240ms; } .card:nth-child(9) { animation-delay: 270ms; } .card:nth-child(10) { animation-delay: 300ms; }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-  .card:hover, .card:focus {
-    outline: none;
-    transform: translateY(-3px);
-    border-color: #fff;
+  .card:hover, .card:focus-within {
+    transform: translateY(-3px); border-color: #fff;
     background: linear-gradient(180deg, #191919 0%, #0e0e0e 100%);
     box-shadow: 0 24px 48px rgba(0,0,0,.6), 0 0 44px rgba(255,255,255,.06);
   }
+  .card.open { transform: none; z-index: 50; }
+  .card.web:hover, .card.web:focus-within { box-shadow: 0 24px 48px rgba(0,0,0,.6), 0 0 54px var(--glow, rgba(255,255,255,.08)); }
+  .card.gemini:hover, .card.gemini:focus-within { box-shadow: 0 24px 48px rgba(0,0,0,.6), 0 0 54px rgba(160,110,255,.22); }
+
+  .hit { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; outline: none; }
+
   .card .ic {
-    width: 64px; height: 64px; border-radius: 50%; margin-bottom: 10px;
-    background: #1a1a1a; border: 1px solid #2e2e2e;
+    width: 66px; height: 66px; border-radius: 50%; margin-bottom: 10px; overflow: hidden;
+    background: radial-gradient(circle at 50% 30%, #222 0%, #151515 70%); border: 1px solid #2e2e2e;
     display: grid; place-items: center; color: #fff;
-    transition: background .18s, color .18s, border-color .18s, transform .18s;
+    transition: background .18s, color .18s, border-color .18s, transform .18s, box-shadow .18s;
   }
-  .card .ic .i { width: 27px; height: 27px; }
-  .card:hover .ic, .card:focus .ic { background: #fff; color: #000; border-color: #fff; transform: scale(1.05); }
-  .card.google .ic { background: #fff; border-color: #fff; }
-  .card.google:hover, .card.google:focus { box-shadow: 0 24px 48px rgba(0,0,0,.6), 0 0 54px rgba(66,133,244,.18); }
-  .card.gemini:hover, .card.gemini:focus { box-shadow: 0 24px 48px rgba(0,0,0,.6), 0 0 54px rgba(160,110,255,.22); }
+  .card .ic .i { width: 28px; height: 28px; stroke-width: 1.7; }
+  .card:hover .ic, .card:focus-within .ic { background: #fff; color: #000; border-color: #fff; transform: scale(1.05); }
+  .card .ic.white { background: #fff; border-color: #fff; }
+  .card .ic .fav { width: 34px; height: 34px; display: block; }
+  .card .ic .tile { width: 100%; height: 100%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 24px; letter-spacing: -.03em; }
+  /* HTMLTools-logo icons: rounded square, not a circle */
+  .card .ic.img { border-radius: 16px; border: 0; background: #000; }
+  .card .ic.img img { width: 100%; height: 100%; display: block; }
+  .card:hover .ic.img, .card:focus-within .ic.img { background: #000; box-shadow: 0 0 0 2px #fff, 0 0 26px rgba(255,255,255,.18); }
+  .ic-fallback { width: 100%; height: 100%; border-radius: 16px; border: 2px solid #fff; display: grid; place-items: center; color: #fff; font: 800 17px/1 ui-monospace, Consolas, monospace; }
 
   .card .eyebrow { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
-  .card .name { font-size: 16px; font-weight: 600; color: #fff; }
-  .card kbd { position: absolute; top: 12px; right: 12px; }
+  .card .name { font-size: 16px; font-weight: 600; color: #fff; line-height: 1.25; }
+  .card kbd.key { position: absolute; top: 12px; right: 12px; }
 
-  /* full-width "open this URL" card, only when the query looks like an address */
-  .card.wide {
-    grid-column: 1 / -1;
-    flex-direction: row; text-align: left; gap: 16px;
-    padding: 16px 20px;
+  .foot { margin-top: 12px; display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; max-width: 100%; }
+  .kw {
+    font: 500 11px/1 ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; color: #7d7d7d;
+    background: #0b0b0b; border: 1px solid #242424; border-radius: 999px; padding: 5px 9px;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .18s, border-color .18s;
   }
+  .kw::before { content: "\2026 "; color: #4a4a4a; }
+  .card:hover .kw, .card:focus-within .kw { color: #e0e0e0; border-color: #3a3a3a; }
+
+  .switch {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; line-height: 1;
+    color: #cfcfcf; background: #171717; border: 1px solid #2c2c2c; border-radius: 999px; padding: 5px 9px 5px 7px; cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .switch .i { width: 13px; height: 13px; stroke-width: 2.2; }
+  .switch:hover, .switch[aria-expanded="true"] { background: #fff; color: #000; border-color: #fff; }
+  .switch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  /* engine picker */
+  .menu {
+    position: absolute; top: calc(100% + 8px); left: 50%; width: 244px; padding: 6px;
+    background: #101010; border: 1px solid #2c2c2c; border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.85);
+    z-index: 55; visibility: hidden; opacity: 0; transform: translate(-50%, -6px); transform-origin: top center;
+    transition: opacity .15s, transform .15s, visibility 0s .15s;
+  }
+  .card.open .menu { visibility: visible; opacity: 1; transform: translate(-50%, 0); transition: opacity .15s, transform .15s, visibility 0s; }
+  .menu .mh { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #5a5a5a; padding: 7px 10px 5px; }
+  .menu .mf { font-size: 10.5px; color: #5a5a5a; padding: 8px 10px 4px; border-top: 1px solid #1e1e1e; margin-top: 4px; line-height: 1.4; }
+  .menu button[role="option"] {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; background: none;
+    color: #d8d8d8; font-size: 13px; border-radius: 10px; cursor: pointer; text-align: left;
+  }
+  .menu button[role="option"]:hover, .menu button[role="option"]:focus { background: #1d1d1d; color: #fff; outline: none; }
+  .menu .mi { width: 28px; height: 28px; border-radius: 50%; background: #fff; display: grid; place-items: center; overflow: hidden; flex: none; }
+  .menu .mi img { width: 18px; height: 18px; display: block; }
+  .menu .mi .i { width: 16px; height: 16px; }
+  .menu .mi .tile { width: 100%; height: 100%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
+  .menu .mn { flex: 1; }
+  .menu .mk { font: 500 10px/1 ui-monospace, Consolas, monospace; color: #666; white-space: nowrap; }
+  .menu .tick { width: 16px; height: 16px; stroke-width: 2.4; opacity: 0; }
+  .menu button[aria-selected="true"] .tick { opacity: 1; }
+  .menu button[aria-selected="true"] { color: #fff; }
+
+  /* URL card (only when the query looks like an address) */
+  .card.wide { grid-column: 1 / -1; flex-direction: row; padding: 14px 18px; }
+  .card.wide .hit { flex-direction: row; text-align: left; gap: 16px; }
   .card.wide .ic { width: 48px; height: 48px; margin: 0; }
   .card.wide .ic .i { width: 22px; height: 22px; }
   .card.wide .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .card.wide .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card.wide .go { margin-left: auto; color: #555; }
-  .card.wide:hover .go, .card.wide:focus .go { color: #fff; }
-  .card[hidden] { display: none; }
+  .card.wide:hover .go, .card.wide:focus-within .go { color: #fff; }
 
-  .hint { margin: 22px 0 0; text-align: center; font-size: 12px; color: var(--dim); }
+  /* tip + shortcut panel */
+  .tip { margin: 22px auto 0; max-width: 760px; text-align: center; font-size: 12.5px; color: #8a8a8a; line-height: 1.8; }
+  .tip .ex { font-family: ui-monospace, Consolas, Menlo, monospace; font-size: 11.5px; color: #c8c8c8; background: #0f0f0f; border: 1px solid #262626; border-radius: 6px; padding: 2px 7px; white-space: nowrap; }
+  .tip .link { background: none; border: 0; padding: 0; color: #fff; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+  .panel { width: 100%; max-width: 780px; margin-top: 14px; background: #0c0c0c; border: 1px solid #242424; border-radius: 18px; padding: 16px 20px 14px; display: none; }
+  .panel.open { display: block; }
+  .panel h2 { margin: 0 0 4px; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: #666; }
+  .panel .rows { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+  .panel .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; padding: 8px 0; border-bottom: 1px solid #171717; }
+  .panel .row .n { color: #ddd; }
+  .panel .row .ks { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .panel .rules { margin: 12px 0 0; font-size: 12px; color: #7a7a7a; line-height: 1.7; }
+  .panel .rules b { color: #bbb; font-weight: 500; }
+
+  .hint { margin: 16px 0 0; text-align: center; font-size: 12px; color: var(--dim); line-height: 2; }
   .hint kbd { padding: 3px 6px; min-width: 0; }
 
-  /* ---------- footer ---------- */
-  footer {
-    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
-    gap: 8px 16px; padding: 14px 22px;
-    border-top: 1px solid #131313; font-size: 12px; color: var(--dim);
-  }
+  footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 14px 22px; border-top: 1px solid #131313; font-size: 12px; color: var(--dim); }
   footer nav { display: flex; flex-wrap: wrap; gap: 4px 20px; }
   footer a { color: #6e6e6e; transition: color .15s; }
   footer a:hover { color: #fff; }
 
   @media (max-width: 640px) {
-    .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .card { padding: 22px 12px 18px; border-radius: 18px; }
-    .card .ic { width: 56px; height: 56px; }
-    .logo img, .logo-fallback { width: 76px; height: 76px; border-radius: 18px; }
-    .query { margin-bottom: 26px; }
-    .sub { margin: -14px 0 26px; }
+    .grid { gap: 8px; }
+    .card { padding: 18px 8px 10px; border-radius: 16px; }
+    .card .ic { width: 52px; height: 52px; margin-bottom: 8px; }
+    .card .ic .i { width: 23px; height: 23px; }
+    .card .ic .fav { width: 27px; height: 27px; }
+    .card .ic.img, .ic-fallback { border-radius: 13px; }
+    .card .eyebrow { font-size: 9px; }
+    .card .name { font-size: 12.5px; }
+    .kw { display: none; }
+    .foot { margin-top: 8px; }
+    .foot:empty { display: none; }
+    .switch { padding: 5px 8px 5px 6px; font-size: 10.5px; }
+    .logo img, .logo-fallback { width: 72px; height: 72px; border-radius: 17px; }
+    .query { margin-bottom: 22px; }
+    .sub { margin: -10px 0 22px; }
+    .panel .rows { grid-template-columns: 1fr; }
     footer { justify-content: center; text-align: center; }
     .apps-menu { width: 280px; }
     kbd.key, .hint { display: none; }
   }
   @media (hover: none) { kbd.key, .hint { display: none; } }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { transition: none !important; animation: none !important; }
-  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 </style>
 </head>
 
@@ -227,30 +282,30 @@
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <linearGradient id="gemGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4E8CFF"/><stop offset="1" stop-color="#B36BFF"/>
-    </linearGradient>
+    <linearGradient id="gemGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4E8CFF"/><stop offset="1" stop-color="#B36BFF"/></linearGradient>
   </defs>
-  <symbol id="i-grid"   viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></g></symbol>
-  <symbol id="i-play"   viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
-  <symbol id="i-mail"   viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
-  <symbol id="i-spark"  viewBox="0 0 24 24"><path d="M12 3c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z"/><path d="M19 15c.2 1.6 1.2 2.6 2.8 2.8-1.6.2-2.6 1.2-2.8 2.8-.2-1.6-1.2-2.6-2.8-2.8 1.6-.2 2.6-1.2 2.8-2.8z"/></symbol>
-  <symbol id="i-gemini" viewBox="0 0 24 24"><path fill="url(#gemGrad)" stroke="none" d="M12 2c.7 5.6 4.4 9.3 10 10-5.6.7-9.3 4.4-10 10-.7-5.6-4.4-9.3-10-10 5.6-.7 9.3-4.4 10-10z"/></symbol>
-  <symbol id="i-google" viewBox="0 0 48 48"><g stroke="none"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></g></symbol>
-  <symbol id="i-code"   viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
-  <symbol id="i-doc"    viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
-  <symbol id="i-slides" viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></symbol>
-  <symbol id="i-cap"    viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><path d="M22 10v6"/></symbol>
-  <symbol id="i-home"   viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></symbol>
-  <symbol id="i-globe"  viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V6z"/><path d="m9 12 2 2 4-4"/></symbol>
-  <symbol id="i-chat"   viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01" stroke-width="2.4"/></symbol>
-  <symbol id="i-open"   viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
-  <symbol id="i-chev"   viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-grid"    viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></g></symbol>
+  <symbol id="i-play"    viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-wrench"  viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+  <symbol id="i-mail"    viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+  <symbol id="i-spark"   viewBox="0 0 24 24"><path d="M12 3c.6 4.6 3.4 7.4 8 8-4.6.6-7.4 3.4-8 8-.6-4.6-3.4-7.4-8-8 4.6-.6 7.4-3.4 8-8z"/><path d="M19 15c.2 1.6 1.2 2.6 2.8 2.8-1.6.2-2.6 1.2-2.8 2.8-.2-1.6-1.2-2.6-2.8-2.8 1.6-.2 2.6-1.2 2.8-2.8z"/></symbol>
+  <symbol id="i-gemini"  viewBox="0 0 24 24"><path fill="url(#gemGrad)" stroke="none" d="M12 2c.7 5.6 4.4 9.3 10 10-5.6.7-9.3 4.4-10 10-.7-5.6-4.4-9.3-10-10 5.6-.7 9.3-4.4 10-10z"/></symbol>
+  <symbol id="i-google"  viewBox="0 0 48 48"><g stroke="none"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></g></symbol>
+  <symbol id="i-code"    viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+  <symbol id="i-doc"     viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-slides"  viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></symbol>
+  <symbol id="i-cap"     viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><path d="M22 10v6"/></symbol>
+  <symbol id="i-home"    viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></symbol>
+  <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M2 17h20"/><path d="M7 17a5 5 0 0 1 10 0"/><path d="M12 8V5"/><path d="m7.4 10.4-2.1-2.1"/><path d="m16.6 10.4 2.1-2.1"/><path d="M4 21h16"/></symbol>
+  <symbol id="i-book"    viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-lang"    viewBox="0 0 24 24"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></symbol>
+  <symbol id="i-image"   viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m21 15-4.4-4.4a1.5 1.5 0 0 0-2.2 0L6 19"/></symbol>
+  <symbol id="i-open"    viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+  <symbol id="i-chev"    viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-swap"    viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-check"   viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
 </svg>
 
-<!-- ============ top bar ============ -->
 <header class="top">
   <div class="apps">
     <button class="apps-btn" id="appsBtn" type="button" aria-label="HTMLTools apps" aria-haspopup="true" aria-expanded="false" aria-controls="appsMenu">
@@ -270,10 +325,9 @@
   </div>
 </header>
 
-<!-- ============ page ============ -->
 <main>
   <a class="logo" href="https://htmltools.me" aria-label="HTMLTools home">
-    <img src="https://htmltools.me/logo3.png" alt="HTMLTools" width="88" height="88"
+    <img src="https://htmltools.me/logo3.png" alt="HTMLTools" width="84" height="84"
          onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'logo-fallback',textContent:'<HT>'}))">
   </a>
 
@@ -281,59 +335,32 @@
   <h1 class="query" id="query">Where do you want to go?</h1>
   <p class="sub" id="sub">Search from the address bar and you'll land here to pick a destination.</p>
 
-  <!-- ============ destinations ============
-       data-url : where the search goes ({q} = the URL-encoded query)
-       data-home: where the card goes when there's no query
-       Keys 1–6 follow this order. To add one, copy a card. -->
-  <nav class="grid" id="grid" aria-label="Destinations">
+  <nav class="grid" id="grid" aria-label="Destinations"></nav>
+  <noscript><p style="color:#888;text-align:center">This page needs JavaScript.</p></noscript>
 
-    <a class="card wide" id="urlCard" href="#" hidden>
-      <span class="ic"><svg class="i"><use href="#i-open"/></svg></span>
-      <span class="txt"><span class="eyebrow">Open web address</span><span class="name" id="urlName"></span></span>
-      <svg class="i go"><use href="#i-chev"/></svg>
-    </a>
+  <p class="tip" id="tip">
+    <b style="color:#ddd;font-weight:600">Skip this page:</b> end your search with a destination —
+    <span class="ex">cute cats mattube</span> <span class="ex">bonjour translate</span> <span class="ex">a red fox image</span>
+    <br><button class="link" type="button" id="panelBtn" aria-expanded="false" aria-controls="panel">Show all shortcuts</button>
+  </p>
 
-    <a class="card google" data-url="https://www.google.com/search?q={q}" data-home="https://www.google.com" href="https://www.google.com">
-      <kbd class="key">1</kbd>
-      <span class="ic"><svg class="i"><use href="#i-google"/></svg></span>
-      <span class="eyebrow">Search on</span><span class="name">Google</span>
-    </a>
+  <section class="panel" id="panel" aria-label="Shortcuts">
+    <h2>Shortcuts — type the word at the end of your search</h2>
+    <div class="rows" id="rows"></div>
+    <p class="rules">
+      <b>Capitalisation doesn't matter.</b> <span class="mono">Cats MatTube</span> works.<br>
+      <b>Only the very end counts.</b> Any character after the word, like <span class="mono">banana image?</span> or <span class="mono">bing.</span>, turns the shortcut off and brings you here instead.<br>
+      <b>Just the word</b> (e.g. <span class="mono">translate</span>) opens that tool's front page.
+      <b>Every web engine word works</b> no matter which one you picked as default.
+    </p>
+  </section>
 
-    <a class="card" data-url="https://htmltools.me/Browser/?search={q}" data-home="https://htmltools.me/Browser/" href="https://htmltools.me/Browser/">
-      <kbd class="key">2</kbd>
-      <span class="ic"><svg class="i"><use href="#i-globe"/></svg></span>
-      <span class="eyebrow">Search on</span><span class="name">Horizon</span>
-    </a>
-
-    <a class="card" data-url="https://htmltools.me/URL/?search={q}" data-home="https://htmltools.me/URL/" href="https://htmltools.me/URL/">
-      <kbd class="key">3</kbd>
-      <span class="ic"><svg class="i"><use href="#i-shield"/></svg></span>
-      <span class="eyebrow">Search on</span><span class="name">HTMLTools Proxy</span>
-    </a>
-
-    <a class="card" data-url="https://mattube.htmltools.me/?search={q}" data-home="https://mattube.htmltools.me/" href="https://mattube.htmltools.me/">
-      <kbd class="key">4</kbd>
-      <span class="ic"><svg class="i"><use href="#i-play"/></svg></span>
-      <span class="eyebrow">Search on</span><span class="name">MatTube</span>
-    </a>
-
-    <a class="card" data-url="https://htmltools.me/AI-Playground/Chat/?p={q}" data-home="https://htmltools.me/AI-Playground/Chat/" href="https://htmltools.me/AI-Playground/Chat/">
-      <kbd class="key">5</kbd>
-      <span class="ic"><svg class="i"><use href="#i-chat"/></svg></span>
-      <span class="eyebrow">Continue with</span><span class="name">AI Playground</span>
-    </a>
-
-    <a class="card gemini" data-url="https://www.google.com/search?udm=50&q={q}" data-home="https://www.google.com/search?udm=50" href="https://www.google.com/search?udm=50">
-      <kbd class="key">6</kbd>
-      <span class="ic"><svg class="i"><use href="#i-gemini"/></svg></span>
-      <span class="eyebrow">Continue with</span><span class="name">Gemini</span>
-    </a>
-  </nav>
-
-  <p class="hint" id="hint"><kbd>1</kbd>–<kbd>6</kbd> pick &nbsp;·&nbsp; <kbd>←</kbd><kbd>→</kbd> move &nbsp;·&nbsp; <kbd>Enter</kbd> opens the highlighted one</p>
+  <p class="hint" id="hint">
+    <kbd>1</kbd>–<kbd>9</kbd> pick &nbsp;·&nbsp; <kbd>Ctrl</kbd>+number opens in a new tab &nbsp;·&nbsp;
+    <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> move &nbsp;·&nbsp; <kbd>Enter</kbd> opens the highlighted one &nbsp;·&nbsp; <kbd>?</kbd> shortcuts
+  </p>
 </main>
 
-<!-- ============ footer: the low-key links ============ -->
 <footer>
   <nav aria-label="More">
     <a href="https://docs.google.com">Docs</a>
@@ -346,74 +373,194 @@
 
 <script>
 (function () {
-  var q = (new URLSearchParams(location.search).get("q") || "").trim();
-  var cards   = Array.prototype.slice.call(document.querySelectorAll(".card[data-url]"));
-  var urlCard = document.getElementById("urlCard");
-  var urlName = document.getElementById("urlName");
-  var grid    = document.getElementById("grid");
-  var btn     = document.getElementById("appsBtn");
-  var menu    = document.getElementById("appsMenu");
+  if (SHORTCUT) return;                       /* already leaving */
 
+  var grid = document.getElementById("grid");
+  var appsBtn = document.getElementById("appsBtn"), appsMenu = document.getElementById("appsMenu");
+  var panel = document.getElementById("panel"), panelBtn = document.getElementById("panelBtn");
   document.getElementById("year").textContent = new Date().getFullYear();
 
-  /* --- fill the cards --- */
-  var enc = encodeURIComponent(q);
-  cards.forEach(function (a) {
-    a.href = q ? a.getAttribute("data-url").replace("{q}", enc) : a.getAttribute("data-home");
+  /* ---- remembered web engine (localStorage, per device) ---- */
+  var STORE = "hts.engine", engine = ENGINES[0];
+  try { var saved = localStorage.getItem(STORE); ENGINES.forEach(function (e) { if (e.id === saved) engine = e; }); } catch (err) {}
+
+  /* ---- icon builders ---- */
+  function svgIcon(id) { var s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("class", "i"); var u = document.createElementNS("http://www.w3.org/2000/svg", "use"); u.setAttribute("href", "#" + id); s.appendChild(u); return s; }
+  function tile(text, color) { var t = document.createElement("span"); t.className = "tile"; t.textContent = text; t.style.background = color; return t; }
+  function engineIcon(e) {
+    if (e.id === "google") return svgIcon("i-google");
+    var img = document.createElement("img"); img.alt = ""; img.src = "https://www.google.com/s2/favicons?domain=" + e.fav + "&sz=64";
+    img.onerror = function () { img.replaceWith(tile(e.name.charAt(0), e.color)); };
+    return img;
+  }
+  function setIcon(box, d) {
+    box.innerHTML = ""; box.className = "ic";
+    if (d.engine) { box.classList.add("white"); var im = engineIcon(engine); if (im.tagName === "IMG") im.className = "fav"; box.appendChild(im); return; }
+    if (d.icon === "logo") {
+      box.classList.add("img");
+      var img = document.createElement("img"); img.alt = ""; img.src = "https://htmltools.me/logo3.png";
+      img.onerror = function () { var f = document.createElement("div"); f.className = "ic-fallback"; f.textContent = "<HT>"; img.replaceWith(f); };
+      box.appendChild(img); return;
+    }
+    box.appendChild(svgIcon("i-" + d.icon));
+  }
+
+  /* ---- cards ---- */
+  var hits = [], webCard = null, webHit = null;
+  function resolved(d) { return d.engine ? { name: engine.name, url: engine.url, home: engine.home, keys: engine.keys } : d; }
+
+  function applyCard(card, d) {
+    var r = resolved(d);
+    setIcon(card.querySelector(".ic"), d);
+    card.querySelector(".eyebrow").textContent = d.eyebrow;
+    card.querySelector(".name").textContent = r.name;
+    card.querySelector(".hit").href = destUrl(r, Q);
+    card.querySelector(".kw").textContent = r.keys[0];
+    if (d.engine) card.style.setProperty("--glow", hexToGlow(engine.color));
+  }
+  function hexToGlow(hex) { var n = parseInt(hex.slice(1), 16); return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + ",.22)"; }
+
+  DESTS.forEach(function (d, idx) {
+    var card = document.createElement("div");
+    card.className = "card" + (d.engine ? " web" : "") + (d.icon === "gemini" ? " gemini" : "");
+    card.innerHTML =
+      '<kbd class="key">' + (idx + 1) + '</kbd>' +
+      '<a class="hit"><span class="ic"></span><span class="eyebrow"></span><span class="name"></span></a>' +
+      '<div class="foot"><span class="kw"></span></div>';
+    if (d.engine) {
+      var sw = document.createElement("button");
+      sw.className = "switch"; sw.type = "button"; sw.id = "engineBtn";
+      sw.setAttribute("aria-haspopup", "listbox"); sw.setAttribute("aria-expanded", "false"); sw.setAttribute("aria-controls", "engineMenu");
+      sw.appendChild(svgIcon("i-swap")); sw.appendChild(document.createTextNode("Change"));
+      card.querySelector(".foot").appendChild(sw);
+      card.appendChild(buildEngineMenu());
+      webCard = card;
+    }
+    applyCard(card, d);
+    grid.appendChild(card);
+    hits.push(card.querySelector(".hit"));
+  });
+  webHit = webCard.querySelector(".hit");
+
+  /* ---- engine picker ---- */
+  function buildEngineMenu() {
+    var m = document.createElement("div"); m.className = "menu"; m.id = "engineMenu"; m.setAttribute("role", "listbox"); m.setAttribute("aria-label", "Web search engine");
+    var h = document.createElement("div"); h.className = "mh"; h.textContent = "Search the web with"; m.appendChild(h);
+    ENGINES.forEach(function (e) {
+      var b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "option"); b.dataset.id = e.id;
+      var mi = document.createElement("span"); mi.className = "mi"; mi.appendChild(engineIcon(e)); b.appendChild(mi);
+      var mn = document.createElement("span"); mn.className = "mn"; mn.textContent = e.name; b.appendChild(mn);
+      var mk = document.createElement("span"); mk.className = "mk"; mk.textContent = "\u2026" + e.keys[0]; b.appendChild(mk);
+      var tk = svgIcon("i-check"); tk.setAttribute("class", "i tick"); b.appendChild(tk);
+      b.addEventListener("click", function () { setEngine(e); });
+      m.appendChild(b);
+    });
+    var f = document.createElement("div"); f.className = "mf"; f.textContent = "Remembered on this device. Change it any time."; m.appendChild(f);
+    return m;
+  }
+  function markSelected() {
+    webCard.querySelectorAll('[role="option"]').forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.id === engine.id)); });
+  }
+  function setEngine(e) {
+    engine = e;
+    try { localStorage.setItem(STORE, e.id); } catch (err) {}
+    applyCard(webCard, DESTS[0]); markSelected(); openMenu(false); webHit.focus();
+  }
+  function menuIsOpen() { return webCard.classList.contains("open"); }
+  function openMenu(open) {
+    webCard.classList.toggle("open", open);
+    document.getElementById("engineBtn").setAttribute("aria-expanded", String(open));
+    if (open) { var sel = webCard.querySelector('[aria-selected="true"]') || webCard.querySelector('[role="option"]'); sel.focus(); }
+  }
+  markSelected();
+  document.getElementById("engineBtn").addEventListener("click", function () { openMenu(!menuIsOpen()); });
+
+  /* ---- URL card ---- */
+  var isUrl = !!Q && /^(https?:\/\/|www\.)\S+$/i.test(Q), urlHit = null;
+  if (isUrl) {
+    var uc = document.createElement("div"); uc.className = "card wide";
+    uc.innerHTML = '<a class="hit"><span class="ic"></span><span class="txt"><span class="eyebrow">Open web address</span><span class="name"></span></span></a>';
+    uc.querySelector(".ic").appendChild(svgIcon("i-open"));
+    var go = svgIcon("i-chev"); go.setAttribute("class", "i go"); uc.querySelector(".hit").appendChild(go);
+    urlHit = uc.querySelector(".hit");
+    urlHit.href = /^https?:\/\//i.test(Q) ? Q : "https://" + Q;
+    uc.querySelector(".name").textContent = Q.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+    grid.insertBefore(uc, grid.firstChild);
+  }
+
+  /* ---- heading ---- */
+  if (Q) {
+    document.getElementById("lead").textContent = "Searching for";
+    var h1 = document.getElementById("query"); h1.textContent = Q; h1.classList.add("quoted");
+    document.getElementById("sub").hidden = true;
+    document.title = "\u201C" + Q + "\u201D \u2013 HTMLTools Search";
+    (urlHit || hits[0]).focus({ preventScroll: true });
+  }
+
+  /* ---- shortcuts panel ---- */
+  var rows = document.getElementById("rows");
+  function row(name, keys) {
+    var r = document.createElement("div"); r.className = "row";
+    var n = document.createElement("span"); n.className = "n"; n.textContent = name; r.appendChild(n);
+    var ks = document.createElement("span"); ks.className = "ks";
+    keys.forEach(function (k) { var c = document.createElement("span"); c.className = "kw"; c.textContent = k; ks.appendChild(c); });
+    r.appendChild(ks); rows.appendChild(r);
+  }
+  ENGINES.forEach(function (e) { row(e.name, e.keys); });
+  DESTS.forEach(function (d) { if (!d.engine) row(d.name, d.keys); });
+  function togglePanel(open) {
+    if (open === undefined) open = !panel.classList.contains("open");
+    panel.classList.toggle("open", open); panelBtn.setAttribute("aria-expanded", String(open));
+    panelBtn.textContent = open ? "Hide shortcuts" : "Show all shortcuts";
+    if (open) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  panelBtn.addEventListener("click", function () { togglePanel(); });
+
+  /* ---- apps menu ---- */
+  function setApps(open) { appsMenu.classList.toggle("open", open); appsBtn.setAttribute("aria-expanded", String(open)); if (open) appsMenu.querySelector("a").focus(); }
+  appsBtn.addEventListener("click", function () { setApps(!appsMenu.classList.contains("open")); });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".apps")) setApps(false);
+    if (!e.target.closest(".card.web")) openMenu(false);
   });
 
-  var isUrl = !!q && /^(https?:\/\/|www\.)\S+$/i.test(q);
-  urlCard.hidden = !isUrl;
-  if (isUrl) {
-    urlCard.href = /^https?:\/\//i.test(q) ? q : "https://" + q;
-    urlName.textContent = q.replace(/^https?:\/\//i, "").replace(/\/$/, "");
-  }
-
-  if (q) {
-    document.getElementById("lead").textContent = "Searching for";
-    var h = document.getElementById("query");
-    h.textContent = q;
-    h.classList.add("quoted");
-    document.getElementById("sub").hidden = true;
-    document.title = "\u201C" + q + "\u201D \u2013 HTMLTools Search";
-    /* highlight the first card so Enter goes straight there */
-    (isUrl ? urlCard : cards[0]).focus({ preventScroll: true });
-  }
-
-  /* --- apps menu --- */
-  function setMenu(open) {
-    menu.classList.toggle("open", open);
-    btn.setAttribute("aria-expanded", String(open));
-    if (open) menu.querySelector("a").focus();
-  }
-  btn.addEventListener("click", function () { setMenu(!menu.classList.contains("open")); });
-  document.addEventListener("click", function (e) { if (!e.target.closest(".apps")) setMenu(false); });
-
-  /* --- keyboard: 1-6, arrows, Esc --- */
+  /* ---- keyboard ---- */
   document.addEventListener("keydown", function (e) {
-    var menuOpen = menu.classList.contains("open");
-    if (e.key === "Escape") { if (menuOpen) { setMenu(false); btn.focus(); } return; }
-    if (e.ctrlKey || e.metaKey || e.altKey || menuOpen) return;
-
-    if (/^[1-9]$/.test(e.key)) {
-      var a = cards[+e.key - 1];
-      if (a) { e.preventDefault(); location.href = a.href; }
+    var appsOpen = appsMenu.classList.contains("open");
+    if (e.key === "Escape") {
+      if (appsOpen) { setApps(false); appsBtn.focus(); }
+      else if (menuIsOpen()) { openMenu(false); document.getElementById("engineBtn").focus(); }
+      else if (panel.classList.contains("open")) togglePanel(false);
       return;
     }
+    if (appsOpen) return;
+    if (menuIsOpen()) {                          /* arrows inside the engine picker */
+      var opts = Array.prototype.slice.call(webCard.querySelectorAll('[role="option"]')), oi = opts.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); opts[Math.min(oi + 1, opts.length - 1)].focus(); }
+      if (e.key === "ArrowUp")   { e.preventDefault(); opts[Math.max(oi - 1, 0)].focus(); }
+      return;
+    }
+    if (e.key === "?" ) { e.preventDefault(); togglePanel(); return; }
+    if (e.altKey || e.metaKey) return;
 
-    var list = (isUrl ? [urlCard] : []).concat(cards);
-    var i = list.indexOf(document.activeElement);
-    var cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length;
-    var next = -1;
+    if (/^[1-9]$/.test(e.key)) {                 /* 1-9 → go. Ctrl+number → new tab */
+      var a = hits[+e.key - 1];
+      if (a) { e.preventDefault(); if (e.ctrlKey) window.open(a.href, "_blank"); else location.href = a.href; }
+      return;
+    }
+    if (e.ctrlKey) return;
+
+    var list = (urlHit ? [urlHit] : []).concat(hits), i = list.indexOf(document.activeElement);
+    var cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length, next = -1;
     if (i < 0) { if (/^Arrow/.test(e.key)) next = 0; }
     else if (e.key === "ArrowRight") next = Math.min(i + 1, list.length - 1);
     else if (e.key === "ArrowLeft")  next = Math.max(i - 1, 0);
-    else if (e.key === "ArrowDown")  next = isUrl && i === 0 ? 1 : Math.min(i + cols, list.length - 1);
-    else if (e.key === "ArrowUp")    next = isUrl && i > 0 && i <= cols ? 0 : Math.max(i - cols, 0);
+    else if (e.key === "ArrowDown")  next = urlHit && i === 0 ? 1 : Math.min(i + cols, list.length - 1);
+    else if (e.key === "ArrowUp")    next = urlHit && i > 0 && i <= cols ? 0 : Math.max(i - cols, 0);
     if (next >= 0) { e.preventDefault(); list[next].focus(); }
   });
 })();
 </script>
 
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a42dadc1f9d9c674',t:'MTc5MDcxMzEyNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
