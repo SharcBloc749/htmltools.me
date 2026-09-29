@@ -1677,6 +1677,22 @@
     const MODEL_BUSY_MESSAGE = "This AI model is currently in high use, please try again later or switch to another model.";
     const MODEL_GENERIC_ERROR_MESSAGE = "This model could not complete the request. Please try again or switch to another model.";
 
+    // Capture ?p= before the app normalizes the URL. This pre-fills the composer
+    // only; it deliberately does not call send(), so the user can choose a model.
+    const initialPromptParams = new URLSearchParams(window.location.search);
+    const hasInitialPrompt = initialPromptParams.has("p");
+    const initialPrompt = initialPromptParams.get("p") || "";
+    let initialPromptApplied = false;
+
+    function prefillPromptFromURL() {
+      if (!hasInitialPrompt || initialPromptApplied) return;
+      const input = document.getElementById("input");
+      input.value = initialPrompt;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+      initialPromptApplied = true;
+    }
+
     // Only use the high-use message for actual capacity/rate-limit failures.
     // Invalid model, unsupported feature, authentication, and network errors get
     // a neutral message instead of incorrectly blaming model traffic.
@@ -2450,7 +2466,9 @@
     // Auth & Init
     auth.onAuthStateChanged(async u => {
       if (!u) {
-        location.href = "/AI-Playground/Login/?next=" + encodeURIComponent(location.pathname);
+        // Keep query parameters such as ?p=... through sign-in, so shared
+        // prompt links still prefill after authentication.
+        location.href = "/AI-Playground/Login/?next=" + encodeURIComponent(location.pathname + location.search);
         return;
       }
 
@@ -2467,8 +2485,10 @@
       if (convId) {
         await loadConversation(convId);
       } else {
-        // No conversation ID in path: start fresh chat view cleanly
+        // No conversation ID in path: start fresh chat view cleanly, then
+        // show any shared prompt in the composer without sending it.
         startNewChat();
+        prefillPromptFromURL();
       }
 
       await loadList();
