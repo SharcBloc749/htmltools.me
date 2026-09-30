@@ -332,6 +332,31 @@ function decodeProxiedUrl(str) {
 // (Bing) have loaded, but it never stops dispatching fetches — so we fetch the
 // proxied URL through the SW and document.write() the result. Sub-resources
 // inside still load normally through the SW.
+let engineWasDown = false;
+
+// True when a response is our host's own 404 page — i.e. the request slipped
+// past a dead/absent engine and the raw site answered. Never paint that page.
+function looksLikeHost404(text) {
+  const head = text.slice(0, 6000).toUpperCase();
+  return head.includes('RETURN HOME') && head.includes('404');
+}
+
+// The engine was unreachable. When it comes back (worker claims the page),
+// re-drive whatever the tab was trying to load — automatically.
+function scheduleEngineRetry() {
+  const retry = () => {
+    if (!engineWasDown || !navigator.serviceWorker.controller) return;
+    const t = activeTab();
+    if (t && t._want) {
+      engineWasDown = false;
+      banner('Engine ready \u2713', false);
+      loadIntoFrame(t, t._want).catch(() => {});
+    }
+  };
+  setTimeout(retry, 2500);
+  setTimeout(retry, 6000);
+}
+
 async function loadIntoFrame(tab, proxiedUrl, opts) {
   tab._want = proxiedUrl;
   let resp;
@@ -341,40 +366,59 @@ async function loadIntoFrame(tab, proxiedUrl, opts) {
       Object.assign({ headers: { 'x-ht-nav': '1' } }, opts || {})
     );
   } catch (e) {
-    tab.iframe.src = proxiedUrl; // last resort: let the browser try
+    engineWasDown = true;
+    banner('Engine is waking up\u2026 one moment.');
+    scheduleEngineRetry();
     return;
   }
   const finalUrl = resp.url || proxiedUrl; // post-redirect address for the bar
   tab._want = finalUrl; // keep the tab's "last painted address" accurate
   const ctype = (resp.headers && resp.headers.get('content-type')) || '';
-  if (/^text\/html|application\/xhtml/i.test(ctype) || ctype === '') {
-    const html = await resp.text();
-    const doc = tab.iframe.contentDocument;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    let title = m ? m[1].replace(/\s+/g, ' ').trim().slice(0, 60) : '';
-    const real = decodeProxiedUrl(finalUrl);
-    if (!title && real) { try { title = new URL(real).hostname.replace(/^www\./, ''); } catch {} }
-    tab.title = title || 'New tab';
-    tab.realUrl = real;
-    tab.el.querySelector('.t').textContent = tab.title;
-    tab.el.title = real || tab.title;
-    if (tab.id === activeId) bar.value = real;
-    // If this frame tree is "tainted" its own subresource requests never
-    // reach the service worker — re-fetch them from the app context.
-    setTimeout(async () => {
-      if (tab._want !== finalUrl || !tab.iframe.contentDocument) return;
-      if (await frameIsTainted(tab)) {
-        tab._tainted = true;
-        await pumpOnce(tab);
-      }
-    }, 250);
+  const isHTML = /^text\/html|application\/xhtml/i.test(ctype) || ctype === '';
+  if (isHTML && !resp.ok) {
+    const body = await resp.text();
+    if (looksLikeHost404(body)) {
+      engineWasDown = true;
+      banner('Engine is waking up\u2026 one moment.');
+      tab.title = 'Waking up\u2026';
+      tab.el.querySelector('.t').textContent = tab.title;
+      scheduleEngineRetry();
+      return;
+    }
+    paintHtml(tab, finalUrl, body); // a real 404 page from the target site
+    return;
+  }
+  if (isHTML) {
+    paintHtml(tab, finalUrl, await resp.text());
   } else {
     // non-HTML navigation target (download, image, pdf): try a real navigation
     tab.iframe.src = proxiedUrl;
   }
+}
+
+function paintHtml(tab, finalUrl, html) {
+  const doc = tab.iframe.contentDocument;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  let title = m ? m[1].replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+  const real = decodeProxiedUrl(finalUrl);
+  if (!title && real) { try { title = new URL(real).hostname.replace(/^www\./, ''); } catch {} }
+  tab.title = title || 'New tab';
+  tab.realUrl = real;
+  tab.el.querySelector('.t').textContent = tab.title;
+  tab.el.title = real || tab.title;
+  if (tab.id === activeId) bar.value = real;
+  // If this frame tree is "tainted" its own subresource requests never
+  // reach the service worker — re-fetch them from the app context.
+  setTimeout(async () => {
+    if (tab._want !== finalUrl || !tab.iframe.contentDocument) return;
+    if (await frameIsTainted(tab)) {
+      tab._tainted = true;
+      await pumpOnce(tab);
+    }
+  }, 250);
 }
 
 
@@ -575,6 +619,9 @@ async function init() {
     };
     if (reg.active) send();
     navigator.serviceWorker.addEventListener('controllerchange', send);
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (engineWasDown) scheduleEngineRetry();
+    });
     send();
 
     // ── stale-engine self-heal ───────────────────────────────────────────
