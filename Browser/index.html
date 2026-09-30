@@ -87,10 +87,12 @@
   <noscript>HTMLTools Browser needs JavaScript.</noscript>
   <script>
 // HTMLTools Browser — app (auto-built single file)
-window.__HT_EXPECT_SW__ = "v1.9.0";
+window.__HT_EXPECT_SW__ = "v1.10.0";
 const BACKEND = "https://htmltools-browser-nqv1xw3k6rph.htmltools-browser.deno.net";
 const KEY = "htmltools-change-me-9f2k";
 const SEARCH = "https://www.bing.com/search?q=";
+const ALLOWED_HOSTS = ["htmltools.me","www.htmltools.me"];
+function hostAllowed() { try { var h = location.hostname.toLowerCase(); return ALLOWED_HOSTS.indexOf('*') >= 0 || ALLOWED_HOSTS.indexOf(h) >= 0; } catch (e) { return false; } }
 // HTMLTools Browser — URL codec.
 // A proxied URL looks like:  <prefix>~/<base64url(xor-scrambled URL)>
 // Example (site root):       /~/aHR0cHM6...  (well, scrambled, not plain b64)
@@ -745,6 +747,15 @@ function openSettings() {
 
 // ── boot ─────────────────────────────────────────────────────────────────
 async function init() {
+  // Host lock: this browser only runs on htmltools.me (see ALLOWED_HOSTS in the build).
+  if (typeof hostAllowed === 'function' && !hostAllowed()) {
+    try { (await navigator.serviceWorker.getRegistrations()).forEach((r) => r.unregister()); } catch (e) {}
+    document.body.innerHTML =
+      '<div style="font:16px system-ui;color:#e6edf3;background:#0d1117;height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px">' +
+      '<div><h2 style="margin:0 0 8px">HTMLTools Browser</h2>' +
+      '<p style="margin:0;color:#8b949e">This browser only runs on <b>htmltools.me</b>.<br><a style="color:#58a6ff" href="https://htmltools.me/Browser/">Open it there</a></p></div></div>';
+    return;
+  }
   if (!('serviceWorker' in navigator)) {
     banner('This browser has no service worker support \u2014 the engine can\u2019t run here.');
     return;
@@ -836,8 +847,13 @@ async function init() {
     tries: t._tries ? [...t._tries.values()].reduce((a, b) => a + b, 0) : 0,
   }));
 
-  const q = new URLSearchParams(location.search).get('q');
-  if (q) navigate(q);
+  // Deep links: /Browser/?search=some words  (or ?q=…, or ?url=https://site.com)
+  const sp = new URLSearchParams(location.search);
+  const deep = sp.get('search') || sp.get('q') || sp.get('url');
+  if (deep && deep.trim()) {
+    navigate(deep.trim());
+    try { history.replaceState(history.state, '', location.pathname + location.hash); } catch (e) {}
+  }
 
   if (!backendConfigured()) {
     banner('One-time setup: click \u2699 and paste your Deno Deploy backend URL.');
@@ -850,5 +866,5 @@ async function init() {
 init();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4340505fd8a7a38',t:'MTc5MDc3OTYxMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a434490b1e000d85',t:'MTc5MDc4MjM5OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
