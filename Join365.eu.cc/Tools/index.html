@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tools — Join365</title>
+<meta name="description" content="Join365 Tools: Chat, Folio, Gust and Games.">
+<link rel="icon" href="https://join365.eu.cc/logo.png">
+<style>
+  :root{
+    --orange:#ff7a1a;
+    --orange-2:#ffa24d;
+    --black:#0a0a0a;
+    --white:#fff;
+    --glass:rgba(12,12,12,.62);
+    --line:rgba(255,255,255,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--black);color:var(--white);
+    overflow-x:hidden;-webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Spline background ---------- */
+  .bg{
+    position:fixed;inset:0;z-index:0;overflow:hidden;
+    background:radial-gradient(60% 50% at 70% 30%,rgba(255,122,26,.22),transparent 70%),var(--black);
+  }
+  /* The iframe is made taller than the viewport and the extra area is clipped by
+     .bg (overflow:hidden), which pushes the "Built with Spline" badge off-screen. */
+  .bg iframe{
+    position:absolute;top:0;left:0;
+    width:100%;height:calc(100% + 90px);
+    border:0;
+  }
+  /* Soft vignette so text stays readable, doesn't block the 3D scene */
+  .shade{
+    position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:
+      linear-gradient(180deg,rgba(0,0,0,.72) 0%,rgba(0,0,0,.15) 32%,rgba(0,0,0,.15) 62%,rgba(0,0,0,.8) 100%);
+  }
+
+  /* ---------- Layout ---------- */
+  .page{
+    position:relative;z-index:2;min-height:100vh;
+    display:flex;flex-direction:column;
+    pointer-events:none;           /* let the 3D scene stay interactive */
+  }
+  .page a,.page button,.card{pointer-events:auto}
+
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px clamp(20px,5vw,64px);
+  }
+  .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--white)}
+  .brand img{width:42px;height:42px;border-radius:11px;display:block;box-shadow:0 4px 18px rgba(255,122,26,.35)}
+  .brand span{font-weight:700;font-size:1.2rem;letter-spacing:-.01em}
+  .brand span b{color:var(--orange);font-weight:700}
+  nav{
+    display:flex;gap:6px;padding:5px;border-radius:999px;
+    background:var(--glass);border:1px solid var(--line);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  }
+  nav a{
+    color:rgba(255,255,255,.78);text-decoration:none;font-size:.88rem;font-weight:500;
+    padding:8px 16px;border-radius:999px;transition:.2s;
+  }
+  nav a:hover{color:var(--white);background:rgba(255,255,255,.08)}
+  nav a.active{background:var(--orange);color:#111;font-weight:600}
+
+  main{flex:1;display:flex;flex-direction:column;justify-content:center;
+    padding:clamp(24px,6vh,70px) clamp(20px,5vw,64px) 30px}
+
+  .hero{max-width:720px;margin-bottom:clamp(28px,5vh,56px)}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.75rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--orange);padding:7px 14px;border-radius:999px;
+    background:var(--glass);border:1px solid rgba(255,122,26,.4);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  }
+  .eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--orange);box-shadow:0 0 10px var(--orange)}
+  h1{
+    margin-top:18px;font-size:clamp(2.4rem,6vw,4.6rem);line-height:1.02;
+    font-weight:800;letter-spacing:-.035em;text-shadow:0 4px 40px rgba(0,0,0,.6);
+  }
+  h1 em{font-style:normal;color:var(--orange)}
+  .hero p{
+    margin-top:18px;font-size:clamp(1rem,1.6vw,1.2rem);line-height:1.6;
+    color:rgba(255,255,255,.82);max-width:540px;text-shadow:0 2px 20px rgba(0,0,0,.7);
+  }
+
+  /* ---------- Cards ---------- */
+  .grid{
+    display:grid;gap:16px;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    max-width:1100px;
+  }
+  .card{
+    position:relative;display:flex;flex-direction:column;gap:14px;
+    padding:24px;border-radius:20px;text-decoration:none;color:var(--white);
+    background:var(--glass);border:1px solid var(--line);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    transition:transform .25s ease,border-color .25s ease,background .25s ease,box-shadow .25s ease;
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";position:absolute;inset:0;opacity:0;transition:.25s;
+    background:radial-gradient(120% 90% at 0% 0%,rgba(255,122,26,.22),transparent 60%);
+  }
+  .card:hover,.card:focus-visible{
+    transform:translateY(-6px);border-color:var(--orange);
+    background:rgba(10,10,10,.78);box-shadow:0 18px 50px rgba(255,122,26,.18);outline:none;
+  }
+  .card:hover::before,.card:focus-visible::before{opacity:1}
+  .icon{
+    position:relative;width:48px;height:48px;border-radius:13px;display:grid;place-items:center;
+    background:var(--white);color:#111;transition:.25s;
+  }
+  .card:hover .icon{background:var(--orange)}
+  .icon svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .card h3{position:relative;font-size:1.25rem;font-weight:700;letter-spacing:-.01em}
+  .card p{position:relative;font-size:.92rem;line-height:1.5;color:rgba(255,255,255,.7);flex:1}
+  .go{
+    position:relative;display:flex;align-items:center;justify-content:space-between;
+    font-size:.85rem;font-weight:600;color:var(--orange);
+    padding-top:14px;border-top:1px solid var(--line);
+  }
+  .go svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s}
+  .card:hover .go svg{transform:translateX(4px)}
+
+  footer{
+    display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;
+    padding:18px clamp(20px,5vw,64px) 22px;font-size:.8rem;color:rgba(255,255,255,.55);
+  }
+  footer a{color:rgba(255,255,255,.75);text-decoration:none}
+  footer a:hover{color:var(--orange)}
+
+  @media (max-width:640px){
+    nav{display:none}
+    .card{padding:20px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+  <!-- Spline 3D background -->
+  <div class="bg" aria-hidden="true">
+    <iframe src="https://my.spline.design/miniroomartcopy-1NsIeWQRE5GmtKyyWQMYeIKY/"
+            frameborder="0" width="100%" height="100%"
+            title="3D background" loading="eager" allow="autoplay; fullscreen"></iframe>
+  </div>
+  <div class="shade"></div>
+
+  <div class="page">
+    <header>
+      <a class="brand" href="https://join365.eu.cc/">
+        <img src="https://join365.eu.cc/logo.png" alt="Join365 logo">
+        <span>Join<b>365</b></span>
+      </a>
+      <nav aria-label="Main">
+        <a href="https://join365.eu.cc/">Home</a>
+        <a href="https://join365.eu.cc/Tools" class="active">Tools</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="eyebrow"><i></i>Join365 Tools</div>
+        <h1>Everything you need, <em>one place.</em></h1>
+        <p>Pick a tool below and jump straight in. Simple, fast and built to work together.</p>
+      </section>
+
+      <section class="grid" aria-label="Tools">
+        <a class="card" href="https://join365.eu.cc/Chat">
+          <div class="icon"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></div>
+          <h3>Chat</h3>
+          <p>Talk with others in real time, quickly and easily.</p>
+          <div class="go">Open Chat <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        </a>
+
+        <a class="card" href="https://join365.eu.cc/Folio">
+          <div class="icon"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+          <h3>Folio</h3>
+          <p>Make Books!</p>
+          <div class="go">Open Folio <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        </a>
+
+        <a class="card" href="https://join365.eu.cc/Gust">
+          <div class="icon"><svg viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8a2.5 2.5 0 1 1-2.5 2.5"/></svg></div>
+          <h3>Gust</h3>
+          <p>A fast, lightweight tool that gets things done in a breeze.</p>
+          <div class="go">Open Gust <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        </a>
+
+        <a class="card" href="https://join365.eu.cc/Games">
+          <div class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v4M5 12.5h4"/><circle cx="16" cy="11.5" r=".6"/><circle cx="18.2" cy="13.5" r=".6"/></svg></div>
+          <h3>Games</h3>
+          <p>Take a break and play a collection of fun games.</p>
+          <div class="go">Open Games <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        </a>
+      </section>
+    </main>
+
+    <footer>
+      <span>© <span id="y"></span> Join365. All rights reserved.</span>
+      <a href="https://join365.eu.cc/">join365.eu.cc</a>
+    </footer>
+  </div>
+
+<script>document.getElementById('y').textContent=new Date().getFullYear();</script>
+</body>
+</html>
