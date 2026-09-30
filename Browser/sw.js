@@ -40,17 +40,52 @@ function encodeUrl(url, prefix = '/') {
 /**
  * Decode a proxied path back into the target URL.
  * Tolerates any prefix; returns null for non-proxied paths.
+ * Self-heals double-wrapped URLs (~/~/…) that buggy site scripts produce:
+ * if the decoded value is itself a proxied path, unwrap again (max 3x).
  */
 function decodeUrl(part) {
   const i = part.indexOf('~/');
   if (i === -1) return null;
-  let tail = part.slice(i + 2);
+  return decodeBlob(part.slice(i + 2));
+}
+
+/** Decode a raw blob (the part after ~/). Query-string form uses this. */
+function decodeBlob(tail) {
   if (!tail) return null;
-  try {
-    return decodeURIComponent(xorStr(b64urlDecode(tail)));
-  } catch {
-    return null;
+  if (!tail) return null;
+  let out = null;
+  for (let n = 0; n < 3 && tail; n++) {
+    try {
+      out = decodeURIComponent(xorStr(b64urlDecode(tail)));
+    } catch {
+      return null;
+    }
+    if (typeof out !== 'string' || !/^https?:/i.test(out)) return out === null ? null : out;
+    // already a clean http(s) URL that is NOT itself wrapped? done.
+    const j = out.indexOf('/~/');
+    if (j === -1) return out;
+    // Looks double-wrapped: try peeling one layer; if the peel doesn't
+    // decode cleanly, treat the original as legit (sites CAN contain /~/).
+    const peeled = out.slice(j + 3);
+    let inner = null;
+    try {
+      inner = decodeURIComponent(xorStr(b64urlDecode(peeled)));
+    } catch {
+      return out;
+    }
+    if (typeof inner !== 'string' || !/^https?:/i.test(inner)) return out;
+    tail = peeled;
   }
+  return out;
+}
+
+/**
+ * Query-string form: path stays short (/~/?u=…) so the browser's service
+ * worker never skips the request for URL-length reasons on navigations.
+ */
+function encodeUrlQ(url, prefix = '/') {
+  const p = prefix.endsWith('/') ? prefix : prefix + '/';
+  return p + '~/?u=' + b64urlEncode(xorStr(encodeURIComponent(url)));
 }
 
 // HTMLTools Browser — HTML/CSS URL rewriter.
@@ -60,11 +95,32 @@ function decodeUrl(part) {
 
 const SKIP_RE = /^(#|data:|blob:|about:|mailto:|tel:|sms:|javascript:|file:|cid:|intent:|ws:|wss:|ftp:)/i;
 
+/** Decode HTML entities in attribute values (&amp; → & etc). Without this,
+ *  every URL with a query string gets literal "&amp;" baked into its encoded
+ *  form and the target site receives garbage parameters. */
+function decodeEntities(s) {
+  return s.replace(/&(#[xX]?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (m, ent) => {
+    if (ent[0] === '#') {
+      const num =
+        ent[1] === 'x' || ent[1] === 'X'
+          ? parseInt(ent.slice(2), 16)
+          : parseInt(ent.slice(1), 10);
+      if (!Number.isNaN(num) && num > 0 && num < 0x110000) {
+        try { return String.fromCodePoint(num); } catch { return m; }
+      }
+      return m;
+    }
+    const e = ent.toLowerCase();
+    const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+    return named[e] !== undefined ? named[e] : m;
+  });
+}
+
 /** Resolve any href/src-ish value against the page URL and encode it, or
  *  return it untouched when it's not proxiable. */
 function proxify(value, base, encode) {
   if (typeof value !== 'string') return value;
-  const v = value.trim();
+  const v = decodeEntities(value.trim());
   if (!v || SKIP_RE.test(v)) return value;
   try {
     const abs = new URL(v, base);
@@ -148,6 +204,44 @@ function rewriteHtml(html, baseUrl, encode) {
       return pre + out;
     }
   );
+
+  // 5. JS-driven redirects: location.replace/assign/href with absolute URL
+  //    string literals (tracking redirectors like bing.com/ck/a do this —
+  //    `location` itself can't be hooked from inside the page, so rewrite
+  //    the source instead; relative /~/ paths resolve correctly in-page).
+  html = html.replace(
+    /location(\s*\.\s*href\s*=\s*|\s*=\s*|\s*\.\s*(?:replace|assign)\s*\(\s*)("https?:\/\/[^"]*"|'https?:\/\/[^']*')(\s*\))?/gi,
+    (m, pre, q, post) => {
+      const url = q.slice(1, -1);
+      try {
+        const abs = new URL(decodeEntities(url), base);
+        if (abs.protocol !== 'http:' && abs.protocol !== 'https:') return m;
+        return 'location' + pre + '"' + encode(abs.href) + '"' + (post || '');
+      } catch {
+        return m;
+      }
+    }
+  );
+
+  // 6. Rewrite ALL absolute URL string literals inside inline scripts.
+  //    Real-world trackers do `var u = "https://dest"; … location.replace(u)`
+  //    — the literal sits far from the navigation call, so pattern-matching
+  //    the call site can't see it. Rewriting every literal covers var-assign,
+  //    JSON config, fetch constants, etc. (Runtime hooks already skip
+  //    values that are proxied, so double-processing is harmless.)
+  html = html.replace(/(<script\b[^>]*>)([\s\S]*?<\/script\s*>)/gi, (m, open, body) => {
+    if (/\bsrc\s*=/i.test(open)) return m; // external scripts untouched
+    const done = body.replace(/(['"])(https?:\/\/[^'"\s\\]{4,})\1/g, (mm, q, u) => {
+      try {
+        const abs = new URL(decodeEntities(u), base);
+        if (abs.protocol !== 'http:' && abs.protocol !== 'https:') return mm;
+        return q + encode(abs.href) + q;
+      } catch {
+        return mm;
+      }
+    });
+    return open + done;
+  });
 
   return html;
 }
@@ -399,17 +493,19 @@ function makeStore() {
 
 
 
-const VERSION = 'v1.2.2';
+const VERSION = 'v1.6.0';
 const SCOPE = new URL(self.registration.scope).pathname; // '/' or '/browser/'
 const ROOT = SCOPE.replace(/\/$/, ''); // '' or '/browser'
 const RUNTIME_PATH = ROOT + '/~/__ht/runtime.js';
 const COOKIES_PATH = ROOT + '/~/__ht/cookies';
 const SYNC_PATH = ROOT + '/~/__ht/sync';
+const DEBUG_PATH = ROOT + '/~/__ht/debug';
+const dbg = [];
 
 // runtime.js source. The build script replaces the marker below with the
 // actual source (bundled single-file mode); in multi-file mode it stays
 // null and install() fetches ./runtime.js instead.
-let RUNTIME_SRC = "// ─────────────────────────────────────────────────────────────────────────\n// HTMLTools Browser — page runtime (injected into every proxied page). v1.1\n//\n// Teaches proxied pages our URL scheme and makes them behave like they run\n// on their real origin, the way a real browser would:\n//   fetch / XHR / WebSocket / EventSource / sendBeacon / Worker /\n//   window.open / links / forms / history / dynamic DOM\n//   document.cookie (per real origin, HttpOnly-aware)\n//   localStorage + sessionStorage (per real origin, namespaced)\n//\n// __HT_KEY__ / __HT_PREFIX__ / __HT_BACKEND__ are replaced by the service\n// worker at install time, so this always matches the engine.\n// ─────────────────────────────────────────────────────────────────────────\n(function () {\n  if (window.__htmltools) return;\n  window.__htmltools = true;\n\n  var KEY = '__HT_KEY__';\n  var PREFIX = '__HT_PREFIX__';\n  var BACKEND = '__HT_BACKEND__';\n  var WS_BACKEND = BACKEND.replace(/^http/i, 'ws');\n\n  // The real URL of this page (injected just before this script loads).\n  var REAL_URL =\n    (document.currentScript && document.currentScript.getAttribute('data-real-url')) ||\n    window.__HT_REAL_URL__ ||\n    ('https://' + location.hostname + '/');\n\n  function xorStr(s) {\n    var out = '';\n    for (var i = 0; i < s.length; i++) {\n      out += String.fromCharCode(s.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));\n    }\n    return out;\n  }\n  function b64url(s) {\n    return btoa(s).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\n  }\n  function unb64url(s) {\n    var b = s.replace(/-/g, '+').replace(/_/g, '/');\n    while (b.length % 4) b += '=';\n    return atob(b);\n  }\n  function toProxy(abs) {\n    if (!/^https?:/i.test(abs)) return abs;\n    return PREFIX + '~/' + b64url(xorStr(encodeURIComponent(abs)));\n  }\n  function resolve(u) {\n    try {\n      return new URL(String(u), REAL_URL).href;\n    } catch (e) {\n      return String(u);\n    }\n  }\n  var SKIP = /^(#|data:|blob:|about:|mailto:|tel:|sms:|javascript:)/i;\n  function px(u) {\n    var v = String(u);\n    if (!v || SKIP.test(v.trim())) return u;\n    var abs = resolve(v);\n    return toProxy(abs);\n  }\n\n  var realOrigin;\n  try { realOrigin = new URL(REAL_URL).origin; } catch (e) { realOrigin = 'https://example.com'; }\n\n  // ── 1. fetch ───────────────────────────────────────────────────────────\n  var _fetch = window.fetch;\n  window.fetch = function (input, init) {\n    try {\n      if (typeof input === 'string' || input instanceof URL) input = px(String(input));\n      else if (input && input.url) input = new Request(px(input.url), input);\n    } catch (e) {}\n    return _fetch.call(this, input, init);\n  };\n\n  // ── 2. XMLHttpRequest ──────────────────────────────────────────────────\n  var _open = XMLHttpRequest.prototype.open;\n  XMLHttpRequest.prototype.open = function (method, url) {\n    var rest = Array.prototype.slice.call(arguments, 2);\n    return _open.apply(this, [method, px(url)].concat(rest));\n  };\n\n  // ── 3. window.open ─────────────────────────────────────────────────────\n  var _wopen = window.open;\n  window.open = function (u, name, feats) {\n    try { if (u != null) u = toProxy(resolve(u)); } catch (e) {}\n    return _wopen.call(this, u, name, feats);\n  };\n\n  // ── 4. history API ─────────────────────────────────────────────────────\n  try {\n    var _push = history.pushState, _replace = history.replaceState;\n    history.pushState = function (s, t, u) {\n      return _push.call(history, s, t, u == null ? u : toProxy(resolve(u)));\n    };\n    history.replaceState = function (s, t, u) {\n      return _replace.call(history, s, t, u == null ? u : toProxy(resolve(u)));\n    };\n  } catch (e) {}\n\n  // ── 5. links + forms (capture phase, before the page can react) ────────\n  // stopPropagation matters: big sites (Bing, Brave) attach their own click\n  // handlers that re-navigate to tracking URLs AFTER we've proxied — that\n  // fight is what produced double-wrapped 404 navigations.\n  document.addEventListener(\n    'click',\n    function (e) {\n      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;\n      if (!a) return;\n      var href = a.getAttribute('href');\n      if (!href || href.charAt(0) === '#' || /^javascript:/i.test(href)) return;\n      // Already a proxied path (raw or resolved)? Let the browser do it.\n      var cur = a.href || '';\n      if (cur.indexOf(PREFIX + '~/') !== -1 || href.indexOf(PREFIX + '~/') === 0) return;\n      var abs = resolve(href);\n      if (!/^https?:/i.test(abs)) return;\n      e.preventDefault();\n      e.stopPropagation();\n      if (e.stopImmediatePropagation) e.stopImmediatePropagation();\n      if (a.target === '_blank' || e.metaKey || e.ctrlKey || e.button === 1) {\n        _wopen.call(window, toProxy(abs), '_blank');\n      } else {\n        location.href = toProxy(abs);\n      }\n    },\n    true\n  );\n  document.addEventListener(\n    'submit',\n    function (e) {\n      var f = e.target;\n      if (!f || !f.getAttribute) return;\n      var action = f.getAttribute('action');\n      var abs = resolve(action || REAL_URL);\n      if (/^https?:/i.test(abs)) f.setAttribute('action', toProxy(abs));\n    },\n    true\n  );\n\n  // ── 6. document.cookie emulation (per real origin) ─────────────────────\n  var JAR_KEY = 'ht-jar:' + realOrigin;\n  function jarGet() {\n    try { return sessionStorage.getItem(JAR_KEY) || ''; } catch (e) { return ''; }\n  }\n  function jarSet(s) {\n    try { sessionStorage.setItem(JAR_KEY, s); } catch (e) {}\n    pushCookies(s);\n  }\n  function jarMap(str) {\n    var m = {}, parts = (str || '').split(';');\n    for (var i = 0; i < parts.length; i++) {\n      var p = parts[i], idx = p.indexOf('=');\n      if (idx > 0) m[p.slice(0, idx).trim()] = p.slice(idx + 1).trim();\n    }\n    return m;\n  }\n  function jarString(m) {\n    var out = [];\n    for (var k in m) out.push(k + '=' + m[k]);\n    return out.join('; ');\n  }\n  try {\n    Object.defineProperty(document, 'cookie', {\n      configurable: true,\n      get: function () { return jarGet(); },\n      set: function (v) {\n        v = String(v);\n        var eq = v.indexOf('=');\n        if (eq < 1) return;\n        var name = v.slice(0, eq).trim();\n        var value = v.slice(eq + 1).split(';')[0];\n        var expired = /expires=thu, 01 jan 1970|max-age=0/i.test(v) || value === '';\n        var m = jarMap(jarGet());\n        if (expired) delete m[name]; else m[name] = value;\n        jarSet(jarString(m));\n      },\n    });\n  } catch (e) {}\n\n  function pushCookies(cookie) {\n    try {\n      _fetch(PREFIX + '~/__ht/cookies', {\n        method: 'POST',\n        headers: { 'content-type': 'application/json' },\n        body: JSON.stringify({ origin: realOrigin, cookie: cookie }),\n      });\n    } catch (e) {}\n  }\n\n  // Boot: pull upstream Set-Cookie the SW saved (non-HttpOnly only) → jar.\n  (function syncCookies() {\n    _fetch(PREFIX + '~/__ht/sync?o=' + encodeURIComponent(realOrigin))\n      .then(function (r) { return r.json(); })\n      .then(function (data) {\n        if (!data || !data.setCookie || !data.setCookie.length) return;\n        var m = jarMap(jarGet());\n        for (var i = 0; i < data.setCookie.length; i++) {\n          var first = String(data.setCookie[i]).split(';')[0];\n          var eq = first.indexOf('=');\n          if (eq > 0) m[first.slice(0, eq).trim()] = first.slice(eq + 1).trim();\n        }\n        var s = jarString(m);\n        try { sessionStorage.setItem(JAR_KEY, s); } catch (e) {}\n      })\n      .catch(function () {});\n  })();\n\n  // ── 7. localStorage / sessionStorage emulation (per real origin) ───────\n  // All proxied sites share the real htmltools.me storage, so every key is\n  // namespaced with the site's origin. Pages see clean per-site storage.\n  (function () {\n    var nativeLS = window.localStorage;\n    var nativeSS = window.sessionStorage;\n    var NS = '__ht__' + b64url(realOrigin) + '__';\n\n    function NsStore(native) {\n      this._n = native;\n    }\n    NsStore.prototype = {\n      _keys: function () {\n        var out = [], n = this._n;\n        for (var i = 0; i < n.length; i++) {\n          var k = n.key(i);\n          if (k && k.indexOf(NS) === 0) out.push(k.slice(NS.length));\n        }\n        return out;\n      },\n      getItem: function (k) { return this._n.getItem(NS + String(k)); },\n      setItem: function (k, v) { this._n.setItem(NS + String(k), String(v)); },\n      removeItem: function (k) { this._n.removeItem(NS + String(k)); },\n      key: function (i) { return this._keys()[i] || null; },\n      clear: function () {\n        var n = this._n;\n        this._keys().forEach(function (k) { n.removeItem(NS + k); });\n      },\n    };\n    Object.defineProperty(NsStore.prototype, 'length', {\n      get: function () { return this._keys().length; },\n    });\n\n    try {\n      Object.defineProperty(window, 'localStorage', {\n        configurable: true,\n        get: function () { return lsShim; },\n      });\n      Object.defineProperty(window, 'sessionStorage', {\n        configurable: true,\n        get: function () { return ssShim; },\n      });\n    } catch (e) {}\n    var lsShim = new NsStore(nativeLS);\n    var ssShim = new NsStore(nativeSS);\n  })();\n\n  // ── 8. WebSocket proxying ──────────────────────────────────────────────\n  // Connects to OUR backend over wss; the backend dials the real ws://\n  // server and pipes frames both ways, preserving text/binary.\n  var _WS = window.WebSocket;\n  function resolveWs(u) {\n    var s = String(u || '');\n    var abs;\n    try {\n      if (/^wss?:/i.test(s)) {\n        abs = s;\n      } else if (s.indexOf('//') === 0) {\n        abs = (location.protocol === 'https:' ? 'wss:' : 'ws:') + s;\n      } else {\n        abs = new URL(s, REAL_URL).href;\n        abs = abs.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');\n      }\n    } catch (e) {\n      abs = s;\n    }\n    return abs;\n  }\n\n  function HTWebSocket(url, protocols) {\n    if (!(this instanceof HTWebSocket)) {\n      throw new TypeError(\"Failed to construct 'WebSocket': use 'new'.\");\n    }\n    var self = this;\n    var abs = resolveWs(url);\n    this._url = abs;\n    this._binaryType = 'blob';\n    this._ls = { open: [], message: [], error: [], close: [] };\n\n    var handshake = b64url(JSON.stringify({\n      cookie: jarGet(),\n      origin: realOrigin,\n      protocol: protocols || null,\n    }));\n    var wire = WS_BACKEND + '/proxyws?u=' + encodeURIComponent(abs) + '&hd=' + encodeURIComponent(handshake);\n    // Protocols travel inside hd; none on the real handshake so the browser\n    // never expects a Sec-WebSocket-Protocol echo.\n    var real = new _WS(wire);\n    this._real = real;\n\n    real.addEventListener('open', function () { self._fire('open', new Event('open')); });\n    real.addEventListener('error', function () { self._fire('error', new Event('error')); });\n    real.addEventListener('close', function (e) {\n      self._fire('close', new CloseEvent('close', { code: e.code, reason: e.reason, wasClean: e.wasClean }));\n    });\n    real.addEventListener('message', function (e) {\n      var data = e.data;\n      if (data instanceof Blob && self._binaryType === 'arraybuffer') {\n        data.arrayBuffer().then(function (buf) {\n          self._fire('message', new MessageEvent('message', { data: buf }));\n        });\n      } else {\n        self._fire('message', new MessageEvent('message', { data: data }));\n      }\n    });\n  }\n  HTWebSocket.prototype._fire = function (type, event) {\n    event.target = this;\n    var list = this._ls[type].slice();\n    for (var i = 0; i < list.length; i++) {\n      try { list[i].call(this, event); } catch (e) {}\n    }\n    var h = this['on' + type];\n    if (typeof h === 'function') {\n      try { h.call(this, event); } catch (e) {}\n    }\n  };\n  HTWebSocket.prototype.addEventListener = function (t, fn, opts) {\n    if (this._ls[t]) this._ls[t].push(fn);\n  };\n  HTWebSocket.prototype.removeEventListener = function (t, fn) {\n    var l = this._ls[t];\n    if (!l) return;\n    var i = l.indexOf(fn);\n    if (i !== -1) l.splice(i, 1);\n  };\n  HTWebSocket.prototype.send = function (data) { return this._real.send(data); };\n  HTWebSocket.prototype.close = function (code, reason) { this._real.close(code, reason); };\n  Object.defineProperty(HTWebSocket.prototype, 'url', { get: function () { return this._url; } });\n  Object.defineProperty(HTWebSocket.prototype, 'readyState', {\n    get: function () { return this._real.readyState; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'bufferedAmount', {\n    get: function () { return this._real.bufferedAmount; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'extensions', {\n    get: function () { return this._real.extensions; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'protocol', {\n    get: function () { return this._real.protocol; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'binaryType', {\n    get: function () { return this._binaryType; },\n    set: function (v) {\n      this._binaryType = v === 'arraybuffer' ? 'arraybuffer' : 'blob';\n      this._real.binaryType = 'blob';\n    },\n  });\n  HTWebSocket.CONNECTING = 0;\n  HTWebSocket.OPEN = 1;\n  HTWebSocket.CLOSING = 2;\n  HTWebSocket.CLOSED = 3;\n  try { window.WebSocket = HTWebSocket; } catch (e) {}\n\n  // ── 9. EventSource / sendBeacon / Workers ──────────────────────────────\n  var _ES = window.EventSource;\n  if (_ES) {\n    var HTES = function (url, cfg) { return new _ES(px(url), cfg); };\n    HTES.prototype = _ES.prototype;\n    ['CONNECTING', 'OPEN', 'CLOSED'].forEach(function (k) { HTES[k] = _ES[k]; });\n    try { window.EventSource = HTES; } catch (e) {}\n  }\n\n  if (navigator.sendBeacon) {\n    navigator.sendBeacon = function (url, data) {\n      try {\n        _fetch(px(url), { method: 'POST', body: data, keepalive: true });\n        return true;\n      } catch (e) {\n        return false;\n      }\n    };\n  }\n\n  var _Worker = window.Worker;\n  if (_Worker) {\n    var HTWorker = function (url, opts) {\n      try { url = px(url); } catch (e) {}\n      return new _Worker(url, opts);\n    };\n    HTWorker.prototype = _Worker.prototype;\n    try { window.Worker = HTWorker; } catch (e) {}\n  }\n  var _SWC = window.SharedWorker;\n  if (_SWC) {\n    var HTSW = function (url, opts) {\n      try { url = px(url); } catch (e) {}\n      return new _SWC(url, opts);\n    };\n    HTSW.prototype = _SWC.prototype;\n    try { window.SharedWorker = HTSW; } catch (e) {}\n  }\n\n  // ── 10. dynamic DOM: rewrite nodes the page adds later ─────────────────\n  // Careful: element .src/.href PROPERTIES resolve against the app's real\n  // location (htmltools.me/Browser/~/…), so an already-proxied node looks\n  // \"unproxied\" to a naive prefix check → double-wrapping → 404 storms.\n  // We check both the raw attribute and the resolved property before touching.\n  var PROX_HIT = location.origin + PREFIX + '~/';\n  function alreadyDone(val) {\n    return (\n      typeof val !== 'string' ||\n      val.indexOf(PREFIX + '~/') === 0 ||\n      val.indexOf(PROX_HIT) !== -1\n    );\n  }\n  var obs = new MutationObserver(function (muts) {\n    for (var i = 0; i < muts.length; i++) {\n      var added = muts[i].addedNodes;\n      for (var j = 0; j < added.length; j++) {\n        var n = added[j];\n        if (!n || n.nodeType !== 1) continue;\n        try {\n          if (n.src && typeof n.src === 'string' && !alreadyDone(n.src)) {\n            var raw = n.getAttribute('src');\n            if (raw && !alreadyDone(raw)) {\n              var abs = resolve(raw);\n              if (/^https?:/i.test(abs) && abs.indexOf(location.origin) !== 0) {\n                n.setAttribute('src', toProxy(abs));\n              }\n            }\n          }\n          if ((n.tagName === 'LINK' || n.tagName === 'A') && !alreadyDone(n.href)) {\n            var raw2 = n.getAttribute('href');\n            if (raw2 && raw2.charAt(0) !== '#' && !alreadyDone(raw2)) {\n              var abs2 = resolve(raw2);\n              if (/^https?:/i.test(abs2) && abs2.indexOf(location.origin) !== 0) {\n                n.setAttribute('href', toProxy(abs2));\n              }\n            }\n          }\n        } catch (e) {}\n      }\n    }\n  });\n  obs.observe(document.documentElement, { childList: true, subtree: true });\n})();\n";
+let RUNTIME_SRC = "// ─────────────────────────────────────────────────────────────────────────\n// HTMLTools Browser — page runtime (injected into every proxied page). v1.1\n//\n// Teaches proxied pages our URL scheme and makes them behave like they run\n// on their real origin, the way a real browser would:\n//   fetch / XHR / WebSocket / EventSource / sendBeacon / Worker /\n//   window.open / links / forms / history / dynamic DOM\n//   document.cookie (per real origin, HttpOnly-aware)\n//   localStorage + sessionStorage (per real origin, namespaced)\n//\n// __HT_KEY__ / __HT_PREFIX__ / __HT_BACKEND__ are replaced by the service\n// worker at install time, so this always matches the engine.\n// ─────────────────────────────────────────────────────────────────────────\n(function () {\n  if (window.__htmltools) return;\n  window.__htmltools = true;\n\n  var KEY = '__HT_KEY__';\n  var PREFIX = '__HT_PREFIX__';\n  var BACKEND = '__HT_BACKEND__';\n  var WS_BACKEND = BACKEND.replace(/^http/i, 'ws');\n\n  // The real URL of this page (injected just before this script loads).\n  var REAL_URL =\n    (document.currentScript && document.currentScript.getAttribute('data-real-url')) ||\n    window.__HT_REAL_URL__ ||\n    ('https://' + location.hostname + '/');\n\n  function xorStr(s) {\n    var out = '';\n    for (var i = 0; i < s.length; i++) {\n      out += String.fromCharCode(s.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));\n    }\n    return out;\n  }\n  function b64url(s) {\n    return btoa(s).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\n  }\n  function unb64url(s) {\n    var b = s.replace(/-/g, '+').replace(/_/g, '/');\n    while (b.length % 4) b += '=';\n    return atob(b);\n  }\n  function toProxy(abs) {\n    var s = String(abs);\n    if (!/^https?:/i.test(s)) return s;\n    // already a URL on our own app origin? strip origin, keep the proxied path\n    if (s.indexOf(location.origin + PREFIX) === 0) return s.slice(location.origin.length);\n    // query form: short path (/~/?u=…) so navigations are never skipped\n    return PREFIX + '~/?u=' + b64url(xorStr(encodeURIComponent(s)));\n  }\n  // Ask the parent app to navigate this frame (parent-initiated navigations\n  // are the reliable path through the engine; frame-initiated ones can slip\n  // past the engine when the page has active beacons/connections).\n  function sendNav(proxiedUrl) {\n    try {\n      window.parent.postMessage({ __htNav: proxiedUrl }, location.origin);\n      return;\n    } catch (e) {}\n    location.href = proxiedUrl;\n  }\n  function resolve(u) {\n    try {\n      return new URL(String(u), REAL_URL).href;\n    } catch (e) {\n      return String(u);\n    }\n  }\n  var SKIP = /^(#|data:|blob:|about:|mailto:|tel:|sms:|javascript:)/i;\n  function px(u) {\n    var v = String(u);\n    if (!v || SKIP.test(v.trim())) return u;\n    var abs = resolve(v);\n    return toProxy(abs);\n  }\n\n  var realOrigin;\n  try { realOrigin = new URL(REAL_URL).origin; } catch (e) { realOrigin = 'https://example.com'; }\n\n  // ── 0. disarm the Navigation API ─────────────────────────────────────────\n  // Sites like Bing use navigation.addEventListener('navigate', e => e.intercept(...))\n  // to hijack EVERY navigation of this frame (even ones the parent app starts)\n  // and reroute them through their trackers — leaving users on junk URLs.\n  // We load before their scripts, so neutering it here disables that.\n  try {\n    if (window.navigation) {\n      window.navigation.addEventListener = function () {};\n      window.navigation.onnavigate = null;\n      var navKeys = ['transitionWhile', 'intercept', 'scroll', 'entries'];\n      for (var nk = 0; nk < navKeys.length; nk++) {\n        try { delete window.navigation[navKeys[nk]]; } catch (e2) {}\n      }\n    }\n  } catch (e) {}\n\n  // ── 1. fetch ───────────────────────────────────────────────────────────\n  var _fetch = window.fetch;\n  window.fetch = function (input, init) {\n    try {\n      if (typeof input === 'string' || input instanceof URL) input = px(String(input));\n      else if (input && input.url) input = new Request(px(input.url), input);\n    } catch (e) {}\n    return _fetch.call(this, input, init);\n  };\n\n  // ── 2. XMLHttpRequest ──────────────────────────────────────────────────\n  var _open = XMLHttpRequest.prototype.open;\n  XMLHttpRequest.prototype.open = function (method, url) {\n    var rest = Array.prototype.slice.call(arguments, 2);\n    return _open.apply(this, [method, px(url)].concat(rest));\n  };\n\n  // ── 3. window.open → new tab inside our browser UI ─────────────────────\n  var _wopen = window.open;\n  window.open = function (u, name, feats) {\n    try {\n      if (u != null) {\n        var abs = resolve(u);\n        if (/^https?:/i.test(abs) && String(abs).indexOf(location.origin + PREFIX) !== 0) {\n          openInAppTab(toProxy(abs));\n          return null;\n        }\n        u = toProxy(abs);\n      }\n    } catch (e) {}\n    return _wopen.call(this, u, name, feats);\n  };\n\n  // ── 4. history API ─────────────────────────────────────────────────────\n  try {\n    var _push = history.pushState, _replace = history.replaceState;\n    history.pushState = function (s, t, u) {\n      return _push.call(history, s, t, u == null ? u : toProxy(resolve(u)));\n    };\n    history.replaceState = function (s, t, u) {\n      return _replace.call(history, s, t, u == null ? u : toProxy(resolve(u)));\n    };\n  } catch (e) {}\n\n  // ── 5. links + forms (capture phase, before the page can react) ────────\n  // On WINDOW, capture: site hijackers (Bing/Brave) also listen on window\n  // capture — whoever registered FIRST wins, and our runtime is injected\n  // before any page script runs, so we're first in line. Combined with\n  // stopImmediatePropagation, their trackers never see the click.\n  function openInAppTab(proxiedUrl) {\n    // Ask our launcher app to open a tab (stays inside our browser UI).\n    try {\n      window.parent.postMessage({ __htNewTab: true, url: proxiedUrl }, location.origin);\n      return;\n    } catch (e) {}\n    try { _wopen.call(window, proxiedUrl, '_blank'); } catch (e) {}\n  }\n  window.addEventListener(\n    'click',\n    function (e) {\n      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;\n      if (!a) return;\n      var href = a.getAttribute('href');\n      if (!href || href.charAt(0) === '#' || /^javascript:/i.test(href)) return;\n      var cur = a.href || '';\n      // Already proxied? We STILL claim the click: site scripts (Bing et al.)\n      // listen for it and reroute through their trackers, which bounce.\n      // We navigate ourselves to the exact same destination — minus them.\n      if (cur.indexOf(PREFIX + '~/') !== -1 || href.indexOf(PREFIX + '~/') === 0) {\n        e.preventDefault();\n        e.stopPropagation();\n        if (e.stopImmediatePropagation) e.stopImmediatePropagation();\n        if (a.target === '_blank' || e.metaKey || e.ctrlKey || e.button === 1) {\n          openInAppTab(cur);\n        } else {\n          sendNav(cur);\n        }\n        return;\n      }\n      var abs = resolve(href);\n      if (!/^https?:/i.test(abs)) return;\n      e.preventDefault();\n      e.stopPropagation();\n      if (e.stopImmediatePropagation) e.stopImmediatePropagation();\n      if (a.target === '_blank' || e.metaKey || e.ctrlKey || e.button === 1) {\n        openInAppTab(toProxy(abs));\n      } else {\n        sendNav(toProxy(abs));\n      }\n    },\n    { capture: true, passive: false }\n  );\n  document.addEventListener(\n    'submit',\n    function (e) {\n      var f = e.target;\n      if (!f || !f.getAttribute) return;\n      var action = f.getAttribute('action') || '';\n      var proxied;\n      if (action.indexOf(PREFIX + '~/') === 0) {\n        // already rewritten by our rewriter (path-only, app-relative)\n        proxied = action;\n      } else {\n        var abs = resolve(action || REAL_URL);\n        if (!/^https?:/i.test(abs)) return;\n        if (abs.indexOf(location.origin + PREFIX + '~/') === 0) {\n          proxied = abs.slice(location.origin.length);\n        } else {\n          proxied = toProxy(abs);\n        }\n      }\n      e.preventDefault();\n      e.stopPropagation();\n      if (e.stopImmediatePropagation) e.stopImmediatePropagation();\n      var method = (f.getAttribute('method') || 'get').toUpperCase();\n      try {\n        var fd = new FormData(f);\n        var pairs = [];\n        fd.forEach(function (v, k) {\n          if (typeof v === 'string') pairs.push([k, v]);\n        });\n        if (method === 'POST') {\n          window.parent.postMessage({ __htNavPost: { url: proxied, fields: pairs } }, location.origin);\n        } else {\n          var qs = pairs.map(function (p2) {\n            return encodeURIComponent(p2[0]) + '=' + encodeURIComponent(p2[1]);\n          }).join('&');\n          sendNav(qs ? proxied + (proxied.indexOf('?') === -1 ? '?' : '&') + qs : proxied);\n        }\n      } catch (e3) {\n        f.setAttribute('action', proxied);\n        f.submit();\n      }\n    },\n    true\n  );\n\n  // ── 6. document.cookie emulation (per real origin) ─────────────────────\n  var JAR_KEY = 'ht-jar:' + realOrigin;\n  function jarGet() {\n    try { return sessionStorage.getItem(JAR_KEY) || ''; } catch (e) { return ''; }\n  }\n  function jarSet(s) {\n    try { sessionStorage.setItem(JAR_KEY, s); } catch (e) {}\n    pushCookies(s);\n  }\n  function jarMap(str) {\n    var m = {}, parts = (str || '').split(';');\n    for (var i = 0; i < parts.length; i++) {\n      var p = parts[i], idx = p.indexOf('=');\n      if (idx > 0) m[p.slice(0, idx).trim()] = p.slice(idx + 1).trim();\n    }\n    return m;\n  }\n  function jarString(m) {\n    var out = [];\n    for (var k in m) out.push(k + '=' + m[k]);\n    return out.join('; ');\n  }\n  try {\n    Object.defineProperty(document, 'cookie', {\n      configurable: true,\n      get: function () { return jarGet(); },\n      set: function (v) {\n        v = String(v);\n        var eq = v.indexOf('=');\n        if (eq < 1) return;\n        var name = v.slice(0, eq).trim();\n        var value = v.slice(eq + 1).split(';')[0];\n        var expired = /expires=thu, 01 jan 1970|max-age=0/i.test(v) || value === '';\n        var m = jarMap(jarGet());\n        if (expired) delete m[name]; else m[name] = value;\n        jarSet(jarString(m));\n      },\n    });\n  } catch (e) {}\n\n  function pushCookies(cookie) {\n    try {\n      // keepalive: this POST used to get aborted by page navigations (every\n      // form submit!) — losing the login cookies it was carrying.\n      _fetch(PREFIX + '~/__ht/cookies', {\n        method: 'POST',\n        headers: { 'content-type': 'application/json' },\n        body: JSON.stringify({ origin: realOrigin, cookie: cookie }),\n        keepalive: true,\n      });\n    } catch (e) {}\n  }\n\n  // Boot: pull upstream Set-Cookie the SW saved (non-HttpOnly only) → jar.\n  (function syncCookies() {\n    _fetch(PREFIX + '~/__ht/sync?o=' + encodeURIComponent(realOrigin))\n      .then(function (r) { return r.json(); })\n      .then(function (data) {\n        if (!data || !data.setCookie || !data.setCookie.length) return;\n        var m = jarMap(jarGet());\n        for (var i = 0; i < data.setCookie.length; i++) {\n          var first = String(data.setCookie[i]).split(';')[0];\n          var eq = first.indexOf('=');\n          if (eq > 0) m[first.slice(0, eq).trim()] = first.slice(eq + 1).trim();\n        }\n        var s = jarString(m);\n        try { sessionStorage.setItem(JAR_KEY, s); } catch (e) {}\n      })\n      .catch(function () {});\n  })();\n\n  // ── 7. localStorage / sessionStorage emulation (per real origin) ───────\n  // All proxied sites share the real htmltools.me storage, so every key is\n  // namespaced with the site's origin. Pages see clean per-site storage.\n  (function () {\n    var nativeLS = window.localStorage;\n    var nativeSS = window.sessionStorage;\n    var NS = '__ht__' + b64url(realOrigin) + '__';\n\n    function NsStore(native) {\n      this._n = native;\n    }\n    NsStore.prototype = {\n      _keys: function () {\n        var out = [], n = this._n;\n        for (var i = 0; i < n.length; i++) {\n          var k = n.key(i);\n          if (k && k.indexOf(NS) === 0) out.push(k.slice(NS.length));\n        }\n        return out;\n      },\n      getItem: function (k) { return this._n.getItem(NS + String(k)); },\n      setItem: function (k, v) { this._n.setItem(NS + String(k), String(v)); },\n      removeItem: function (k) { this._n.removeItem(NS + String(k)); },\n      key: function (i) { return this._keys()[i] || null; },\n      clear: function () {\n        var n = this._n;\n        this._keys().forEach(function (k) { n.removeItem(NS + k); });\n      },\n    };\n    Object.defineProperty(NsStore.prototype, 'length', {\n      get: function () { return this._keys().length; },\n    });\n\n    try {\n      Object.defineProperty(window, 'localStorage', {\n        configurable: true,\n        get: function () { return lsShim; },\n      });\n      Object.defineProperty(window, 'sessionStorage', {\n        configurable: true,\n        get: function () { return ssShim; },\n      });\n    } catch (e) {}\n    var lsShim = new NsStore(nativeLS);\n    var ssShim = new NsStore(nativeSS);\n  })();\n\n  // ── 8. WebSocket proxying ──────────────────────────────────────────────\n  // Connects to OUR backend over wss; the backend dials the real ws://\n  // server and pipes frames both ways, preserving text/binary.\n  var _WS = window.WebSocket;\n  function resolveWs(u) {\n    var s = String(u || '');\n    var abs;\n    try {\n      if (/^wss?:/i.test(s)) {\n        abs = s;\n      } else if (s.indexOf('//') === 0) {\n        abs = (location.protocol === 'https:' ? 'wss:' : 'ws:') + s;\n      } else {\n        abs = new URL(s, REAL_URL).href;\n        abs = abs.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');\n      }\n    } catch (e) {\n      abs = s;\n    }\n    return abs;\n  }\n\n  function HTWebSocket(url, protocols) {\n    if (!(this instanceof HTWebSocket)) {\n      throw new TypeError(\"Failed to construct 'WebSocket': use 'new'.\");\n    }\n    var self = this;\n    var abs = resolveWs(url);\n    this._url = abs;\n    this._binaryType = 'blob';\n    this._ls = { open: [], message: [], error: [], close: [] };\n\n    var handshake = b64url(JSON.stringify({\n      cookie: jarGet(),\n      origin: realOrigin,\n      protocol: protocols || null,\n    }));\n    var wire = WS_BACKEND + '/proxyws?u=' + encodeURIComponent(abs) + '&hd=' + encodeURIComponent(handshake);\n    // Protocols travel inside hd; none on the real handshake so the browser\n    // never expects a Sec-WebSocket-Protocol echo.\n    var real = new _WS(wire);\n    this._real = real;\n\n    real.addEventListener('open', function () { self._fire('open', new Event('open')); });\n    real.addEventListener('error', function () { self._fire('error', new Event('error')); });\n    real.addEventListener('close', function (e) {\n      self._fire('close', new CloseEvent('close', { code: e.code, reason: e.reason, wasClean: e.wasClean }));\n    });\n    real.addEventListener('message', function (e) {\n      var data = e.data;\n      if (data instanceof Blob && self._binaryType === 'arraybuffer') {\n        data.arrayBuffer().then(function (buf) {\n          self._fire('message', new MessageEvent('message', { data: buf }));\n        });\n      } else {\n        self._fire('message', new MessageEvent('message', { data: data }));\n      }\n    });\n  }\n  HTWebSocket.prototype._fire = function (type, event) {\n    event.target = this;\n    var list = this._ls[type].slice();\n    for (var i = 0; i < list.length; i++) {\n      try { list[i].call(this, event); } catch (e) {}\n    }\n    var h = this['on' + type];\n    if (typeof h === 'function') {\n      try { h.call(this, event); } catch (e) {}\n    }\n  };\n  HTWebSocket.prototype.addEventListener = function (t, fn, opts) {\n    if (this._ls[t]) this._ls[t].push(fn);\n  };\n  HTWebSocket.prototype.removeEventListener = function (t, fn) {\n    var l = this._ls[t];\n    if (!l) return;\n    var i = l.indexOf(fn);\n    if (i !== -1) l.splice(i, 1);\n  };\n  HTWebSocket.prototype.send = function (data) { return this._real.send(data); };\n  HTWebSocket.prototype.close = function (code, reason) { this._real.close(code, reason); };\n  Object.defineProperty(HTWebSocket.prototype, 'url', { get: function () { return this._url; } });\n  Object.defineProperty(HTWebSocket.prototype, 'readyState', {\n    get: function () { return this._real.readyState; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'bufferedAmount', {\n    get: function () { return this._real.bufferedAmount; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'extensions', {\n    get: function () { return this._real.extensions; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'protocol', {\n    get: function () { return this._real.protocol; },\n  });\n  Object.defineProperty(HTWebSocket.prototype, 'binaryType', {\n    get: function () { return this._binaryType; },\n    set: function (v) {\n      this._binaryType = v === 'arraybuffer' ? 'arraybuffer' : 'blob';\n      this._real.binaryType = 'blob';\n    },\n  });\n  HTWebSocket.CONNECTING = 0;\n  HTWebSocket.OPEN = 1;\n  HTWebSocket.CLOSING = 2;\n  HTWebSocket.CLOSED = 3;\n  try { window.WebSocket = HTWebSocket; } catch (e) {}\n\n  // ── 9. EventSource / sendBeacon / Workers ──────────────────────────────\n  var _ES = window.EventSource;\n  if (_ES) {\n    var HTES = function (url, cfg) { return new _ES(px(url), cfg); };\n    HTES.prototype = _ES.prototype;\n    ['CONNECTING', 'OPEN', 'CLOSED'].forEach(function (k) { HTES[k] = _ES[k]; });\n    try { window.EventSource = HTES; } catch (e) {}\n  }\n\n  if (navigator.sendBeacon) {\n    navigator.sendBeacon = function (url, data) {\n      try {\n        _fetch(px(url), { method: 'POST', body: data, keepalive: true });\n        return true;\n      } catch (e) {\n        return false;\n      }\n    };\n  }\n\n  var _Worker = window.Worker;\n  if (_Worker) {\n    var HTWorker = function (url, opts) {\n      try { url = px(url); } catch (e) {}\n      return new _Worker(url, opts);\n    };\n    HTWorker.prototype = _Worker.prototype;\n    try { window.Worker = HTWorker; } catch (e) {}\n  }\n  var _SWC = window.SharedWorker;\n  if (_SWC) {\n    var HTSW = function (url, opts) {\n      try { url = px(url); } catch (e) {}\n      return new _SWC(url, opts);\n    };\n    HTSW.prototype = _SWC.prototype;\n    try { window.SharedWorker = HTSW; } catch (e) {}\n  }\n\n  // ── 10. dynamic DOM: rewrite nodes the page adds later ─────────────────\n  // Careful: element .src/.href PROPERTIES resolve against the app's real\n  // location (htmltools.me/Browser/~/…), so an already-proxied node looks\n  // \"unproxied\" to a naive prefix check → double-wrapping → 404 storms.\n  // We check both the raw attribute and the resolved property before touching.\n  var PROX_HIT = location.origin + PREFIX + '~/';\n  function alreadyDone(val) {\n    return (\n      typeof val !== 'string' ||\n      val.indexOf(PREFIX + '~/') === 0 ||\n      val.indexOf(PROX_HIT) !== -1\n    );\n  }\n  var obs = new MutationObserver(function (muts) {\n    for (var i = 0; i < muts.length; i++) {\n      var added = muts[i].addedNodes;\n      for (var j = 0; j < added.length; j++) {\n        var n = added[j];\n        if (!n || n.nodeType !== 1) continue;\n        try {\n          // Bing's hidden auth-check iframe re-navigates itself on failure and\n          // then walks into our sibling frames (same origin under the hood),\n          // hijacking tabs. It serves no purpose through the proxy: remove it.\n          if (n.tagName === 'IFRAME') {\n            var nsrc = (n.getAttribute && n.getAttribute('src')) || '';\n            if (/fd\\/auth\\/signin/i.test(nsrc) || (n.src && /fd\\/auth\\/signin/i.test(n.src))) {\n              n.parentNode && n.parentNode.removeChild(n);\n              continue;\n            }\n          }\n          if (n.src && typeof n.src === 'string' && !alreadyDone(n.src)) {\n            var raw = n.getAttribute('src');\n            if (raw && !alreadyDone(raw)) {\n              var abs = resolve(raw);\n              if (/^https?:/i.test(abs) && abs.indexOf(location.origin) !== 0) {\n                n.setAttribute('src', toProxy(abs));\n              }\n            }\n          }\n          if ((n.tagName === 'LINK' || n.tagName === 'A') && !alreadyDone(n.href)) {\n            var raw2 = n.getAttribute('href');\n            if (raw2 && raw2.charAt(0) !== '#' && !alreadyDone(raw2)) {\n              var abs2 = resolve(raw2);\n              if (/^https?:/i.test(abs2) && abs2.indexOf(location.origin) !== 0) {\n                n.setAttribute('href', toProxy(abs2));\n              }\n            }\n          }\n        } catch (e) {}\n      }\n    }\n  });\n  obs.observe(document.documentElement, { childList: true, subtree: true });\n})();\n";
 
 // ── cookie store + persistence (IndexedDB) ──────────────────────────────
 const store = makeStore();
@@ -501,7 +597,13 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'POST') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  dbg.push(req.method + ' ' + url.pathname.slice(0, 90));
+  if (dbg.length > 400) dbg.splice(0, 200);
 
+  if (url.pathname === DEBUG_PATH) {
+    event.respondWith(new Response(JSON.stringify(dbg), { headers: { 'content-type': 'application/json' } }));
+    return;
+  }
   if (url.pathname === RUNTIME_PATH) {
     event.respondWith(serveRuntime());
     return;
@@ -515,14 +617,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  const target = decodeUrl(url.pathname);
+  let target = decodeUrl(url.pathname) || decodeBlob(url.searchParams.get('u') || '');
   if (!target || !/^https?:/i.test(target)) {
     // A /~/ path we can't decode = a mangled/double-wrapped link. Show a
     // small friendly page instead of letting the host site's 404 take over.
-    if (url.pathname.indexOf('~%2F') !== -1 || url.pathname.indexOf('~/') !== -1) {
+    if (url.pathname.indexOf('~') !== -1 || url.search.indexOf('u=') !== -1) {
       event.respondWith(
         new Response(
-          '<meta charset="utf-8"><body style="font-family:system-ui;background:#0d1117;color:#e6edf3;display:grid;place-items:center;height:100vh;margin:0"><div style="text-align:center"><div style="font-size:40px">&#60;HT&#62;</div><p>This link got scrambled in transit (engine v1.2.2 fixed most causes).<br>Go back and try the link again.</p><p><a href="' + SCOPE + '" style="color:#58a6ff">Back to HTMLTools Browser</a></p></div>',
+          '<meta charset="utf-8"><body style="font-family:system-ui;background:#0d1117;color:#e6edf3;display:grid;place-items:center;height:100vh;margin:0"><div style="text-align:center;max-width:90%"><div style="font-size:40px">&#60;HT&#62;</div><p>This link got scrambled in transit.<br>Go back and try the link again.</p><p style="font-size:11px;color:#8b949e;word-break:break-all">debug: ' +
+            url.pathname.slice(0, 120).replace(/</g, '&lt;') +
+            '</p><p><a href="' + SCOPE + '" style="color:#58a6ff">Back to HTMLTools Browser</a></p></div>',
           { status: 404, headers: { 'content-type': 'text/html; charset=utf-8' } }
         )
       );
@@ -541,13 +645,15 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ── runtime script (served live with current settings) ──────────────────
-async function serveRuntime() {
-  await backendReady;
-  const src = (RUNTIME_SRC || '')
+function runtimeSource() {
+  return (RUNTIME_SRC || '')
     .replaceAll('__HT_KEY__', KEY)
     .replaceAll('__HT_PREFIX__', SCOPE)
     .replaceAll('__HT_BACKEND__', backend);
-  return new Response(src, {
+}
+async function serveRuntime() {
+  await backendReady;
+  return new Response(runtimeSource(), {
     headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' },
   });
 }
@@ -560,6 +666,7 @@ async function handle(request, targetUrl) {
   try { tURL = new URL(targetUrl); } catch {
     return new Response('bad target', { status: 400 });
   }
+  const method = request.method;
 
   // Headers we want upstream (sent inside ?hd= to avoid CORS preflights).
   const fwd = {};
@@ -574,6 +681,59 @@ async function handle(request, targetUrl) {
     try { decRef = decodeUrl(new URL(ref).pathname); } catch {}
   }
   fwd['referer'] = decRef && /^https?:/i.test(decRef) ? decRef : tURL.origin + '/';
+
+  // Tracker redirectors: bing.com/ck/a?…&u=a1<base64url> embeds the real
+  // destination. Redirect straight there — never load the tracker's JS
+  // redirect page (it navigates the frame itself, which is the flaky path).
+  if (/(^|\.)bing\.com$/.test(tURL.hostname) && tURL.pathname.startsWith('/ck/')) {
+    const uP = tURL.searchParams.get('u') || '';
+    if (uP.startsWith('a1')) {
+      try {
+        let b = uP.slice(2).replace(/-/g, '+').replace(/_/g, '/');
+        while (b.length % 4) b += '=';
+        const bin = atob(b);
+        let dest = '';
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        dest = decodeURIComponent(escape(String.fromCharCode.apply(null, bytes)));
+        if (/^https?:\/\//i.test(dest)) return respondRedirect(dest, 302);
+      } catch { /* fall through to normal proxying */ }
+    }
+  }
+
+  // Beacon/Auth spam throttle: some sites (Bing) fire dozens of telemetry
+  // POSTs and hidden auth-check navigations; forwarding them all can wedge
+  // navigation handling for the whole worker. Answer them locally.
+  if (method === 'POST' && /\/web\/xlsc|\/rewardsapp\/report|\/fd\/ls\//.test(tURL.pathname)) {
+    return new Response(null, { status: 204 });
+  }
+  if (/\/fd\/auth\/signin/.test(tURL.pathname)) {
+    // Silent-auth probe: answer "not signed in, don't retry" so Bing's page
+    // never opens the auth iframe loop in the first place.
+    return new Response('{"isAuthenticated":false,"silentAuth":false}', {
+      status: 200,
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
+  }
+
+  // GET forms append their fields to the OUTER query (?u=<blob>&q=…). Merge
+  // every foreign param into the decoded target so nothing is silently lost.
+  try {
+    const reqUrl = new URL(request.url);
+    if (reqUrl.search.length > 1) {
+      const tu = new URL(targetUrl);
+      let merged = false;
+      for (const [k, v] of reqUrl.searchParams) {
+        if (k === 'u' || k === 'rdr' || k === 'rdrig') continue;
+        tu.searchParams.set(k, v);
+        merged = true;
+      }
+      if (merged) {
+        targetUrl = tu.href;
+        tURL = new URL(targetUrl);
+      }
+    }
+  } catch {}
 
   const cookie = store.forUrl(tURL);
   if (cookie) fwd['cookie'] = cookie;
@@ -627,11 +787,16 @@ async function handle(request, targetUrl) {
   const ctype = (meta['content-type'] || '').toLowerCase();
   const isHTML = ctype.includes('text/html') || ctype.includes('application/xhtml');
   const isCSS = ctype.includes('text/css');
-  const isNav = request.mode === 'navigate' || request.destination === 'iframe';
+  // x-ht-nav: app-side fetch-and-paint navigations (see app.js loadIntoFrame)
+  const isNav =
+    request.mode === 'navigate' ||
+    request.destination === 'iframe' ||
+    request.headers.get('x-ht-nav') === '1';
 
   if (isHTML && isNav) {
     let html = await resp.text();
-    html = rewriteHtml(html, targetUrl, (u) => encodeUrl(u, SCOPE));
+    html = rewriteHtml(html, targetUrl, (u) => encodeUrlQ(u, SCOPE));
+    html = await inlineStylesheets(html, targetUrl);
     html = injectRuntime(html, targetUrl);
     headers.set('content-type', 'text/html; charset=utf-8');
     headers.set('cache-control', 'no-store');
@@ -639,17 +804,18 @@ async function handle(request, targetUrl) {
   }
 
   if (isCSS) {
-    const css = rewriteCss(await resp.text(), targetUrl, (u) => encodeUrl(u, SCOPE));
+    const css = rewriteCss(await resp.text(), targetUrl, (u) => encodeUrlQ(u, SCOPE));
     headers.set('content-type', ctype || 'text/css; charset=utf-8');
     return new Response(css, { status, headers });
   }
 
-  // Everything else streams through raw — no buffering.
-  // 204/205/304 answers legally have NO body — handing the browser a stream
-  // (even an empty one) throws. Sites return these constantly when files
-  // haven't changed, so getting this wrong breaks half the page.
+  // Serve from a full buffer, NOT a stream. Streamed responses get cancelled
+  // mid-flight when the page navigates away (Bing-style long connections),
+  // which wedges the worker so every LATER navigation bypasses it entirely
+  // (the "promise was rejected" → host-404 storm). Buffering kills that.
+  const buf = await resp.arrayBuffer();
   const noBody = status === 204 || status === 205 || status === 304;
-  return new Response(noBody ? null : resp.body, { status, headers });
+  return new Response(noBody ? null : buf, { status, headers });
 }
 
 function backendUrl(targetUrl, fwd) {
@@ -662,7 +828,7 @@ function backendUrl(targetUrl, fwd) {
 
 function respondRedirect(abs, status) {
   const code = [301, 302, 303, 307, 308].includes(status) ? status : 302;
-  return Response.redirect(new URL(encodeUrl(abs, SCOPE), self.registration.scope).href, code);
+  return Response.redirect(new URL(encodeUrlQ(abs, SCOPE), self.registration.scope).href, code);
 }
 
 // ── cookie engine ────────────────────────────────────────────────────────
@@ -702,11 +868,47 @@ function handleCookieSync(url) {
   });
 }
 
+// ── stylesheet inlining for painted pages ───────────────────────────────
+// After certain pages (Bing) load, Chrome stops dispatching requests that
+// originate INSIDE the frame tree to the service worker, so the page's own
+// <link rel=stylesheet> loads 404. Fetching stylesheets here (SW context
+// always dispatches) and embedding them as <style> makes painted pages
+// render styled regardless.
+async function inlineStylesheets(html, targetUrl) {
+  const tags = html.match(/<link\b[^>]*rel=["']?stylesheet["']?[^>]*>/gi) || [];
+  if (!tags.length) return html;
+  const jobs = tags.slice(0, 8).map(async (tag) => {
+    const m = tag.match(/href=["']([^"']+)["']/i);
+    if (!m) return null;
+    let u;
+    try { u = new URL(m[1], targetUrl); } catch { return null; }
+    const real = decodeUrl(u.pathname) || decodeBlob(u.searchParams.get('u') || '');
+    if (!real || !/^https?:/i.test(real)) return null;
+    try {
+      const resp = await handle(new Request(u.href), real);
+      if (!resp.ok) return null;
+      const raw = await resp.text();
+      const css = rewriteCss(raw, real, (x) => encodeUrlQ(x, SCOPE));
+      return { tag, css: css.replace(/<\/style/gi, '<\\/style') };
+    } catch {
+      return null;
+    }
+  });
+  const results = await Promise.all(jobs);
+  for (const r of results) {
+    if (r) html = html.replace(r.tag, '<style data-ht-inlined="1">' + r.css + '</style>');
+  }
+  return html;
+}
+
 // ── runtime injection ────────────────────────────────────────────────────
 function injectRuntime(html, targetUrl) {
+  // Inline the runtime: painted (document.write) frames and strict-CSP-ish
+  // pages can be flaky about loading external scripts, but fetches through
+  // the SW always work — so ship the runtime inside the HTML itself.
   const tag =
     `<script>window.__HT_REAL_URL__=${JSON.stringify(targetUrl)};</script>` +
-    `<script src="${RUNTIME_PATH}" data-real-url="${targetUrl.replace(/"/g, '&quot;')}"></script>`;
+    `<script>${runtimeSource().replace(/<\/script/gi, '<\\/script')}</script>`;
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => m + tag);
   if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => m + tag);
   return tag + html;
