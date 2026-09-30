@@ -210,7 +210,7 @@
   <noscript>HTMLTools Browser needs JavaScript.</noscript>
   <script>
 // HTMLTools Browser — app (auto-built single file)
-window.__HT_EXPECT_SW__ = "v1.12.1";
+window.__HT_EXPECT_SW__ = "v1.12.2";
 const BACKEND = "https://htmltools-browser.htmltools-browser.deno.net";
 const KEY = "htmltools-change-me-9f2k";
 const SEARCH = "https://www.bing.com/search?q=";
@@ -2208,6 +2208,28 @@ function looksLikeHost404(text) {
   return head.includes('RETURN HOME') && head.includes('404');
 }
 
+
+// The engine (service worker) isn't answering yet. Wait ~2 s, then reload the whole
+// browser page by itself (a reload is what actually wakes a stuck worker). Guarded so it
+// can never loop forever: at most 3 automatic reloads per 2 minutes, after which the user is
+// told to refresh manually.
+function wakeAndReload() {
+  const MSG = 'Engine is waking up\u2026 reloading automatically. If it takes too long, refresh the page.';
+  let n = 0, t0 = 0;
+  try { const r = JSON.parse(sessionStorage.getItem('ht-wake') || '{}'); n = r.n || 0; t0 = r.t || 0; } catch (e) {}
+  if (Date.now() - t0 > 120000) { n = 0; t0 = Date.now(); }
+  if (n >= 3) {
+    banner('The engine is taking too long to wake up. Please refresh the page (Ctrl+R / \u2318R).');
+    return;
+  }
+  banner(MSG);
+  if (wakeAndReload._timer) return;
+  wakeAndReload._timer = setTimeout(() => {
+    try { sessionStorage.setItem('ht-wake', JSON.stringify({ n: n + 1, t: t0 || Date.now() })); } catch (e) {}
+    location.reload();
+  }, 2000);
+}
+
 // The engine was unreachable. When it comes back (worker claims the page),
 // re-drive whatever the tab was trying to load — automatically.
 function scheduleEngineRetry() {
@@ -2216,6 +2238,7 @@ function scheduleEngineRetry() {
     const t = activeTab();
     if (t && t._want) {
       engineWasDown = false;
+      try { sessionStorage.removeItem('ht-wake'); } catch (e) {}
       banner('Engine ready \u2713', false);
       loadIntoFrame(t, t._want).catch(() => {});
     }
@@ -2242,7 +2265,7 @@ async function _loadIntoFrame(tab, proxiedUrl, opts) {
     );
   } catch (e) {
     engineWasDown = true;
-    banner('Engine is waking up\u2026 one moment.');
+    wakeAndReload();
     scheduleEngineRetry();
     return;
   }
@@ -2255,7 +2278,7 @@ async function _loadIntoFrame(tab, proxiedUrl, opts) {
     const body = await resp.text();
     if (looksLikeHost404(body)) {
       engineWasDown = true;
-      banner('Engine is waking up\u2026 one moment.');
+      wakeAndReload();
       tab.title = 'Waking up\u2026';
       tab.el.querySelector('.t').textContent = tab.title;
       scheduleEngineRetry();
@@ -2264,6 +2287,7 @@ async function _loadIntoFrame(tab, proxiedUrl, opts) {
     await paintHtml(tab, finalUrl, body); // a real 404 page from the target site
     return;
   }
+  try { sessionStorage.removeItem('ht-wake'); } catch (e) {}
   if (isHTML) {
     await paintHtml(tab, finalUrl, await resp.text());
   } else if (/^(text\/|application\/(json|xml|javascript|[\w.+-]*\+(json|xml)))/i.test(ctype) && !/attachment/i.test((resp.headers && resp.headers.get('content-disposition')) || '')) {
