@@ -493,7 +493,7 @@ function makeStore() {
 
 
 
-const VERSION = 'v1.6.0';
+const VERSION = 'v1.6.1';
 const SCOPE = new URL(self.registration.scope).pathname; // '/' or '/browser/'
 const ROOT = SCOPE.replace(/\/$/, ''); // '' or '/browser'
 const RUNTIME_PATH = ROOT + '/~/__ht/runtime.js';
@@ -586,6 +586,14 @@ self.addEventListener('activate', (event) => {
 // The app can set the backend at runtime (⚙ in the header / first-run box).
 self.addEventListener('message', (event) => {
   const d = event.data || {};
+  if (d.type === 'version') {
+    // the app asks which engine version is actually running, so it can
+    // detect a stale worker (Chrome can keep an old one for many reloads)
+    const payload = { type: 'version', version: VERSION };
+    if (event.ports && event.ports[0]) event.ports[0].postMessage(payload);
+    else if (event.source) event.source.postMessage(payload);
+    return;
+  }
   if (d.type === 'backend' && typeof d.url === 'string' && /^https?:\/\//.test(d.url)) {
     backend = d.url.replace(/\/$/, '');
     idbOp('readwrite', (s) => s.put(backend, 'backend')).catch(() => {});
