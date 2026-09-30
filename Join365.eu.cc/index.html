@@ -145,9 +145,9 @@ body{
 /* the 3D scene — interactive, fills the viewport */
 .scene{
   position:absolute;
-  inset:0;
+  top:0; left:0;
   width:100%;
-  height:100%;
+  height:calc(100% + 90px);       /* extra height pushes the Spline badge off-screen */
   border:0;
   display:block;
   pointer-events:auto;            /* …but the scene itself is draggable */
@@ -156,7 +156,7 @@ body{
      live WebGL/WebGPU canvas through a filter chain can leave the frame
      blank in Chromium. Any colour treatment must live in the layers above. */
   transition:opacity 1.1s var(--ease);
-  touch-action:pan-y;
+  touch-action:none;
 }
 .scene.is-ready{ opacity:1; }
 
@@ -165,7 +165,7 @@ body{
   position:absolute;
   inset:0;
   background:
-    linear-gradient(180deg, rgba(6,4,2,.30) 0%, rgba(6,4,2,.04) 26%, rgba(6,4,2,.18) 52%, rgba(6,4,2,.90) 100%);
+    linear-gradient(180deg, rgba(6,4,2,.15) 0%, rgba(6,4,2,0) 30%, rgba(6,4,2,.10) 55%, rgba(6,4,2,.65) 100%);
 }
 
 /* soft, edgeless falloff under the copy — readability without a visible box.
@@ -174,7 +174,7 @@ body{
   position:absolute;
   inset:0;
   background:radial-gradient(124% 94% at 50% 46%,
-    rgba(4,3,2,0) 40%, rgba(4,3,2,.44) 80%, rgba(4,3,2,.74) 100%);
+    rgba(4,3,2,0) 50%, rgba(4,3,2,.25) 85%, rgba(4,3,2,.5) 100%);
 }
 
 .foot-glow{
@@ -185,7 +185,7 @@ body{
   height:74vh;
   transform:translateX(-50%);
   background:
-    radial-gradient(52% 52% at 50% 56%, rgba(3,2,1,.88) 0%, rgba(3,2,1,.62) 44%, rgba(3,2,1,0) 78%),
+    radial-gradient(52% 52% at 50% 56%, rgba(3,2,1,.6) 0%, rgba(3,2,1,.35) 44%, rgba(3,2,1,0) 78%),
     radial-gradient(26% 26% at 50% 58%, rgba(255,122,26,.09) 0%, rgba(255,122,26,0) 72%);
   filter:blur(18px);
 }
@@ -196,42 +196,10 @@ body{
   position:absolute;
   inset:0;
   background:
-    /* 1 — warm veil (painted on top) */
-    linear-gradient(180deg, rgba(255,112,22,.46) 0%, rgba(255,112,22,.40) 46%, rgba(255,104,16,.50) 100%),
-    /* 2 — neutral veil beneath it: removes the blue without adding haze */
-    linear-gradient(180deg, rgba(26,14,6,.46) 0%, rgba(26,14,6,.42) 46%, rgba(22,12,5,.52) 100%),
-    /* 3 — hot floor bounce */
-    radial-gradient(120% 78% at 50% 112%, rgba(255,96,10,.30) 0%, rgba(255,96,10,0) 58%);
+    linear-gradient(180deg, rgba(255,112,22,.10) 0%, rgba(255,112,22,.06) 50%, rgba(255,104,16,.12) 100%),
+    radial-gradient(120% 78% at 50% 112%, rgba(255,96,10,.14) 0%, rgba(255,96,10,0) 58%);
 }
 
-/* Corner signature. The 3D scene paints its own small credit badge in this
-   exact corner; this chip is a deliberate part of the layout that sits over
-   it, so the corner reads as designed instead of blanked out. */
-.corner-chip{
-  position:absolute;
-  right:clamp(14px,2vw,22px);
-  bottom:clamp(14px,2vw,20px);
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:7px 13px 7px 8px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.10);
-  background:rgba(8,6,5,.72);
-  -webkit-backdrop-filter:blur(10px);
-  backdrop-filter:blur(10px);
-  font-size:.72rem;
-  font-weight:560;
-  letter-spacing:.01em;
-  color:rgba(255,255,255,.72);
-  white-space:nowrap;
-}
-.corner-chip img{
-  width:18px;
-  height:18px;
-  border-radius:5px;
-  display:block;
-}
 
 /* fine film grain — kills the "flat CSS" look */
 .grain{
@@ -456,8 +424,6 @@ h1 em{
   padding:20px clamp(20px,5vw,56px) 26px;
   font-size:.78rem;
   color:var(--dim);
-  /* leave the bottom-right corner to the signature chip */
-  padding-right:clamp(190px,22vw,260px);
 }
 .footer a{
   color:var(--dim);
@@ -513,22 +479,10 @@ h1 em{
     flex-direction:column;
     align-items:flex-start;
     gap:4px;
-    /* keep the corner clear for the signature chip */
-    padding-right:150px;
   }
-  .corner-chip{ font-size:.68rem; padding:6px 11px 6px 7px; }
 }
 
-/* Touch devices: keep the page scrollable — dragging the scene would
-   otherwise swallow vertical swipes. Taps and scrolls behave normally. */
-@media (pointer:coarse){
-  .scene{ pointer-events:none; }
-  .tip{ display:none; }
-}
 
-/* Belt and braces: if the page itself has to scroll, the scene stops
-   capturing the wheel so scrolling always wins. */
-body.scene-locked .scene{ pointer-events:none; }
 
 
 
@@ -539,8 +493,6 @@ body.scene-locked .scene{ pointer-events:none; }
     transition-duration:.001ms !important;
   }
   .rise{ opacity:1; transform:none; }
-  .ambience{ display:none; }
-  .scene{ display:none; }          /* static gradient instead of a moving canvas */
   .tip{ display:none; }
 }
 
@@ -568,6 +520,7 @@ body.scene-locked .scene{ pointer-events:none; }
           frameborder="0"
           scrolling="no"
           loading="eager"
+          allow="autoplay; fullscreen; xr-spatial-tracking"
           tabindex="-1"
           allowfullscreen></iframe>
 
@@ -577,10 +530,6 @@ body.scene-locked .scene{ pointer-events:none; }
   <div class="foot-glow"></div>
   <div class="grain"></div>
 
-  <div class="corner-chip" aria-hidden="true">
-    <img id="brandmark-chip" src="https://join365.eu.cc/logo.png" alt="" width="18" height="18" decoding="async">
-    Join365
-  </div>
 </div>
 
 <!-- ===================== UI ===================== -->
@@ -664,7 +613,6 @@ body.scene-locked .scene{ pointer-events:none; }
   }
   guardLogo('brandmark-nav');
   guardLogo('brandmark-hero');
-  guardLogo('brandmark-chip');
 
   /* ---- reveal the 3D scene once it has loaded --------------------------- */
   var scene = d.getElementById('scene');
@@ -687,26 +635,10 @@ body.scene-locked .scene{ pointer-events:none; }
   window.addEventListener('wheel', dismissTip, { passive: true });
   setTimeout(dismissTip, 12000);
 
-  /* ---- never let the scene fight the page scroll -----------------------
-     The scene only owns the pointer while the page genuinely fits the
-     viewport. As soon as there is real overflow it steps aside so scrolling
-     always wins. Re-evaluated on every event that can change the answer. */
-  var syncScrollLock = function () {
-    var overflow = d.documentElement.scrollHeight - window.innerHeight;
-    d.body.classList.toggle('scene-locked', overflow > 4);
-  };
-  ['load', 'resize', 'orientationchange', 'animationend', 'transitionend']
-    .forEach(function (evt) {
-      window.addEventListener(evt, syncScrollLock, { passive: true });
-    });
-  if ('ResizeObserver' in window) {
-    new ResizeObserver(syncScrollLock).observe(d.documentElement);
-  }
-  [0, 400, 1200, 3000].forEach(function (t) { setTimeout(syncScrollLock, t); });
 
   /* ---- logo fallback for images that errored before JS ran ------------- */
   window.addEventListener('load', function () {
-    ['brandmark-nav', 'brandmark-hero', 'brandmark-chip'].forEach(function (id) {
+    ['brandmark-nav', 'brandmark-hero'].forEach(function (id) {
       var el = d.getElementById(id);
       if (el && el.complete && el.naturalWidth === 0) {
         el.dispatchEvent(new Event('error'));
