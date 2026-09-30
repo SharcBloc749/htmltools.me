@@ -54,9 +54,63 @@ DESTS.forEach(function (d) {
   if (d.icon === "ht") { d.logo = HT_LOGO_SRC; d.logoFallback = HT_LOGO_FALLBACK; }
 });
 
+/* Translation language pair used by the Translate destination. Sharing the
+   same key as the translator keeps the choice remembered across both pages. */
+var TRANSLATE_LANG_STORAGE = "htmltools_translate_langs_v1";
+var TRANSLATE_LANGUAGES = [
+  ["auto","Detect language"],["en","English"],["es","Spanish"],["fr","French"],["de","German"],
+  ["it","Italian"],["pt","Portuguese"],["nl","Dutch"],["ru","Russian"],["zh","Chinese (Simplified)"],
+  ["zh-TW","Chinese (Traditional)"],["ja","Japanese"],["ko","Korean"],["ar","Arabic"],["hi","Hindi"],
+  ["bn","Bengali"],["ur","Urdu"],["tr","Turkish"],["vi","Vietnamese"],["th","Thai"],["id","Indonesian"],
+  ["ms","Malay"],["fa","Persian"],["he","Hebrew"],["pl","Polish"],["uk","Ukrainian"],["ro","Romanian"],
+  ["el","Greek"],["cs","Czech"],["sv","Swedish"],["da","Danish"],["fi","Finnish"],["no","Norwegian"],
+  ["hu","Hungarian"],["sk","Slovak"],["bg","Bulgarian"],["hr","Croatian"],["sr","Serbian"],["sl","Slovenian"],
+  ["lt","Lithuanian"],["lv","Latvian"],["et","Estonian"],["sw","Swahili"],["af","Afrikaans"],
+  ["am","Amharic"],["az","Azerbaijani"],["ca","Catalan"],["km","Khmer"],["ne","Nepali"],["si","Sinhala"],
+  ["ta","Tamil"],["te","Telugu"],["ml","Malayalam"],["kn","Kannada"],["mr","Marathi"],["gu","Gujarati"],
+  ["pa","Punjabi"],["tl","Filipino"],["is","Icelandic"],["ga","Irish"],["cy","Welsh"],["sq","Albanian"],
+  ["hy","Armenian"],["ka","Georgian"],["mn","Mongolian"],["ps","Pashto"],["so","Somali"],["zu","Zulu"]
+];
+var translateSourceLanguage = "auto";
+var translateTargetLanguage = "es";
+try {
+  var savedTranslatePair = JSON.parse(localStorage.getItem(TRANSLATE_LANG_STORAGE) || "null");
+  if (savedTranslatePair) {
+    if (TRANSLATE_LANGUAGES.some(function (lang) { return lang[0] === savedTranslatePair.source; })) {
+      translateSourceLanguage = savedTranslatePair.source;
+    }
+    if (savedTranslatePair.target && savedTranslatePair.target !== "auto" &&
+        TRANSLATE_LANGUAGES.some(function (lang) { return lang[0] === savedTranslatePair.target; })) {
+      translateTargetLanguage = savedTranslatePair.target;
+    }
+  }
+} catch (err) {}
+
+function translationLanguageName(code) {
+  for (var i = 0; i < TRANSLATE_LANGUAGES.length; i++) {
+    if (TRANSLATE_LANGUAGES[i][0] === code) return TRANSLATE_LANGUAGES[i][1];
+  }
+  return code;
+}
+function translationLanguageSlug(code) {
+  if (code === "auto") return "detect-language";
+  var name = translationLanguageName(code).toLowerCase();
+  if (name.normalize) name = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return name.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function translateLanguagePairSlug() {
+  return translationLanguageSlug(translateSourceLanguage) + "-to-" + translationLanguageSlug(translateTargetLanguage);
+}
+
 var Q = (new URLSearchParams(location.search).get("q") || "").replace(/\s+/g, " ").trim();
 
-function destUrl(d, q) { return q ? d.url.replace("{q}", encodeURIComponent(q)) : d.home; }
+function destUrl(d, q) {
+  var url = q ? d.url.replace("{q}", encodeURIComponent(q)) : d.home;
+  if (d.id === "translate") {
+    url += (url.indexOf("?") === -1 ? "?" : "&") + "language=" + encodeURIComponent(translateLanguagePairSlug());
+  }
+  return url;
+}
 
 /* Shortcut = a keyword as the last word(s) of the query, case-insensitive.
    Trailing spaces are ignored; anything else after the word ("banana image?")
@@ -338,6 +392,40 @@ if (SHORTCUT) {
   .menu .tick { width: 15px; height: 15px; stroke-width: 2.6; opacity: 0; color: #fff; }
   .menu button[aria-selected="true"] .tick { opacity: 1; }
 
+  /* language controls on the Translate destination */
+  .translate-card.picker-open { z-index: 90; }
+  .translate-language-button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    max-width: 118px; padding: 5px 8px; border: 1px solid #2c2c2c; border-radius: 999px;
+    background: #171717; color: #d6d6d6; cursor: pointer; font-size: 10.5px; font-weight: 600;
+    line-height: 1; transition: background .16s, color .16s, border-color .16s;
+  }
+  .translate-language-button:hover, .translate-language-button[aria-expanded="true"] {
+    background: #fff; color: #000; border-color: #fff;
+  }
+  .translate-language-button .i { width: 13px; height: 13px; stroke-width: 2.2; flex: none; }
+  .translate-language-button .pair-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .translate-language-popover {
+    position: absolute; top: calc(100% + 8px); right: 0; width: min(290px, calc(100vw - 28px));
+    padding: 15px; background: #0d0d0d; border: 1px solid #343434; border-radius: 17px;
+    box-shadow: 0 30px 70px rgba(0,0,0,.92); z-index: 95;
+    visibility: hidden; opacity: 0; transform: translateY(-8px) scale(.98); transform-origin: top right;
+    transition: opacity .16s, transform .16s, visibility 0s .16s;
+  }
+  .translate-language-popover.open {
+    visibility: visible; opacity: 1; transform: none; transition: opacity .16s, transform .16s, visibility 0s;
+  }
+  .translate-language-popover .picker-title {
+    margin: 0 0 12px; color: #f2f2f2; font-size: 13px; font-weight: 600; letter-spacing: -.01em;
+  }
+  .translate-language-field { display: flex; flex-direction: column; gap: 6px; margin-top: 11px; color: #9b9b9b; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+  .translate-language-field select {
+    width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid #303030; border-radius: 10px;
+    background: #171717; color: #f5f5f5; font-family: inherit; font-size: 13px; font-weight: 500; line-height: 1.2; letter-spacing: normal; text-transform: none; color-scheme: dark;
+  }
+  .translate-language-field select:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .translate-language-popover .picker-note { margin: 12px 0 0; color: #777; font-size: 10.5px; line-height: 1.5; }
+
   /* URL card */
   .card.wide { grid-column: 1 / -1; }
   .card.wide .hit .name { font-size: 15.5px; }
@@ -390,6 +478,7 @@ if (SHORTCUT) {
     .hit .name { font-size: 13.5px; }
     .hit .kw { display: none; }
     .side { position: absolute; top: 9px; right: 9px; flex-direction: row; }
+    .translate-language-button { max-width: 100px; padding: 5px 6px; }
     .switch span { display: none; }
     .switch { padding: 4px 7px; }
     .panel .rows { grid-template-columns: 1fr; }
@@ -591,10 +680,32 @@ if (SHORTCUT) {
     c.dataset.id = id;
     return c;
   }
-  function sideStack(hasSwitch) {
+  var translateCard = null;
+  var translateLanguageButton = null;
+  var translateLanguageSummary = null;
+  var translateLanguagePopover = null;
+  var translateSourceSelect = null;
+  var translateTargetSelect = null;
+
+  function sideStack(hasSwitch, destination) {
     var side = document.createElement("div"); side.className = "side";
     var key = document.createElement("kbd"); key.className = "key"; side.appendChild(key);
     var badge = document.createElement("span"); badge.className = "match-badge"; badge.textContent = "\u21B5 go"; badge.title = "Shortcut detected — Enter goes here"; side.appendChild(badge);
+    if (destination && destination.id === "translate") {
+      translateLanguageButton = document.createElement("button");
+      translateLanguageButton.type = "button";
+      translateLanguageButton.className = "translate-language-button";
+      translateLanguageButton.id = "translateLanguageButton";
+      translateLanguageButton.title = "Set input and output languages";
+      translateLanguageButton.setAttribute("aria-haspopup", "dialog");
+      translateLanguageButton.setAttribute("aria-expanded", "false");
+      translateLanguageButton.setAttribute("aria-controls", "translateLanguagePopover");
+      translateLanguageButton.appendChild(svgIcon("i-lang"));
+      translateLanguageSummary = document.createElement("span");
+      translateLanguageSummary.className = "pair-label";
+      translateLanguageButton.appendChild(translateLanguageSummary);
+      side.appendChild(translateLanguageButton);
+    }
     if (hasSwitch) {
       var sw = document.createElement("button");
       sw.type = "button"; sw.className = "switch"; sw.id = "engineBtn";
@@ -604,6 +715,51 @@ if (SHORTCUT) {
       side.appendChild(sw);
     }
     return side;
+  }
+
+  function createTranslateLanguageField(labelText, id, currentValue, includeAuto) {
+    var label = document.createElement("label");
+    label.className = "translate-language-field";
+    label.textContent = labelText;
+    var select = document.createElement("select");
+    select.id = id;
+    select.setAttribute("aria-label", labelText);
+    TRANSLATE_LANGUAGES.forEach(function (language) {
+      if (!includeAuto && language[0] === "auto") return;
+      var option = document.createElement("option");
+      option.value = language[0];
+      option.textContent = language[1];
+      select.appendChild(option);
+    });
+    select.value = currentValue;
+    label.appendChild(select);
+    return { label: label, select: select };
+  }
+
+  function buildTranslateLanguagePopover() {
+    var popover = document.createElement("div");
+    popover.className = "translate-language-popover";
+    popover.id = "translateLanguagePopover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-label", "Set translation languages");
+
+    var title = document.createElement("p");
+    title.className = "picker-title";
+    title.textContent = "Choose translation languages";
+    popover.appendChild(title);
+
+    var inputField = createTranslateLanguageField("Input language", "translateInputLanguage", translateSourceLanguage, true);
+    var outputField = createTranslateLanguageField("Output language", "translateOutputLanguage", translateTargetLanguage, false);
+    translateSourceSelect = inputField.select;
+    translateTargetSelect = outputField.select;
+    popover.appendChild(inputField.label);
+    popover.appendChild(outputField.label);
+
+    var note = document.createElement("p");
+    note.className = "picker-note";
+    note.textContent = "Your choice is remembered and used when you open Translate.";
+    popover.appendChild(note);
+    return popover;
   }
 
   DESTS.forEach(function (d, idx) {
@@ -619,7 +775,13 @@ if (SHORTCUT) {
     txt.appendChild(eyebrow); txt.appendChild(name); txt.appendChild(kw);
     hit.appendChild(ic); hit.appendChild(txt);
     card.appendChild(hit);
-    card.appendChild(sideStack(!!d.engine));
+    card.appendChild(sideStack(!!d.engine, d));
+    if (d.id === "translate") {
+      card.classList.add("translate-card");
+      translateCard = card;
+      translateLanguagePopover = buildTranslateLanguagePopover();
+      card.appendChild(translateLanguagePopover);
+    }
     if (d.engine) card.appendChild(buildEngineMenu());
 
     grid.appendChild(card);
@@ -651,6 +813,53 @@ if (SHORTCUT) {
     entry.hit.setAttribute("aria-label", d.eyebrow + " " + r.name);
   }
   cards.forEach(function (entry) { paintCard(entry); });
+
+  function updateTranslateLanguageButton() {
+    if (!translateLanguageButton) return;
+    var sourceLabel = translationLanguageName(translateSourceLanguage);
+    var targetLabel = translationLanguageName(translateTargetLanguage);
+    var sourceShort = translateSourceLanguage === "auto" ? "Auto" : translateSourceLanguage.toUpperCase();
+    translateLanguageSummary.textContent = sourceShort + " → " + translateTargetLanguage.toUpperCase();
+    translateLanguageButton.title = "Input: " + sourceLabel + "; output: " + targetLabel + ". Click to change.";
+    translateLanguageButton.setAttribute("aria-label", "Set input language " + sourceLabel + " and output language " + targetLabel);
+  }
+
+  function closeTranslateLanguagePopover() {
+    if (!translateLanguagePopover) return;
+    translateLanguagePopover.classList.remove("open");
+    translateCard.classList.remove("picker-open");
+    translateLanguageButton.setAttribute("aria-expanded", "false");
+  }
+
+  function saveTranslateLanguages() {
+    translateSourceLanguage = translateSourceSelect.value;
+    translateTargetLanguage = translateTargetSelect.value;
+    try {
+      localStorage.setItem(TRANSLATE_LANG_STORAGE, JSON.stringify({
+        source: translateSourceLanguage,
+        target: translateTargetLanguage
+      }));
+    } catch (err) {}
+    updateTranslateLanguageButton();
+    refresh();
+  }
+
+  if (translateLanguageButton) {
+    updateTranslateLanguageButton();
+    translateLanguageButton.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (translateLanguagePopover.classList.contains("open")) {
+        closeTranslateLanguagePopover();
+      } else {
+        translateLanguagePopover.classList.add("open");
+        translateCard.classList.add("picker-open");
+        translateLanguageButton.setAttribute("aria-expanded", "true");
+      }
+    });
+    translateSourceSelect.addEventListener("change", saveTranslateLanguages);
+    translateTargetSelect.addEventListener("change", saveTranslateLanguages);
+  }
 
   /* ============================ engine picker ============================ */
   function buildEngineMenu() {
@@ -857,12 +1066,22 @@ if (SHORTCUT) {
   document.addEventListener("click", function (e) {
     if (!e.target.closest(".apps")) setApps(false);
     if (!e.target.closest(".card.web")) openMenu(false);
+    if (!e.target.closest(".translate-card")) closeTranslateLanguagePopover();
   });
 
   /* ============================== keyboard ============================== */
   document.addEventListener("keydown", function (e) {
     var appsOpen = appsMenu.classList.contains("open");
     var typing = e.target === input;
+
+    if (e.key === "Escape" && translateLanguagePopover && translateLanguagePopover.classList.contains("open")) {
+      e.preventDefault();
+      closeTranslateLanguagePopover();
+      translateLanguageButton.focus();
+      return;
+    }
+    if (translateLanguagePopover && translateLanguagePopover.contains(e.target)) return;
+    if (e.target === translateLanguageButton) return;
 
     if (e.key === "Escape") {
       if (appsOpen) { setApps(false); appsBtn.focus(); }
