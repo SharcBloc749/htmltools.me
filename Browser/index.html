@@ -410,81 +410,131 @@ function paintHtml(tab, finalUrl, html) {
   tab.el.querySelector('.t').textContent = tab.title;
   tab.el.title = real || tab.title;
   if (tab.id === activeId) bar.value = real;
-  // If this frame tree is "tainted" its own subresource requests never
-  // reach the service worker — re-fetch them from the app context.
-  setTimeout(async () => {
-    if (tab._want !== finalUrl || !tab.iframe.contentDocument) return;
-    if (await frameIsTainted(tab)) {
-      tab._tainted = true;
-      await pumpOnce(tab);
-    }
-  }, 250);
+  // Race the taint: pump broken resources immediately after paint.
+  setTimeout(() => { if (tab._want === finalUrl) pumpOnce(tab).catch(() => {}); }, 150);
 }
 
 
 // ── resource pump ────────────────────────────────────────────────────────
 // In "tainted" frame trees Chrome stops dispatching the FRAME's own requests
-// to the service worker (subresource loads 404). The app document is immune,
-// so we re-fetch failed subresources from here and swap them in (blob URLs
-// for images, inline scripts for external JS). Cheap probe decides per tab.
+// to the service worker, and after a few seconds even blob/data image loads
+// inside the frame stop decoding. Two-phase repair:
+//   Phase 1 (the race): immediately after paint, re-fetch every broken image
+//     from the immune app context and swap in blob URLs — loads that start
+//     in the first ~2s still succeed.
+//   Phase 2 (canvas): anything still broken afterwards gets PAINTED — the
+//     app decodes the image, draws it onto a canvas inside the frame, and
+//     the canvas replaces the <img>. Works no matter how tainted the tree.
 const blobCache = new Map();
-async function frameIsTainted(tab) {
-  try {
-    const w = tab.iframe.contentWindow;
-    const r = await w.fetch(DEBUG_URL);
-    const t = await r.text();
-    return t.trim()[0] !== '[';
-  } catch {
-    return true;
-  }
+function grabBlob(u) {
+  if (blobCache.has(u)) return blobCache.get(u);
+  const p = fetch(u)
+    .then(async (r) => {
+      if (!r.ok) throw new Error('bad status');
+      const b = await r.blob();
+      const url = URL.createObjectURL(b);
+      blobCache.set(u, url);
+      return url;
+    })
+    .catch(() => {
+      blobCache.delete(u); // never cache a failure — let later passes retry
+      return null;
+    });
+  blobCache.set(u, p);
+  return p;
+}
+async function canvasSwap(doc, img, src) {
+  const url = await grabBlob(src);
+  if (!url) return false;
+  const pimg = new Image();
+  pimg.src = url;
+  await new Promise((res) => { pimg.onload = res; pimg.onerror = res; setTimeout(res, 4000); });
+  if (!pimg.naturalWidth) return false;
+  const rect = img.getBoundingClientRect();
+  if (!rect.width || !rect.height) return false; // invisible — skip
+  const c = doc.createElement('canvas');
+  c.width = Math.max(1, Math.round(rect.width));
+  c.height = Math.max(1, Math.round(rect.height));
+  c.getContext('2d').drawImage(pimg, 0, 0, c.width, c.height);
+  c.className = img.className;
+  c.setAttribute('style', img.getAttribute('style') || '');
+  c.style.width = rect.width + 'px';
+  c.style.height = rect.height + 'px';
+  img.parentNode.replaceChild(c, img);
+  return true;
 }
 async function pumpOnce(tab) {
   let doc;
   try { doc = tab.iframe.contentDocument; } catch { return; }
   if (!doc || !doc.body) return;
-  const seen = tab._pumped || (tab._pumped = new Set());
-  const jobs = [];
-  const grab = async (u) => {
-    if (blobCache.has(u)) return blobCache.get(u);
-    const p = fetch(u)
-      .then(async (r) => {
-        if (!r.ok) throw new Error('bad status');
-        const b = await r.blob();
-        const url = URL.createObjectURL(b);
-        blobCache.set(u, url);
-        return url;
-      })
-      .catch(() => null);
-    blobCache.set(u, p);
-    return p;
-  };
+  const early = !tab._earlyDone;
+  const fixed = tab._fixed || (tab._fixed = new WeakSet());
+  const tries = tab._tries || (tab._tries = new Map());
+  const ctries = tab._ctries || (tab._ctries = new Map());
+  const since = tab._imgSeen || (tab._imgSeen = new Map());
+  const now = Date.now();
+  const cap = early ? 45 : 12;
+  const broken = [];
+  let failedImg = false;
   for (const img of [...doc.images]) {
     const src = img.getAttribute('src') || '';
-    if (!isProx(src) || seen.has(src)) continue;
-    if (img.complete && img.naturalWidth > 0) { seen.add(src); continue; }
-    seen.add(src);
-    jobs.push(
-      grab(src).then((url) => { if (url) img.src = url; }).catch(() => {})
-    );
-    if (jobs.length >= 20) break;
+    const orig = img.dataset.htSrc || (isProx(src) ? src : '');
+    if (!orig) continue;                                  // foreign image
+    if (img.complete && img.naturalWidth > 0) { fixed.add(img); continue; }
+    if (fixed.has(img)) continue;                         // already swapped/painted
+    if (!img.complete) {
+      if (!since.has(orig)) { since.set(orig, now); continue; }
+      if (now - since.get(orig) < (early ? 1200 : 4000)) continue; // in flight; wait
+    }
+    broken.push(img);
+    failedImg = true;
   }
-  for (const s of [...doc.querySelectorAll('script[src]')]) {
-    const src = s.getAttribute('src') || '';
-    if (!isProx(src) || seen.has(src)) continue;
-    seen.add(src);
-    jobs.push(
-      grab(src).then(async (url) => {
+  const jobs = [];
+  for (const img of broken) {
+    const orig = img.dataset.htSrc || img.getAttribute('src') || '';
+    if (!isProx(orig)) continue;
+    if (early) {
+      // Phase 1: swap in a blob URL — loads started in the first ~2s still work
+      const n = tries.get(orig) || 0;
+      if (n >= 2) continue;
+      tries.set(orig, n + 1);
+      jobs.push(grabBlob(orig).then((url) => {
         if (!url) return;
-        const b = await (await fetch(url)).blob();
-        const txt = await b.text();
+        img.dataset.htSrc = orig;   // remember the real source for phase 2
+        img.src = url;
+      }).catch(() => {}));
+    } else {
+      // Phase 2: paint it — canvas replacement works in fully dead trees
+      const n = ctries.get(orig) || 0;
+      if (n >= 3) continue;
+      ctries.set(orig, n + 1);
+      jobs.push(canvasSwap(doc, img, orig).then((ok) => { if (ok) fixed.add(img); }).catch(() => {}));
+    }
+    if (jobs.length >= cap) break;
+  }
+  (tab._dbg = tab._dbg || { passes: 0, brokenN: [], canvasCalls: 0, canvasOk: 0, early: null });
+  tab._dbg.passes++; tab._dbg.brokenN.push(broken.length); tab._dbg.early = early;
+  // scripts + stylesheet links only while the early window is open
+  const sseen = tab._sseen || (tab._sseen = new Set());
+  if (early && failedImg) {
+    for (const s of [...doc.querySelectorAll('script[src]')]) {
+      const src = s.getAttribute('src') || '';
+      if (!isProx(src) || sseen.has(src)) continue;
+      sseen.add(src);
+      jobs.push(grabBlob(src).then((url) => {
+        if (!url) return;
         const n = doc.createElement('script');
-        n.textContent = txt;
+        if (s.type) n.type = s.type;
+        n.src = url; // blob-src: preserves order + module imports (already rewritten)
         s.parentNode.replaceChild(n, s);
-      }).catch(() => {})
-    );
-    if (jobs.length >= 32) break;
+      }).catch(() => {}));
+      if (jobs.length >= cap + 10) break;
+    }
   }
   if (jobs.length) await Promise.all(jobs).catch(() => {});
+  if (early && !tab._earlyTimer) {
+    tab._earlyTimer = setTimeout(() => { tab._earlyDone = true; }, 2500);
+  }
 }
 
 // Watchdog: Chrome sometimes routes a same-origin child navigation straight to
@@ -494,7 +544,7 @@ async function pumpOnce(tab) {
 // Bing's anti-bot heartbeat which reloads its own frame with &rdr=1 appended.
 setInterval(() => {
   for (const t of tabs) {
-    if (t._tainted) pumpOnce(t).catch(() => {});
+    if (t._want && tabs.length) pumpOnce(t).catch(() => {});
     let doc = null;
     let href = '';
     try { doc = t.iframe.contentDocument; href = t.iframe.contentWindow.location.href; } catch {}
@@ -693,6 +743,13 @@ async function init() {
   });
   $('#gear').addEventListener('click', openSettings);
   $('#newtab').addEventListener('click', () => createTab('about:blank'));
+  window.__htDbg = () => tabs.map((t) => ({
+    want: (t._want || '').slice(0, 36),
+    early: t._earlyDone === undefined ? 'undef' : t._earlyDone,
+    dbg: t._dbg || null,
+    seen: t._pumped ? t._pumped.size : 0,
+    tries: t._tries ? [...t._tries.values()].reduce((a, b) => a + b, 0) : 0,
+  }));
 
   const q = new URLSearchParams(location.search).get('q');
   if (q) navigate(q);
