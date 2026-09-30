@@ -145,6 +145,32 @@
   #modal .card { background: var(--pop); border: 1px solid var(--pop-line); border-radius: 16px; padding: 22px; width: min(480px, 92vw); max-height: 86vh; overflow: auto; box-shadow: 0 24px 70px rgba(0,0,0,.7); animation: pop .18s var(--ease); user-select: text; }
   #toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); z-index: 1200; background: #f4f4f4; color: #000; padding: 10px 18px; border-radius: 22px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s, transform .25s var(--ease); max-width: 90vw; }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #zoombtn { display: none; height: 24px; margin: 0 2px; padding: 0 9px; border: 0; border-radius: 12px; background: rgba(255,255,255,.1); color: var(--text); font-size: 12px; font-weight: 600; }
+  #zoombtn:hover { background: var(--hover); }
+  #zoombtn.show { display: block; }
+  #notice { display: none; align-items: center; gap: 14px; padding: 7px 16px; background: #1b1b1b; border-bottom: 1px solid var(--line); color: #d6d6d6; font-size: 12.5px; position: relative; z-index: 3; }
+  #notice.show { display: flex; }
+  #notice span { flex: 1; line-height: 1.4; }
+  #notice button { border: 1px solid var(--pop-line); background: transparent; color: var(--text); border-radius: 13px; height: 24px; padding: 0 12px; font-size: 12px; }
+  #notice button:hover { background: var(--hover); }
+  .tab.pinned { flex: 0 0 38px !important; min-width: 38px !important; max-width: 38px; padding: 0; justify-content: center; }
+  .tab.pinned .t, .tab.pinned .x { display: none !important; }
+  .mi .sub { color: var(--muted); font-size: 12px; margin-left: 8px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zrow { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 6px 0 12px; font-size: 13px; }
+  .zrow .lb { flex: 1; }
+  .zrow .zv { min-width: 44px; text-align: center; color: var(--text); }
+  .zb { height: 26px; min-width: 28px; border: 1px solid var(--pop-line); background: transparent; color: var(--text); border-radius: 13px; padding: 0; display: grid; place-items: center; font-size: 14px; }
+  .zb:hover { background: var(--hover); }
+  .zb svg { width: 16px; height: 16px; }
+  #findbar { position: fixed; right: 20px; z-index: 50; display: none; align-items: center; gap: 2px; height: 42px; padding: 0 6px 0 14px; background: var(--pop); border: 1px solid var(--pop-line); border-radius: 12px; box-shadow: 0 10px 34px rgba(0,0,0,.55); }
+  #findbar.show { display: flex; animation: pop .14s var(--ease); }
+  #findbar input { width: 190px; height: 28px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 14px; user-select: text; }
+  #findbar .fc { color: var(--muted); font-size: 12px; min-width: 44px; text-align: right; padding-right: 6px; border-right: 1px solid var(--pop-line); margin-right: 4px; }
+  #findbar .tb { width: 28px; height: 28px; }
+  #findbar .tb svg { width: 18px; height: 18px; }
+  .chk { display: flex; gap: 12px; align-items: flex-start; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13.5px; }
+  .chk:hover { background: var(--hover); }
+  .chk input { accent-color: #fff; width: 16px; height: 16px; margin: 2px 0 0; flex: none; }
   ::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
 </style>
 </head>
@@ -165,6 +191,7 @@
         <button id="siteinfo" type="button" title="Site information" data-i="lock"></button>
         <input id="url" type="text" placeholder="Search Bing or type a URL" spellcheck="false" autocomplete="off" autocapitalize="off">
         <button id="install" type="button">Add extension</button>
+        <button id="zoombtn" type="button" title="Zoom level. Click to change."></button>
         <button id="star" class="tb" type="button" title="Bookmark this page (Ctrl+D)" data-i="star"></button>
         <div id="suggest"></div>
       </div>
@@ -174,6 +201,7 @@
     <div id="progress"></div>
   </div>
   <div id="bmbar"><div id="bmlist"></div><button id="bmmore" class="tb" title="More bookmarks" data-i="more" style="display:none"></button><button id="bmall">All bookmarks</button></div>
+  <div id="notice"><span></span><button type="button">Dismiss</button></div>
   <main><div id="frames"></div></main>
   <div id="status" hidden>Starting engine&hellip;</div>
   <div id="scrim"></div>
@@ -182,7 +210,7 @@
   <noscript>HTMLTools Browser needs JavaScript.</noscript>
   <script>
 // HTMLTools Browser — app (auto-built single file)
-window.__HT_EXPECT_SW__ = "v1.11.0";
+window.__HT_EXPECT_SW__ = "v1.12.0";
 const BACKEND = "https://htmltools-browser-nqv1xw3k6rph.htmltools-browser.deno.net";
 const KEY = "htmltools-change-me-9f2k";
 const SEARCH = "https://www.bing.com/search?q=";
@@ -285,6 +313,7 @@ function encodeUrlQ(url, prefix = '/') {
 const EXT_KEY = 'ht-ext-v1';
 const BUILTINS = [
   { id: 'adblock', name: 'Ad & tracker blocker', desc: 'Blocks ad networks, trackers and common ad slots on every page you open.' },
+  { id: 'cookies', name: 'Hide cookie banners', desc: 'Hides most cookie and consent pop-ups so pages are not covered.' },
   { id: 'dark', name: 'Force dark mode', desc: 'Turns bright websites dark. Pictures and video keep their natural colours.' },
 ];
 
@@ -297,9 +326,50 @@ function loadExt() {
 }
 let extState = loadExt();
 
+// Extension code and files can be megabytes, far more than localStorage holds. The heavy parts
+// (scripts, files, manifest) live in IndexedDB; localStorage keeps only light metadata.
+const HEAVY = ['cs', 'files', 'manifest'];
+let extPayload = {}; // extension id -> { cs, files, manifest }
+function appDb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('htbrowser-app', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function kvGet(k) {
+  const db = await appDb();
+  return new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+}
+async function kvPut(k, v) {
+  const db = await appDb();
+  return new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); });
+}
+function lightenExt(e) {
+  if (e.cs || e.files || e.manifest) {
+    extPayload[e.id] = { cs: e.cs || [], files: e.files || null, manifest: e.manifest || null };
+    e.hostList = [...new Set([].concat(...(e.cs || []).map((c) => c.matches || [])))];
+    for (const k of HEAVY) delete e[k];
+    return true;
+  }
+  return false;
+}
+function persistPayloads() {
+  for (const id of Object.keys(extPayload)) if (!extState.list.some((e) => e.id === id)) delete extPayload[id];
+  kvPut('payloads', extPayload).catch(() => toast('Could not save the extension on this device.'));
+}
+const extPayloadReady = kvGet('payloads').then((p) => {
+  if (p && typeof p === 'object') extPayload = p;
+  let moved = false; // extensions saved by older builds kept everything in localStorage
+  for (const e of extState.list) if (lightenExt(e)) moved = true;
+  if (moved) { persistPayloads(); try { localStorage.setItem(EXT_KEY, JSON.stringify(extState)); } catch (e) {} }
+}).catch(() => {});
+
 function saveExt() {
   try { localStorage.setItem(EXT_KEY, JSON.stringify(extState)); }
   catch (e) { toast('Storage is full — remove an extension first.'); return false; }
+  persistPayloads();
   pushExtConf();
   if (typeof refreshInternal === 'function') refreshInternal(['extensions']);
   return true;
@@ -309,12 +379,17 @@ function extConf() {
   return {
     adblock: !!extState.flags.adblock,
     dark: !!extState.flags.dark,
+    cookies: !!extState.flags.cookies,
     exts: extState.list.filter((e) => e.enabled).map((e) => ({
-      id: e.id, name: e.name, kind: e.kind, shim: !!e.shim, files: e.files || null, manifest: e.manifest || null, cs: e.cs,
+      id: e.id, name: e.name, kind: e.kind, shim: !!e.shim,
+      files: (extPayload[e.id] || e).files || null, manifest: (extPayload[e.id] || e).manifest || null, cs: (extPayload[e.id] || e).cs || [],
     })),
   };
 }
 function pushExtConf() {
+  extPayloadReady.then(sendExtConf);
+}
+function sendExtConf() {
   const msg = { type: 'ext', conf: extConf() };
   try {
     const sw = navigator.serviceWorker;
@@ -356,6 +431,7 @@ function addUserscript(code, opts) {
     icon: '',
     cs: [{ matches: matches.length ? matches : ['<all_urls>'], excludes: meta.exclude, js: code, css: '', runAt: meta.runAt || 'document_end', allFrames: false }],
   };
+  lightenExt(ext);
   extState.list.push(ext);
   return saveExt() ? ext : null;
 }
@@ -507,12 +583,14 @@ function installPackage(pkg, storeId) {
     name: pkg.name, version: pkg.version, desc: pkg.desc, icon: pkg.icon,
     cs: pkg.cs, files: pkg.files, manifest: pkg.manifest, hosts: pkg.hosts, notes: pkg.notes,
   };
+  lightenExt(ext);
   extState.list.push(ext);
   return saveExt() ? ext : null;
 }
 
 function removeExt(id) {
   extState.list = extState.list.filter((e) => e.id !== id);
+  delete extPayload[id];
   saveExt();
 }
 function setExtEnabled(id, on) {
@@ -566,6 +644,12 @@ const ICONS = {
   settings: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.61l-1.92-3.32a.5.5 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.5.5 0 0 0-.48-.41h-3.84a.5.5 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.5.5 0 0 0-.59.22L2.74 8.87a.5.5 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.5.5 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z',
   image: 'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z',
   copy: 'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z',
+  pin: 'M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z',
+  print: 'M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z',
+  full: 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z',
+  find: 'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z',
+  up: 'M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z',
+  down: 'M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z',
   tab: 'M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h10v4h8v10z',
 };
 const icon = (n) => '<svg class="i" viewBox="0 0 24 24"><path d="' + ICONS[n] + '"/></svg>';
@@ -620,6 +704,7 @@ function buildMenu(items) {
   for (const it of items) {
     if (it.sep) { m.append(h('div', { class: 'msep' })); continue; }
     if (it.head) { m.append(h('div', { class: 'mhead', text: it.head })); continue; }
+    if (it.zoom) { m.append(zoomRow()); continue; }
     const b = h('button', { class: 'mi', type: 'button' });
     const ic = h('span', { class: 'ic' });
     if (it.img) ic.innerHTML = '<img src="' + esc(it.img) + '" width="18" height="18" style="border-radius:4px">'; else if (it.ic) ic.innerHTML = icon(it.ic);
@@ -857,11 +942,14 @@ function tabContext(e, id) {
   showMenu([
     { label: 'New tab', ic: 'plus', sc: 'Ctrl+T', fn: () => createTab('about:blank') },
     { label: 'Reload', ic: 'reload', fn: () => { activateTab(id); reloadActive(); } },
+    { label: tabs[i] && tabs[i].pinned ? 'Unpin tab' : 'Pin tab', ic: 'pin', fn: () => togglePin(id) },
     { label: 'Duplicate', ic: 'copy', fn: () => { const t = tabs[i]; if (t && t._want) createTab(t._want); else createTab('about:blank'); } },
     { sep: true },
     { label: 'Close tab', ic: 'stop', sc: 'Ctrl+W', fn: () => closeTab(id) },
     { label: 'Close other tabs', off: tabs.length < 2, fn: () => tabs.filter((t) => t.id !== id).forEach((t) => closeTab(t.id, true)) },
     { label: 'Close tabs to the right', off: i >= tabs.length - 1, fn: () => tabs.slice(i + 1).forEach((t) => closeTab(t.id, true)) },
+    { sep: true },
+    { label: 'Reopen closed tab', ic: 'reload', sc: 'Ctrl+Shift+T', off: !closedTabs.length, fn: reopenClosedTab },
   ], { left: e.clientX, right: e.clientX, bottom: e.clientY - 6 });
 }
 
@@ -909,6 +997,7 @@ function syncUI() {
   const si = $('#siteinfo');
   if (t && t.internal) { if (si.dataset.i !== 'logo') { si.dataset.i = 'logo'; si.innerHTML = '<img src="' + LOGO + '" width="16" height="16" style="border-radius:4px">'; } }
   else { const nm = t && t.realUrl && /^http:/i.test(t.realUrl) ? 'globe' : 'lock'; if (si.dataset.i !== nm) { si.dataset.i = nm; si.innerHTML = icon(nm); } }
+  if (t) { attachFrameFeatures(t); syncZoomBtn(); }
   const sid = t && t.realUrl && webStoreId(t.realUrl);
   $('#install').classList.toggle('show', !!sid);
   if (sid) hookStoreButton(t, sid);
@@ -927,7 +1016,7 @@ function renderSuggest() {
   if (!q || document.activeElement !== bar || q === (activeTab() && (activeTab().realUrl || (activeTab().internal ? 'htmltools://' + activeTab().internal : '')))) { hideSuggest(); return; }
   const lq = q.toLowerCase();
   const isUrl = /^https?:\/\//i.test(q) || /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(q) || /^htmltools:\/\//i.test(q);
-  const items = [{ v: q, ic: isUrl ? 'globe' : 'search', label: q, sub: isUrl ? 'Go to address' : 'Search Bing' }];
+  const items = [{ v: q, ic: isUrl ? 'globe' : 'search', label: q, sub: isUrl ? 'Go to address' : 'Search ' + currentEngine().name }];
   const seen = new Set();
   for (const b of bookmarks) {
     if (items.length > 3) break;
@@ -962,16 +1051,22 @@ function mainMenu() {
   const bmOn = localStorage.getItem('ht-bmbar') !== '0';
   showMenu([
     { label: 'New tab', ic: 'plus', sc: 'Ctrl+T', fn: () => createTab('about:blank') },
+    { label: 'Reopen closed tab', ic: 'reload', sc: 'Ctrl+Shift+T', off: !closedTabs.length, fn: reopenClosedTab },
+    { label: 'Search tabs…', ic: 'search', sc: 'Ctrl+Shift+A', fn: openTabSearch },
     { sep: true },
     { label: 'Bookmark this page', ic: 'star', sc: 'Ctrl+D', fn: toggleStar },
     { label: 'Show bookmarks bar', toggle: bmOn, keep: true, sc: 'Ctrl+Shift+B', fn: () => { localStorage.setItem('ht-bmbar', localStorage.getItem('ht-bmbar') === '0' ? '1' : '0'); renderBmBar(); } },
     { label: 'Bookmarks', ic: 'bookmark', fn: () => openInternal('bookmarks') },
-    { label: 'History', ic: 'clock', fn: () => openInternal('history') },
+    { label: 'History', ic: 'clock', sc: '', fn: () => openInternal('history') },
     { label: 'Extensions', ic: 'puzzle', fn: () => openInternal('extensions') },
     { sep: true },
+    { zoom: true },
+    { label: 'Find in page…', ic: 'search', sc: 'Ctrl+F', fn: openFind },
+    { label: 'Print…', ic: 'print', sc: 'Ctrl+P', fn: printActive },
+    { sep: true },
+    { label: 'Clear browsing data…', ic: 'trash', sc: 'Ctrl+Shift+Del', fn: openClearData },
     { label: 'Customize new tab', ic: 'image', fn: () => openInternal('newtab', { customize: true }) },
     { label: 'Settings', ic: 'settings', fn: () => openInternal('settings') },
-    { label: 'Backend address…', ic: 'globe', fn: openSettings },
     { sep: true },
     { label: APP_NAME + ' ' + (window.__HT_EXPECT_SW__ || ''), off: true },
   ], $('#gear'), true);
@@ -1024,7 +1119,15 @@ function kb(e) {
   else if (ctrl && k === 'Tab') { const i = tabs.findIndex((t) => t.id === activeId); const n = tabs.length; activateTab(tabs[(i + (e.shiftKey ? n - 1 : 1)) % n].id); }
   else if (ctrl && e.shiftKey && (k === 'b' || k === 'B')) { localStorage.setItem('ht-bmbar', localStorage.getItem('ht-bmbar') === '0' ? '1' : '0'); renderBmBar(); }
   else if (ctrl && /^[1-9]$/.test(k)) { const i = k === '9' ? tabs.length - 1 : +k - 1; if (tabs[i]) activateTab(tabs[i].id); }
-  else if (k === 'Escape') { closePops(); closeModal(); used = false; }
+  else if (ctrl && !e.shiftKey && (k === 'f' || k === 'F')) openFind();
+  else if (ctrl && !e.shiftKey && (k === 'p' || k === 'P')) printActive();
+  else if (ctrl && !e.altKey && (k === '+' || k === '=')) zoomBy(1);
+  else if (ctrl && !e.altKey && (k === '-' || k === '_')) zoomBy(-1);
+  else if (ctrl && k === '0') zoomBy(0);
+  else if (ctrl && e.shiftKey && (k === 't' || k === 'T')) reopenClosedTab();
+  else if (ctrl && e.shiftKey && (k === 'a' || k === 'A')) openTabSearch();
+  else if (ctrl && e.shiftKey && (k === 'Delete' || k === 'Backspace')) openClearData();
+  else if (k === 'Escape') { closePops(); closeModal(); if (findOpen()) closeFind(); used = false; }
   else used = false;
   if (used) { e.preventDefault(); e.stopPropagation(); }
 }
@@ -1043,6 +1146,8 @@ function initChrome() {
   $('#home').addEventListener('click', () => { const t = activeTab(); if (t) showInternal(t, 'newtab'); });
   $('#star').addEventListener('click', toggleStar);
   $('#extbtn').addEventListener('click', extMenu);
+  $('#zoombtn').addEventListener('click', () => showMenu([{ zoom: true }], $('#zoombtn'), true));
+  applyEngineLabels();
   $('#gear').addEventListener('click', mainMenu);
   $('#siteinfo').addEventListener('click', siteMenu);
   $('#bmall').addEventListener('click', () => openInternal('bookmarks'));
@@ -1101,7 +1206,7 @@ function confirmInstall(pkg, storeId) {
       h('div', null, h('div', { text: (can ? 'Add “' : '“') + pkg.name + '”' + (can ? '?' : ''), style: 'font-size:16px;font-weight:600' }), h('div', { text: pkg.version ? 'Version ' + pkg.version : '', style: 'color:#a0a0a0;font-size:12px' }))),
     pkg.desc ? h('p', { text: pkg.desc, style: 'margin:0 0 12px;color:#ccc;line-height:1.5' }) : null,
     can ? h('div', { style: 'margin:0 0 10px;color:#ccc;line-height:1.5' }, h('b', { text: 'It will run on: ' }), pkg.hosts.map((x) => (x === '<all_urls>' || x === '*://*/*' ? 'all websites' : x)).filter((x, i, a) => a.indexOf(x) === i).slice(0, 5).join(', ') + (pkg.hosts.length > 5 ? ' … and ' + (pkg.hosts.length - 5) + ' more' : '')) : null,
-    ...pkg.notes.map((n) => h('p', { text: '⚠ ' + n, style: 'margin:0 0 8px;color:#e0e0e0;font-size:12.5px;line-height:1.5;background:#2a2a2a;padding:8px 10px;border-radius:8px' })),
+    ...pkg.notes.map((n) => h('p', { text: n, style: 'margin:0 0 8px;color:#e0e0e0;font-size:12.5px;line-height:1.5;background:#1d1d1d;border-left:3px solid #8a8a8a;padding:8px 10px;border-radius:4px 8px 8px 4px' })),
     !can ? h('p', { text: 'This extension has no page scripts, so there is nothing it can do inside a web page here. It depends on features that only exist in desktop Chrome.', style: 'color:#ccc;line-height:1.5' }) : null,
     h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px' },
       h('button', { class: 'btn', type: 'button', text: can ? 'Cancel' : 'OK', onclick: closeModal }),
@@ -1168,6 +1273,11 @@ input:focus,textarea:focus{border-color:#fff}textarea{height:auto;padding:10px 1
 .empty{color:#888;padding:30px;text-align:center;border:1px dashed #333;border-radius:14px}
 .note{background:#151515;border:1px solid #2a2a2a;border-radius:12px;padding:12px 14px;color:#bdbdbd;font-size:13px;line-height:1.55;margin-top:18px}
 .pill{font-size:12px;color:#aaa}
+.eng{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #2a2a2a;border-radius:10px;background:transparent;color:#eee;text-align:left;width:100%;transition:background .12s,border-color .12s}
+.eng:hover{background:#1c1c1c}.eng.sel{border-color:#fff;background:#1a1a1a}
+.eng .rd{width:16px;height:16px;border-radius:50%;border:2px solid #666;flex:none;position:relative;box-sizing:border-box}.eng.sel .rd{border-color:#fff}.eng.sel .rd::after{content:"";position:absolute;inset:2px;border-radius:50%;background:#fff}
+.eng .en{font-weight:600}.eng .ed{color:#9a9a9a;font-size:12.5px;margin-top:1px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
 /* new tab */
 body.nt{min-height:100vh;overflow:hidden}
 .nt .wp{position:fixed;inset:0;background-color:#050505;z-index:0;transition:opacity .4s}
@@ -1305,7 +1415,7 @@ function buildNewtab(doc, root, tab) {
   if (css) wp.style.background = css;
   const dim = h('div', { class: 'dim' });
   dim.style.opacity = String(w.dim == null ? 0.2 : w.dim);
-  const input = h('input', { type: 'text', placeholder: 'Search Bing or type a URL', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Search Bing' });
+  const input = h('input', { type: 'text', placeholder: 'Search ' + currentEngine().name + ' or type a URL', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Search ' + currentEngine().name });
   const form = h('form', null,
     h('span', { html: '<svg class="si" viewBox="0 0 24 24"><path d="' + ICONS.search + '"/></svg>' }),
     input,
@@ -1463,9 +1573,23 @@ function buildExtensions(doc, root) {
   wrap.append(h('h2', { text: 'Built in' }));
   for (const b of BUILTINS) {
     wrap.append(h('div', { class: 'card' },
-      h('div', { class: 'ic dk', html: icon(b.id === 'adblock' ? 'stop' : 'image').replace('class="i"', 'class="i" style="width:22px;height:22px"') }),
+      h('div', { class: 'ic dk', html: icon({ adblock: 'stop', cookies: 'settings', dark: 'image' }[b.id] || 'puzzle').replace('class="i"', 'class="i" style="width:22px;height:22px"') }),
       h('div', { class: 'body' }, h('div', { class: 'nm', text: b.name }), h('div', { class: 'ds wrapd', text: b.desc })),
       switchEl(!!extState.flags[b.id], (v) => { extState.flags[b.id] = v; saveExt(); toast(b.name + (v ? ' is on. Reload open pages to apply it.' : ' is off.'), 2800); })));
+  }
+
+  wrap.append(h('h2', { text: 'Recommended' }));
+  const REC = [
+    ['eimadpbcbfnmbkopoojfekhnkhdbieeh', 'Dark Reader', 'Dark mode for every website, with fine control over brightness and contrast.'],
+    ['nffaoalbilbmmfgbnbgppjihopabppdk', 'Video Speed Controller', 'Speed videos up or down with keyboard shortcuts. Works on most sites with HTML5 video.'],
+    ['gebbhagfogifgggkldgodflihgfeippi', 'Return YouTube Dislike', 'Brings back the dislike count on YouTube videos.'],
+  ];
+  for (const [rid, rname, rdesc] of REC) {
+    const have = extState.list.some((e) => e.storeId === rid);
+    wrap.append(h('div', { class: 'card' },
+      h('div', { class: 'ic dk', html: icon('puzzle').replace('class="i"', 'class="i" style="width:22px;height:22px"') }),
+      h('div', { class: 'body' }, h('div', { class: 'nm', text: rname }), h('div', { class: 'ds wrapd', text: rdesc })),
+      have ? h('span', { class: 'pill', text: 'Installed' }) : h('button', { class: 'btn sm pri', type: 'button', text: 'Add', onclick: () => installFromStore(rid) })));
   }
 
   wrap.append(h('h2', { text: 'Installed' }));
@@ -1473,12 +1597,12 @@ function buildExtensions(doc, root) {
   for (const e of extState.list) {
     const ic = h('div', { class: 'ic dk' });
     ic.innerHTML = e.icon ? '<img src="' + esc(e.icon) + '">' : icon('puzzle').replace('class="i"', 'class="i" style="width:22px;height:22px"');
-    const hosts = [].concat(...(e.cs || []).map((c) => c.matches || []));
+    const hosts = e.hostList || [].concat(...(e.cs || []).map((c) => c.matches || []));
     const body = h('div', { class: 'body' },
       h('div', { class: 'nm' }, e.name, h('span', { class: 'tag', text: e.kind === 'userscript' ? 'Userscript' : 'Chrome extension' }), e.version ? h('span', { class: 'tag', text: 'v' + e.version }) : null),
       e.desc ? h('div', { class: 'ds wrapd', text: e.desc }) : null,
       h('div', { class: 'ds', text: 'Runs on: ' + (hosts.slice(0, 4).join(', ') || '—') + (hosts.length > 4 ? ' +' + (hosts.length - 4) + ' more' : '') }),
-      ...(e.notes || []).map((n) => h('div', { class: 'ds wrapd', text: '⚠ ' + n, style: 'margin-top:4px' })));
+      ...(e.notes || []).map((n) => h('div', { class: 'ds wrapd', text: n, style: 'margin-top:4px;padding-left:8px;border-left:2px solid #555' })));
     wrap.append(h('div', { class: 'card', style: 'align-items:flex-start' }, ic, body,
       h('div', { style: 'display:flex;flex-direction:column;gap:10px;align-items:flex-end' },
         switchEl(!!e.enabled, (v) => setExtEnabled(e.id, v)),
@@ -1503,11 +1627,10 @@ function buildSettings(doc, root) {
   const wrap = h('div', { class: 'wrap' });
   wrap.append(h('div', { class: 'top' }, h('h1', { text: 'Settings' })), h('p', { class: 'sub', text: APP_NAME + ' ' + (window.__HT_EXPECT_SW__ || '') }));
   const row = (title, desc, ctl) => h('div', { class: 'card' }, h('div', { class: 'body' }, h('div', { class: 'nm', text: title }), h('div', { class: 'ds wrapd', text: desc })), ctl);
-  wrap.append(row('Search engine', 'The address bar and the new tab page search with Microsoft Bing.', h('span', { class: 'pill', text: 'Microsoft Bing' })));
+  wrap.append(engineSettingsCard());
   wrap.append(row('Bookmarks bar', 'Show your bookmarks under the address bar.', switchEl(localStorage.getItem('ht-bmbar') !== '0', (v) => { localStorage.setItem('ht-bmbar', v ? '1' : '0'); renderBmBar(); })));
   wrap.append(row('New tab wallpaper', 'Choose the picture behind the search box.', h('button', { class: 'btn sm', type: 'button', text: 'Customize', onclick: () => openInternal('newtab', { customize: true }) })));
-  wrap.append(row('Backend address', 'The server that fetches pages for this browser.', h('button', { class: 'btn sm', type: 'button', text: 'Change…', onclick: openSettings })));
-  wrap.append(row('Clear browsing history', 'Removes the list of pages you visited.', h('button', { class: 'btn sm danger', type: 'button', text: 'Clear', onclick: () => { histList = []; histSave(); toast('History cleared'); } })));
+  wrap.append(row('Clear browsing data', 'Remove history, cookies and other site data.', h('button', { class: 'btn sm danger', type: 'button', text: 'Clear data…', onclick: openClearData })));
   wrap.append(row('Reset the engine', 'If pages stop loading, this reinstalls the page engine and reloads. Your bookmarks and extensions stay.', h('button', { class: 'btn sm danger', type: 'button', text: 'Reset', onclick: async () => {
     try { (await navigator.serviceWorker.getRegistrations()).forEach((r) => r.unregister()); } catch (e) {}
     try { (await caches.keys()).forEach((k) => caches.delete(k)); } catch (e) {}
@@ -1515,6 +1638,361 @@ function buildSettings(doc, root) {
   } })));
   wrap.append(h('div', { class: 'note', html: 'Keyboard: <b>Ctrl+T</b> new tab · <b>Ctrl+W</b> close tab · <b>Ctrl+L</b> address bar · <b>Ctrl+D</b> bookmark · <b>Ctrl+R</b> reload · <b>Alt+←/→</b> back / forward · <b>Ctrl+Tab</b> next tab' }));
   root.append(wrap);
+}
+
+// HTMLTools Browser — browser features: search engines, find, zoom, print, pinned /
+// reopened tabs, tab search, page context menu, clear-data, server version notice.
+// (Plain script fragment: shares one scope with app.js / ext.js / ui.js / pages.js.
+//  Top level only declares things — nothing here touches the DOM until a function runs.)
+
+// ── search engines ───────────────────────────────────────────────────────
+const ENGINES = [
+  { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=%s', desc: 'Microsoft Bing. The default, and the most reliable here.' },
+  { id: 'ddg', name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s', desc: 'Private search. It may ask you to pick a few pictures once in a while.' },
+  { id: 'yahoo', name: 'Yahoo', url: 'https://search.yahoo.com/search?p=%s', desc: 'Yahoo often refuses proxy servers. If it will not load, use Bing.' },
+];
+function customEngine() {
+  try {
+    const c = JSON.parse(localStorage.getItem('ht-engine-c') || 'null');
+    if (c && typeof c.url === 'string' && /^https?:\/\//i.test(c.url) && c.url.indexOf('%s') >= 0) return { id: 'custom', name: (c.name || '').trim() || hostOf(c.url.replace('%s', 'x')) || 'Custom', url: c.url };
+  } catch (e) {}
+  return null;
+}
+function currentEngine() {
+  const id = localStorage.getItem('ht-engine') || 'bing';
+  if (id === 'custom') { const c = customEngine(); if (c) return c; }
+  return ENGINES.find((e) => e.id === id) || ENGINES[0];
+}
+function searchUrl(q) { return currentEngine().url.replace('%s', () => encodeURIComponent(q)); }
+function setEngine(id) {
+  localStorage.setItem('ht-engine', id);
+  applyEngineLabels();
+  refreshInternal(['settings', 'newtab']);
+}
+function applyEngineLabels() {
+  bar.placeholder = 'Search ' + currentEngine().name + ' or type a URL';
+}
+function engineSettingsCard() {
+  const cur = currentEngine().id;
+  const card = h('div', { class: 'card', style: 'flex-direction:column;align-items:stretch;gap:10px' });
+  card.append(h('div', { class: 'body' }, h('div', { class: 'nm', text: 'Search engine' }), h('div', { class: 'ds wrapd', text: 'Used by the address bar and the new tab page.' })));
+  const list = ENGINES.slice();
+  const c = customEngine();
+  if (c) list.push({ id: 'custom', name: c.name, url: c.url, desc: c.url.replace('%s', '…') });
+  for (const e of list) {
+    card.append(h('button', { class: 'eng' + (e.id === cur ? ' sel' : ''), type: 'button', onclick: () => setEngine(e.id) },
+      h('span', { class: 'rd' }),
+      h('span', null, h('div', { class: 'en', text: e.name + (e.id === 'bing' ? '  (default)' : '') }), h('div', { class: 'ed', text: e.desc }))));
+  }
+  const nm = h('input', { type: 'text', placeholder: 'Name, e.g. Brave', spellcheck: 'false', value: c ? c.name : '', style: 'width:170px' });
+  const ur = h('input', { type: 'text', placeholder: 'https://search.brave.com/search?q=%s', spellcheck: 'false', value: c ? c.url : '', style: 'flex:1;min-width:220px' });
+  const err = h('div', { class: 'small', style: 'color:#d0d0d0;min-height:16px' });
+  const save = () => {
+    const u = ur.value.trim();
+    if (!/^https?:\/\/[^\s]+$/i.test(u) || u.indexOf('%s') < 0) { err.textContent = 'The address must start with https:// and contain %s where the search words go.'; return; }
+    localStorage.setItem('ht-engine-c', JSON.stringify({ name: nm.value.trim().slice(0, 30), url: u }));
+    setEngine('custom');
+    toast('Search engine saved');
+  };
+  ur.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+  card.append(
+    h('div', { class: 'ds', text: 'Custom engine', style: 'margin-top:6px;font-weight:600;color:#ddd' }),
+    h('div', { class: 'row' }, nm, ur, h('button', { class: 'btn sm pri', type: 'button', text: 'Save and use', onclick: save })),
+    err,
+    h('div', { class: 'ds wrapd', text: 'Put %s where the search words should go. Not every site lets a free proxy server in, so test it after saving.' }));
+  return card;
+}
+
+// ── closed tabs, pinned tabs, tab search ─────────────────────────────────
+const closedTabs = [];
+function rememberClosed(t) {
+  const url = t.internal ? (t.internal === 'newtab' ? '' : 'htmltools://' + t.internal) : (t._want || '');
+  if (!url) return;
+  closedTabs.unshift({ url, title: t.title });
+  if (closedTabs.length > 15) closedTabs.pop();
+}
+function reopenClosedTab() {
+  const c = closedTabs.shift();
+  if (!c) { toast('No recently closed tabs'); return; }
+  createTab(c.url);
+}
+function togglePin(id) {
+  const t = tabs.find((x) => x.id === id);
+  if (!t) return;
+  t.pinned = !t.pinned;
+  t.el.classList.toggle('pinned', t.pinned);
+  t.el.title = t.pinned ? (t.title || '') : (t.realUrl || t.title || '');
+  const pinned = tabs.filter((x) => x.pinned), rest = tabs.filter((x) => !x.pinned);
+  tabs.splice(0, tabs.length, ...pinned, ...rest);
+  for (const x of tabs) tabsEl.appendChild(x.el);
+  layoutTabs();
+}
+function openTabSearch() {
+  const inp = h('input', { type: 'text', placeholder: 'Search tabs', spellcheck: 'false', autocomplete: 'off', style: 'width:100%!important;margin:0!important' });
+  const list = h('div', { style: 'margin-top:8px;max-height:320px;overflow:auto' });
+  let shown = [];
+  const go = (t) => { closePops(); activateTab(t.id); };
+  const render = () => {
+    list.innerHTML = '';
+    const q = inp.value.trim().toLowerCase();
+    shown = tabs.filter((t) => !q || (t.title || '').toLowerCase().includes(q) || (t.realUrl || '').toLowerCase().includes(q));
+    for (const t of shown) {
+      const fav = t.el.querySelector('.fav');
+      list.append(h('button', { class: 'mi', type: 'button', onclick: () => go(t) },
+        h('span', { class: 'ic', html: fav && !fav.classList.contains('spin') ? fav.innerHTML : icon('globe') }),
+        h('span', { class: 'lb', text: t.title || 'New Tab' }),
+        h('span', { class: 'sub', text: hostOf(t.realUrl) })));
+    }
+    if (!shown.length) list.append(h('div', { class: 'muted small', text: 'No matching tabs', style: 'padding:12px' }));
+  };
+  inp.addEventListener('input', render);
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && shown[0]) go(shown[0]); else if (e.key === 'Escape') closePops(); });
+  const pop = h('div', { class: 'pop', style: 'width:400px;padding:10px' }, inp, list);
+  const r = $('#tabstrip').getBoundingClientRect();
+  placePop(pop, { left: 10, right: 10, bottom: r.bottom - 2 });
+  render();
+  inp.focus();
+}
+
+// ── zoom ─────────────────────────────────────────────────────────────────
+const ZSTEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
+let zoomMap = {};
+try { zoomMap = JSON.parse(localStorage.getItem('ht-zoom') || '{}') || {}; } catch (e) {}
+const zoomKey = (t) => (t && t.realUrl ? hostOf(t.realUrl) : 'htmltools');
+const getZoom = (t) => (t && zoomMap[zoomKey(t)]) || 1;
+function applyZoom(t) {
+  try {
+    const d = t.iframe.contentDocument;
+    if (!d || !d.documentElement) return;
+    const z = getZoom(t);
+    const want = z === 1 ? '' : String(z);
+    if (d.documentElement.style.zoom !== want) d.documentElement.style.zoom = want;
+  } catch (e) {}
+}
+function zoomBy(dir) {
+  const t = activeTab();
+  if (!t) return;
+  const cur = getZoom(t);
+  let z = 1;
+  if (dir > 0) z = ZSTEPS.find((s) => s > cur + 0.001) || ZSTEPS[ZSTEPS.length - 1];
+  else if (dir < 0) z = [...ZSTEPS].reverse().find((s) => s < cur - 0.001) || ZSTEPS[0];
+  if (z === 1) delete zoomMap[zoomKey(t)]; else zoomMap[zoomKey(t)] = z;
+  try { localStorage.setItem('ht-zoom', JSON.stringify(zoomMap)); } catch (e) {}
+  for (const x of tabs) if (zoomKey(x) === zoomKey(t)) applyZoom(x);
+  syncZoomBtn();
+}
+function syncZoomBtn() {
+  const b = $('#zoombtn'), t = activeTab(), z = getZoom(t);
+  b.classList.toggle('show', z !== 1);
+  b.textContent = Math.round(z * 100) + '%';
+}
+function zoomRow() {
+  const val = h('span', { class: 'zv' });
+  const upd = () => { val.textContent = Math.round(getZoom(activeTab()) * 100) + '%'; };
+  const btn = (txt, title, fn) => h('button', { class: 'zb', type: 'button', text: txt, title, onclick: (e) => { e.stopPropagation(); fn(); upd(); } });
+  upd();
+  return h('div', { class: 'zrow' }, h('span', { class: 'lb', text: 'Zoom' }),
+    btn('\u2212', 'Zoom out (Ctrl+\u2212)', () => zoomBy(-1)), val, btn('+', 'Zoom in (Ctrl++)', () => zoomBy(1)),
+    h('button', { class: 'zb', type: 'button', title: 'Reset zoom (Ctrl+0)', text: 'Reset', style: 'width:auto;padding:0 10px', onclick: (e) => { e.stopPropagation(); zoomBy(0); upd(); } }),
+    h('button', { class: 'zb', type: 'button', title: 'Full screen', html: icon('full'), onclick: (e) => { e.stopPropagation(); closePops(); toggleFullscreen(); } }));
+}
+function toggleFullscreen() {
+  try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) {}
+}
+function printActive() {
+  const t = activeTab();
+  try { t.iframe.contentWindow.focus(); t.iframe.contentWindow.print(); } catch (e) { toast('This page can\u2019t be printed.'); }
+}
+
+// ── find in page ─────────────────────────────────────────────────────────
+let findEl = null, findIdx = 0, findTotal = 0;
+const findOpen = () => !!(findEl && findEl.classList.contains('show'));
+function ensureFind() {
+  if (findEl) return findEl;
+  const inp = h('input', { type: 'text', placeholder: 'Find in page', spellcheck: 'false', autocomplete: 'off', id: 'findq' });
+  const cnt = h('span', { class: 'fc', id: 'findc' });
+  findEl = h('div', { id: 'findbar', role: 'search' }, inp, cnt,
+    h('button', { class: 'tb', type: 'button', title: 'Previous (Shift+Enter)', html: icon('up'), onclick: () => runFind(-1) }),
+    h('button', { class: 'tb', type: 'button', title: 'Next (Enter)', html: icon('down'), onclick: () => runFind(1) }),
+    h('button', { class: 'tb', type: 'button', title: 'Close (Esc)', html: icon('stop'), onclick: closeFind }));
+  inp.addEventListener('input', () => runFind(1, true));
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); runFind(e.shiftKey ? -1 : 1); }
+    else if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
+  });
+  document.body.appendChild(findEl);
+  return findEl;
+}
+function findDoc() {
+  const t = activeTab();
+  try { return t && { t, w: t.iframe.contentWindow, d: t.iframe.contentDocument }; } catch (e) { return null; }
+}
+function openFind() {
+  const el = ensureFind();
+  const top = $('#frames').getBoundingClientRect().top;
+  el.style.top = top + 8 + 'px';
+  el.classList.add('show');
+  const inp = el.querySelector('input');
+  const f = findDoc();
+  try { const s = f && String(f.w.getSelection() || '').trim(); if (s && s.length < 80 && s.indexOf('\n') < 0) inp.value = s; } catch (e) {}
+  inp.focus(); inp.select();
+  if (inp.value) runFind(1, true);
+}
+function closeFind() {
+  if (!findEl || !findEl.classList.contains('show')) return;
+  findEl.classList.remove('show');
+  const f = findDoc();
+  try { f.w.getSelection().removeAllRanges(); const st = f.d.getElementById('__htfind'); st && st.remove(); } catch (e) {}
+}
+function runFind(dir, fresh) {
+  const f = findDoc();
+  const cnt = $('#findc');
+  const q = $('#findq').value;
+  if (!f || !q) { cnt.textContent = ''; try { f && f.w.getSelection().removeAllRanges(); } catch (e) {} return; }
+  try {
+    if (!f.d.getElementById('__htfind')) {
+      const st = f.d.createElement('style'); st.id = '__htfind'; st.textContent = '::selection{background:#ffe066!important;color:#000!important}';
+      (f.d.head || f.d.documentElement).appendChild(st);
+    }
+    const hay = ((f.d.body && f.d.body.innerText) || '').toLowerCase(), needle = q.toLowerCase();
+    let n = 0, i = 0;
+    while ((i = hay.indexOf(needle, i)) !== -1) { n++; i += needle.length; }
+    findTotal = n;
+    if (fresh) { try { f.w.getSelection().collapse(f.d.body, 0); } catch (e) {} }
+    const ok = n > 0 && f.w.find(q, false, dir < 0, true, false, false, false);
+    if (!ok) { cnt.textContent = '0/0'; return; }
+    // which match is selected? count matches in the text before the selection
+    let idx = 1;
+    try {
+      const r = f.w.getSelection().getRangeAt(0).cloneRange();
+      const pre = f.d.createRange(); pre.selectNodeContents(f.d.body); pre.setEnd(r.startContainer, r.startOffset);
+      const before = pre.toString().toLowerCase();
+      let c = 0, j = 0; while ((j = before.indexOf(needle, j)) !== -1) { c++; j += needle.length; }
+      idx = Math.min(n, c + 1);
+    } catch (e) {}
+    findIdx = idx;
+    cnt.textContent = idx + '/' + n;
+  } catch (e) { cnt.textContent = ''; }
+}
+
+// ── right-click menu inside pages ────────────────────────────────────────
+function copyText(s) {
+  try { navigator.clipboard.writeText(s).then(() => toast('Copied'), () => toast('Could not copy')); } catch (e) { toast('Could not copy'); }
+}
+function realOfHref(href, tab) {
+  try {
+    const abs = new URL(href, location.href);
+    const real = decodeProxiedUrl(abs.href);
+    if (real) return real;
+    if (abs.origin !== location.origin) return abs.href;
+    return tab.realUrl ? new URL(abs.pathname + abs.search, tab.realUrl).href : '';
+  } catch (e) { return ''; }
+}
+function attachFrameFeatures(tab) {
+  let d;
+  try { d = tab.iframe.contentDocument; } catch (e) { return; }
+  if (!d || !d.documentElement) return;
+  if (!d.documentElement.__htctx) {
+    d.documentElement.__htctx = true;
+    d.addEventListener('contextmenu', (e) => frameContext(tab, e), false);
+  }
+  applyZoom(tab);
+}
+function frameContext(tab, e) {
+  const tg = e.target;
+  if (!tg || !tg.closest || e.defaultPrevented) return;
+  if (tg.closest('input,textarea,select,[contenteditable=""],[contenteditable="true"]')) return; // native menu: spelling, paste
+  e.preventDefault();
+  const w = tab.iframe.contentWindow;
+  const sel = String((w.getSelection && w.getSelection()) || '').trim();
+  const a = tg.closest('a[href]');
+  const img = tg.tagName === 'IMG' ? tg : tg.closest('img');
+  const items = [];
+  const eng = currentEngine().name;
+  if (sel) items.push({ label: 'Copy', ic: 'copy', sc: 'Ctrl+C', fn: () => copyText(sel) },
+    { label: 'Search ' + eng + ' for \u201c' + (sel.length > 22 ? sel.slice(0, 22) + '\u2026' : sel) + '\u201d', ic: 'search', fn: () => createTab(enc(searchUrl(sel))) });
+  if (a) {
+    const real = realOfHref(a.getAttribute('href') || '', tab);
+    if (/^https?:/i.test(real)) items.push(
+      { label: 'Open link in new tab', ic: 'tab', fn: () => createTab(enc(real)) },
+      { label: 'Copy link address', ic: 'copy', fn: () => copyText(real) });
+  }
+  if (img && (img.currentSrc || img.src)) {
+    const real = realOfHref(img.currentSrc || img.src, tab);
+    if (/^https?:/i.test(real)) items.push(
+      { label: 'Open image in new tab', ic: 'image', fn: () => createTab(enc(real)) },
+      { label: 'Copy image address', ic: 'copy', fn: () => copyText(real) });
+  }
+  if (items.length) items.push({ sep: true });
+  items.push(
+    { label: 'Back', ic: 'back', sc: 'Alt+\u2190', off: !(tab.hidx > 0), fn: () => gotoHist(tab, tab.hidx - 1) },
+    { label: 'Forward', ic: 'fwd', sc: 'Alt+\u2192', off: !(tab.hidx < tab.hist.length - 1), fn: () => gotoHist(tab, tab.hidx + 1) },
+    { label: 'Reload', ic: 'reload', sc: 'Ctrl+R', fn: reloadActive },
+    { sep: true },
+    { label: 'Bookmark this page', ic: 'star', sc: 'Ctrl+D', off: !tab.realUrl, fn: toggleStar },
+    { label: 'Find in page\u2026', ic: 'search', sc: 'Ctrl+F', fn: openFind },
+    { label: 'Print\u2026', ic: 'print', sc: 'Ctrl+P', fn: printActive });
+  const r = tab.iframe.getBoundingClientRect();
+  const z = parseFloat(w.document.documentElement.style.zoom) || 1;
+  const x = r.left + e.clientX * z, y = r.top + e.clientY * z;
+  showMenu(items, { left: x, right: x, bottom: y - 6 });
+}
+
+// ── clear browsing data ──────────────────────────────────────────────────
+function openClearData() {
+  const rows = [
+    ['hist', 'Browsing history', 'The list of pages you opened.', true],
+    ['cookies', 'Cookies and site data', 'Signs you out of websites and forgets what they saved.', true],
+    ['cache', 'Saved icons and images', 'Site icons kept for tabs and bookmarks.', false],
+  ];
+  const boxes = {};
+  const node = h('div', null, h('h3', { text: 'Clear browsing data', style: 'margin:0 0 4px;font-size:17px' }),
+    h('div', { text: 'Your bookmarks, extensions and settings are kept.', style: 'color:#a0a0a0;font-size:12.5px;margin-bottom:12px' }));
+  for (const [id, nm, ds, on] of rows) {
+    const cb = h('input', { type: 'checkbox', id: 'cd-' + id });
+    cb.checked = on; boxes[id] = cb;
+    node.append(h('label', { class: 'chk', for: 'cd-' + id }, cb, h('span', null, h('div', { text: nm, style: 'font-weight:600' }), h('div', { text: ds, style: 'color:#9a9a9a;font-size:12px' }))));
+  }
+  node.append(h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px' },
+    h('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: closeModal }),
+    h('button', { class: 'btn pri', type: 'button', text: 'Clear data', onclick: async () => {
+      const sel = {}; for (const k in boxes) sel[k] = boxes[k].checked;
+      closeModal();
+      await clearBrowsingData(sel);
+      toast('Browsing data cleared. Reload open pages.');
+    } })));
+  showModal(node);
+}
+async function clearBrowsingData(sel) {
+  if (sel.hist) { histList = []; clearTimeout(histTimer); try { localStorage.removeItem('ht-hist'); } catch (e) {} refreshInternal(['history']); }
+  if (sel.cookies) {
+    try {
+      const sw = navigator.serviceWorker.controller || (await navigator.serviceWorker.ready).active;
+      await new Promise((res) => { const ch = new MessageChannel(); ch.port1.onmessage = () => res(); setTimeout(res, 1500); sw.postMessage({ type: 'clearCookies' }, [ch.port2]); });
+    } catch (e) {}
+    try { for (const k of Object.keys(localStorage)) if (k.indexOf('__ht__') === 0) localStorage.removeItem(k); } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) {}
+  }
+  if (sel.cache) {
+    favStore = {}; try { localStorage.removeItem('ht-fav'); } catch (e) {}
+    try { favCache.clear(); } catch (e) {}
+    try { (await caches.keys()).forEach((k) => caches.delete(k)); } catch (e) {}
+  }
+}
+
+// ── out-of-date server notice ────────────────────────────────────────────
+async function checkServerVersion() {
+  try {
+    if (sessionStorage.getItem('ht-notice-x')) return;
+    const r = await fetch(BACKEND + '/', { cache: 'no-store' });
+    const j = await r.json();
+    const v = String(j.version || '');
+    if (v && !/^1\./.test(v)) return;
+    const n = $('#notice');
+    n.querySelector('span').textContent = 'The page server behind this browser is out of date (' + (v || 'unknown') + '). YouTube and multiplayer games will not work until its owner redeploys the latest backend.';
+    n.classList.add('show');
+    n.querySelector('button').onclick = () => { n.classList.remove('show'); try { sessionStorage.setItem('ht-notice-x', '1'); } catch (e) {} };
+  } catch (e) {}
 }
 
 // HTMLTools Browser — launcher UI with tabs.
@@ -1529,7 +2007,6 @@ const statusEl = $('#status');
 const BASE = new URL('./', location.href).pathname;
 const DEBUG_URL = BASE + '~/__ht/debug';
 
-const PLACEHOLDER = BACKEND.indexOf('htmltools-proxy.deno.dev') !== -1;
 const enc = (u) => encodeUrlQ(u, BASE);
 const dec = (p) => decodeUrl(p);
 
@@ -1543,7 +2020,7 @@ function normalize(input) {
   if (!v) return null;
   if (/^https?:\/\//i.test(v)) return v;
   if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v) || /^localhost(:\d+)?/.test(v)) return 'https://' + v;
-  return SEARCH + encodeURIComponent(v);
+  return searchUrl(v);
 }
 
 // ── `top.location` for proxied pages ──────────────────────────────────────
@@ -1576,12 +2053,6 @@ let tabs = [];
 let activeId = null;
 let tabSeq = 0;
 
-function currentBackend() {
-  return localStorage.getItem('ht-backend') || BACKEND;
-}
-function backendConfigured() {
-  return !!localStorage.getItem('ht-backend') || !PLACEHOLDER;
-}
 
 // Chrome does NOT hand the service worker to about:blank iframes, so every
 // request made by a page painted into one (CSS, JS, images) bypassed the proxy
@@ -1640,6 +2111,7 @@ function closeTab(id, quick) {
   const i = tabs.findIndex((t) => t.id === id);
   if (i === -1) return;
   const t = tabs[i];
+  rememberClosed(t);
   tabs.splice(i, 1);
   t._loadSeq = (t._loadSeq || 0) + 1;
   t.iframe.remove();
@@ -1687,6 +2159,8 @@ function onFrameLoad(tab) {
   tab.el.title = real || tab.title;
   if (tab.id === activeId) bar.value = real;
   try { tab.iframe.contentWindow.addEventListener('keydown', kb, true); } catch {}
+  attachFrameFeatures(tab);
+  if (tab.id === activeId) closeFind();
   syncUI();
 }
 
@@ -2117,29 +2591,6 @@ window.addEventListener('message', (e) => {
   }
 });
 
-// ── backend settings (gear) ──────────────────────────────────────────────
-function openSettings() {
-  const input = h('input', { type: 'text', placeholder: 'https://your-app.deno.dev', spellcheck: 'false', value: localStorage.getItem('ht-backend') || '', style: 'width:100%;height:38px;padding:0 12px;border-radius:10px;border:1px solid #3a3a3a;background:#121212;color:#fff;font-size:13.5px;outline:0;margin-top:10px' });
-  const err = h('div', { style: 'color:#ff8a80;font-size:12px;min-height:16px;margin-top:6px' });
-  const save = () => {
-    const u = input.value.trim().replace(/\/+$/, '');
-    if (!/^https?:\/\/[\w.-]+(:\d+)?(\/.*)?$/.test(u)) { err.textContent = 'That doesn\u2019t look like a URL \u2014 it should start with https://'; return; }
-    localStorage.setItem('ht-backend', u);
-    if (navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage({ type: 'backend', url: u });
-    closeModal();
-    toast('Backend saved.');
-  };
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); else if (e.key === 'Escape') closeModal(); });
-  showModal(h('div', null,
-    h('h3', { text: 'Backend address', style: 'margin:0 0 6px;font-size:16px' }),
-    h('div', { text: 'The Deno Deploy address that fetches pages for this browser. Leave it alone unless you moved your backend.', style: 'color:#a0a0a0;font-size:12.5px;line-height:1.5' }),
-    input, err,
-    h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:10px' },
-      h('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: closeModal }),
-      h('button', { class: 'btn pri', type: 'button', text: 'Save', onclick: save }))));
-  input.focus();
-}
-
 // ── boot ─────────────────────────────────────────────────────────────────
 async function init() {
   // Host lock: this browser only runs on htmltools.me (see ALLOWED_HOSTS in the build).
@@ -2157,15 +2608,9 @@ async function init() {
   }
   try {
     const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
-    const send = () => {
-      if (reg.active) reg.active.postMessage({ type: 'backend', url: currentBackend() });
-    };
-    if (reg.active) send();
-    navigator.serviceWorker.addEventListener('controllerchange', send);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (engineWasDown) scheduleEngineRetry();
     });
-    send();
 
     // ── stale-engine self-heal ───────────────────────────────────────────
     // Chrome can keep an OLD service worker running through many reloads
@@ -2236,16 +2681,12 @@ async function init() {
     try { history.replaceState(history.state, '', location.pathname + location.hash); } catch (e) {}
   }
 
-  if (!backendConfigured()) {
-    banner('One-time setup: paste your Deno Deploy backend URL.');
-    openSettings();
-  } else {
-    banner('Engine ready', false);
-  }
+  checkServerVersion();
+  banner('Engine ready', false);
 }
 
 init();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a434d7063e2780d4',t:'MTc5MDc4ODIxNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4352f071c8d151b',t:'MTc5MDc5MTgxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
