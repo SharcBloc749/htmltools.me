@@ -87,7 +87,7 @@
   <noscript>HTMLTools Browser needs JavaScript.</noscript>
   <script>
 // HTMLTools Browser — app (auto-built single file)
-window.__HT_EXPECT_SW__ = "v1.6.1";
+window.__HT_EXPECT_SW__ = "v1.7.0";
 const BACKEND = "https://htmltools-browser-nqv1xw3k6rph.htmltools-browser.deno.net";
 const KEY = "htmltools-change-me-9f2k";
 const SEARCH = "https://www.bing.com/search?q=";
@@ -218,13 +218,24 @@ function backendConfigured() {
   return !!localStorage.getItem('ht-backend') || !PLACEHOLDER;
 }
 
+// Chrome does NOT hand the service worker to about:blank iframes, so every
+// request made by a page painted into one (CSS, JS, images) bypassed the proxy
+// and hit the host's 404 page. srcdoc frames ARE controlled, so tabs use them.
+const BLANK_DOC = '<!doctype html><meta charset="utf-8"><title>New tab</title><body style="margin:0;background:#fff">';
+function armFrame(tab) {
+  tab.ready = new Promise((res) => {
+    const h = () => { tab.iframe.removeEventListener('load', h); res(); };
+    tab.iframe.addEventListener('load', h);
+    setTimeout(res, 3000);
+  });
+  tab.iframe.srcdoc = BLANK_DOC;
+}
+
 function createTab(src, activate = true) {
   const id = 't' + ++tabSeq;
   const iframe = document.createElement('iframe');
   iframe.title = 'tab ' + id;
   iframe.name = 'htframe-' + id; // target for parent-initiated POST navigation
-  iframe.src = 'about:blank';
-  if (src && src !== 'about:blank') queueMicrotask(() => loadIntoFrame(tab, src));
   framesEl.appendChild(iframe);
 
   const el = document.createElement('div');
@@ -234,6 +245,9 @@ function createTab(src, activate = true) {
 
   const tab = { id, iframe, el, title: 'New tab', realUrl: src && src !== 'about:blank' ? dec(new URL(src, location.href).pathname) : '' };
   tabs.push(tab);
+  tab.hist = []; tab.hidx = -1;
+  armFrame(tab);
+  if (src && src !== 'about:blank') queueMicrotask(() => loadIntoFrame(tab, src));
 
   el.addEventListener('click', (e) => {
     if (e.target.classList && e.target.classList.contains('x')) return;
@@ -359,6 +373,7 @@ function scheduleEngineRetry() {
 
 async function loadIntoFrame(tab, proxiedUrl, opts) {
   tab._want = proxiedUrl;
+  const my = tab._loadSeq = (tab._loadSeq || 0) + 1;
   let resp;
   try {
     resp = await fetch(
@@ -371,6 +386,7 @@ async function loadIntoFrame(tab, proxiedUrl, opts) {
     scheduleEngineRetry();
     return;
   }
+  if (my !== tab._loadSeq) return; // a newer navigation superseded this one
   const finalUrl = resp.url || proxiedUrl; // post-redirect address for the bar
   tab._want = finalUrl; // keep the tab's "last painted address" accurate
   const ctype = (resp.headers && resp.headers.get('content-type')) || '';
@@ -396,7 +412,12 @@ async function loadIntoFrame(tab, proxiedUrl, opts) {
   }
 }
 
-function paintHtml(tab, finalUrl, html) {
+async function paintHtml(tab, finalUrl, html) {
+  try { await tab.ready; } catch {}
+  if (tab._want !== finalUrl) return;
+  // per-tab history (document.write creates no session-history entries)
+  if (tab._histNav) { tab._histNav = false; }
+  else if (tab.hist[tab.hidx] !== finalUrl) { tab.hist.splice(tab.hidx + 1); tab.hist.push(finalUrl); tab.hidx = tab.hist.length - 1; }
   const doc = tab.iframe.contentDocument;
   doc.open();
   doc.write(html);
@@ -463,7 +484,12 @@ async function canvasSwap(doc, img, src) {
   img.parentNode.replaceChild(c, img);
   return true;
 }
+// The pump was a workaround for frames that weren't controlled by the service
+// worker (about:blank). Tabs are srcdoc frames now, so it is off by default —
+// left on it flattens lazy-loaded images into static canvases.
+const USE_PUMP = false;
 async function pumpOnce(tab) {
+  if (!USE_PUMP) return;
   let doc;
   try { doc = tab.iframe.contentDocument; } catch { return; }
   if (!doc || !doc.body) return;
@@ -725,21 +751,19 @@ async function init() {
   });
   $('#back').addEventListener('click', () => {
     const t = activeTab();
-    try { t && t.iframe.contentWindow.history.back(); } catch {}
+    if (t && t.hidx > 0) { t.hidx--; t._histNav = true; loadIntoFrame(t, t.hist[t.hidx]).catch(() => {}); }
   });
   $('#fwd').addEventListener('click', () => {
     const t = activeTab();
-    try { t && t.iframe.contentWindow.history.forward(); } catch {}
+    if (t && t.hidx < t.hist.length - 1) { t.hidx++; t._histNav = true; loadIntoFrame(t, t.hist[t.hidx]).catch(() => {}); }
   });
   $('#reload').addEventListener('click', () => {
     const t = activeTab();
-    if (t && t.iframe.src && t.iframe.src !== 'about:blank') {
-      t.iframe.src = t.iframe.src; // re-set = parent-initiated reload
-    }
+    if (t && t._want) { t._histNav = true; loadIntoFrame(t, t._want).catch(() => {}); }
   });
   $('#home').addEventListener('click', () => {
     const t = activeTab();
-    if (t) { t.iframe.src = 'about:blank'; bar.value = ''; }
+    if (t) { t._want = ''; t._loadSeq = (t._loadSeq || 0) + 1; armFrame(t); t.realUrl = ''; t.title = 'New tab'; t.el.querySelector('.t').textContent = t.title; bar.value = ''; }
   });
   $('#gear').addEventListener('click', openSettings);
   $('#newtab').addEventListener('click', () => createTab('about:blank'));
@@ -765,5 +789,5 @@ async function init() {
 init();
 
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a43389925ca986ba',t:'MTc5MDc3NDU1Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
