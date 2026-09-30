@@ -493,7 +493,7 @@ function makeStore() {
 
 
 
-const VERSION = 'v1.6.1';
+const VERSION = 'v1.7.0';
 const SCOPE = new URL(self.registration.scope).pathname; // '/' or '/browser/'
 const ROOT = SCOPE.replace(/\/$/, ''); // '' or '/browser'
 const RUNTIME_PATH = ROOT + '/~/__ht/runtime.js';
