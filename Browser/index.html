@@ -87,6 +87,7 @@
   <noscript>HTMLTools Browser needs JavaScript.</noscript>
   <script>
 // HTMLTools Browser — app (auto-built single file)
+window.__HT_EXPECT_SW__ = "v1.6.1";
 const BACKEND = "https://htmltools-browser-nqv1xw3k6rph.htmltools-browser.deno.net";
 const KEY = "htmltools-change-me-9f2k";
 const SEARCH = "https://www.bing.com/search?q=";
@@ -568,13 +569,53 @@ async function init() {
     return;
   }
   try {
-    const reg = await navigator.serviceWorker.register('./sw.js', {});
+    const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
     const send = () => {
       if (reg.active) reg.active.postMessage({ type: 'backend', url: currentBackend() });
     };
     if (reg.active) send();
     navigator.serviceWorker.addEventListener('controllerchange', send);
     send();
+
+    // ── stale-engine self-heal ───────────────────────────────────────────
+    // Chrome can keep an OLD service worker running through many reloads
+    // after new files ship. Ask the active worker its version; if it is not
+    // this build's version, pull the new one and reload exactly once.
+    const expectSw = window.__HT_EXPECT_SW__ || '';
+    if (reg.active && expectSw) {
+      const askVersion = (w) => new Promise((res) => {
+        const ch = new MessageChannel();
+        const to = setTimeout(() => res('(no reply)'), 2000);
+        ch.port1.onmessage = (m) => { clearTimeout(to); res((m.data && m.data.version) || '(no reply)'); };
+        w.postMessage({ type: 'version' }, [ch.port2]);
+      });
+      const running = await askVersion(reg.active);
+      if (running !== expectSw) {
+        banner('Updating HTMLTools engine\u2026');
+        let reloaded = false;
+        const once = () => {
+          if (reloaded) return;
+          reloaded = true;
+          location.reload();
+        };
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (nw) nw.addEventListener('statechange', () => { if (nw.state === 'activated') once(); });
+        });
+        navigator.serviceWorker.addEventListener('controllerchange', once);
+        reg.update().catch(() => {});
+        // claim() on an already-activated worker doesn't fire controllerchange
+        // if we were uncontrolled — fall back to a timed check
+        setTimeout(async () => {
+          if (reloaded) return;
+          const nowActive = (await navigator.serviceWorker.getRegistrations())[0];
+          if (nowActive && nowActive.active) {
+            const v2 = await askVersion(nowActive.active);
+            if (v2 === expectSw) once();
+          }
+        }, 4000);
+      }
+    }
   } catch (e) {
     banner('Service worker failed to register: ' + e.message);
     return;
@@ -620,5 +661,5 @@ async function init() {
 init();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4331acdefeafbfb',t:'MTc5MDc3MDAxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
