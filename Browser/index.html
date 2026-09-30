@@ -87,7 +87,7 @@
   <noscript>HTMLTools Browser needs JavaScript.</noscript>
   <script>
 // HTMLTools Browser — app (auto-built single file)
-window.__HT_EXPECT_SW__ = "v1.7.0";
+window.__HT_EXPECT_SW__ = "v1.8.0";
 const BACKEND = "https://htmltools-browser-nqv1xw3k6rph.htmltools-browser.deno.net";
 const KEY = "htmltools-change-me-9f2k";
 const SEARCH = "https://www.bing.com/search?q=";
@@ -296,7 +296,7 @@ function onFrameLoad(tab) {
     const href = tab.iframe.contentWindow.location.href;
     // real navigations decode from the frame URL; painted frames (doc.write)
     // sit on the app's own URL, so fall back to the last URL we painted
-    real = decodeProxiedUrl(href) || (tab._want ? decodeProxiedUrl(tab._want) : '');
+    real = (tab._want ? decodeProxiedUrl(tab._want) : '') || decodeProxiedUrl(href);
     if (real) {
       try { title = tab.iframe.contentDocument.title || ''; } catch {}
     }
@@ -406,22 +406,81 @@ async function loadIntoFrame(tab, proxiedUrl, opts) {
   }
   if (isHTML) {
     paintHtml(tab, finalUrl, await resp.text());
+  } else if (/^(text\/|application\/(json|xml|javascript|[\w.+-]*\+(json|xml)))/i.test(ctype) && !/attachment/i.test((resp.headers && resp.headers.get('content-disposition')) || '')) {
+    // text-like response (JSON from a POST, plain text, XML, raw JS/CSS): show it inline
+    let text = await resp.text();
+    if (/json/i.test(ctype)) { try { text = JSON.stringify(JSON.parse(text), null, 2); } catch {} }
+    const esc = text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    paintHtml(tab, finalUrl, '<!doctype html><meta charset="utf-8"><title>' + (decodeProxiedUrl(finalUrl) || 'Text').replace(/[<&]/g, '') + '</title>' +
+      '<pre style="white-space:pre-wrap;word-break:break-word;font:13px/1.5 ui-monospace,Menlo,monospace;margin:14px;color:#111">' + esc + '</pre>');
   } else {
-    // non-HTML navigation target (download, image, pdf): try a real navigation
-    tab.iframe.src = proxiedUrl;
+    // image / pdf / download: hand the bytes over as a blob (works for POST results too)
+    const blob = await resp.blob();
+    const bu = URL.createObjectURL(blob);
+    if (/attachment/i.test((resp.headers && resp.headers.get('content-disposition')) || '')) {
+      const a = document.createElement('a');
+      a.href = bu;
+      const m = /filename\*?=(?:UTF-8'')?"?([^";]+)/i.exec(resp.headers.get('content-disposition') || '');
+      a.download = m ? decodeURIComponent(m[1]) : 'download';
+      document.body.appendChild(a); a.click(); a.remove();
+      return;
+    }
+    const f = await makeFrame(tab);
+    if (tab._want !== finalUrl) { f.remove(); return; }
+    const old = tab.iframe;
+    tab.iframe = f;
+    f.addEventListener('load', () => onFrameLoad(tab));
+    f.src = bu;
+    f.style.visibility = '';
+    old.remove();
+    tab.realUrl = decodeProxiedUrl(finalUrl) || '';
+    if (tab.id === activeId) bar.value = tab.realUrl;
+    pushHist(tab, finalUrl);
   }
 }
 
+const absUrl = (u) => { try { return new URL(u, location.href).href; } catch { return u; } };
+function pushHist(tab, u) {
+  u = absUrl(u);
+  if (tab.hist[tab.hidx] === u) return;
+  tab.hist.splice(tab.hidx + 1);
+  tab.hist.push(u);
+  tab.hidx = tab.hist.length - 1;
+}
+
+// Every page gets a FRESH iframe. Re-using one via document.open() keeps the
+// previous page's timers/sockets/globals alive (sites "freeze", the runtime
+// never re-initialises, listeners get wiped). A new window = a clean page.
+function makeFrame(tab) {
+  return new Promise((resolve) => {
+    const f = document.createElement('iframe');
+    f.title = 'tab ' + tab.id;
+    f.name = 'htframe-' + tab.id;
+    f.style.display = tab.iframe.style.display;
+    f.style.visibility = 'hidden';
+    const done = () => { f.removeEventListener('load', done); resolve(f); };
+    f.addEventListener('load', done);
+    setTimeout(done, 3000);
+    f.srcdoc = BLANK_DOC;
+    framesEl.appendChild(f);
+  });
+}
+
 async function paintHtml(tab, finalUrl, html) {
-  try { await tab.ready; } catch {}
-  if (tab._want !== finalUrl) return;
+  const f = await makeFrame(tab);
+  if (tab._want !== finalUrl || !tabs.includes(tab)) { f.remove(); return; }
   // per-tab history (document.write creates no session-history entries)
   if (tab._histNav) { tab._histNav = false; }
-  else if (tab.hist[tab.hidx] !== finalUrl) { tab.hist.splice(tab.hidx + 1); tab.hist.push(finalUrl); tab.hidx = tab.hist.length - 1; }
-  const doc = tab.iframe.contentDocument;
+  else pushHist(tab, finalUrl);
+  const old = tab.iframe;
+  tab.iframe = f;
+  f.addEventListener('load', () => onFrameLoad(tab));
+  const doc = f.contentDocument;
   doc.open();
   doc.write(html);
   doc.close();
+  f.style.visibility = '';
+  if (old && old !== f) old.remove();
   const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   let title = m ? m[1].replace(/\s+/g, ' ').trim().slice(0, 60) : '';
   const real = decodeProxiedUrl(finalUrl);
@@ -568,32 +627,8 @@ async function pumpOnce(tab) {
 // raw 404 page ("Error response"). Re-driving the exact same URL from the app
 // (parent) makes Chrome dispatch it to the service worker again. Also catches
 // Bing's anti-bot heartbeat which reloads its own frame with &rdr=1 appended.
-setInterval(() => {
-  for (const t of tabs) {
-    if (t._want && tabs.length) pumpOnce(t).catch(() => {});
-    let doc = null;
-    let href = '';
-    try { doc = t.iframe.contentDocument; href = t.iframe.contentWindow.location.href; } catch {}
-    if (!doc || !href || href.indexOf(location.origin) !== 0) continue;
-    const isRaw404 = doc.title === 'Error response' || /Error code:\s*404/.test(doc.body && doc.body.textContent || '');
-    if (isRaw404) {
-      const u = new URL(href, location.href);
-      let clean = u.pathname + u.search.replace(/([?&])rdr=1&?/, '$1').replace(/([?&])rdrig=[^&]*&?/g, '$1').replace(/[?&]$/, '');
-      if (u.search.indexOf('u=') === -1) continue; // non-proxied raw 404: leave it
-      const last = t._lastGood && t._lastGood !== href ? t._lastGood : clean;
-      t._retries = (t._retries || 0) + 1;
-      if (t._retries <= 5) {
-        t.iframe.src = last;
-      } else if (t._retries === 6) {
-        // give up quietly; show the friendly scrambled page instead of raw 404
-        t.iframe.src = clean;
-      }
-    } else if (doc.title && doc.title !== 'Error response') {
-      t._lastGood = href;
-      t._retries = 0;
-    }
-  }
-}, 900);
+// (The old raw-404 watchdog is gone: frames are controlled by the service
+// worker now and every navigation is routed through the engine by the runtime.)
 
 function navigate(value) {
   const target = normalize(value);
@@ -618,7 +653,17 @@ window.addEventListener('message', (e) => {
     typeof u === 'string' &&
     (u.indexOf(BASE + '~/') === 0 || u.indexOf(location.origin + BASE + '~/') === 0);
 
-  const tabByWindow = () => tabs.find((t) => t.iframe.contentWindow === e.source);
+  // the sender may be a NESTED frame (ad/embed) — walk up to the tab's frame
+  const tabByWindow = () => {
+    let w = e.source;
+    for (let i = 0; w && i < 8; i++) {
+      const t = tabs.find((x) => x.iframe.contentWindow === w);
+      if (t) return t;
+      if (w.parent === w) break;
+      w = w.parent;
+    }
+    return null;
+  };
 
   if (d.__htNewTab && isProxiedHere(d.url)) {
     createTab(d.url);
@@ -629,13 +674,29 @@ window.addEventListener('message', (e) => {
     if (!isProxiedHere(navUrl)) return;
     const t = tabByWindow() || activeTab();
     if (t) loadIntoFrame(t, navUrl).catch(() => {});
-  } else if (d.__htNavPost && isProxiedHere(d.url) && d.fields && typeof d.fields === 'object') {
-    const t = tabByWindow() || activeTab();
-    if (t) {
-      const body = new URLSearchParams();
-      for (const k of Object.keys(d.fields)) body.append(k, d.fields[k]);
-      loadIntoFrame(t, d.url, { method: 'POST', body });
-    }
+  } else if (d.__htNavPost && typeof d.__htNavPost === 'object') {
+    // runtime posts { __htNavPost: { url, fields: [[k,v],…], newTab } }
+    const p = d.__htNavPost;
+    if (!isProxiedHere(p.url)) return;
+    const body = new URLSearchParams();
+    const f = p.fields;
+    if (Array.isArray(f)) for (const kv of f) body.append(kv[0], kv[1]);
+    else if (f && typeof f === 'object') for (const k of Object.keys(f)) body.append(k, f[k]);
+    const t = p.newTab ? createTab('about:blank') : (tabByWindow() || activeTab());
+    if (t) loadIntoFrame(t, p.url, { method: 'POST', body }).catch(() => {});
+  } else if (typeof d.__htUrl === 'string' && /^https?:/i.test(d.__htUrl)) {
+    // a single-page app changed its route (pushState/replaceState/popstate)
+    const t = tabByWindow();
+    if (!t) return;
+    t.realUrl = d.__htUrl;
+    t._want = enc(d.__htUrl);
+    pushHist(t, t._want);
+    try {
+      const title = t.iframe.contentDocument.title;
+      if (title) { t.title = title.slice(0, 60); t.el.querySelector('.t').textContent = t.title; }
+    } catch {}
+    t.el.title = t.realUrl;
+    if (t.id === activeId) bar.value = t.realUrl;
   }
 });
 
@@ -789,5 +850,5 @@ async function init() {
 init();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a43389925ca986ba',t:'MTc5MDc3NDU1Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a433b623bd513869',t:'MTc5MDc3NjM4Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
