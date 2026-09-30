@@ -46,77 +46,126 @@
     .btn:hover { background: #fff; color: #000; }
   </style>
   <script>
+    // Short, lowercase URLs for the current tools directory. Keep these
+    // destinations in sync with the URLs in the Tools catalog.
     const routes = {
-      'mattube': 'MatTube',
-      'email': 'Email',
-      'forgotpassword': 'ForgotPassword',
-      'meet': 'Meet',
-      'movies': 'Movies',
-      'removebg': 'Removebg',
-      'resetpassword': 'ResetPassword',
-      'sms': 'SMS',
-      'url': 'URL',
-      'sitelaunch': 'SiteLaunch',
-      'library': 'Library',
-      'advanced': 'Advanced',
-      'claude': 'Claude',
+      // Current tools
+      'htmltools-browser': '/Browser',
+      'browser': '/Browser',
+      'ai-playground': '/AI-Playground',
+      'mattube': 'https://mattube.htmltools.me/',
+      'html-library': '/Library',
+      'library': '/Library',
+      'mattok': '/MatTok/',
+      'claude-ai': '/Claude',
+      'claude': '/Claude',
+      'chatgpt': '/ChatGPT',
+      'grok': '/Grok',
+      'gemini': '/Gemini',
+      'make-your-own-ai': 'https://ai.htmltools.me/',
+      'ai-image-editor': '/ImageEditorAI',
+      'imageeditorai': '/ImageEditorAI',
+      'ai-image-generator': '/ImageGeneratorAI',
+      'imagegeneratorai': '/ImageGeneratorAI',
+      'deepseek': '/Deepseek/',
+      'glm': '/GLM/',
+      'research-ai': '/Research/',
+      'research': '/Research/',
+      'past-time': '/Pasttime',
+      'past-time-database': '/Pasttime',
+      'pasttime': '/Pasttime',
+      'website-encryption': '/website-encryption',
+      'make-a-website': 'https://sitelaunch.htmltools.me/',
+      'sitelaunch': '/SiteLaunch',
+      'advanced-html-runner': '/Advanced',
+      'advanced': '/Advanced',
+      'htmltools-proxy': '/URL',
+      'proxy': '/URL',
+      'url': '/URL',
+      'translator': 'https://translate.htmltools.me/',
+      'remove-background': '/Removebg',
+      'removebg': '/Removebg',
+      'art': '/Art',
+      'htmeet': '/Meet/',
+      'meet': '/Meet',
+
+      // Existing legacy shortcuts
+      'email': '/Email',
+      'forgotpassword': '/ForgotPassword',
+      'movies': '/Movies',
+      'resetpassword': '/ResetPassword',
+      'sms': '/SMS'
     };
 
     const subRoutes = {
-      'sitelaunch/discover': 'SiteLaunch/Discover',
-      'advanced/download': 'Advanced/Download',
-      'library/studio': 'Library/Studio',
+      'sitelaunch/discover': '/SiteLaunch/Discover',
+      'advanced/download': '/Advanced/Download',
+      'library/studio': '/Library/Studio'
     };
 
-    const path = window.location.pathname;
-    const stripped = path.replace(/^\//, '').toLowerCase();
+    function showNotFound() {
+      const root = document.getElementById('nf-root');
+      if (root) root.style.display = 'flex';
+    }
 
-    // Gemini per-chat URLs: /Gemini/Chat/<id>
-    // The URL must stay put (Chat/index.html reads the id out of
-    // location.pathname), so instead of a redirect we fetch the real
-    // Chat/index.html and swap this whole document for it in place.
-    var isGeminiChatRoute = /^gemini\/chat\/[^\/]+\/?$/.test(stripped);
+    function showNotFoundWhenReady() {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', showNotFound, { once: true });
+      } else {
+        showNotFound();
+      }
+    }
+
+    // Normalize case and optional trailing slashes, so /claude,
+    // /CLAUDE/, and similar variants resolve consistently.
+    const stripped = window.location.pathname
+      .replace(/\/{2,}/g, '/')
+      .replace(/^\/+|\/+$/g, '')
+      .toLowerCase();
+
+    // Gemini chat URLs must keep their original path because the chat page
+    // reads the conversation ID from location.pathname.
+    const isGeminiChatRoute = /^gemini\/chat\/[^/]+$/.test(stripped);
 
     if (isGeminiChatRoute) {
       fetch('/Gemini/Chat/index.html')
-        .then(function(res){
-          if (!res.ok) throw new Error('missing chat page');
+        .then(function (res) {
+          if (!res.ok) throw new Error('Missing Gemini chat page');
           return res.text();
         })
-        .then(function(html){
+        .then(function (html) {
           document.open();
           document.write(html);
           document.close();
 
-          // Force the favicon: since the URL stays at /Gemini/Chat/<id>/,
-          // any relative <link rel="icon"> in Chat/index.html resolves
-          // against the wrong base path and silently fails to load.
-          // Strip whatever icon links came in with the fetched markup
-          // and re-inject one with an absolute, always-correct path.
-          document.querySelectorAll('link[rel~="icon"]').forEach(function(el){
+          // Use an absolute favicon because the URL remains nested under
+          // /Gemini/Chat/<id>/.
+          document.querySelectorAll('link[rel~="icon"]').forEach(function (el) {
             el.parentNode.removeChild(el);
           });
-          var link = document.createElement('link');
+          const link = document.createElement('link');
           link.rel = 'icon';
           link.type = 'image/png';
           link.href = '/logo3.png';
           document.head.appendChild(link);
         })
-        .catch(function(){
-          document.addEventListener('DOMContentLoaded', function(){
-            document.getElementById('nf-root').style.display = 'flex';
-          });
-        });
+        .catch(showNotFoundWhenReady);
     } else {
-      const match = subRoutes[stripped] || routes[stripped];
-      if (match) {
-        window.location.replace(
-          '/' + match + window.location.search + window.location.hash
-        );
+      const destination = subRoutes[stripped] || routes[stripped];
+
+      if (destination) {
+        const target = new URL(destination, window.location.origin);
+        target.search = window.location.search;
+        target.hash = window.location.hash;
+
+        // Avoid redirect loops if a mapped destination is itself missing.
+        if (target.href !== window.location.href) {
+          window.location.replace(target.href);
+        } else {
+          showNotFoundWhenReady();
+        }
       } else {
-        document.addEventListener('DOMContentLoaded', function(){
-          document.getElementById('nf-root').style.display = 'flex';
-        });
+        showNotFoundWhenReady();
       }
     }
   </script>
