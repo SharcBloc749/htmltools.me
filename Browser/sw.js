@@ -572,15 +572,14 @@ function makeStore() {
 //     Secure/HttpOnly semantics — logins survive restarts
 //   • Runtime script served dynamically with KEY/PREFIX/BACKEND substituted
 //     live, so WebSocket proxying always matches the current backend
-//   • Backend URL can be set from the app (⚙ in the header) and persists
-//     in IndexedDB — no config file editing needed
+//   • The backend address is fixed at build time (no user setting)
 // ─────────────────────────────────────────────────────────────────────────
 
 
 
 
 
-const VERSION = 'v1.11.0';
+const VERSION = 'v1.12.0';
 const SCOPE = new URL(self.registration.scope).pathname; // '/' or '/browser/'
 const ROOT = SCOPE.replace(/\/$/, ''); // '' or '/browser'
 const RUNTIME_PATH = ROOT + '/~/__ht/runtime.js';
@@ -684,16 +683,13 @@ const storeReady = idbOp('readonly', (s) => s.get('cookies'))
   })
   .catch(() => {});
 
-// Backend URL: config default → overridden by the saved value (⚙ setting).
-let backend = BACKEND;
-const backendReady = idbOp('readonly', (s) => s.get('backend'))
-  .then((v) => {
-    if (typeof v === 'string' && /^https?:\/\//.test(v)) backend = v.replace(/\/$/, '');
-  })
-  .catch(() => {});
+// The backend address is fixed at build time. (Older builds let the user save one in IndexedDB;
+// forget any such leftover so it can never point somewhere else.)
+const backend = BACKEND;
+const backendReady = idbOp('readwrite', (s) => s.delete('backend')).catch(() => {});
 
 // ── extensions (config pushed by the app; persisted so a restarted worker keeps it) ──
-let extConf = { adblock: false, dark: false, exts: [] };
+let extConf = { adblock: false, dark: false, cookies: false, exts: [] };
 const extReady = idbOp('readonly', (s) => s.get('ext')).then((c) => { if (c && typeof c === 'object') extConf = c; }).catch(() => {});
 
 const AD_HOSTS = /(^|\.)(doubleclick\.net|googlesyndication\.com|googleadservices\.com|googletagservices\.com|adservice\.google\.[a-z.]+|google-analytics\.com|adnxs\.com|taboola\.com|outbrain\.com|criteo\.(com|net)|rubiconproject\.com|pubmatic\.com|openx\.net|amazon-adsystem\.com|moatads\.com|scorecardresearch\.com|hotjar\.com|adsrvr\.org|casalemedia\.com|smartadserver\.com|teads\.tv|media\.net|advertising\.com|adform\.net|3lift\.com|sharethrough\.com|indexww\.com|bidswitch\.net|contextweb\.com|2mdn\.net|serving-sys\.com|quantserve\.com|zedo\.com|revcontent\.com|mgid\.com|popads\.net|propellerads\.com|exoclick\.com|adsterra\.com|yieldmo\.com|lijit\.com|33across\.com|connect\.facebook\.net|ads-twitter\.com|analytics\.tiktok\.com|snap\.licdn\.com)$/i;
@@ -708,6 +704,10 @@ const AD_CSS = 'ins.adsbygoogle,.adsbygoogle,[id^="google_ads_"],[id^="div-gpt-a
   'iframe[id^="google_ads"],.ad-slot,.ad-banner,.ad-container,.advert,.advertisement,.ad-unit,[class*="ad-placeholder"],[data-ad-slot],[data-google-query-id],' +
   '#player-ads,#masthead-ad,ytd-ad-slot-renderer,ytd-display-ad-renderer,ytd-promoted-sparkles-web-renderer,ytd-banner-promo-renderer,.ytp-ad-module,.ytp-ad-overlay-container,' +
   '.taboola,.trc_related_container,[id^="taboola-"],.OUTBRAIN,[data-widget-id^="AR_"]{display:none!important}';
+
+const COOKIE_CSS = '#onetrust-banner-sdk,#onetrust-consent-sdk,.onetrust-pc-dark-filter,#CybotCookiebotDialog,#CybotCookiebotDialogBodyUnderlay,#cookiebanner,#cookie-banner,#cookie-notice,#cookie-law-info-bar,#cookieConsent,#cookie-consent,#gdpr-cookie-notice,#gdpr-consent,' +
+  '.cc-window,.cc-banner,.cookie-banner,.cookie-notice,.cookie-consent,.cookie-popup,.cookies-banner,.cookie-bar,.cookiebar,.gdpr-banner,.truste_overlay,.truste_box_overlay,#truste-consent-track,' +
+  '[id^="sp_message_container"],.fc-consent-root,.qc-cmp2-container,#qc-cmp2-container,#didomi-host,.didomi-popup-backdrop,#usercentrics-root,#cmpwrapper,.osano-cm-window,.evidon-banner,.termsfeed-com---nb,#hs-eu-cookie-confirmation,.iubenda-cs-container,#iubenda-cs-banner,[aria-label="Cookie banner" i],[aria-label="Cookie consent" i],[id*="cookie-banner" i],[class*="cookie-banner" i]{display:none!important}';
 
 function adStub(request) {
   const d = request.destination || '';
@@ -781,6 +781,7 @@ function gmShimSrc(e) {
 function extInject(targetUrl, isTop) {
   let out = '';
   if (extConf.adblock) out += '<style data-ht-ext>' + AD_CSS + '</style>';
+  if (extConf.cookies) out += '<style data-ht-ext>' + COOKIE_CSS + '</style>';
   if (extConf.dark && isTop) {
     out += '<style data-ht-ext>html{filter:invert(.93) hue-rotate(180deg)!important;background:#fff!important}' +
       'img,video,canvas,picture,svg image,iframe,embed,object,[style*="background-image"]{filter:invert(1) hue-rotate(180deg)!important}</style>';
@@ -832,7 +833,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// The app can set the backend at runtime (⚙ in the header / first-run box).
 self.addEventListener('message', (event) => {
   const d = event.data || {};
   if (d.type === 'version') {
@@ -856,9 +856,10 @@ self.addEventListener('message', (event) => {
     idbOp('readwrite', (s) => s.put(extConf, 'ext')).catch(() => {});
     return;
   }
-  if (d.type === 'backend' && typeof d.url === 'string' && /^https?:\/\//.test(d.url)) {
-    backend = d.url.replace(/\/$/, '');
-    idbOp('readwrite', (s) => s.put(backend, 'backend')).catch(() => {});
+  if (d.type === 'clearCookies') {
+    store.clear();
+    idbOp('readwrite', (s) => s.put(store.toJSON(), 'cookies')).catch(() => {});
+    if (event.ports && event.ports[0]) event.ports[0].postMessage({ ok: true });
   }
 });
 
@@ -1070,11 +1071,10 @@ async function handle(request, targetUrl, opts = {}) {
     }
     resp = await fetch(backendUrl(targetUrl, fwd), init);
   } catch (err) {
-    return new Response(
-      'HTMLTools proxy backend unreachable: ' + backend + '\n\n' +
-      'Open the app page and click ⚙ to check the backend URL.\n\n' + (err && err.message),
-      { status: 502, headers: { 'content-type': 'text/plain; charset=utf-8' } }
-    );
+    if (request.mode === 'navigate' || request.destination === 'iframe' || request.headers.get('x-ht-nav') === '1') {
+      return upstreamErrorPage(targetUrl, 'The HTMLTools server did not answer. Check your connection.');
+    }
+    return new Response('HTMLTools server unreachable: ' + (err && err.message), { status: 502, headers: { 'content-type': 'text/plain; charset=utf-8' } });
   }
 
   // Backend-level failure (it couldn't reach the site at all): retry once,
@@ -1164,26 +1164,46 @@ async function handle(request, targetUrl, opts = {}) {
   // (the "promise was rejected" → host-404 storm). Buffering kills that.
   const buf = await resp.arrayBuffer();
   const noBody = status === 204 || status === 205 || status === 304;
+  if (isNavReq && status >= 500 && buf.byteLength === 0) return upstreamErrorPage(targetUrl, 'The site answered with an error (' + status + ') and no page.');
   return new Response(noBody ? null : buf, { status, headers });
 }
 
 function upstreamErrorPage(targetUrl, detail) {
   const esc = (x) => String(x || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let host = targetUrl;
-  try { host = new URL(targetUrl).hostname; } catch {}
+  let query = '';
+  let isEngine = '';
+  try {
+    const u = new URL(targetUrl);
+    host = u.hostname;
+    const m = /(^|\.)(yahoo\.com|duckduckgo\.com|bing\.com)$/.exec(host);
+    if (m) { isEngine = m[2]; query = u.searchParams.get('q') || u.searchParams.get('p') || ''; }
+  } catch {}
   const enc = encodeUrlQ(targetUrl, SCOPE);
+  const alts = [];
+  if (query) {
+    if (isEngine !== 'bing.com') alts.push(['Search Bing instead', 'https://www.bing.com/search?q=' + encodeURIComponent(query)]);
+    if (isEngine !== 'duckduckgo.com') alts.push(['Search DuckDuckGo instead', 'https://duckduckgo.com/?q=' + encodeURIComponent(query)]);
+  }
+  const altNav = alts.map((a) => [a[0], encodeUrlQ(a[1], SCOPE)]);
+  const sure = isEngine === 'yahoo.com'
+    ? 'Yahoo blocks most proxy servers, so its search results usually cannot load here.'
+    : 'Some sites (Google\u2019s Gemini, banks, streaming and sign-in pages) refuse connections from free proxy servers. It can also be a short-lived glitch.';
   const html =
     '<!doctype html><meta charset="utf-8"><title>Can\u2019t reach ' + esc(host) + '</title>' +
-    '<body style="font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3;display:grid;place-items:center;min-height:100vh;margin:0">' +
-    '<div style="max-width:520px;padding:24px;text-align:center">' +
-    '<div style="font-size:42px;margin-bottom:8px">&#9888;&#65039;</div>' +
-    '<h2 style="margin:0 0 10px">Couldn\u2019t reach ' + esc(host) + '</h2>' +
-    '<p style="color:#9aa4b2;line-height:1.55">The proxy server couldn\u2019t open a connection to this site. ' +
-    'Some sites (Google\u2019s Gemini, banks, some streaming and login pages) refuse connections coming from free proxy servers. ' +
-    'It can also be a temporary glitch \u2014 try again.</p>' +
-    '<p><button id="r" style="background:#238636;color:#fff;border:0;border-radius:6px;padding:8px 18px;font-size:14px;cursor:pointer">Try again</button></p>' +
-    '<p style="font-size:11px;color:#6e7681;word-break:break-all">' + esc(targetUrl) + ' \u2014 ' + esc(detail) + '</p></div>' +
-    '<script>document.getElementById("r").onclick=function(){window.parent.postMessage({__htNav:' + JSON.stringify(enc) + '},location.origin)}</script>';
+    '<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0a0a0a;color:#f2f2f2;font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}' +
+    '.c{max-width:500px;padding:32px 28px}.ic{width:44px;height:44px;border-radius:50%;border:2px solid #444;display:grid;place-items:center;margin-bottom:18px;font-size:22px;color:#bbb;font-weight:300}' +
+    'h1{font-size:22px;font-weight:600;margin:0 0 10px;letter-spacing:-.2px}p{color:#a8a8a8;margin:0 0 20px}' +
+    '.b{display:flex;gap:10px;flex-wrap:wrap}button{font:inherit;font-weight:500;height:36px;padding:0 18px;border-radius:18px;border:1px solid #3a3a3a;background:transparent;color:#f2f2f2;cursor:pointer}' +
+    'button:hover{background:rgba(255,255,255,.1)}button.p{background:#fff;color:#000;border-color:#fff}button.p:hover{background:#ddd}' +
+    '.d{margin-top:26px;font-size:11.5px;color:#6b6b6b;word-break:break-all}</style>' +
+    '<div class="c"><div class="ic">!</div><h1>Can\u2019t reach ' + esc(host) + '</h1><p>' + esc(sure) + '</p>' +
+    '<div class="b"><button class="p" id="r">Try again</button>' +
+    altNav.map((a, i) => '<button data-a="' + i + '">' + esc(a[0]) + '</button>').join('') + '</div>' +
+    '<div class="d">' + esc(detail) + '</div></div>' +
+    '<script>var A=' + JSON.stringify(altNav.map((a) => a[1])).replace(/</g, '\\u003c') + ',go=function(u){window.parent.postMessage({__htNav:u},location.origin)};' +
+    'document.getElementById("r").onclick=function(){go(' + JSON.stringify(enc).replace(/</g, '\\u003c') + ')};' +
+    'Array.prototype.forEach.call(document.querySelectorAll("[data-a]"),function(b){b.onclick=function(){go(A[+b.getAttribute("data-a")])}})</script>';
   return new Response(html, { status: 502, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
