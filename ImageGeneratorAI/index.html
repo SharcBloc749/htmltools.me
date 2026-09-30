@@ -364,6 +364,10 @@ input.inp::placeholder{color:var(--tx3);}
 <script>
 const API_ENDPOINT = "https://aged-bird-46da.bozhetarnikmatthew.workers.dev/";
 
+// A shared prompt URL (?p=...) should open a fresh generation with the prompt ready.
+var promptFromUrl = new URLSearchParams(window.location.search).get('p');
+var pendingPromptFromUrl = promptFromUrl !== null && promptFromUrl.trim() !== '';
+
 // ── Firebase (same project as Image Editor / Website Encryption, separate data path) ──
 var FB_CONFIG = {
   apiKey: "AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
@@ -546,15 +550,17 @@ async function loadConversationList() {
     }
     conversations.sort(function(a,b){ return b.updated - a.updated; });
     renderConvList();
-    if (conversations.length > 0) {
-      await openConversation(conversations[0].id);
-    } else {
-      startNewConversation();
+    if (!startNewConversationFromUrlPrompt()) {
+      if (conversations.length > 0) {
+        await openConversation(conversations[0].id);
+      } else {
+        startNewConversation();
+      }
     }
   } catch (e) {
     console.error('loadConversationList failed:', e);
     showToast('Could not load conversations: ' + (e && e.message ? e.message : e));
-    startNewConversation();
+    if (!startNewConversationFromUrlPrompt()) startNewConversation();
   }
 }
 
@@ -617,6 +623,25 @@ function startNewConversation() {
   renderEditingBase();
   renderConvList();
   renderMessages();
+}
+
+function startNewConversationFromUrlPrompt() {
+  if (!pendingPromptFromUrl) return false;
+
+  pendingPromptFromUrl = false;
+  startNewConversation();
+  composerInput.value = promptFromUrl;
+  composerInput.style.height = 'auto';
+  composerInput.style.height = Math.min(composerInput.scrollHeight, 160) + 'px';
+  updateComposerModeHint();
+
+  // Consume p= once so reloading after using the prompt doesn't seed it again.
+  try {
+    var url = new URL(window.location.href);
+    url.searchParams.delete('p');
+    history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  } catch (e) {}
+  return true;
 }
 
 async function persistConversation() {
