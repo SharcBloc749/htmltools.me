@@ -95,7 +95,7 @@
   }
 
   function calculate(source) {
-    var s = source.replace(/[×✕]/g, "*").replace(/[÷]/g, "/").replace(/[−–]/g, "-").trim();
+    var s = source.replace(/[×✕]/g, "*").replace(/(\d)\s*[xX]\s*(?=\d)/g, "$1*").replace(/[÷]/g, "/").replace(/[−–]/g, "-").trim();
     var pct = s.match(/^(-?\d+(?:\.\d+)?)\s*%\s*of\s*(-?\d+(?:\.\d+)?)$/i);
     if (pct) return Number(pct[1]) * Number(pct[2]) / 100;
     if (!/^[\d\s()+\-*/^%.]+$/.test(s)) return null;
@@ -384,11 +384,31 @@
       } catch (err) {}
     });
   }
-  function renderAnswerText(target, full) {
+  function renderInlineHighlight(element, text, finalChunk) {
+    element.replaceChildren();
+    var pattern = /\[\[([\s\S]*?)\]\]/g;
+    var cursor = 0, match, found = false;
+    while ((match = pattern.exec(text))) {
+      if (match.index > cursor) element.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+      var mark = document.createElement("mark");
+      mark.className = "ai-inline-highlight";
+      mark.textContent = match[1];
+      element.appendChild(mark);
+      cursor = pattern.lastIndex;
+      found = true;
+    }
+    var tail = text.slice(cursor);
+    var open = tail.lastIndexOf("[["), close = tail.lastIndexOf("]]");
+    if (!finalChunk && open > close) tail = tail.slice(0, open); // don't flash half a marker while streaming
+    if (finalChunk) tail = tail.replace(/\[\[|\]\]/g, "");
+    if (tail) element.appendChild(document.createTextNode(tail));
+    if (!found && !tail && finalChunk) element.textContent = text.replace(/\[\[|\]\]/g, "");
+  }
+  function renderAnswerText(target, full, finalChunk) {
     var split = full.indexOf("\n");
     var direct = split < 0 ? full : full.slice(0, split);
     direct = direct.replace(/^\s*ANSWER:\s*/i, "").trim();
-    target.direct.textContent = direct || "…";
+    renderInlineHighlight(target.direct, direct || "…", !!finalChunk);
     if (split >= 0) {
       var rest = full.slice(split + 1).replace(/^\s*DETAILS:\s*/i, "").trim();
       target.details.textContent = rest;
@@ -473,7 +493,7 @@
         if (lastEvent && lastEvent.type === "delta" && typeof lastEvent.text === "string") full += lastEvent.text;
       }
       if (thisSequence !== sequence) return;
-      renderAnswerText(target, full || "I couldn’t generate an answer this time. Try asking again.");
+      renderAnswerText(target, full || "The model returned no answer. Try again.", true);
       status.textContent = options.extended ? "Extended answer complete." : "Answer complete.";
       if (options.saveChat && full) chat.push({ role: "assistant", content: full });
     } catch (err) {
@@ -512,7 +532,7 @@
     if (!currentQuery()) { clearTranscript(); setIdleStatus(); return; }
     if (!autoToggle.checked) { clearTranscript(); setIdleStatus(); return; }
     status.textContent = "Waiting for you to pause…";
-    debounce = window.setTimeout(autoAnswer, 700);
+    debounce = window.setTimeout(autoAnswer, 400);
   });
 
   autoToggle.addEventListener("change", function () {
@@ -536,6 +556,14 @@
     transcript.replaceChildren();
     addUser(q);
     ask(chat.slice(), { auto: false, search: true, extended: extendedToggle.checked, saveChat: true });
+  });
+
+  followup.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      if (typeof followForm.requestSubmit === "function") followForm.requestSubmit();
+      else followForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
   });
 
   followForm.addEventListener("submit", function (event) {
@@ -563,5 +591,5 @@
 
   clearTranscript();
   setIdleStatus();
-  if (currentQuery() && autoToggle.checked) debounce = window.setTimeout(autoAnswer, 500);
+  if (currentQuery() && autoToggle.checked) debounce = window.setTimeout(autoAnswer, 400);
 })();
