@@ -1,5 +1,8 @@
-/* Small, explicit-pattern instant answers for HTMLTools Search. No dependencies. */
+/* Small, explicit-pattern instant answers + ambient Gemini-style AI sidebar for HTMLTools Search. */
 (function () {
+  if (window.__HT_INSTANT_ANSWERS_READY) return;
+  window.__HT_INSTANT_ANSWERS_READY = true;
+
   var input = document.getElementById("q");
   var card = document.getElementById("answerCard");
   if (!input || !card) return;
@@ -312,13 +315,16 @@
   input.addEventListener("input", function () {
     window.clearTimeout(debounceId);
     if (activeController) activeController.abort();
-    debounceId = window.setTimeout(run, 300);
+    debounceId = window.setTimeout(run, 220);
   });
   run();
 })();
 
-/* Automatic, streaming AI sidebar. The API token stays in Cloudflare Worker secrets. */
+/* Ambient, Gemini-style streaming AI Overview sidebar */
 (function () {
+  if (window.__HT_AI_OVERVIEW_READY) return;
+  window.__HT_AI_OVERVIEW_READY = true;
+
   var input = document.getElementById("q");
   var panel = document.getElementById("aiPanel");
   if (!input || !panel) return;
@@ -329,113 +335,399 @@
   var modelBadge = document.getElementById("aiModel");
   var autoToggle = document.getElementById("aiAutoToggle");
   var askCurrent = document.getElementById("aiAskCurrent");
+  var manualBar = document.getElementById("aiManualBar");
   var followForm = document.getElementById("aiFollowForm");
   var followup = document.getElementById("aiFollowup");
   var extendedToggle = document.getElementById("aiExtended");
   var sendButton = document.getElementById("aiSend");
+
   var chat = [];
   var debounce = 0;
   var sequence = 0;
   var activeController = null;
   var activeAuto = false;
+  var answerCache = new Map();
 
   try { autoToggle.checked = localStorage.getItem("hts.ai.auto") !== "off"; } catch (err) { autoToggle.checked = true; }
+
+  /* Show "Answer this search" ONLY when Auto-answer is OFF */
+  function syncAutoVisibility() {
+    var isAuto = !!autoToggle.checked;
+    if (askCurrent) {
+      askCurrent.hidden = isAuto;
+      askCurrent.style.display = isAuto ? "none" : "";
+    }
+    if (manualBar) {
+      manualBar.hidden = isAuto;
+      manualBar.style.display = isAuto ? "none" : "";
+    }
+    panel.classList.toggle("auto-on", isAuto);
+    panel.classList.toggle("auto-off", !isAuto);
+  }
+
+  function setStatus(text) {
+    if (!status) return;
+    status.textContent = text || "";
+    status.hidden = !text;
+  }
 
   function clearTranscript() {
     transcript.replaceChildren();
     var empty = document.createElement("p");
     empty.className = "ai-empty";
-    empty.textContent = autoToggle.checked ? "Waiting for a question…" : "Auto-answer is off. Use “Answer this search” to ask manually.";
+    empty.textContent = autoToggle.checked
+      ? "Ask anything in the search bar for an instant AI overview."
+      : "Auto-answer is off. Click “Answer this search” when you want an AI overview.";
     transcript.appendChild(empty);
   }
-  function scrollBottom() { transcript.scrollTop = transcript.scrollHeight; }
-  function addUser(text) {
+
+  function scrollBottom() {
+    transcript.scrollTop = transcript.scrollHeight;
+  }
+
+  function addUser(text, isFollowup) {
+    /* Only show chat bubbles for follow-up questions; initial search query is already in the main hero */
+    if (!isFollowup) return;
     var bubble = document.createElement("div");
     bubble.className = "ai-user-bubble";
     bubble.textContent = text;
     transcript.appendChild(bubble);
     scrollBottom();
   }
-  function makeAssistantTurn() {
-    var turn = document.createElement("div");
-    turn.className = "ai-assistant-turn";
-    var highlight = document.createElement("div"); highlight.className = "ai-answer-highlight";
-    var label = document.createElement("p"); label.className = "ai-answer-label"; label.textContent = "Answer";
-    var direct = document.createElement("div"); direct.className = "ai-direct"; direct.textContent = "Thinking…";
-    highlight.appendChild(label); highlight.appendChild(direct);
-    var details = document.createElement("div"); details.className = "ai-details";
-    var sources = document.createElement("div"); sources.className = "ai-sources";
-    turn.appendChild(highlight); turn.appendChild(details); turn.appendChild(sources);
-    transcript.appendChild(turn); scrollBottom();
-    return { turn: turn, direct: direct, details: details, sources: sources };
+
+  /* Gemini-style shimmer skeleton lines while thinking */
+  function createThinkingSkeleton(isExtended) {
+    var wrap = document.createElement("div");
+    wrap.className = "ai-thinking";
+    wrap.setAttribute("aria-label", "AI is thinking");
+
+    var head = document.createElement("div");
+    head.className = "ai-thinking-head";
+    var icon = document.createElement("span");
+    icon.className = "ai-thinking-spark";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "✦";
+    var label = document.createElement("span");
+    label.className = "ai-thinking-label";
+    label.textContent = isExtended ? "Thinking deeply…" : "Thinking…";
+    head.appendChild(icon);
+    head.appendChild(label);
+    wrap.appendChild(head);
+
+    var lines = document.createElement("div");
+    lines.className = "ai-skeleton-group";
+    ["w-94", "w-82", "w-60", "w-76", "w-48"].forEach(function (cls, idx) {
+      var bar = document.createElement("span");
+      bar.className = "ai-skeleton-line " + cls + (idx >= 3 ? " sub" : "");
+      bar.style.animationDelay = (idx * 90) + "ms";
+      lines.appendChild(bar);
+    });
+    wrap.appendChild(lines);
+    return wrap;
   }
-  function paintSources(container, list) {
+
+  function makeAssistantTurn(isExtended) {
+    var emptyEl = transcript.querySelector(".ai-empty");
+    if (emptyEl) emptyEl.remove();
+
+    var turn = document.createElement("div");
+    turn.className = "ai-assistant-turn is-thinking";
+
+    var skeleton = createThinkingSkeleton(isExtended);
+
+    var content = document.createElement("div");
+    content.className = "ai-turn-body";
+    content.hidden = true;
+
+    var highlight = document.createElement("div");
+    highlight.className = "ai-answer-highlight";
+    var direct = document.createElement("div");
+    direct.className = "ai-direct";
+    highlight.appendChild(direct);
+
+    var details = document.createElement("div");
+    details.className = "ai-details";
+    details.hidden = true;
+
+    var sources = document.createElement("div");
+    sources.className = "ai-sources";
+    sources.hidden = true;
+
+    content.appendChild(highlight);
+    content.appendChild(details);
+    content.appendChild(sources);
+
+    turn.appendChild(skeleton);
+    turn.appendChild(content);
+    transcript.appendChild(turn);
+    scrollBottom();
+
+    return {
+      turn: turn,
+      skeleton: skeleton,
+      content: content,
+      direct: direct,
+      details: details,
+      sources: sources,
+      activeSources: []
+    };
+  }
+
+  function paintSources(target, list) {
+    var container = target.sources;
     container.replaceChildren();
+    target.activeSources = list || [];
+    var count = 0;
     (list || []).forEach(function (source, i) {
       if (!source || !source.url) return;
       try {
         var url = new URL(source.url);
         if (url.protocol !== "https:" && url.protocol !== "http:") return;
         var a = document.createElement("a");
-        a.className = "ai-source"; a.href = url.href; a.target = "_blank"; a.rel = "noopener noreferrer";
-        a.title = source.title || url.hostname;
-        a.textContent = "[" + (source.n || i + 1) + "] " + (source.title || url.hostname);
+        a.className = "ai-source";
+        a.href = url.href;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.title = (source.title || url.hostname) + " (" + url.hostname + ")";
+
+        var num = document.createElement("span");
+        num.className = "ai-source-num";
+        num.textContent = String(source.n || i + 1);
+
+        var host = document.createElement("span");
+        host.className = "ai-source-title";
+        host.textContent = source.title || url.hostname.replace(/^www\./, "");
+
+        a.appendChild(num);
+        a.appendChild(host);
         container.appendChild(a);
+        count++;
       } catch (err) {}
     });
+    container.hidden = count === 0;
   }
-  function renderInlineHighlight(element, text, finalChunk) {
-    element.replaceChildren();
-    var pattern = /\[\[([\s\S]*?)\]\]/g;
-    var cursor = 0, match, found = false;
-    while ((match = pattern.exec(text))) {
-      if (match.index > cursor) element.appendChild(document.createTextNode(text.slice(cursor, match.index)));
-      var mark = document.createElement("mark");
-      mark.className = "ai-inline-highlight";
-      mark.textContent = match[1];
-      element.appendChild(mark);
-      cursor = pattern.lastIndex;
-      found = true;
+
+  /* Split model output reliably into { direct, details } even when DETAILS: has no newline before it */
+  function splitAnswerAndDetails(rawText, finalChunk) {
+    var cleaned = String(rawText || "").replace(/^\s*(?:\*\*?)?ANSWER(?:\*\*?)?\s*:\s*/i, "");
+    var detailsMatch = cleaned.match(/\s*(?:\r?\n)*\s*(?:\*\*?)?DETAILS(?:\*\*?)?\s*:\s*/i);
+    var direct = "";
+    var details = "";
+
+    if (detailsMatch && detailsMatch.index !== undefined) {
+      direct = cleaned.slice(0, detailsMatch.index);
+      details = cleaned.slice(detailsMatch.index + detailsMatch[0].length);
+    } else {
+      var nlIndex = cleaned.indexOf("\n");
+      if (nlIndex >= 0) {
+        direct = cleaned.slice(0, nlIndex);
+        details = cleaned.slice(nlIndex + 1).replace(/^\s*(?:\*\*?)?DETAILS(?:\*\*?)?\s*:\s*/i, "");
+      } else {
+        direct = cleaned;
+      }
     }
-    var tail = text.slice(cursor);
-    var open = tail.lastIndexOf("[["), close = tail.lastIndexOf("]]");
-    if (!finalChunk && open > close) tail = tail.slice(0, open); // don't flash half a marker while streaming
-    if (finalChunk) tail = tail.replace(/\[\[|\]\]/g, "");
-    if (tail) element.appendChild(document.createTextNode(tail));
-    if (!found && !tail && finalChunk) element.textContent = text.replace(/\[\[|\]\]/g, "");
+
+    /* While streaming, strip any partial trailing "D".."DETAILS" right after "]]" or sentence end */
+    if (!finalChunk) {
+      direct = direct.replace(/(?:\]\]|[.!?])\s*D(?:E(?:T(?:A(?:I(?:L(?:S)?)?)?)?)?)?$/i, function (m) {
+        return m.slice(0, m.indexOf("]]") === 0 ? 2 : 1);
+      });
+    }
+
+    return {
+      direct: direct.trim(),
+      details: details.trim()
+    };
   }
+
+  /* Automatically find a concise key phrase to highlight if the model forgot [[...]] and **...** */
+  function applySmartFallbackHighlight(text) {
+    if (!text || /\[\[[\s\S]*?\]\]|\*\*[^*]+\*\*/.test(text)) return text;
+    /* Match patterns like "is approximately 15.6525.", "equals 42.", "= 15.6525" */
+    var m = text.match(/^(.*?\b(?:is\s+approximately|is\s+about|is\s+roughly|equals|is\s+equal\s+to|are|is|was|were)\s+|.*?\s*[=≈]\s*)([^\s.,;:!?][^\n.;!?]{0,48}?)([.!?]?\s*)$/i);
+    if (m && m[2] && m[2].trim().length <= 48) {
+      return m[1] + "[[" + m[2].trim() + "]]" + (m[3] || "");
+    }
+    return text;
+  }
+
+  /* Append text with inline formatting: [[highlight]], **bold/highlight**, `code`, and [1] citations */
+  function appendRichInline(container, text, options) {
+    options = options || {};
+    var promoteBoldToHighlight = !!options.promoteBoldToHighlight;
+    var sources = options.sources || [];
+
+    /* Normalize unclosed [[ while streaming so raw brackets never flash */
+    var working = String(text || "");
+    var lastOpen = working.lastIndexOf("[[");
+    var lastClose = working.lastIndexOf("]]");
+    if (lastOpen > lastClose) {
+      if (options.finalChunk) {
+        working = working.slice(0, lastOpen) + "[[" + working.slice(lastOpen + 2) + "]]";
+      } else {
+        var openSpan = working.slice(lastOpen + 2);
+        working = working.slice(0, lastOpen) + (openSpan ? "[[" + openSpan + "]]" : "");
+      }
+    }
+
+    var tokenRegex = /\[\[([\s\S]*?)\]\]|\*\*([^*\n]+?)\*\*|`([^`\n]+?)`|\[(\d+)\]/g;
+    var cursor = 0;
+    var match;
+
+    function cleanPlain(str) {
+      return str.replace(/\[\[|\]\]/g, "");
+    }
+
+    while ((match = tokenRegex.exec(working))) {
+      if (match.index > cursor) {
+        var plain = cleanPlain(working.slice(cursor, match.index));
+        if (plain) container.appendChild(document.createTextNode(plain));
+      }
+      if (match[1] !== undefined) {
+        var hlText = cleanPlain(match[1]).trim();
+        if (hlText) {
+          var mark = document.createElement("mark");
+          mark.className = "ai-inline-highlight";
+          mark.textContent = hlText;
+          container.appendChild(mark);
+        }
+      } else if (match[2] !== undefined) {
+        var boldText = cleanPlain(match[2]).trim();
+        if (boldText) {
+          var bEl = document.createElement(promoteBoldToHighlight ? "mark" : "strong");
+          bEl.className = promoteBoldToHighlight ? "ai-inline-highlight" : "ai-inline-bold";
+          bEl.textContent = boldText;
+          container.appendChild(bEl);
+        }
+      } else if (match[3] !== undefined) {
+        var codeEl = document.createElement("code");
+        codeEl.className = "ai-inline-code";
+        codeEl.textContent = match[3];
+        container.appendChild(codeEl);
+      } else if (match[4] !== undefined) {
+        var citeNum = Number(match[4]);
+        var matchedSource = null;
+        for (var s = 0; s < sources.length; s++) {
+          if ((sources[s].n || s + 1) === citeNum) { matchedSource = sources[s]; break; }
+        }
+        if (matchedSource && matchedSource.url) {
+          var citeLink = document.createElement("a");
+          citeLink.className = "ai-cite";
+          citeLink.href = matchedSource.url;
+          citeLink.target = "_blank";
+          citeLink.rel = "noopener noreferrer";
+          citeLink.textContent = String(citeNum);
+          citeLink.title = matchedSource.title || matchedSource.url;
+          container.appendChild(citeLink);
+        } else {
+          var citeSpan = document.createElement("span");
+          citeSpan.className = "ai-cite";
+          citeSpan.textContent = String(citeNum);
+          container.appendChild(citeSpan);
+        }
+      }
+      cursor = tokenRegex.lastIndex;
+    }
+
+    if (cursor < working.length) {
+      var tail = cleanPlain(working.slice(cursor));
+      if (!options.finalChunk) {
+        tail = tail.replace(/\[$/, "");
+      }
+      if (tail) container.appendChild(document.createTextNode(tail));
+    }
+  }
+
+  function renderDetailsBlock(container, detailsText, sources, finalChunk) {
+    container.replaceChildren();
+    if (!detailsText) {
+      container.hidden = true;
+      return;
+    }
+    var lines = detailsText.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    if (!lines.length) {
+      container.hidden = true;
+      return;
+    }
+    container.hidden = false;
+    lines.forEach(function (line) {
+      var cleanLine = line.replace(/^(?:[-*•]|\d+[.)])\s+/, "").trim();
+      if (!cleanLine) return;
+      var row = document.createElement("div");
+      row.className = "ai-detail-row";
+      var dot = document.createElement("span");
+      dot.className = "ai-detail-dot";
+      dot.setAttribute("aria-hidden", "true");
+      var textSpan = document.createElement("div");
+      textSpan.className = "ai-detail-text";
+      appendRichInline(textSpan, cleanLine, {
+        promoteBoldToHighlight: false,
+        sources: sources,
+        finalChunk: finalChunk
+      });
+      row.appendChild(dot);
+      row.appendChild(textSpan);
+      container.appendChild(row);
+    });
+  }
+
   function renderAnswerText(target, full, finalChunk) {
-    var split = full.indexOf("\n");
-    var direct = split < 0 ? full : full.slice(0, split);
-    direct = direct.replace(/^\s*ANSWER:\s*/i, "").trim();
-    renderInlineHighlight(target.direct, direct || "…", !!finalChunk);
-    if (split >= 0) {
-      var rest = full.slice(split + 1).replace(/^\s*DETAILS:\s*/i, "").trim();
-      target.details.textContent = rest;
+    var parts = splitAnswerAndDetails(full, !!finalChunk);
+    var directText = parts.direct;
+    var detailsText = parts.details;
+
+    if (!directText && !detailsText && !finalChunk) return;
+
+    /* Reveal answer body and hide thinking skeleton smoothly */
+    if (!target.skeleton.hidden) {
+      target.skeleton.hidden = true;
+      target.content.hidden = false;
+      target.turn.classList.remove("is-thinking");
+      target.turn.classList.add("is-ready");
     }
+
+    if (finalChunk && directText) {
+      directText = applySmartFallbackHighlight(directText);
+    }
+
+    target.direct.replaceChildren();
+    appendRichInline(target.direct, directText || "…", {
+      promoteBoldToHighlight: true,
+      sources: target.activeSources,
+      finalChunk: !!finalChunk
+    });
+
+    renderDetailsBlock(target.details, detailsText, target.activeSources, !!finalChunk);
     scrollBottom();
   }
+
   function parseEvent(block) {
     var data = block.split(/\r?\n/).filter(function (line) { return line.slice(0, 5) === "data:"; })
       .map(function (line) { return line.slice(5).trim(); }).join("\n");
     if (!data) return null;
     try { return JSON.parse(data); } catch (err) { return null; }
   }
+
   function abortActive() {
     sequence++;
     if (activeController) activeController.abort();
     activeController = null;
     activeAuto = false;
     sendButton.disabled = false;
-    askCurrent.disabled = false;
+    if (askCurrent) askCurrent.disabled = false;
   }
+
   function localAnswerIsVisible() {
     var local = document.getElementById("answerCard");
     return !!(local && !local.hidden && local.textContent.trim());
   }
-  function currentQuery() { return (input.value || "").replace(/\s+/g, " ").trim(); }
+
+  function currentQuery() {
+    return (input.value || "").replace(/\s+/g, " ").trim();
+  }
+
   function setIdleStatus() {
-    status.textContent = autoToggle.checked ? "Type a question; I’ll answer when you pause." : "Auto-answer is off. Manual questions still work.";
+    setStatus("");
   }
 
   async function ask(messages, options) {
@@ -445,16 +737,41 @@
     var controller = new AbortController();
     activeController = controller;
     activeAuto = !!options.auto;
-    var target = makeAssistantTurn();
+
+    var cacheKey = messages.length === 1
+      ? (messages[0].content.toLowerCase() + "::" + (options.extended ? "ext" : "std"))
+      : "";
+
+    var target = makeAssistantTurn(!!options.extended);
+    setStatus("");
+
+    /* Instant hit from session cache */
+    if (cacheKey && answerCache.has(cacheKey)) {
+      var cached = answerCache.get(cacheKey);
+      if (cached.model) modelBadge.textContent = cached.model;
+      paintSources(target, cached.sources || []);
+      renderAnswerText(target, cached.full, true);
+      if (options.saveChat) chat.push({ role: "assistant", content: cached.full });
+      activeController = null;
+      activeAuto = false;
+      return;
+    }
+
     var full = "";
-    status.textContent = options.extended ? "Thinking more carefully…" : (options.search === false ? "Answering…" : "Checking sources and answering…");
+    var resolvedModel = "";
+    var resolvedSources = [];
     sendButton.disabled = true;
-    askCurrent.disabled = true;
+    if (askCurrent) askCurrent.disabled = true;
+
     try {
       var response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
-        body: JSON.stringify({ messages: messages, extended: !!options.extended, search: options.search !== false }),
+        body: JSON.stringify({
+          messages: messages,
+          extended: !!options.extended,
+          search: options.search !== false
+        }),
         signal: controller.signal
       });
       if (!response.ok) {
@@ -462,6 +779,7 @@
         throw new Error(failure.error || "AI request failed (" + response.status + ").");
       }
       if (!response.body) throw new Error("Streaming is unavailable in this browser.");
+
       var reader = response.body.getReader();
       var decoder = new TextDecoder();
       var buffer = "";
@@ -475,12 +793,14 @@
           var event = parseEvent(eventText);
           if (!event) continue;
           if (event.type === "meta") {
-            modelBadge.textContent = event.model || "Cloudflare AI";
+            resolvedModel = (event.model || "Gemma 4").replace(/\s+26B-A4B$/i, "");
+            modelBadge.textContent = resolvedModel;
             modelBadge.title = event.modelId || event.model || "";
-            paintSources(target.sources, event.sources || []);
+            resolvedSources = event.sources || [];
+            paintSources(target, resolvedSources);
           } else if (event.type === "delta" && typeof event.text === "string") {
             full += event.text;
-            renderAnswerText(target, full);
+            renderAnswerText(target, full, false);
           } else if (event.type === "error") {
             throw new Error(event.message || "The answer stream stopped.");
           }
@@ -494,33 +814,51 @@
       }
       if (thisSequence !== sequence) return;
       renderAnswerText(target, full || "The model returned no answer. Try again.", true);
-      status.textContent = options.extended ? "Extended answer complete." : "Answer complete.";
-      if (options.saveChat && full) chat.push({ role: "assistant", content: full });
+      setStatus("");
+      if (options.saveChat && full) {
+        chat.push({ role: "assistant", content: full });
+        if (cacheKey && full.length > 5) {
+          answerCache.set(cacheKey, { full: full, model: resolvedModel, sources: resolvedSources });
+        }
+      }
     } catch (err) {
       if (err && err.name === "AbortError") return;
       if (thisSequence !== sequence) return;
-      target.direct.textContent = "Couldn’t get an AI answer.";
-      target.details.textContent = err && err.message ? err.message : "Check the Worker and try again.";
-      status.textContent = "AI request failed.";
+      target.skeleton.hidden = true;
+      target.content.hidden = false;
+      target.turn.classList.remove("is-thinking");
+      target.direct.textContent = "Couldn’t load an AI overview right now.";
+      target.details.hidden = false;
+      target.details.textContent = err && err.message ? err.message : "Please try again in a moment.";
+      setStatus("");
     } finally {
       if (thisSequence === sequence) {
         activeController = null;
         activeAuto = false;
         sendButton.disabled = false;
-        askCurrent.disabled = false;
+        if (askCurrent) askCurrent.disabled = false;
       }
     }
   }
 
   function autoAnswer() {
     var q = currentQuery();
-    if (!autoToggle.checked || q.length < 4) { setIdleStatus(); return; }
-    if (/^!\w+\b/.test(q) || (typeof matchShortcut === "function" && matchShortcut(q))) { status.textContent = "Shortcut detected; no AI request sent."; return; }
-    if (/^(https?:\/\/|www\.)\S+$/i.test(q)) { status.textContent = "This looks like a web address; no AI request sent."; return; }
-    if (localAnswerIsVisible()) { status.textContent = "Instant answer shown above. Ask AI manually for more."; return; }
+    if (!autoToggle.checked || q.length < 3) { setIdleStatus(); return; }
+    if (/^!\w+\b/.test(q) || (typeof matchShortcut === "function" && matchShortcut(q))) {
+      clearTranscript();
+      return;
+    }
+    if (/^(https?:\/\/|www\.)\S+$/i.test(q)) {
+      clearTranscript();
+      return;
+    }
+    if (localAnswerIsVisible()) {
+      clearTranscript();
+      return;
+    }
     chat = [{ role: "user", content: q }];
     transcript.replaceChildren();
-    addUser(q);
+    addUser(q, false);
     ask(chat.slice(), { auto: true, search: true, extended: false, saveChat: true });
   }
 
@@ -528,35 +866,46 @@
     window.clearTimeout(debounce);
     abortActive();
     chat = [];
-    transcript.replaceChildren();
-    if (!currentQuery()) { clearTranscript(); setIdleStatus(); return; }
-    if (!autoToggle.checked) { clearTranscript(); setIdleStatus(); return; }
-    status.textContent = "Waiting for you to pause…";
-    debounce = window.setTimeout(autoAnswer, 400);
+    var q = currentQuery();
+    if (!q || !autoToggle.checked) {
+      clearTranscript();
+      setIdleStatus();
+      return;
+    }
+    debounce = window.setTimeout(autoAnswer, 250);
   });
 
   autoToggle.addEventListener("change", function () {
     try { localStorage.setItem("hts.ai.auto", autoToggle.checked ? "on" : "off"); } catch (err) {}
+    syncAutoVisibility();
     if (!autoToggle.checked) {
       window.clearTimeout(debounce);
       if (activeAuto) abortActive();
-      clearTranscript();
+      if (!chat.length) clearTranscript();
       setIdleStatus();
     } else if (currentQuery()) {
-      status.textContent = "Waiting for you to pause…";
       window.clearTimeout(debounce);
-      debounce = window.setTimeout(autoAnswer, 200);
-    } else setIdleStatus();
+      debounce = window.setTimeout(autoAnswer, 120);
+    } else {
+      clearTranscript();
+      setIdleStatus();
+    }
   });
 
-  askCurrent.addEventListener("click", function () {
-    var q = currentQuery();
-    if (!q) { input.focus(); status.textContent = "Type a question in the search box first."; return; }
-    chat = [{ role: "user", content: q }];
-    transcript.replaceChildren();
-    addUser(q);
-    ask(chat.slice(), { auto: false, search: true, extended: extendedToggle.checked, saveChat: true });
-  });
+  if (askCurrent) {
+    askCurrent.addEventListener("click", function () {
+      var q = currentQuery();
+      if (!q) {
+        input.focus();
+        setStatus("Type a search query first.");
+        return;
+      }
+      chat = [{ role: "user", content: q }];
+      transcript.replaceChildren();
+      addUser(q, false);
+      ask(chat.slice(), { auto: false, search: true, extended: extendedToggle.checked, saveChat: true });
+    });
+  }
 
   followup.addEventListener("keydown", function (event) {
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
@@ -572,24 +921,29 @@
     if (!text) return;
     if (!chat.length) {
       var q = currentQuery();
-      if (q) { chat.push({ role: "user", content: q }); addUser(q); }
+      if (q) chat.push({ role: "user", content: q });
     }
     chat.push({ role: "user", content: text });
-    addUser(text);
+    addUser(text, true);
     followup.value = "";
     ask(chat.slice(-10), { auto: false, search: true, extended: extendedToggle.checked, saveChat: true });
   });
 
   document.getElementById("aiMinimize").addEventListener("click", function () {
     panel.classList.add("minimized");
+    document.body.classList.add("ai-minimized");
     document.getElementById("aiReopen").hidden = false;
   });
   document.getElementById("aiReopen").addEventListener("click", function () {
     panel.classList.remove("minimized");
+    document.body.classList.remove("ai-minimized");
     document.getElementById("aiReopen").hidden = true;
   });
 
+  syncAutoVisibility();
   clearTranscript();
   setIdleStatus();
-  if (currentQuery() && autoToggle.checked) debounce = window.setTimeout(autoAnswer, 400);
+  if (currentQuery() && autoToggle.checked) {
+    debounce = window.setTimeout(autoAnswer, 50);
+  }
 })();
