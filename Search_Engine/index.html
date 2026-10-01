@@ -7,6 +7,7 @@
 <meta name="description" content="HTMLTools Search — pick where to search.">
 <meta name="theme-color" content="#000000">
 <link rel="icon" href="https://htmltools.me/logo3.png">
+<link rel="search" type="application/opensearchdescription+xml" title="HTMLTools Search" href="https://htmltools.me/Search_Engine/opensearch.xml">
 
 <script>
 /* ======================================================================
@@ -27,10 +28,27 @@ var GEMINI_LOGO_FALLBACK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAA
 
 var ENGINES = [
   { id: "google",     name: "Google",     url: "https://www.google.com/search?q={q}",   home: "https://www.google.com",   keys: ["google"],                             color: "#4285F4" },
+  { id: "google-noai", name: "Google (no AI)", url: "https://www.google.com/search?udm=14&q={q}", home: "https://www.google.com/search?udm=14", keys: ["google no ai", "google web-only"], color: "#4285F4" },
   { id: "duckduckgo", name: "DuckDuckGo", url: "https://duckduckgo.com/?q={q}",         home: "https://duckduckgo.com",   keys: ["duckduckgo", "duck duck go", "ddg"], color: "#DE5833", fav: "duckduckgo.com" },
   { id: "bing",       name: "Bing",       url: "https://www.bing.com/search?q={q}",     home: "https://www.bing.com",     keys: ["bing"],                               color: "#0078D4", fav: "bing.com" },
   { id: "yahoo",      name: "Yahoo",      url: "https://search.yahoo.com/search?p={q}", home: "https://search.yahoo.com", keys: ["yahoo"],                              color: "#6001D2", fav: "yahoo.com" },
   { id: "brave",      name: "Brave",      url: "https://search.brave.com/search?q={q}", home: "https://search.brave.com", keys: ["brave"],                              color: "#FB542B", fav: "search.brave.com" }
+];
+
+/* Prefix bang shortcuts never hijack ordinary words. */
+var BANGS = [
+  { key: "yt", name: "YouTube", url: "https://www.youtube.com/results?search_query={q}", home: "https://www.youtube.com" },
+  { key: "wiki", name: "Wikipedia", url: "https://en.wikipedia.org/w/index.php?search={q}", home: "https://en.wikipedia.org" },
+  { key: "maps", name: "Maps", url: "https://www.google.com/maps/search/?api=1&query={q}", home: "https://maps.google.com" },
+  { key: "reddit", name: "Reddit", url: "https://www.reddit.com/search/?q={q}", home: "https://www.reddit.com" },
+  { key: "gh", name: "GitHub", url: "https://github.com/search?q={q}", home: "https://github.com" },
+  { key: "mdn", name: "MDN", url: "https://developer.mozilla.org/en-US/search?q={q}", home: "https://developer.mozilla.org" },
+  { key: "so", name: "Stack Overflow", url: "https://stackoverflow.com/search?q={q}", home: "https://stackoverflow.com" },
+  { key: "amazon", name: "Amazon", url: "https://www.amazon.ca/s?k={q}", home: "https://www.amazon.ca" },
+  { key: "imdb", name: "IMDb", url: "https://www.imdb.com/find/?q={q}", home: "https://www.imdb.com" },
+  { key: "spotify", name: "Spotify", url: "https://open.spotify.com/search/{q}", home: "https://open.spotify.com" },
+  { key: "scholar", name: "Google Scholar", url: "https://scholar.google.com/scholar?q={q}", home: "https://scholar.google.com" },
+  { key: "npm", name: "npm", url: "https://www.npmjs.com/search?q={q}", home: "https://www.npmjs.com" }
 ];
 
 var DESTS = [
@@ -38,6 +56,7 @@ var DESTS = [
   { id: "htmltools-browser", eyebrow: "Browse with", name: "HTMLTools Browser", url: "https://htmltools.me/Browser?search={q}", home: "https://htmltools.me/Browser", keys: ["browser", "htmltools browser"], icon: "ht" },
   { id: "mattube",    eyebrow: "Watch on",       name: "MatTube",           url: "https://mattube.htmltools.me/?search={q}",       home: "https://mattube.htmltools.me/",            keys: ["mattube"],                     icon: "ht" },
   { id: "library",    eyebrow: "Find with",      name: "HTMLTools Library", url: "https://htmltools.me/Library/?search={q}",       home: "https://htmltools.me/Library/",            keys: ["htmltools library"],           icon: "ht" },
+  { id: "proxy",      eyebrow: "Open with",      name: "HTMLTools Proxy",   url: "https://htmltools.me/URL?search={q}",           home: "https://htmltools.me/URL",                keys: ["htmltools proxy"],             icon: "ht" },
   { id: "translate",  eyebrow: "Translate with", name: "Translate",         url: "https://translate.htmltools.me/?input={q}",      home: "https://translate.htmltools.me/",          keys: ["translate"],                   icon: "ht" },
   { id: "playground", eyebrow: "Continue with",  name: "AI Playground",     url: "https://htmltools.me/AI-Playground/Chat/?p={q}", home: "https://htmltools.me/AI-Playground/Chat/", keys: ["ai playground", "playground"], icon: "ht" },
   { id: "gemini",     eyebrow: "Continue with",            name: "Gemini",            url: "https://www.google.com/search?udm=50&q={q}",     home: "https://www.google.com/search?udm=50",     keys: ["gemini"],                      icon: "gemini", logo: GEMINI_LOGO_SRC, logoFallback: GEMINI_LOGO_FALLBACK },
@@ -101,10 +120,22 @@ function translateLanguagePairSlug() {
   return translationLanguageSlug(translateSourceLanguage) + "-to-" + translationLanguageSlug(translateTargetLanguage);
 }
 
+var HT_SEARCH_MODE = "web";
+try {
+  var savedMode = localStorage.getItem("hts.mode");
+  if (["web", "images", "news", "videos"].indexOf(savedMode) !== -1) HT_SEARCH_MODE = savedMode;
+} catch (err) {}
+
 var Q = (new URLSearchParams(location.search).get("q") || "").replace(/\s+/g, " ").trim();
 
 function destUrl(d, q) {
-  var url = q ? d.url.replace("{q}", encodeURIComponent(q)) : d.home;
+  var url;
+  var googleMode = { images: "2", news: "12", videos: "7" }[HT_SEARCH_MODE];
+  if (q && d && d.id === "google" && googleMode) {
+    url = "https://www.google.com/search?udm=" + googleMode + "&q=" + encodeURIComponent(q);
+  } else {
+    url = q ? d.url.replace("{q}", encodeURIComponent(q)) : d.home;
+  }
   if (d.id === "translate") {
     url += (url.indexOf("?") === -1 ? "?" : "&") + "language=" + encodeURIComponent(translateLanguagePairSlug());
   }
@@ -127,11 +158,23 @@ function matchShortcut(q) {
   return null;
 }
 
-/* fast path: a shortcut leaves right now, before anything paints */
+function matchBang(q) {
+  var m = q.match(/^!(\w+)(?:\s+([\s\S]*))?$/);
+  if (!m) return null;
+  var key = m[1].toLowerCase();
+  var bang = null;
+  for (var i = 0; i < BANGS.length; i++) if (BANGS[i].key === key) { bang = BANGS[i]; break; }
+  if (!bang) return null;
+  var term = (m[2] || "").trim();
+  return { name: bang.name, q: term, href: term ? bang.url.replace("{q}", encodeURIComponent(term)) : bang.home };
+}
+
+/* fast path: a shortcut or !bang leaves before anything paints */
 var SHORTCUT = Q ? matchShortcut(Q) : null;
-if (SHORTCUT) {
+var BANG = Q ? matchBang(Q) : null;
+if (SHORTCUT || BANG) {
   document.documentElement.className += " leaving";
-  location.replace(destUrl(SHORTCUT.to, SHORTCUT.q));
+  location.replace(BANG ? BANG.href : destUrl(SHORTCUT.to, SHORTCUT.q));
 }
 </script>
 
@@ -298,6 +341,23 @@ if (SHORTCUT) {
   .actionline { margin: 0 0 26px; font-size: 12.5px; color: var(--dim); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: center; }
   .actionline b { color: #e8e8e8; font-weight: 600; }
   .actionline kbd { padding: 3px 6px; }
+
+  .search-modes { width: 100%; max-width: 700px; margin: -11px 0 22px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; color: #777; font-size: 11px; }
+  .search-modes[hidden] { display: none; }
+  .search-modes-label { letter-spacing: .08em; text-transform: uppercase; }
+  .search-mode-buttons { display: flex; gap: 5px; padding: 3px; border: 1px solid #252525; border-radius: 999px; background: #0b0b0b; }
+  .search-mode { border: 0; border-radius: 999px; padding: 6px 11px; color: #999; background: transparent; cursor: pointer; font-size: 11px; }
+  .search-mode:hover, .search-mode[aria-pressed="true"] { color: #000; background: #fff; }
+  .answer-card { width: 100%; max-width: 700px; margin: 0 0 18px; padding: 17px 19px; border: 1px solid #2d2d2d; border-radius: 17px; background: linear-gradient(180deg,#141414,#090909); box-shadow: 0 12px 30px rgba(0,0,0,.4); }
+  .answer-card[hidden] { display: none; }
+  .answer-title { margin: 0 0 7px; color: #929292; font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; }
+  .answer-value { color: #f5f5f5; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .answer-note { margin: 8px 0 0; color: #777; font-size: 11px; line-height: 1.5; }
+  .answer-note a { color: #bbb; text-decoration: underline; text-underline-offset: 2px; }
+  .answer-actions { margin-top: 10px; }
+  .answer-action { padding: 6px 10px; border: 1px solid #333; border-radius: 9px; background: #171717; color: #ddd; cursor: pointer; font-size: 11px; }
+  .answer-action:hover { border-color: #888; color: #fff; }
+  .color-swatch { display: inline-block; width: 24px; height: 24px; margin-right: 9px; vertical-align: -6px; border: 1px solid #fff5; border-radius: 7px; }
 
   /* ---------------- cards ---------------- */
   .grid { width: 100%; max-width: 940px; display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 11px; }
@@ -534,7 +594,7 @@ if (SHORTCUT) {
       <a href="https://mattube.htmltools.me"><span class="ic" data-appicon="https://mattube.htmltools.me"><svg class="i"><use href="#i-play"/></svg></span>MatTube</a>
       <a href="https://htmltools.me/Tools"><span class="ic" data-appicon="https://htmltools.me/Tools"><svg class="i"><use href="#i-wrench"/></svg></span>Tools</a>
       <a href="https://mail.google.com"><span class="ic" data-appicon="https://mail.google.com"><svg class="i"><use href="#i-mail"/></svg></span>Gmail</a>
-      <a href="https://gemini.google.com"><span class="ic"><img alt="" src="https://static.vecteezy.com/system/resources/previews/055/687/055/non_2x/rectangle-gemini-google-icon-symbol-logo-free-png.png" data-fallback-src="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"></span>Gemini</a>
+      <a href="https://gemini.google.com"><span class="ic"><img alt="" src="https://static.vecteezy.com/system/resources/previews/055/687/055/non_2x/rectangle-gemini-google-icon-symbol-logo-free-png.png" data-fallback-src="data:image/png;base64,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"></span>Gemini</a>
       <a href="https://docs.google.com"><span class="ic" data-appicon="https://docs.google.com"><svg class="i"><use href="#i-doc"/></svg></span>Docs</a>
       <a href="https://slides.google.com"><span class="ic" data-appicon="https://slides.google.com"><svg class="i"><use href="#i-slides"/></svg></span>Slides</a>
       <a href="https://classroom.google.com"><span class="ic" data-appicon="https://classroom.google.com"><svg class="i"><use href="#i-cap"/></svg></span>Classroom</a>
@@ -557,7 +617,7 @@ if (SHORTCUT) {
       <svg class="i qi" aria-hidden="true"><use href="#i-search"/></svg>
       <label class="sr" for="q">Your search</label>
       <textarea id="q" rows="1" spellcheck="false" autocomplete="off"
-                placeholder="Search the web, or end with a keyword like “cute cats mattube”"></textarea>
+                placeholder="Search the web, try “cute cats mattube” or “!yt cute cats”"></textarea>
       <input type="hidden" id="origQ">
       <div class="qbtns">
         <button class="icon-btn" id="resetBtn" type="button" title="Back to the original search" aria-label="Reset to the original search" style="display:none">
@@ -572,22 +632,32 @@ if (SHORTCUT) {
     <p class="actionline" id="actionline"><kbd>Enter</kbd> opens <b id="targetName">Google</b></p>
   </div>
 
+  <div class="search-modes" id="searchModes" aria-label="Google results type">
+    <span class="search-modes-label">Google results</span>
+    <div class="search-mode-buttons" role="group" aria-label="Choose Google result type">
+      <button class="search-mode" type="button" data-search-mode="web" aria-pressed="true">Web</button>
+      <button class="search-mode" type="button" data-search-mode="images" aria-pressed="false">Images</button>
+      <button class="search-mode" type="button" data-search-mode="news" aria-pressed="false">News</button>
+      <button class="search-mode" type="button" data-search-mode="videos" aria-pressed="false">Videos</button>
+    </div>
+  </div>
+  <section class="answer-card" id="answerCard" aria-live="polite" hidden></section>
+
   <nav class="grid" id="grid" aria-label="Destinations"></nav>
   <noscript><p style="color:#9aa5ba;text-align:center">This page needs JavaScript.</p></noscript>
 
   <p class="tip" id="tip">
-    <b>Skip this page:</b> end your search with a destination — <span class="ex">cute cats mattube</span> <span class="ex">bonjour translate</span> <span class="ex">a red fox image</span>
+    <b>Skip this page:</b> end with a destination or use a <span class="ex">!bang</span> — <span class="ex">cute cats mattube</span> <span class="ex">!yt cute cats</span> <span class="ex">bonjour translate</span>
     <br><button class="link" type="button" id="panelBtn" aria-expanded="false" aria-controls="panel">Show all shortcuts</button>
   </p>
 
   <section class="panel" id="panel" aria-label="Shortcuts">
-    <div class="ph"><h2>Shortcuts — type the word at the end of your search</h2></div>
+    <div class="ph"><h2>Shortcuts — trailing keywords and !bangs</h2></div>
     <div class="rows" id="rows"></div>
     <p class="rules">
-      <b>Capitalisation doesn't matter.</b> <span class="mono">Cats MatTube</span> works.<br>
-      <b>Only the very end counts.</b> Any character after the word, like <span class="mono">banana image?</span> or <span class="mono">bing.</span>, turns the shortcut off and brings you here instead.<br>
-      <b>Just the word</b> (e.g. <span class="mono">translate</span>) opens that tool's front page.
-      <b>Every web engine word works</b> no matter which one you picked as default.
+      <b>Destination keywords:</b> put one at the end, like <span class="mono">cute cats mattube</span>; capitalization does not matter.<br>
+      <b>!bangs:</b> put one at the start, like <span class="mono">!yt cute cats</span> or <span class="mono">!wiki Halifax</span>. They don't hijack ordinary searches.<br>
+      <b>Just the keyword</b> opens the destination's home page. Any character after a trailing keyword disables that shortcut.
     </p>
   </section>
 
@@ -613,7 +683,7 @@ if (SHORTCUT) {
 
 <script>
 (function () {
-  if (SHORTCUT) return;                       /* already leaving */
+  if (SHORTCUT || BANG) return;               /* already leaving */
 
   var $ = function (id) { return document.getElementById(id); };
   var grid = $("grid");
@@ -628,6 +698,23 @@ if (SHORTCUT) {
   /* ---- remembered web engine (localStorage, per device) ---- */
   var STORE = "hts.engine", engine = ENGINES[0];
   try { var saved = localStorage.getItem(STORE); ENGINES.forEach(function (e) { if (e.id === saved) engine = e; }); } catch (err) {}
+  var searchModes = $("searchModes");
+  function updateSearchModeUI() {
+    if (!searchModes) return;
+    searchModes.hidden = engine.id !== "google";
+    Array.prototype.forEach.call(searchModes.querySelectorAll("[data-search-mode]"), function (button) {
+      button.setAttribute("aria-pressed", String(button.dataset.searchMode === HT_SEARCH_MODE));
+    });
+  }
+  Array.prototype.forEach.call(searchModes.querySelectorAll("[data-search-mode]"), function (button) {
+    button.addEventListener("click", function () {
+      HT_SEARCH_MODE = button.dataset.searchMode;
+      try { localStorage.setItem("hts.mode", HT_SEARCH_MODE); } catch (err) {}
+      updateSearchModeUI();
+      refresh();
+    });
+  });
+  updateSearchModeUI();
 
   /* ============================ little builders ============================ */
   function svgIcon(id, cls) {
@@ -788,12 +875,12 @@ if (SHORTCUT) {
     if (d.engine) webCard = cards[cards.length - 1];
   });
 
-  function resolved(d) { return d.engine ? { name: engine.name, url: engine.url, home: engine.home, keys: engine.keys } : d; }
+  function resolved(d) { return d.engine ? { id: engine.id, name: engine.name, url: engine.url, home: engine.home, keys: engine.keys } : d; }
 
   function paintCard(entry, eng, q) {
     var d = entry.dest, box = entry.ic;
     var e = eng || engine;
-    var r = d.engine ? { name: e.name, url: e.url, home: e.home, keys: e.keys } : d;
+    var r = d.engine ? { id: e.id, name: e.name, url: e.url, home: e.home, keys: e.keys } : d;
     box.className = "ic"; box.innerHTML = "";
     if (d.engine) {
       box.classList.add("engine");
@@ -898,7 +985,9 @@ if (SHORTCUT) {
   $("engineBtn").addEventListener("click", function () { openMenu(!menuIsOpen()); });
 
   /* =============================== URL card =============================== */
-  function looksLikeUrl(q) { return /^(https?:\/\/|www\.)\S+$/i.test(q); }
+  function looksLikeUrl(q) {
+    return /^(https?:\/\/|www\.)\S+$/i.test(q) || /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z]{2,})(?::\d+)?(?:\/\S*)?$/i.test(q);
+  }
   function buildUrlCard() {
     var c = cardShell("__url__", "wide");
     var hit = document.createElement("a"); hit.className = "hit";
@@ -923,12 +1012,14 @@ if (SHORTCUT) {
   function visibleCards() { return Array.prototype.filter.call(grid.children, function (c) { return !c.classList.contains("hide"); }); }
 
   function refresh() {
+    updateSearchModeUI();
+    var bang = query ? matchBang(query) : null;
     var shortcut = query ? matchShortcut(query) : null;
     var matchEntry = null;
 
     /* a keyword at the end of the prompt points at one destination (see the
        config note). While it is there, that card previews where Enter lands. */
-    if (shortcut) {
+    if (shortcut && !bang) {
       if (shortcut.isEngine) matchEntry = webCard;
       else cards.forEach(function (e) { if (e.dest.id === shortcut.to.id) matchEntry = e; });
     }
@@ -978,7 +1069,10 @@ if (SHORTCUT) {
     var firstEntry = null;
     cards.forEach(function (e) { if (e.card === firstCard) firstEntry = e; });
     var targetLabel, targetHref;
-    if (matchEntry) {
+    if (bang) {
+      targetLabel = bang.name;
+      targetHref = bang.href;
+    } else if (matchEntry) {
       targetLabel = matchEntry.name.textContent;
       targetHref = matchEntry.hit.href;
     } else if (urlEntry.card === firstCard) {
@@ -1046,6 +1140,7 @@ if (SHORTCUT) {
   }
   ENGINES.forEach(function (e) { row(e.name, e.keys); });
   DESTS.forEach(function (d) { if (!d.engine) row(d.name, d.keys); });
+  row("!bang direct searches", BANGS.map(function (b) { return "!" + b.key; }));
   function togglePanel(open) {
     if (open === undefined) open = !panel.classList.contains("open");
     panel.classList.toggle("open", open);
@@ -1100,6 +1195,9 @@ if (SHORTCUT) {
       if (e.key === "Escape") { input.blur(); }
       return;
     }
+    var keyTarget = e.target && e.target.tagName;
+    if (/^(BUTTON|INPUT|TEXTAREA|SELECT)$/.test(keyTarget || "")) return;
+    if (keyTarget === "A" && e.key === "Enter") return; /* let the focused link activate normally */
     if (e.key === "?" ) { e.preventDefault(); togglePanel(); return; }
     if (e.key === "/" ) { e.preventDefault(); input.focus(); input.setSelectionRange(input.value.length, input.value.length); return; }
     if (e.altKey || e.metaKey) return;
@@ -1141,5 +1239,6 @@ if (SHORTCUT) {
   }
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a42dc0ce28d5c674',t:'MTc5MDcxMzkwNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a434f8081a7c80d4',t:'MTc5MDc4OTU2Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script src="./answers.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a43e7ef72d59c64a',t:'MTc5MDg4OTQ2NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
