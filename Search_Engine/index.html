@@ -1198,16 +1198,16 @@ if (SHORTCUT || BANG) {
       <button class="ai-minimize" id="aiMinimize" type="button" title="Hide AI panel" aria-label="Hide AI panel">−</button>
     </div>
     <div class="ai-controls">
-      <label class="ai-auto-label" for="aiAutoToggle" title="Automatically answer eligible searches">
-        <input id="aiAutoToggle" type="checkbox" checked>
+      <label class="ai-auto-label" for="aiAutoToggle" title="Automatic prompts are paused. Click Answer this search or submit a follow-up to send one.">
+        <input id="aiAutoToggle" type="checkbox" disabled>
         <span class="ai-toggle-track" aria-hidden="true"></span>
-        <span class="ai-auto-text">Auto-answer</span>
+        <span class="ai-auto-text">Manual only</span>
       </label>
       <div class="ai-manual-bar" id="aiManualBar">
         <button class="ai-ask-current" id="aiAskCurrent" type="button" hidden>Answer this search</button>
       </div>
     </div>
-    <div class="ai-status" id="aiStatus" role="status" aria-live="polite">Type a question; I’ll answer when you pause.</div>
+    <div class="ai-status" id="aiStatus" role="status" aria-live="polite">AI runs only when you click “Answer this search” or submit a follow-up.</div>
     <div class="ai-transcript" id="aiTranscript" role="log" aria-live="polite" aria-relevant="additions text">
       <p class="ai-empty" id="aiEmpty">Ask a question in the search box. A short answer and its sources will appear here.</p>
     </div>
@@ -2163,13 +2163,14 @@ if (SHORTCUT || BANG) {
   var sendButton = document.getElementById("aiSend");
 
   var chat = [];
-  var debounce = 0;
   var sequence = 0;
   var activeController = null;
-  var activeAuto = false;
   var answerCache = new Map();
 
-  try { autoToggle.checked = localStorage.getItem("hts.ai.auto") !== "off"; } catch (err) { autoToggle.checked = true; }
+  autoToggle.checked = false;
+  autoToggle.disabled = true;
+  autoToggle.title = "Automatic prompts are paused. Click Answer this search or submit a follow-up to send one.";
+  try { localStorage.setItem("hts.ai.auto", "off"); } catch (err) {}
 
   /* Show "Answer this search" ONLY when Auto-answer is OFF */
   function syncAutoVisibility() {
@@ -2361,6 +2362,13 @@ if (SHORTCUT || BANG) {
     };
   }
 
+  /* Never display model reasoning before the explicit final ANSWER marker. */
+  function finalAnswerOnly(rawText) {
+    var raw = String(rawText || "");
+    var marker = /(?:^|\r?\n)\s*(?:\*\*?)?ANSWER(?:\*\*?)?\s*:\s*/i.exec(raw);
+    return marker ? raw.slice(marker.index).trimStart() : "";
+  }
+
   /* Automatically find a concise key phrase to highlight if the model forgot [[...]] and **...** */
   function applySmartFallbackHighlight(text) {
     if (!text || /\[\[[\s\S]*?\]\]|\*\*[^*]+\*\*/.test(text)) return text;
@@ -2533,14 +2541,8 @@ if (SHORTCUT || BANG) {
     sequence++;
     if (activeController) activeController.abort();
     activeController = null;
-    activeAuto = false;
     sendButton.disabled = false;
     if (askCurrent) askCurrent.disabled = false;
-  }
-
-  function localAnswerIsVisible() {
-    var local = document.getElementById("answerCard");
-    return !!(local && !local.hidden && local.textContent.trim());
   }
 
   function currentQuery() {
@@ -2557,7 +2559,6 @@ if (SHORTCUT || BANG) {
     var thisSequence = sequence;
     var controller = new AbortController();
     activeController = controller;
-    activeAuto = !!options.auto;
 
     var cacheKey = messages.length === 1
       ? (messages[0].content.toLowerCase() + "::" + (options.extended ? "ext" : "std"))
@@ -2575,7 +2576,6 @@ if (SHORTCUT || BANG) {
       if (options.saveChat) chat.push({ role: "assistant", content: cached.full });
       setStatus("");
       activeController = null;
-      activeAuto = false;
       return;
     }
 
@@ -2622,11 +2622,13 @@ if (SHORTCUT || BANG) {
             paintSources(target, resolvedSources);
           } else if (event.type === "delta" && typeof event.text === "string") {
             full += event.text;
-            renderAnswerText(target, full, false);
+            var visibleAnswer = finalAnswerOnly(full);
+            if (visibleAnswer) renderAnswerText(target, visibleAnswer, false);
           } else if (event.type === "replace" && typeof event.text === "string") {
             /* Worker retry replaced a partial stream with the complete GPT answer. */
             full = event.text;
-            renderAnswerText(target, full, false);
+            var replacementAnswer = finalAnswerOnly(full);
+            if (replacementAnswer) renderAnswerText(target, replacementAnswer, false);
           } else if (event.type === "error") {
             throw new Error(event.message || "The answer stream stopped.");
           }
@@ -2637,9 +2639,16 @@ if (SHORTCUT || BANG) {
       if (buffer.trim()) {
         var lastEvent = parseEvent(buffer);
         if (lastEvent && lastEvent.type === "delta" && typeof lastEvent.text === "string") full += lastEvent.text;
+        else if (lastEvent && lastEvent.type === "replace" && typeof lastEvent.text === "string") full = lastEvent.text;
+        else if (lastEvent && lastEvent.type === "error") throw new Error(lastEvent.message || "The answer stream stopped.");
       }
       if (thisSequence !== sequence) return;
-      renderAnswerText(target, full || "The model returned no answer. Try again.", true);
+      var finalText = finalAnswerOnly(full);
+      if (!finalText || !splitAnswerAndDetails(finalText, true).direct.trim()) {
+        throw new Error("The AI returned no usable final answer.");
+      }
+      full = finalText;
+      renderAnswerText(target, full, true);
       setStatus("");
       if (options.saveChat && full) {
         chat.push({ role: "assistant", content: full });
@@ -2665,62 +2674,18 @@ if (SHORTCUT || BANG) {
     } finally {
       if (thisSequence === sequence) {
         activeController = null;
-        activeAuto = false;
         sendButton.disabled = false;
         if (askCurrent) askCurrent.disabled = false;
       }
     }
   }
 
-  function autoAnswer() {
-    var q = currentQuery();
-    if (!autoToggle.checked || q.length < 3) { setIdleStatus(); return; }
-    if (/^!\w+\b/.test(q) || (typeof matchShortcut === "function" && matchShortcut(q))) {
-      clearTranscript();
-      return;
-    }
-    if (/^(https?:\/\/|www\.)\S+$/i.test(q)) {
-      clearTranscript();
-      return;
-    }
-    if (localAnswerIsVisible()) {
-      clearTranscript();
-      return;
-    }
-    chat = [{ role: "user", content: q }];
-    transcript.replaceChildren();
-    addUser(q, false);
-    ask(chat.slice(), { auto: true, search: true, extended: false, saveChat: true });
-  }
-
   input.addEventListener("input", function () {
-    window.clearTimeout(debounce);
+    /* Editing a search only updates local suggestions; it never calls the AI. */
     abortActive();
     chat = [];
-    var q = currentQuery();
-    if (!q || !autoToggle.checked) {
-      clearTranscript();
-      setIdleStatus();
-      return;
-    }
-    debounce = window.setTimeout(autoAnswer, 250);
-  });
-
-  autoToggle.addEventListener("change", function () {
-    try { localStorage.setItem("hts.ai.auto", autoToggle.checked ? "on" : "off"); } catch (err) {}
-    syncAutoVisibility();
-    if (!autoToggle.checked) {
-      window.clearTimeout(debounce);
-      if (activeAuto) abortActive();
-      if (!chat.length) clearTranscript();
-      setIdleStatus();
-    } else if (currentQuery()) {
-      window.clearTimeout(debounce);
-      debounce = window.setTimeout(autoAnswer, 120);
-    } else {
-      clearTranscript();
-      setIdleStatus();
-    }
+    clearTranscript();
+    setIdleStatus();
   });
 
   if (askCurrent) {
@@ -2774,10 +2739,7 @@ if (SHORTCUT || BANG) {
   syncAutoVisibility();
   clearTranscript();
   setIdleStatus();
-  if (currentQuery() && autoToggle.checked) {
-    debounce = window.setTimeout(autoAnswer, 50);
-  }
 })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a44331cd18874253',t:'MTc5MDkzODczMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4433f8e28a54253',t:'MTc5MDkzOTI5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
