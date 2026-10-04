@@ -1,0 +1,2002 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — CodeHub</title>
+<meta name="theme-color" content="#000000">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png">
+<link rel="apple-touch-icon" href="https://htmltools.me/logo3.png">
+<style>
+
+/* ============================================================================
+ * CodeHub — interface stylesheet
+ * ----------------------------------------------------------------------------
+ * Monochrome design language shared with htmltools.me.
+ * This file is the source of truth: _embed_client.mjs injects it into
+ * worker-ui.js (and the static builds inline it).
+ * ==========================================================================*/
+
+/* ---------- tokens -------------------------------------------------------- */
+:root{
+  --bg:#000;
+  --bg-soft:#070708;
+  --panel:#0b0b0c;
+  --panel-2:#101012;
+  --panel-3:#161618;
+  --fg:#f2f2f4;
+  --fg-strong:#ffffff;
+  --muted:#9b9ba1;
+  --dim:#6b6b72;
+  --line:#1b1b1e;
+  --line-2:#2a2a2f;
+  --line-3:#3a3a40;
+  --ok:#7fd18f;
+  --warn:#e3c37b;
+  --err:#ff8f8f;
+  --link:#ffffff;
+
+  --r-sm:6px;
+  --r:9px;
+  --r-lg:13px;
+
+  --s1:4px;  --s2:8px;  --s3:12px; --s4:16px;
+  --s5:22px; --s6:30px; --s7:44px; --s8:64px;
+
+  --mono:"IBM Plex Mono","SF Mono","JetBrains Mono",Menlo,Monaco,Consolas,monospace;
+  --shadow-1:0 1px 2px rgba(0,0,0,.6);
+  --shadow-2:0 12px 34px rgba(0,0,0,.55);
+  --measure:1080px;
+}
+
+/* ---------- reset --------------------------------------------------------- */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font-family:var(--mono);font-size:13px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  min-height:100vh;display:flex;flex-direction:column;
+}
+main{flex:1 0 auto;width:100%}
+img{max-width:100%}
+:focus-visible{outline:1px solid var(--line-3);outline-offset:2px;border-radius:4px}
+::selection{background:#fff;color:#000}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#232327;border:3px solid var(--bg);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:#33333a}
+
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em;color:var(--fg-strong)}
+h1{font-size:22px;line-height:1.3}
+h2{font-size:15px;line-height:1.4}
+h3{font-size:13px}
+p{margin:0 0 var(--s3)}
+hr{border:0;border-top:1px solid var(--line);margin:var(--s5) 0}
+code,kbd,samp{font-family:var(--mono);font-size:12px;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:1px 5px;color:var(--fg)}
+kbd{background:var(--panel-3)}
+
+.muted{color:var(--muted)}
+.dim{color:var(--dim)}
+.mono{font-family:var(--mono)}
+.nowrap{white-space:nowrap}
+.wrap{max-width:var(--measure);margin:0 auto;padding:0 var(--s5);width:100%}
+.grow{flex:1 1 auto;min-width:0}
+.right{margin-left:auto}
+.center{text-align:center}
+.hide-sm{display:initial}
+
+/* ---------- header -------------------------------------------------------- */
+.top{position:sticky;top:0;z-index:30;background:rgba(0,0,0,.82);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+.top-in{max-width:var(--measure);margin:0 auto;padding:0 var(--s5);height:54px;
+  display:flex;align-items:center;gap:var(--s5)}
+.brand{display:flex;align-items:center;gap:9px;flex:0 0 auto;color:var(--fg-strong)}
+.brand:hover{text-decoration:none}
+.brand-logo{width:24px;height:24px;border-radius:7px;display:block;background:#111}
+.brand-name{font-size:13.5px;font-weight:600;letter-spacing:.03em}
+.brand-tag{font-size:11px;color:var(--dim);border-left:1px solid var(--line-2);
+  padding-left:9px;margin-left:2px;letter-spacing:.04em}
+.nav{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.nav a{color:var(--muted);font-size:12.5px;padding:6px 10px;border-radius:var(--r-sm)}
+.nav a:hover{color:var(--fg);background:var(--panel-2);text-decoration:none}
+.nav a.active{color:var(--fg-strong);background:var(--panel-3)}
+.top-search{flex:1 1 auto;max-width:280px;position:relative}
+.top-search input{width:100%;height:32px;padding:0 10px 0 30px;font-size:12.5px}
+.top-search .mag{position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  color:var(--dim);display:flex;pointer-events:none}
+.top-search .key{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:10px;color:var(--dim);border:1px solid var(--line-2);border-radius:4px;
+  padding:0 4px;line-height:15px;pointer-events:none}
+.auth-slot{display:flex;align-items:center;gap:10px;flex:0 0 auto;font-size:12.5px}
+.auth-slot a{color:var(--muted)}
+.auth-slot a:hover{color:var(--fg)}
+.userchip{display:flex;align-items:center;gap:8px;color:var(--fg);font-size:12.5px;
+  padding:3px 9px 3px 3px;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.userchip:hover{border-color:var(--line-2);text-decoration:none}
+.avatar{width:22px;height:22px;border-radius:50%;background:var(--panel-3);border:1px solid var(--line-2);
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);
+  text-transform:uppercase;flex:0 0 auto}
+.avatar.lg{width:44px;height:44px;font-size:16px;border-radius:12px}
+
+/* ---------- controls ------------------------------------------------------ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  height:32px;padding:0 13px;border-radius:var(--r-sm);cursor:pointer;
+  font-family:var(--mono);font-size:12.5px;line-height:1;white-space:nowrap;
+  background:var(--panel-2);color:var(--fg);border:1px solid var(--line-2);
+  transition:background .12s ease,border-color .12s ease,color .12s ease,opacity .12s;
+}
+.btn:hover{background:var(--panel-3);border-color:var(--line-3);text-decoration:none;color:var(--fg-strong)}
+.btn:active{transform:translateY(.5px)}
+.btn[disabled],.btn.busy{opacity:.5;pointer-events:none}
+.btn.primary{background:var(--fg-strong);border-color:var(--fg-strong);color:#000;font-weight:600}
+.btn.primary:hover{background:#e4e4e8;border-color:#e4e4e8;color:#000}
+.btn.danger{color:var(--err);border-color:#3a2426}
+.btn.danger:hover{background:#1a1113;border-color:#573035;color:var(--err)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{background:var(--panel-2);color:var(--fg)}
+.btn.sm{height:26px;padding:0 9px;font-size:11.5px;gap:5px}
+.btn.sm .ico{width:13px;height:13px}
+.btn.wide{width:100%}
+.btn .ico{width:14px;height:14px;flex:0 0 auto;color:currentColor;opacity:.85}
+.btn.primary .ico{opacity:1}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+  border-radius:var(--r-sm);border:1px solid transparent;background:transparent;color:var(--dim);
+  cursor:pointer;padding:0;transition:background .12s,color .12s}
+.iconbtn:hover{background:var(--panel-3);color:var(--fg)}
+.iconbtn .ico{width:14px;height:14px}
+
+.field{margin:0 0 var(--s4)}
+.field>label,.label{display:block;font-size:11.5px;color:var(--muted);
+  margin-bottom:6px;letter-spacing:.02em}
+input[type=text],input[type=email],input[type=password],input[type=url],input[type=search],select,textarea{
+  width:100%;height:34px;padding:0 11px;font-family:var(--mono);font-size:12.5px;
+  background:var(--bg-soft);color:var(--fg);border:1px solid var(--line-2);border-radius:var(--r-sm);
+  transition:border-color .12s ease,background .12s ease;
+}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+input:hover,select:hover,textarea:hover{border-color:var(--line-3)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#5a5a62;background:var(--panel)}
+select{appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 14px,calc(100% - 10px) 14px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:30px}
+textarea{height:auto;min-height:220px;padding:11px;line-height:1.7;resize:vertical;
+  white-space:pre;overflow-wrap:normal;overflow-x:auto;tab-size:2}
+.hint{font-size:11.5px;color:var(--dim);line-height:1.65;margin:6px 0 0}
+.hint a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+.inline{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap}
+.inline.tight{gap:6px}
+.inline.between{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:var(--s3)}
+.flex{display:flex;align-items:center;gap:var(--s3)}
+
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-size:12.5px}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch .track{width:36px;height:20px;border-radius:999px;background:var(--panel-3);
+  border:1px solid var(--line-2);position:relative;transition:background .15s,border-color .15s;flex:0 0 auto}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:var(--muted);transition:transform .15s ease,background .15s}
+.switch input:checked+.track{background:#e8e8ec;border-color:#e8e8ec}
+.switch input:checked+.track::after{transform:translateX(16px);background:#000}
+.switch input:focus-visible+.track{outline:1px solid var(--line-3);outline-offset:2px}
+.switch .lbl{color:var(--fg)}
+
+/* ---------- surfaces ------------------------------------------------------ */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:var(--s5)}
+.card.pad-sm{padding:var(--s4)}
+.card.flush{padding:0;overflow:hidden}
+.card h2{margin-bottom:var(--s2)}
+.card>.hint:first-child,.card>p:first-child{margin-top:0}
+.card-head{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) var(--s5);
+  border-bottom:1px solid var(--line)}
+.card-head h2{margin:0}
+.card-head .btn{margin-left:auto}
+.card-body{padding:var(--s5)}
+.card-foot{padding:var(--s3) var(--s5);border-top:1px solid var(--line);background:var(--bg-soft);
+  border-radius:0 0 var(--r-lg) var(--r-lg);font-size:11.5px;color:var(--dim)}
+
+.section{max-width:var(--measure);margin:var(--s7) auto 0;padding:0 var(--s5)}
+.section:first-child{margin-top:var(--s6)}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;
+  gap:var(--s3);margin-bottom:var(--s4)}
+.section-head h2{font-size:15px}
+.section-head .more{font-size:11.5px;color:var(--muted)}
+
+.grid{display:grid;gap:var(--s3)}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.two-col{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--s5);align-items:start}
+
+/* ---------- hero ---------------------------------------------------------- */
+.hero{max-width:var(--measure);margin:0 auto;padding:var(--s7) var(--s5) 0}
+.hero .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:var(--s3)}
+.hero h1{font-size:30px;line-height:1.22;margin-bottom:var(--s3);letter-spacing:-.02em}
+.hero p{color:var(--muted);font-size:13.5px;max-width:62ch;margin-bottom:var(--s5)}
+.hero .inline{margin-bottom:var(--s2)}
+
+/* ---------- stats --------------------------------------------------------- */
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:var(--s4) var(--s5)}
+.stat-card .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.stat-card .v{font-size:24px;font-weight:600;color:var(--fg-strong);line-height:1.2;margin-top:4px}
+.stat-card .sub{font-size:11.5px;color:var(--dim);margin-top:2px}
+.stat{font-size:24px;font-weight:600}
+
+/* ---------- lists --------------------------------------------------------- */
+.list{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--panel)}
+.list>.row+.row,.list>.row+.urow,.list>.urow+.row{border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:var(--s3);padding:11px var(--s4);color:var(--fg);
+  transition:background .1s ease}
+.row:hover{background:var(--panel-2);text-decoration:none}
+.row .ico{width:15px;height:15px;color:var(--dim);flex:0 0 auto}
+.row:hover .ico{color:var(--muted)}
+.row .name{font-size:12.5px;color:var(--fg-strong)}
+.row .name:hover{text-decoration:none}
+.row .desc{font-size:11.5px;color:var(--dim);margin-top:1px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.row .meta{font-size:11.5px;color:var(--dim);white-space:nowrap}
+.row .sub{display:block;font-size:11.5px;color:var(--dim);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .chev{color:var(--dim);display:flex;flex:0 0 auto}
+.row.tail{padding:9px var(--s4);background:var(--bg-soft);justify-content:center;font-size:11.5px}
+.row.tail a{color:var(--muted)}
+
+/* ---------- chips / badges ----------------------------------------------- */
+.chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;
+  border-radius:999px;border:1px solid var(--line-2);background:var(--panel-2);
+  font-size:10.5px;color:var(--muted);letter-spacing:.04em;white-space:nowrap}
+.chip .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.chip.ok{color:var(--ok);border-color:#20361f;background:#0c120c}
+.chip.warn{color:var(--warn);border-color:#3a3220;background:#141005}
+.chip.err{color:var(--err);border-color:#3a2426;background:#150f10}
+.chip.link:hover{border-color:var(--line-3);color:var(--fg);text-decoration:none}
+.chip.solid{background:var(--panel-3);color:var(--fg)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
+  padding:0 5px;border-radius:999px;background:var(--panel-3);color:var(--muted);font-size:10.5px}
+
+/* ---------- page head / breadcrumbs / tabs -------------------------------- */
+.pagehead{max-width:var(--measure);margin:0 auto;padding:var(--s6) var(--s5) 0}
+.breadcrumb{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);
+  margin-bottom:var(--s3);flex-wrap:wrap}
+.breadcrumb a{color:var(--muted)}
+.breadcrumb a:hover{color:var(--fg)}
+.breadcrumb .sep{color:var(--dim)}
+.breadcrumb .here{color:var(--fg)}
+.pagehead h1{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pagehead .sub{color:var(--muted);font-size:12.5px;margin-top:6px;max-width:76ch}
+.pagehead .toolbar{margin-top:var(--s4)}
+.toolbar{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap}
+
+.tabs{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--line);
+  max-width:var(--measure);margin:var(--s5) auto 0;padding:0 var(--s5)}
+.tabs a{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;font-size:12.5px;
+  color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a:hover{color:var(--fg);text-decoration:none}
+.tabs a.active{color:var(--fg-strong);border-bottom-color:var(--fg-strong)}
+.tabs .ico{width:14px;height:14px}
+.tabs .count{font-size:11px;color:var(--dim)}
+
+/* ---------- file table ---------------------------------------------------- */
+.files{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--panel)}
+.files .fhead{display:grid;grid-template-columns:minmax(0,1fr) 110px 150px;gap:var(--s3);
+  padding:8px var(--s4);background:var(--bg-soft);border-bottom:1px solid var(--line);
+  font-size:11px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) 110px 150px;gap:var(--s3);
+  align-items:center;padding:0 var(--s4);border-top:1px solid var(--line);color:var(--fg)}
+.frow:first-of-type{border-top:0}
+.frow:hover{background:var(--panel-2)}
+.frow .fname{display:flex;align-items:center;gap:9px;min-width:0;padding:10px 0}
+.frow .fname a{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .fname a:hover{text-decoration:underline}
+.frow .fname .ico{width:15px;height:15px;color:var(--dim);flex:0 0 auto}
+.frow .fsize,.frow .ftime{font-size:11.5px;color:var(--dim);white-space:nowrap}
+.frow .factions{display:flex;gap:4px;justify-content:flex-end}
+.frow.up .fname a{color:var(--muted)}
+.frow.apply .fname code{background:transparent;border:0;padding:0;color:var(--fg)}
+
+/* ---------- code viewer --------------------------------------------------- */
+.code{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--panel)}
+.codebar{display:flex;align-items:center;gap:var(--s2);padding:8px var(--s4);
+  border-bottom:1px solid var(--line);background:var(--bg-soft)}
+.codebar .path{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.code-body{margin:0;padding:var(--s4) 0;overflow:auto;max-height:70vh;font-size:12.5px;line-height:1.75;
+  font-family:var(--mono);background:var(--bg-soft)}
+.code-row{display:flex;min-width:max-content}
+.code-row .num{flex:0 0 auto;width:56px;padding-right:var(--s4);text-align:right;color:#4a4a51;
+  user-select:none;-webkit-user-select:none}
+.code-row .txt{white-space:pre;padding-right:var(--s5);color:var(--fg)}
+.code-row:hover{background:#0e0e10}
+
+/* ---------- markdown ------------------------------------------------------ */
+.md{padding:var(--s5);border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel);
+  font-size:12.5px;line-height:1.75;color:var(--muted);overflow-wrap:anywhere}
+.md>*:first-child{margin-top:0}
+.md>*:last-child{margin-bottom:0}
+.md h1,.md h2,.md h3{color:var(--fg-strong);margin:var(--s5) 0 var(--s3)}
+.md h1{font-size:19px;padding-bottom:var(--s3);border-bottom:1px solid var(--line)}
+.md h2{font-size:15px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+.md h3{font-size:13px}
+.md p{margin:0 0 var(--s3)}
+.md a{text-decoration:underline;text-underline-offset:2px}
+.md ul{margin:0 0 var(--s3);padding-left:20px}
+.md li{margin:3px 0}
+.md pre{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--r);
+  padding:var(--s3) var(--s4);overflow:auto;margin:0 0 var(--s3)}
+.md pre code{background:transparent;border:0;padding:0;color:var(--fg)}
+.md code{font-size:12px}
+.md strong{color:var(--fg-strong)}
+.md em{color:var(--fg)}
+.md .md-empty{color:var(--dim)}
+
+/* ---------- alerts / empty / loading -------------------------------------- */
+.alert{display:flex;gap:var(--s3);align-items:flex-start;padding:var(--s3) var(--s4);
+  border:1px solid var(--line-2);border-radius:var(--r);background:var(--panel-2);
+  font-size:12px;color:var(--muted);margin:0 0 var(--s4)}
+.alert .ico{width:15px;height:15px;flex:0 0 auto;margin-top:2px;color:var(--dim)}
+.alert strong{color:var(--fg);font-weight:600}
+.alert.err{border-color:#3a2426;background:#120c0d;color:#e9bcbc}
+.alert.err .ico{color:var(--err)}
+.alert.ok{border-color:#20361f;background:#0b110b;color:#c2e3c7}
+.alert.ok .ico{color:var(--ok)}
+.alert.warn{border-color:#3a3220;background:#100d06;color:#e6d5a8}
+.alert.warn .ico{color:var(--warn)}
+.alert.plain{background:transparent;border-style:dashed}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s2);
+  padding:var(--s7) var(--s5);border:1px dashed var(--line-2);border-radius:var(--r-lg);
+  text-align:center;color:var(--dim);font-size:12px}
+.empty .ico{width:22px;height:22px;color:var(--line-3)}
+.empty .title{color:var(--muted);font-size:12.5px}
+.empty .cta{margin-top:var(--s2)}
+
+.loading{max-width:var(--measure);margin:0 auto;padding:var(--s7) var(--s5);color:var(--dim);
+  display:flex;align-items:center;gap:10px;font-size:12.5px}
+.spinner{width:13px;height:13px;border-radius:50%;border:2px solid var(--line-2);
+  border-top-color:var(--muted);animation:spin .7s linear infinite;flex:0 0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.skel{border-radius:var(--r-sm);background:linear-gradient(90deg,#101012 0%,#17171a 40%,#101012 80%);
+  background-size:200% 100%;animation:shimmer 1.3s ease-in-out infinite;height:12px}
+@keyframes shimmer{0%{background-position:120% 0}100%{background-position:-120% 0}}
+
+.toast{position:fixed;right:18px;bottom:18px;z-index:90;display:flex;flex-direction:column;
+  gap:8px;max-width:min(380px,calc(100vw - 36px))}
+.toast>div{background:var(--panel-3);border:1px solid var(--line-3);border-radius:var(--r);
+  padding:10px 14px;font-size:12px;color:var(--fg);box-shadow:var(--shadow-2);
+  animation:toastin .16s ease}
+.toast>div.ok{border-color:#27492a}
+.toast>div.err{border-color:#5a2f33}
+@keyframes toastin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- auth ---------------------------------------------------------- */
+.center-card{max-width:420px;margin:var(--s7) auto var(--s8);padding:0 var(--s5)}
+.center-card.wide{max-width:560px}
+.auth-card .logo{width:40px;height:40px;border-radius:11px;margin-bottom:var(--s4);display:block}
+.auth-card h1{font-size:18px;margin-bottom:6px}
+.gbtn{width:100%;height:38px;font-size:13px;margin-bottom:var(--s4)}
+.sep{display:flex;align-items:center;gap:var(--s3);margin:var(--s4) 0;color:var(--dim);font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase}
+.sep::before,.sep::after{content:"";flex:1;height:1px;background:var(--line)}
+.auth-msg{font-size:12px;color:var(--err);min-height:18px;margin:var(--s2) 0 0}
+.auth-foot{font-size:11.5px;color:var(--dim);margin-top:var(--s4);text-align:center}
+
+/* ---------- explore ------------------------------------------------------- */
+.searchbar{display:flex;gap:var(--s2);margin-bottom:var(--s4)}
+.searchbar input{height:38px;font-size:13px}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--s4)}
+.filter{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;
+  border:1px solid var(--line-2);color:var(--muted);font-size:11.5px;background:transparent;cursor:pointer}
+.filter:hover{border-color:var(--line-3);color:var(--fg)}
+.filter.active{background:var(--panel-3);color:var(--fg-strong);border-color:var(--line-3)}
+.results-meta{font-size:11.5px;color:var(--dim);margin-bottom:var(--s3)}
+.rcard{display:flex;flex-direction:column;gap:var(--s3);background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:var(--s4);transition:border-color .12s ease,background .12s ease}
+.rcard:hover{border-color:var(--line-2);background:var(--panel-2)}
+.rcard .top-row{display:flex;align-items:center;gap:var(--s3)}
+.rcard .rname{font-size:13px;color:var(--fg-strong);font-weight:600;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.rcard .rdesc{font-size:11.5px;color:var(--dim);line-height:1.6;min-height:34px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rcard .rfoot{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;font-size:11px;color:var(--dim)}
+
+/* ---------- docs ---------------------------------------------------------- */
+.docs{display:grid;grid-template-columns:210px minmax(0,1fr);gap:var(--s6);align-items:start}
+.docs-nav{position:sticky;top:78px;display:flex;flex-direction:column;gap:1px;font-size:12px}
+.docs-nav a{color:var(--muted);padding:6px 10px;border-radius:var(--r-sm);border-left:2px solid transparent}
+.docs-nav a:hover{color:var(--fg);background:var(--panel-2);text-decoration:none}
+.docs-nav .group{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+  padding:var(--s4) 10px 6px}
+.doc-sec{margin-bottom:var(--s7);scroll-margin-top:80px}
+.doc-sec h2{font-size:16px;margin-bottom:var(--s3)}
+.doc-sec p,.doc-sec li{color:var(--muted);font-size:12.5px}
+.doc-sec ul{padding-left:20px;margin:0 0 var(--s3)}
+.doc-sec li{margin:4px 0}
+.doc-sec code{font-size:12px}
+.doc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3)}
+.doc-tile{border:1px solid var(--line);border-radius:var(--r);padding:var(--s4);background:var(--panel)}
+.doc-tile h3{margin-bottom:6px}
+.doc-tile p{margin:0;font-size:11.5px;color:var(--dim)}
+
+/* ---------- status -------------------------------------------------------- */
+.status-list{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;background:var(--panel)}
+.status-row{display:flex;align-items:center;gap:var(--s3);padding:12px var(--s4);border-top:1px solid var(--line)}
+.status-row:first-child{border-top:0}
+.status-row .lbl{font-size:12.5px;color:var(--fg)}
+.status-row .val{margin-left:auto;font-size:11.5px;color:var(--dim);text-align:right}
+.dot-lg{width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:var(--dim);box-shadow:0 0 0 3px rgba(255,255,255,.03)}
+.dot-lg.ok{background:var(--ok)}
+.dot-lg.err{background:var(--err)}
+.dot-lg.warn{background:var(--warn)}
+.meter{height:6px;border-radius:999px;background:var(--panel-3);overflow:hidden;margin-top:7px}
+.meter>i{display:block;height:100%;background:var(--line-3);border-radius:999px}
+
+/* ---------- history ------------------------------------------------------- */
+.commits{display:flex;flex-direction:column}
+.commit{display:flex;align-items:flex-start;gap:var(--s3);padding:12px var(--s4);border-top:1px solid var(--line)}
+.commit:first-child{border-top:0}
+.commit .msg{font-size:12.5px;color:var(--fg);overflow-wrap:anywhere}
+.commit .who{font-size:11.5px;color:var(--dim);margin-top:3px}
+.commit .sha{font-size:11px;color:var(--dim);border:1px solid var(--line-2);border-radius:var(--r-sm);
+  padding:1px 6px;background:var(--bg-soft);font-family:var(--mono)}
+.commit .when{font-size:11.5px;color:var(--dim);white-space:nowrap;margin-left:auto}
+
+/* ---------- profile ------------------------------------------------------- */
+.profile-head{display:flex;align-items:flex-start;gap:var(--s4)}
+.profile-head .who h1{font-size:20px}
+.profile-head .who .sub{color:var(--dim);font-size:12px;margin-top:4px}
+
+/* ---------- footer -------------------------------------------------------- */
+.foot{border-top:1px solid var(--line);margin-top:var(--s8);background:var(--bg-soft)}
+.foot-in{max-width:var(--measure);margin:0 auto;padding:var(--s5);
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s4);flex-wrap:wrap;
+  font-size:11.5px;color:var(--dim)}
+.foot-in a{color:var(--muted)}
+.foot-in .links{display:flex;gap:var(--s4);flex-wrap:wrap}
+
+/* ---------- preview bar (static builds) ----------------------------------- */
+.previewbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  gap:var(--s3);padding:8px var(--s4);background:#12100a;border-bottom:1px solid #2f2a18;
+  color:#ddd3b4;font-size:11.5px;text-align:center;flex-wrap:wrap}
+.previewbar .tag{color:var(--warn);font-weight:600;letter-spacing:.04em}
+
+/* ---------- responsive ---------------------------------------------------- */
+@media (max-width:1000px){
+  .two-col{grid-template-columns:minmax(0,1fr)}
+  .docs{grid-template-columns:minmax(0,1fr)}
+  .docs-nav{position:static;flex-direction:row;flex-wrap:wrap;border-bottom:1px solid var(--line);
+    padding-bottom:var(--s3);margin-bottom:var(--s4)}
+  .docs-nav .group{display:none}
+  .cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  :root{--s5:16px;--s6:22px;--s7:30px;--s8:44px}
+  .top-in{gap:var(--s3);height:52px}
+  .brand-tag,.hide-sm{display:none}
+  .nav{gap:0}
+  .nav a{padding:6px 8px}
+  .top-search{max-width:none;flex:1 1 120px}
+  .top-search .key{display:none}
+  .hero h1{font-size:23px}
+  .hero{padding-top:var(--s6)}
+  .cols-2,.cols-3,.cols-4,.doc-grid{grid-template-columns:minmax(0,1fr)}
+  .fhead{display:none}
+  .frow{grid-template-columns:minmax(0,1fr) 84px;gap:var(--s2)}
+  .frow .ftime{display:none}
+  .pagehead{padding-top:var(--s5)}
+  .tabs{padding:0 var(--s4);overflow-x:auto}
+  .foot-in{flex-direction:column;align-items:flex-start}
+  textarea{min-height:180px}
+}
+@media (max-width:520px){
+  .nav a.optional{display:none}
+  .auth-slot .email{display:none}
+  .inline{gap:6px}
+  .btn{padding:0 11px}
+  h1{font-size:19px}
+}
+
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <a class="brand" href="/CodeHub" title="CodeHub">
+    <img class="brand-logo" src="https://htmltools.me/logo3.png" alt="" onerror="this.style.visibility='hidden'">
+    <span class="brand-name">CodeHub</span>
+    <span class="brand-tag">static build</span>
+  </a>
+  <nav class="nav">
+    <a href="/CodeHub">Dashboard</a>
+    <a href="/CodeHub/Explore">Explore</a>
+    <a href="/CodeHub/Docs" class="optional">Docs</a>
+    <a href="/CodeHub/Status" class="optional">Status</a>
+  </nav>
+  <form class="top-search" method="get" action="/CodeHub/Explore" role="search">
+    <span class="mag"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7.2" cy="7.2" r="4.4"/><path d="M10.6 10.6 14 14"/></svg></span>
+    <input id="topSearch" type="search" name="q" placeholder="Search repositories…" autocomplete="off" aria-label="Search repositories">
+    <span class="key">/</span>
+  </form>
+  <div class="auth-slot" id="authSlot"><span class="muted">···</span></div>
+</div></header>
+<main id="view"><div class="loading"><span class="spinner"></span><span>loading…</span></div></main>
+<footer class="foot">
+  <div class="foot-in">
+    <span>CodeHub — part of <a href="https://htmltools.me">HTMLTools.me</a></span>
+    <span class="links">
+      <a href="/CodeHub/Explore">Explore</a>
+      <a href="/CodeHub/Docs">Docs</a>
+      <a href="/CodeHub/Status">Status</a>
+      <a href="/CodeHub/Account">Account</a>
+      <a href="https://htmltools.me">HTMLTools</a>
+    </span>
+  </div>
+</footer>
+<script>window.__CH__ = {"view":"login","preview":true};</script>
+<script>window.__CH_API__ = "https://htmltools-eu-cc-codehub.bozhetarnikmatthew.workers.dev/api";</script>
+<script>window.__CH_DEMO__ = {"me":{"uid":"demo-uid-1","email":"","username":"username"},"responses":{"/repos":{"repos":[{"user":"username","repo":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","site":{"enabled":true,"subdomain":"username"}},{"user":"ada","repo":"demo-site","description":"Ada's little demo site.","visibility":"public","createdAt":"2026-09-27T14:00:00.000Z","updatedAt":"2026-10-01T20:30:00.000Z","site":{"enabled":true,"subdomain":"ada"}},{"user":"username","repo":"notes","description":"Scratch notes and snippets.","visibility":"public","createdAt":"2026-09-25T08:10:00.000Z","updatedAt":"2026-09-30T18:40:00.000Z","site":{"enabled":false,"subdomain":null}}],"total":3},"/sites":{"sites":[{"subdomain":"username","url":"https://username.htmltools.eu.cc","user":"username","repo":"repository","description":"My first CodeHub repository — a sample site.","updatedAt":"2026-10-02T09:14:00.000Z"},{"subdomain":"ada","url":"https://ada.htmltools.eu.cc","user":"ada","repo":"demo-site","description":"Ada's little demo site.","updatedAt":"2026-10-01T20:30:00.000Z"}]},"/status":{"ok":true,"time":"2026-10-04T13:31:20.397Z","zone":"htmltools.eu.cc","uiBase":"https://htmltools.me/CodeHub","github":{"ok":true,"repo":"SharcBloc749/htmltools.eu.cc","private":false,"defaultBranch":"main","rate":{"limit":5000,"remaining":4612,"reset":1791122180}},"indexes":{"users":2,"repos":4,"sites":2}},"/auth/me":{"uid":"demo-uid-1","email":"","username":"username"},"/users/username":{"user":"username","createdAt":"2026-09-24T11:50:00.000Z","repos":[{"user":"username","repo":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","site":{"enabled":true,"subdomain":"username"}},{"user":"username","repo":"notes","description":"Scratch notes and snippets.","visibility":"public","createdAt":"2026-09-25T08:10:00.000Z","updatedAt":"2026-09-30T18:40:00.000Z","site":{"enabled":false,"subdomain":null}},{"user":"username","repo":"private-lab","description":"Experiments — hidden from everyone else.","visibility":"private","createdAt":"2026-09-26T10:00:00.000Z","updatedAt":"2026-09-27T11:05:00.000Z","site":{"enabled":false,"subdomain":null}}],"repoCount":3},"/users/ada":{"user":"ada","createdAt":"2026-09-27T13:50:00.000Z","repos":[{"user":"ada","repo":"demo-site","description":"Ada's little demo site.","visibility":"public","createdAt":"2026-09-27T14:00:00.000Z","updatedAt":"2026-10-01T20:30:00.000Z","site":{"enabled":true,"subdomain":"ada"}}],"repoCount":1},"/repos/username/repository/commits":{"commits":[{"sha":"8c1f9ab2c4d5","message":"Update index.html via CodeHub","author":"username","date":"2026-10-04T12:31:20.407Z"},{"sha":"4de21f0aa913","message":"Add assets/site.css via CodeHub","author":"username","date":"2026-10-03T11:31:20.407Z"},{"sha":"b70c3349de12","message":"Create repository repository via CodeHub","author":"username","date":"2026-09-25T13:31:20.407Z"}]},"/repos/ada/demo-site/commits":{"commits":[{"sha":"8c1f9ab2c4d5","message":"Update index.html via CodeHub","author":"username","date":"2026-10-04T12:31:20.409Z"},{"sha":"4de21f0aa913","message":"Add assets/site.css via CodeHub","author":"username","date":"2026-10-03T11:31:20.409Z"},{"sha":"b70c3349de12","message":"Create repository repository via CodeHub","author":"username","date":"2026-09-25T13:31:20.409Z"}]},"/repos/username/repository":{"user":"username","repo":"repository","meta":{"name":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"username"}},"path":"","kind":"dir","entries":[{"name":"assets","path":"CodeHub/username/repository/assets","type":"dir","size":0,"sha":"dir"},{"name":"404.html","path":"CodeHub/username/repository/404.html","type":"file","size":414,"sha":"sha11"},{"name":"about.md","path":"CodeHub/username/repository/about.md","type":"file","size":123,"sha":"sha10"},{"name":"index.html","path":"CodeHub/username/repository/index.html","type":"file","size":832,"sha":"sha9"},{"name":"README.md","path":"CodeHub/username/repository/README.md","type":"file","size":582,"sha":"sha8"}],"site":{"enabled":true,"subdomain":"username","url":"https://username.htmltools.eu.cc"},"readme":"# username/repository\n\nA sample repository created with **CodeHub**. Everything here lives in the\n`SharcBloc749/htmltools.eu.cc` repository under `CodeHub/username/repository/`.\n\n## What's inside\n\n- `index.html` — the home page, served at https://username.htmltools.eu.cc\n- `about.md` — a markdown page\n- `404.html` — custom not-found page\n- `assets/site.css` — shared styles\n\n## Publishing\n\nPublishing is a toggle in **Settings**: pick a subdomain and the site is live in\nseconds.\n\n```\nhttps://\u003csubdomain>.htmltools.eu.cc\n```\n\nBuilt with [HTMLTools](https://htmltools.me).\n"},"/repos/username/repository?path=assets":{"user":"username","repo":"repository","meta":{"name":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"username"}},"path":"assets","kind":"dir","entries":[{"name":"site.css","path":"CodeHub/username/repository/assets/site.css","type":"file","size":229,"sha":"sha12"}],"site":{"enabled":true,"subdomain":"username","url":"https://username.htmltools.eu.cc"}},"/repos/username/repository/file?path=index.html":{"user":"username","repo":"repository","path":"index.html","meta":{"name":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"username"}},"sha":"sha9","size":832,"binary":false,"editable":true,"text":"\u003c!doctype html>\n\u003chtml lang=\"en\">\n\u003chead>\n  \u003cmeta charset=\"utf-8\">\n  \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  \u003ctitle>username.htmltools.eu.cc\u003c/title>\n  \u003clink rel=\"icon\" href=\"https://htmltools.me/logo3.png\">\n  \u003cstyle>\n    body{margin:0;background:#000;color:#f5f5f7;font-family:\"IBM Plex Mono\",Menlo,monospace;\n         min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center}\n    img{width:64px;height:64px;border-radius:16px;margin-bottom:20px}\n    h1{margin:0 0 12px;font-size:20px;letter-spacing:.02em}\n    p{color:#8a8a8e;font-size:13px;margin:0}\n  \u003c/style>\n\u003c/head>\n\u003cbody>\n  \u003cdiv>\n    \u003cimg src=\"https://htmltools.me/logo3.png\" alt=\"\">\n    \u003ch1>It works.\u003c/h1>\n    \u003cp>This site was published with CodeHub — edit index.html to change it.\u003c/p>\n  \u003c/div>\n\u003c/body>\n\u003c/html>\n","note":null},"/repos/username/repository/file?path=README.md":{"user":"username","repo":"repository","path":"README.md","meta":{"name":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"username"}},"sha":"sha8","size":582,"binary":false,"editable":true,"text":"# username/repository\n\nA sample repository created with **CodeHub**. Everything here lives in the\n`SharcBloc749/htmltools.eu.cc` repository under `CodeHub/username/repository/`.\n\n## What's inside\n\n- `index.html` — the home page, served at https://username.htmltools.eu.cc\n- `about.md` — a markdown page\n- `404.html` — custom not-found page\n- `assets/site.css` — shared styles\n\n## Publishing\n\nPublishing is a toggle in **Settings**: pick a subdomain and the site is live in\nseconds.\n\n```\nhttps://\u003csubdomain>.htmltools.eu.cc\n```\n\nBuilt with [HTMLTools](https://htmltools.me).\n","note":null},"/repos/username/repository/file?path=404.html":{"user":"username","repo":"repository","path":"404.html","meta":{"name":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"username"}},"sha":"sha11","size":414,"binary":false,"editable":true,"text":"\u003c!doctype html>\n\u003chtml lang=\"en\">\n\u003chead>\n  \u003cmeta charset=\"utf-8\">\n  \u003ctitle>404\u003c/title>\n  \u003cstyle>\n    body{margin:0;background:#000;color:#f5f5f7;font-family:monospace;display:flex;\n         min-height:100vh;align-items:center;justify-content:center}\n    div{text-align:center}a{color:#f5f5f7}\n  \u003c/style>\n\u003c/head>\n\u003cbody>\u003cdiv>\u003ch1>404\u003c/h1>\u003cp>Nothing at this path.\u003c/p>\u003cp>\u003ca href=\"/\">Go home\u003c/a>\u003c/p>\u003c/div>\u003c/body>\n\u003c/html>\n","note":null},"/repos/username/repository/file?path=about.md":{"user":"username","repo":"repository","path":"about.md","meta":{"name":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"username"}},"sha":"sha10","size":123,"binary":false,"editable":true,"text":"# About\n\nThis is a markdown file inside the repository — the file view shows it exactly\nas stored, one commit at a time.\n","note":null},"/repos/username/repository/file?path=assets%2Fsite.css":{"user":"username","repo":"repository","path":"assets/site.css","meta":{"name":"repository","description":"My first CodeHub repository — a sample site.","visibility":"public","createdAt":"2026-09-24T12:00:00.000Z","updatedAt":"2026-10-02T09:14:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"username"}},"sha":"sha12","size":229,"binary":false,"editable":true,"text":"/* Shared styles for the sample site. */\n:root { --bg: #000; --fg: #f5f5f7; --muted: #8a8a8e; }\nbody { margin: 0; background: var(--bg); color: var(--fg); font-family: \"IBM Plex Mono\", Menlo, monospace; }\na { color: var(--fg); }\n","note":null},"/repos/username/notes":{"user":"username","repo":"notes","meta":{"name":"notes","description":"Scratch notes and snippets.","visibility":"public","createdAt":"2026-09-25T08:10:00.000Z","updatedAt":"2026-09-30T18:40:00.000Z","defaultBranch":"main","site":{"enabled":false,"subdomain":null}},"path":"","kind":"dir","entries":[{"name":"README.md","path":"CodeHub/username/notes/README.md","type":"file","size":58,"sha":"sha13"},{"name":"todo.md","path":"CodeHub/username/notes/todo.md","type":"file","size":118,"sha":"sha14"}],"site":{"enabled":false,"subdomain":null},"readme":"# notes\n\nScratch notes, snippets and half-finished ideas.\n"},"/repos/username/notes/file?path=README.md":{"user":"username","repo":"notes","path":"README.md","meta":{"name":"notes","description":"Scratch notes and snippets.","visibility":"public","createdAt":"2026-09-25T08:10:00.000Z","updatedAt":"2026-09-30T18:40:00.000Z","defaultBranch":"main","site":{"enabled":false,"subdomain":null}},"sha":"sha13","size":58,"binary":false,"editable":true,"text":"# notes\n\nScratch notes, snippets and half-finished ideas.\n","note":null},"/repos/username/notes/file?path=todo.md":{"user":"username","repo":"notes","path":"todo.md","meta":{"name":"notes","description":"Scratch notes and snippets.","visibility":"public","createdAt":"2026-09-25T08:10:00.000Z","updatedAt":"2026-09-30T18:40:00.000Z","defaultBranch":"main","site":{"enabled":false,"subdomain":null}},"sha":"sha14","size":118,"binary":false,"editable":true,"text":"# Todo\n\n- [x] create a CodeHub account\n- [x] create a repository\n- [ ] publish a site on a .htmltools.eu.cc subdomain\n","note":null},"/repos/username/private-lab":{"user":"username","repo":"private-lab","meta":{"name":"private-lab","description":"Experiments — hidden from everyone else.","visibility":"private","createdAt":"2026-09-26T10:00:00.000Z","updatedAt":"2026-09-27T11:05:00.000Z","defaultBranch":"main","site":{"enabled":false,"subdomain":null}},"path":"","kind":"dir","entries":[{"name":"README.md","path":"CodeHub/username/private-lab/README.md","type":"file","size":146,"sha":"sha15"}],"site":{"enabled":false,"subdomain":null},"readme":"# private-lab\n\nExperiments. The private flag hides this inside CodeHub — the storage repo\nitself is what really decides who can read the bytes.\n"},"/repos/username/private-lab/file?path=README.md":{"user":"username","repo":"private-lab","path":"README.md","meta":{"name":"private-lab","description":"Experiments — hidden from everyone else.","visibility":"private","createdAt":"2026-09-26T10:00:00.000Z","updatedAt":"2026-09-27T11:05:00.000Z","defaultBranch":"main","site":{"enabled":false,"subdomain":null}},"sha":"sha15","size":146,"binary":false,"editable":true,"text":"# private-lab\n\nExperiments. The private flag hides this inside CodeHub — the storage repo\nitself is what really decides who can read the bytes.\n","note":null},"/repos/ada/demo-site":{"user":"ada","repo":"demo-site","meta":{"name":"demo-site","description":"Ada's little demo site.","visibility":"public","createdAt":"2026-09-27T14:00:00.000Z","updatedAt":"2026-10-01T20:30:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"ada"}},"path":"","kind":"dir","entries":[{"name":"index.html","path":"CodeHub/ada/demo-site/index.html","type":"file","size":220,"sha":"sha17"},{"name":"README.md","path":"CodeHub/ada/demo-site/README.md","type":"file","size":58,"sha":"sha16"}],"site":{"enabled":true,"subdomain":"ada","url":"https://ada.htmltools.eu.cc"},"readme":"# ada/demo-site\n\nA tiny demo site published from CodeHub.\n"},"/repos/ada/demo-site/file?path=index.html":{"user":"ada","repo":"demo-site","path":"index.html","meta":{"name":"demo-site","description":"Ada's little demo site.","visibility":"public","createdAt":"2026-09-27T14:00:00.000Z","updatedAt":"2026-10-01T20:30:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"ada"}},"sha":"sha17","size":220,"binary":false,"editable":true,"text":"\u003c!doctype html>\n\u003chtml lang=\"en\">\u003chead>\u003cmeta charset=\"utf-8\">\u003ctitle>demo\u003c/title>\u003c/head>\n\u003cbody style=\"background:#000;color:#f5f5f7;font-family:monospace\">\n  \u003ch1>demo-site\u003c/h1>\u003cp>Published with CodeHub.\u003c/p>\n\u003c/body>\u003c/html>\n","note":null},"/repos/ada/demo-site/file?path=README.md":{"user":"ada","repo":"demo-site","path":"README.md","meta":{"name":"demo-site","description":"Ada's little demo site.","visibility":"public","createdAt":"2026-09-27T14:00:00.000Z","updatedAt":"2026-10-01T20:30:00.000Z","defaultBranch":"main","site":{"enabled":true,"subdomain":"ada"}},"sha":"sha16","size":58,"binary":false,"editable":true,"text":"# ada/demo-site\n\nA tiny demo site published from CodeHub.\n","note":null}}};</script>
+<script>
+
+/* ============================================================================
+ * CodeHub — client application
+ * ----------------------------------------------------------------------------
+ * Runs inside every CodeHub page. Plain functions, no framework, no build step.
+ * (Deliberately uses no template literals so it can be embedded in the worker.)
+ *
+ * Views: dashboard, explore, docs, status, login, logout, account, newrepo,
+ *        profile, repo, history, blob, edit, newfile, settings, notfound
+ * ==========================================================================*/
+
+const CH = window.__CH__ || { view: "dashboard" };
+const DEMO = window.__CH_DEMO__ || null;      // sample data, static builds only
+const API = window.__CH_API__ || "/CodeHub/api";  // static builds may point elsewhere
+const ROOT = "/CodeHub";
+const LOGO = "https://htmltools.me/logo3.png";
+const SITE_ZONE = "htmltools.eu.cc";
+
+let firebase = null;
+let auth = null;
+let me = null;
+let ready = false;
+let OFFLINE = false;
+
+/* ---------- tiny helpers -------------------------------------------------- */
+function $(sel, root) { return (root || document).querySelector(sel); }
+function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function fmtBytes(n) {
+  if (!n) return "0 B";
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1048576).toFixed(2) + " MB";
+}
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return "";
+  const diff = Math.max(0, Date.now() - then);
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return hours + "h ago";
+  const days = Math.floor(hours / 24);
+  if (days < 30) return days + "d ago";
+  const months = Math.floor(days / 30);
+  if (months < 12) return months + "mo ago";
+  return Math.floor(months / 12) + "y ago";
+}
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function initials(name) {
+  const s = String(name || "?").replace(/[^a-z0-9]/gi, "");
+  return (s.slice(0, 2) || "?").toUpperCase();
+}
+
+function avatar(name, cls) {
+  return '<span class="avatar ' + (cls || "") + '">' + esc(initials(name)) + "</span>";
+}
+
+function fileIcon(name, type) {
+  if (type === "dir") return ico("folder");
+  const ext = String(name || "").split(".").pop().toLowerCase();
+  if (["html", "htm"].indexOf(ext) >= 0) return ico("globe");
+  if (["js", "mjs", "ts", "json", "css", "sh", "py"].indexOf(ext) >= 0) return ico("code");
+  if (["png", "jpg", "jpeg", "gif", "svg", "webp", "avif", "ico"].indexOf(ext) >= 0) return ico("image");
+  if (["md", "txt", "log"].indexOf(ext) >= 0) return ico("doc");
+  return ico("file");
+}
+
+/* ---------- icons --------------------------------------------------------- */
+const ICONS = {
+  folder: '<path d="M2 4.6A1.6 1.6 0 0 1 3.6 3h2.5l1.2 1.7h5.1A1.6 1.6 0 0 1 14 6.3v5.1A1.6 1.6 0 0 1 12.4 13H3.6A1.6 1.6 0 0 1 2 11.4z"/>',
+  file: '<path d="M4 2.2h4.6L12 5.6v8.2H4z"/><path d="M8.6 2.2v3.4H12"/>',
+  doc: '<path d="M4 2.2h4.6L12 5.6v8.2H4z"/><path d="M8.6 2.2v3.4H12"/><path d="M6 8.6h4"/><path d="M6 11h3"/>',
+  code: '<path d="M6 5.2 3 8l3 2.8"/><path d="M10 5.2 13 8l-3 2.8"/>',
+  globe: '<circle cx="8" cy="8" r="5.6"/><path d="M2.6 8h10.8"/><path d="M8 2.4c1.6 2 1.6 9.2 0 11.2-1.6-2-1.6-9.2 0-11.2z"/>',
+  image: '<rect x="2.6" y="3.2" width="10.8" height="9.6" rx="1.4"/><circle cx="6.2" cy="6.6" r="1.1"/><path d="M3 11.4 6.4 8.6l2.2 1.8 2-1.4 2.4 2"/>',
+  chevron: '<path d="M6.2 3.8 10.4 8l-4.2 4.2"/>',
+  search: '<circle cx="7.2" cy="7.2" r="4.4"/><path d="M10.6 10.6 14 14"/>',
+  plus: '<path d="M8 3.2v9.6"/><path d="M3.2 8h9.6"/>',
+  clock: '<circle cx="8" cy="8" r="5.6"/><path d="M8 4.6V8l2.4 1.6"/>',
+  gear: '<circle cx="8" cy="8" r="2.2"/><path d="M8 2.2v2M8 11.8v2M2.2 8h2M11.8 8h2M4 4l1.4 1.4M10.6 10.6 12 12M12 4l-1.4 1.4M5.4 10.6 4 12"/>',
+  external: '<path d="M6.4 3H3.2v9.8H13V9.6"/><path d="M9.6 2.4h4v4"/><path d="M13.6 2.4 8 8"/>',
+  download: '<path d="M8 2.4v7.4"/><path d="M4.8 6.8 8 10l3.2-3.2"/><path d="M3 13.2h10"/>',
+  trash: '<path d="M3.6 4.8h8.8"/><path d="M6.4 4.8V3.2h3.2v1.6"/><path d="M5.2 4.8l.5 8h4.6l.5-8"/>',
+  pencil: '<path d="M3.2 12.8l.9-2.9 6.6-6.6 2 2-6.6 6.6z"/><path d="M10.7 3.3 12.7 5.3"/>',
+  check: '<path d="M3.4 8.4 6.4 11.4 12.6 5"/>',
+  alert: '<circle cx="8" cy="8" r="5.6"/><path d="M8 5v3.6"/><circle cx="8" cy="11" r=".6" fill="currentColor"/>',
+  info: '<circle cx="8" cy="8" r="5.6"/><path d="M8 7.4v3.8"/><circle cx="8" cy="5" r=".6" fill="currentColor"/>',
+  user: '<circle cx="8" cy="5.6" r="2.4"/><path d="M3.6 13.2c.8-2.4 2.6-3.6 4.4-3.6s3.6 1.2 4.4 3.6"/>',
+  lock: '<rect x="3.8" y="7" width="8.4" height="6.2" rx="1.4"/><path d="M6 7V5.6a2 2 0 0 1 4 0V7"/>',
+  refresh: '<path d="M13 8a5 5 0 1 1-1.7-3.8"/><path d="M13 3v3.2H9.8"/>',
+  book: '<path d="M2.6 3.2h3.8c1 0 1.6.6 1.6 1.6v8c0-1-.6-1.6-1.6-1.6H2.6z"/><path d="M13.4 3.2H9.6C8.6 3.2 8 3.8 8 4.8v8c0-1 .6-1.6 1.6-1.6h3.8z"/>',
+  activity: '<path d="M2 8h2.6l1.8-4.2L8.6 12l1.8-4h3.6"/>',
+  bolt: '<path d="M8.6 2.2 3.6 9h3.4l-1 4.8L13 6.6H9.4z"/>',
+  terminal: '<rect x="2.4" y="3.2" width="11.2" height="9.6" rx="1.4"/><path d="M5 6.6 6.6 8 5 9.4"/><path d="M8 10h3"/>',
+  shield: '<path d="M8 2.4 3.4 4v4c0 2.8 2 4.6 4.6 5.6 2.6-1 4.6-2.8 4.6-5.6V4z"/>',
+  arrowleft: '<path d="M10 3.8 5.8 8 10 12.2"/>',
+  branch: '<circle cx="4.6" cy="4.4" r="1.6"/><circle cx="4.6" cy="11.6" r="1.6"/><circle cx="11.4" cy="7.4" r="1.6"/><path d="M4.6 6v4"/><path d="M6.2 4.4h3.6v3"/>',
+  copy: '<rect x="6" y="6" width="7.6" height="7.6" rx="1.4"/><path d="M10 6V4.4A1.4 1.4 0 0 0 8.6 3H3.6A1.4 1.4 0 0 0 2.2 4.4v5a1.4 1.4 0 0 0 1.4 1.4H6"/>',
+  star: '<path d="m8 2.6 1.7 3.5 3.8.5-2.8 2.7.7 3.8L8 11.3l-3.4 1.8.7-3.8L2.5 6.6l3.8-.5z"/>',
+};
+
+function ico(name) {
+  const path = ICONS[name] || ICONS.file;
+  return '<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + "</svg>";
+}
+
+/* ---------- chrome bits --------------------------------------------------- */
+function toast(message, kind) {
+  let box = $(".toast");
+  if (!box) { box = document.createElement("div"); box.className = "toast"; document.body.appendChild(box); }
+  const item = document.createElement("div");
+  if (kind) item.className = kind;
+  item.textContent = message;
+  box.appendChild(item);
+  setTimeout(function () { item.remove(); }, 4200);
+}
+
+async function copyText(text, label) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+    else {
+      const el = document.createElement("textarea");
+      el.value = text; el.style.position = "fixed"; el.style.opacity = "0";
+      document.body.appendChild(el); el.select(); document.execCommand("copy"); el.remove();
+    }
+    toast("Copied " + (label || text), "ok");
+  } catch (e) { toast("Copy failed", "err"); }
+}
+
+function spinner(text) {
+  return '<div class="loading"><span class="spinner"></span><span>' + esc(text || "loading…") + "</span></div>";
+}
+
+function emptyState(opts) {
+  const o = opts || {};
+  return '<div class="empty">' + (o.icon ? ico(o.icon) : "") +
+    (o.title ? '<span class="title">' + esc(o.title) + "</span>" : "") +
+    (o.text ? "<span>" + esc(o.text) + "</span>" : "") +
+    (o.cta ? '<span class="cta">' + o.cta + "</span>" : "") + "</div>";
+}
+
+function alertBox(kind, html, icon) {
+  return '<div class="alert ' + (kind || "") + '">' + ico(icon || (kind === "err" ? "alert" : kind === "ok" ? "check" : "info")) +
+    "<div>" + html + "</div></div>";
+}
+
+/* ---------- API ----------------------------------------------------------- */
+async function getIdToken(force) {
+  if (!auth || !auth.currentUser) return null;
+  try { return await auth.currentUser.getIdToken(force === true); } catch (e) { return null; }
+}
+
+async function api(path, options) {
+  if (OFFLINE) return demoApi(path, options || {});
+  const opts = Object.assign({}, options || {});
+  opts.headers = Object.assign({}, opts.headers || {});
+  const token = await getIdToken(false);
+  if (token) opts.headers["Authorization"] = "Bearer " + token;
+  if (opts.body && !opts.headers["Content-Type"]) opts.headers["Content-Type"] = "application/json";
+
+  let res = await fetch(API + path, opts);
+  if (res.status === 401 && auth && auth.currentUser) {
+    const fresh = await getIdToken(true);
+    if (fresh) {
+      opts.headers["Authorization"] = "Bearer " + fresh;
+      res = await fetch(API + path, opts);
+    }
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = { error: "Unexpected response (" + res.status + ")" }; }
+  if (!res.ok) {
+    const err = new Error((data && data.error) || ("Request failed (" + res.status + ")"));
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+/* ---------- offline preview (standalone static builds) -------------------- */
+function previewMode() { return CH.preview === true; }
+
+function demoApi(path, options) {
+  const method = String((options && options.method) || "GET").toUpperCase();
+  const map = (DEMO && DEMO.responses) || {};
+  if (method !== "GET") {
+    return Promise.reject(new Error("Offline preview: changes are not saved here. Deploy the workers for the live version."));
+  }
+  if (Object.prototype.hasOwnProperty.call(map, path)) {
+    return new Promise(function (resolve) { setTimeout(function () { resolve(map[path]); }, 90); });
+  }
+  const profile = path.match(/^\/users\/([^/?]+)$/);
+  if (profile) {
+    return Promise.resolve({ user: decodeURIComponent(profile[1]), createdAt: null, repos: [], repoCount: 0 });
+  }
+  return Promise.reject(new Error("Not part of the offline preview — sample data covers the demo repositories only."));
+}
+
+function enterPreview() {
+  OFFLINE = true;
+  me = (DEMO && DEMO.me) || { uid: "preview", email: "you@example.com", username: "username" };
+  ready = true;
+  const bar = document.createElement("div");
+  bar.className = "previewbar";
+  bar.innerHTML = '<span><b class="tag">offline preview</b> &mdash; sample data, no API connected on this page.</span>' +
+    '<button class="btn sm" id="previewRetry">Retry</button>';
+  const view = document.getElementById("view");
+  view.parentNode.insertBefore(bar, view);
+  document.getElementById("previewRetry").addEventListener("click", function () { location.reload(); });
+  renderAuthSlot();
+  render();
+}
+
+/* ---------- boot ---------------------------------------------------------- */
+function withTimeout(promise, ms) {
+  return new Promise(function (resolve, reject) {
+    const timer = setTimeout(function () { reject(new Error("The API did not answer in time")); }, ms);
+    promise.then(
+      function (value) { clearTimeout(timer); resolve(value); },
+      function (err) { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
+async function boot() {
+  markNav();
+  bindChrome();
+  try {
+    const cfg = await withTimeout(fetch(API + "/config").then(function (r) { return r.json(); }), 3500);
+    const appMod = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+    firebase = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js");
+    const instance = appMod.initializeApp(cfg.firebase);
+    auth = firebase.getAuth(instance);
+    firebase.onAuthStateChanged(auth, async function (user) {
+      me = null;
+      if (user) me = await api("/auth/me").catch(function () { return null; });
+      ready = true;
+      renderAuthSlot();
+      render();
+    });
+  } catch (e) {
+    if (previewMode()) { enterPreview(); return; }
+    ready = true;
+    $("#view").innerHTML =
+      '<div class="center-card wide"><div class="card auth-card">' +
+      "<h1>Could not start</h1>" +
+      '<p class="muted">' + esc(e.message) + "</p>" +
+      '<p class="hint">The API worker may be unreachable, or Firebase is not configured. ' +
+      'If you are setting CodeHub up, check the deployment steps in the README.</p>' +
+      '<div class="inline"><button class="btn primary" id="bootRetry">Retry</button>' +
+      '<a class="btn" href="https://htmltools.me/CodeHub/Docs">Open the docs</a></div></div></div>';
+    const retry = $("#bootRetry");
+    if (retry) retry.addEventListener("click", function () { location.reload(); });
+  }
+}
+
+function markNav() {
+  const path = location.pathname.replace(/\/+$/, "");
+  $$(".nav a").forEach(function (a) {
+    const href = a.getAttribute("href") || "";
+    if (href === ROOT && (path === ROOT || path === "")) a.classList.add("active");
+    else if (href !== ROOT && href.indexOf("#") < 0 && path.indexOf(href) === 0) a.classList.add("active");
+  });
+}
+
+function bindChrome() {
+  document.addEventListener("keydown", function (event) {
+    const tag = (event.target && event.target.tagName) || "";
+    if (event.key === "/" && tag !== "INPUT" && tag !== "TEXTAREA") {
+      const box = $("#topSearch");
+      if (box) { event.preventDefault(); box.focus(); }
+    }
+    if (event.key === "Escape" && document.activeElement === $("#topSearch")) document.activeElement.blur();
+  });
+}
+
+function renderAuthSlot() {
+  const slot = $("#authSlot");
+  if (!slot) return;
+  if (me && me.username) {
+    slot.innerHTML =
+      '<a class="userchip" href="' + ROOT + "/" + esc(me.username) + '" title="@' + esc(me.username) + '">' +
+      avatar(me.username) + "<span>" + esc(me.username) + "</span></a>" +
+      '<a class="muted" href="' + ROOT + '/Logout">Sign out</a>';
+  } else if (auth && auth.currentUser) {
+    slot.innerHTML = '<span class="muted email">' + esc(auth.currentUser.email || "") + "</span>" +
+      '<a class="muted" href="' + ROOT + '/Logout">Sign out</a>';
+  } else {
+    slot.innerHTML = '<a class="btn sm" href="' + ROOT + '/Login">Sign in</a>';
+  }
+}
+
+/* ---------- router -------------------------------------------------------- */
+function render() {
+  if (!ready) { $("#view").innerHTML = spinner("loading CodeHub…"); return; }
+  const view = CH.view;
+  try {
+    if (view === "dashboard") return run(renderDashboard);
+    if (view === "explore") return run(renderExplore);
+    if (view === "docs") return run(renderDocs);
+    if (view === "status") return run(renderStatus);
+    if (view === "login") return renderLogin();
+    if (view === "logout") return renderLogout();
+    if (view === "account") return run(renderAccount);
+    if (view === "newrepo") return run(renderNewRepoPage);
+    if (view === "profile") return run(renderProfile);
+    if (view === "repo") return run(renderRepo);
+    if (view === "history") return run(renderHistory);
+    if (view === "file") return run(renderFile);
+    if (view === "newfile") return run(renderNewFile);
+    if (view === "settings") return run(renderSettings);
+    if (view === "notfound") {
+      $("#view").innerHTML = '<div class="center-card"><div class="card">' +
+        "<h1>404</h1>" + '<p class="muted">' + esc(CH.message || "Nothing here.") + "</p>" +
+        '<a class="btn" href="' + ROOT + '">Back to dashboard</a></div></div>';
+      return;
+    }
+    $("#view").innerHTML = '<div class="center-card"><div class="card"><h1>404</h1>' +
+      '<p class="muted">Unknown view.</p></div></div>';
+  } catch (e) { showError(e); }
+}
+
+async function run(fn) {
+  const el = $("#view");
+  if (el && !el.innerHTML.trim()) el.innerHTML = spinner();
+  try { await fn(); }
+  catch (e) { showError(e); }
+}
+
+function showError(e) {
+  $("#view").innerHTML = '<div class="center-card wide"><div class="card">' +
+    '<h1>Something went wrong</h1>' +
+    '<p class="muted">' + esc(e.message || String(e)) + "</p>" +
+    '<div class="inline"><a class="btn" href="' + ROOT + '">Back to dashboard</a>' +
+    '<button class="btn ghost" id="errReload">Reload</button></div></div></div>';
+  const r = $("#errReload");
+  if (r) r.addEventListener("click", function () { location.reload(); });
+}
+
+/* ---------- components ---------------------------------------------------- */
+function repoRow(r, opts) {
+  const o = opts || {};
+  const site = r.site && r.site.enabled
+    ? '<span class="chip ok">' + ico("globe") + "live</span>" : "";
+  const vis = r.visibility === "private" ? '<span class="chip">' + ico("lock") + "private</span>" : "";
+  return '<a class="row" href="' + ROOT + "/" + esc(r.user) + "/" + esc(r.repo) + '">' +
+    ico("folder") +
+    '<span class="grow"><span class="name">' + esc(r.user) + "/" + esc(r.repo) + "</span>" +
+    (r.description ? '<div class="desc">' + esc(r.description) + "</div>" : "") +
+    "</span>" + vis + site +
+    (o.hideTime ? "" : '<span class="meta">' + esc(timeAgo(r.updatedAt)) + "</span>") + "</a>";
+}
+
+function siteRow(s) {
+  return '<a class="row" href="' + esc(s.url) + '" target="_blank" rel="noopener">' +
+    ico("globe") +
+    '<span class="grow"><span class="name">' + esc(s.subdomain) + "." + SITE_ZONE + "</span>" +
+    '<div class="desc">' + esc(s.user + "/" + s.repo) + (s.description ? " — " + esc(s.description) : "") + "</div></span>" +
+    '<span class="meta">' + esc(timeAgo(s.updatedAt)) + "</span>" +
+    '<span class="chip">open</span>' + "</a>";
+}
+
+function repoCard(r) {
+  const site = r.site && r.site.enabled
+    ? '<a class="chip link ok" href="https://' + esc(r.site.subdomain) + "." + SITE_ZONE + '" target="_blank" rel="noopener">' +
+      esc(r.site.subdomain) + "." + SITE_ZONE + "</a>"
+    : "";
+  return '<div class="rcard">' +
+    '<div class="top-row">' + ico("folder") +
+    '<a class="rname grow" href="' + ROOT + "/" + esc(r.user) + "/" + esc(r.repo) + '">' + esc(r.user) + "/" + esc(r.repo) + "</a>" +
+    (r.visibility === "private" ? '<span class="chip">' + ico("lock") + "private</span>" : "") + "</div>" +
+    '<div class="rdesc">' + esc(r.description || "No description.") + "</div>" +
+    '<div class="rfoot">' + (site || '<span class="chip">no site</span>') +
+    '<span class="meta">updated ' + esc(timeAgo(r.updatedAt)) + "</span></div></div>";
+}
+
+function statCard(k, v, sub) {
+  return '<div class="stat-card"><div class="k">' + esc(k) + '</div><div class="v">' + esc(String(v)) +
+    "</div>" + (sub ? '<div class="sub">' + esc(sub) + "</div>" : "") + "</div>";
+}
+
+function repoHeader(data, meta, tabs) {
+  const crumbs = ['<a href="' + ROOT + '">CodeHub</a>', '<span class="sep">/</span>',
+    '<a href="' + ROOT + "/" + esc(data.user) + '">' + esc(data.user) + "</a>",
+    '<span class="sep">/</span>',
+    '<a href="' + ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + '">' + esc(data.repo) + "</a>"];
+  if (tabs && tabs.crumb) crumbs.push('<span class="sep">/</span><span class="here">' + esc(tabs.crumb) + "</span>");
+
+  const site = (meta.site && meta.site.enabled)
+    ? '<a class="chip link ok" href="https://' + esc(meta.site.subdomain) + "." + SITE_ZONE +
+      '" target="_blank" rel="noopener">' + ico("globe") + esc(meta.site.subdomain) + "." + SITE_ZONE + "</a>"
+    : '<span class="chip">not published</span>';
+
+  const isOwner = me && me.username === data.user;
+  const tabBar = '<nav class="tabs">' +
+    tabLink(ROOT + "/" + esc(data.user) + "/" + esc(data.repo), "code", "Code", tabs && tabs.active === "code") +
+    tabLink(ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + "/history", "clock", "History", tabs && tabs.active === "history") +
+    (isOwner
+      ? tabLink(ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + "/settings", "gear", "Settings", tabs && tabs.active === "settings")
+      : "") +
+    "</nav>";
+
+  return '<section class="pagehead">' +
+    '<div class="breadcrumb">' + crumbs.join(" ") + "</div>" +
+    "<h1>" + ico("folder") + "<span>" + esc(data.user) + '<span class="dim">/</span>' + esc(data.repo) + "</span></h1>" +
+    '<div class="sub">' + esc(meta.description || "No description yet.") + "</div>" +
+    '<div class="toolbar" style="margin-top:14px">' +
+    (meta.visibility === "private"
+      ? '<span class="chip">' + ico("lock") + "private</span>"
+      : '<span class="chip">' + ico("globe") + "public</span>") +
+    site +
+    '<span class="chip">' + ico("clock") + "updated " + esc(timeAgo(meta.updatedAt)) + "</span>" +
+    "</div></section>" + tabBar;
+}
+
+function tabLink(href, icon, label, active) {
+  return '<a href="' + href + '"' + (active ? ' class="active"' : "") + ">" + ico(icon) + "<span>" + esc(label) + "</span></a>";
+}
+
+/* ========================================================================== */
+/*  Views                                                                     */
+/* ========================================================================== */
+
+async function renderDashboard() {
+  const all = await api("/repos");
+  const sites = await api("/sites");
+  let mine = null;
+  if (me && me.username) {
+    try { mine = (await api("/users/" + me.username)).repos; } catch (e) { mine = []; }
+  }
+  const recent = all.repos.slice(0, 4);
+
+  let hero = "";
+  if (me && me.username) {
+    hero = '<section class="hero">' +
+      '<div class="eyebrow">' + esc(me.username) + "'s hub</div>" +
+      "<h1>Your repositories</h1>" +
+      "<p>Write HTML, CSS, JS and any other files, keep them versioned in GitHub, and publish them as static " +
+      "sites on <code>*." + SITE_ZONE + "</code>.</p>" +
+      '<div class="inline"><a class="btn primary" href="' + ROOT + '/New">' + ico("plus") + "New repository</a>" +
+      '<a class="btn" href="' + ROOT + "/" + esc(me.username) + '">' + ico("user") + "Your profile</a>" +
+      '<a class="btn ghost" href="' + ROOT + '/Explore">' + ico("search") + "Explore</a></div></section>";
+  } else {
+    hero = '<section class="hero">' +
+      '<div class="eyebrow">CodeHub</div>' +
+      "<h1>Git-style hosting<br>for your HTML</h1>" +
+      "<p>Repositories, file editing, commit-style history and instant <code>*." + SITE_ZONE + "</code> websites — " +
+      "built into <a href=\"https://htmltools.me\">HTMLTools</a>, stored in your own GitHub repository.</p>" +
+      '<div class="inline"><a class="btn primary" href="' + ROOT + '/Login">' + ico("user") + "Sign in to start</a>" +
+      '<a class="btn" href="' + ROOT + '/Explore">' + ico("search") + "Explore repositories</a>" +
+      '<a class="btn ghost" href="' + ROOT + '/Docs">' + ico("book") + "How it works</a></div></section>";
+  }
+
+  const claim = (me && !me.username)
+    ? '<section class="section"><div class="card">' + "<h2>Pick your username</h2>" +
+      '<p class="hint" style="margin-top:4px">This becomes your handle on CodeHub — <code>/CodeHub/&lt;username&gt;/&lt;repo&gt;</code> ' +
+      "and the start of your subdomains — <code>&lt;username&gt;." + SITE_ZONE + "</code>. Lowercase letters, numbers and dashes.</p>" +
+      '<div class="inline" style="margin-top:14px"><input id="claimName" type="text" placeholder="yourname" autocomplete="off" ' +
+      'style="max-width:260px"><button class="btn primary" data-action="claim">Claim username</button></div>' +
+      "</div></section>"
+    : "";
+
+  const stats = '<section class="section"><div class="grid cols-3">' +
+    statCard("Public repositories", all.total, all.total === 1 ? "1 repo, everyone can read it" : "shared across CodeHub") +
+    statCard("Published sites", sites.sites.length, "live on " + SITE_ZONE) +
+    statCard("Your repositories", mine ? mine.length : "—", me && me.username ? "keep building" : "sign in to see yours") +
+    "</div></section>";
+
+  const yourRepos = (me && me.username)
+    ? '<section class="section"><div class="section-head"><h2>Your repositories</h2>' +
+      '<a class="more" href="' + ROOT + '/New">' + "New repository →</a></div>" +
+      (mine && mine.length
+        ? '<div class="list">' + mine.slice(0, 5).map(function (r) { return repoRow(r); }).join("") + "</div>"
+        : emptyState({
+            icon: "folder", title: "No repositories yet",
+            text: "Create one and it appears here, ready to edit and publish.",
+            cta: '<a class="btn primary sm" href="' + ROOT + '/New">' + ico("plus") + "Create your first repository</a>",
+          })) +
+      "</section>"
+    : "";
+
+  const explore = '<section class="section" id="explore"><div class="section-head"><h2>Explore repositories</h2>' +
+    '<a class="more" href="' + ROOT + '/Explore">See all →</a></div>' +
+    (recent.length
+      ? '<div class="grid cols-2">' + recent.map(repoCard).join("") + "</div>"
+      : emptyState({ icon: "search", title: "No public repositories yet", text: "Be the first — create one from your dashboard." })) +
+    "</section>";
+
+  const liveSites = '<section class="section"><div class="section-head"><h2>Live sites</h2>' +
+    (sites.sites.length > 4 ? '<a class="more" href="' + ROOT + '/Explore?filter=sites">See all →</a>' : "") + "</div>" +
+    (sites.sites.length
+      ? '<div class="list">' + sites.sites.slice(0, 4).map(siteRow).join("") + "</div>"
+      : emptyState({ icon: "globe", title: "No sites published yet", text: "Publish a repository from its Settings tab to get a subdomain." })) +
+    "</section>";
+
+  const steps = '<section class="section"><div class="section-head"><h2>How CodeHub works</h2>' +
+    '<a class="more" href="' + ROOT + '/Docs">Read the docs →</a></div>' +
+    '<div class="grid cols-4">' +
+    stepCard("1", "Create", "A repository is a folder in the shared GitHub repo — one commit per change.") +
+    stepCard("2", "Build", "Add index.html and any assets. Edit files right here or push from Git.") +
+    stepCard("3", "Publish", "Turn on publishing in Settings and pick your subdomain.") +
+    stepCard("4", "Share", "Your site answers on <name>." + SITE_ZONE + " instantly, with free TLS.") +
+    "</div></section>";
+
+  $("#view").innerHTML = hero + claim + stats + yourRepos + explore + liveSites + steps;
+}
+
+function stepCard(n, title, text) {
+  return '<div class="stat-card"><div class="k">' + esc(n) + "</div>" +
+    '<div style="font-size:13px;color:var(--fg-strong);margin-top:6px">' + esc(title) + "</div>" +
+    '<div class="sub" style="margin-top:4px;line-height:1.6">' + esc(text) + "</div></div>";
+}
+
+async function renderExplore() {
+  const params = new URLSearchParams(location.search);
+  const q = (params.get("q") || "").trim();
+  const filter = (params.get("filter") || "all").toLowerCase();
+
+  const all = await api("/repos");
+  const sites = await api("/sites");
+
+  let repos = all.repos.slice();
+  if (filter === "sites") repos = repos.filter(function (r) { return r.site && r.site.enabled; });
+  if (filter === "yours") repos = repos.filter(function (r) { return me && me.username === r.user; });
+  if (filter === "fresh") repos = repos.filter(function (r) {
+    const t = new Date(r.updatedAt || 0).getTime();
+    return Date.now() - t < 7 * 86400000;
+  });
+  if (q) {
+    const needle = q.toLowerCase();
+    repos = repos.filter(function (r) {
+      return (r.user + "/" + r.repo + " " + (r.description || "")).toLowerCase().indexOf(needle) >= 0;
+    });
+  }
+
+  const pills = [
+    ["all", "All", all.total],
+    ["sites", "Published sites", sites.sites.length],
+    ["fresh", "Updated this week", null],
+    ["yours", "Yours", me && me.username ? null : null],
+  ];
+
+  $("#view").innerHTML =
+    '<section class="pagehead"><div class="breadcrumb"><a href="' + ROOT + '">CodeHub</a>' +
+    '<span class="sep">/</span><span class="here">explore</span></div>' +
+    "<h1>" + ico("search") + "<span>Explore</span></h1>" +
+    '<div class="sub">Every public repository on CodeHub, plus the sites published from them.</div>' +
+    '<form class="searchbar" id="exploreForm" method="get" action="' + ROOT + '/Explore" style="margin-top:18px">' +
+    '<input type="search" name="q" id="exploreQ" value="' + esc(q) + '" placeholder="Search repositories, users, descriptions…" autocomplete="off">' +
+    '<button class="btn primary" type="submit">' + ico("search") + "Search</button>" +
+    '<input type="hidden" name="filter" value="' + esc(filter) + '">' +
+    "</form>" +
+    '<div class="filters">' + pills.map(function (p) {
+      return '<a class="filter' + (filter === p[0] ? " active" : "") + '" href="' +
+        ROOT + "/Explore?filter=" + p[0] + (q ? "&q=" + encodeURIComponent(q) : "") + '">' +
+        esc(p[1]) + (p[2] != null ? ' <span class="badge">' + p[2] + "</span>" : "") + "</a>";
+    }).join("") + "</div></section>" +
+    '<section class="section" style="margin-top:24px">' +
+    '<div class="results-meta">' + repos.length + " " + (repos.length === 1 ? "repository" : "repositories") +
+    (q ? ' matching "' + esc(q) + '"' : "") + (filter !== "all" ? " · filter: " + esc(filter) : "") + "</div>" +
+    (repos.length
+      ? '<div class="grid cols-2">' + repos.map(repoCard).join("") + "</div>"
+      : emptyState({
+          icon: "search", title: "Nothing found",
+          text: q ? "No repository matches that search." : "No repositories in this filter yet.",
+          cta: (me && me.username) ? '<a class="btn primary sm" href="' + ROOT + '/New">' + ico("plus") + "Create a repository</a>" : "",
+        })) +
+    "</section>";
+}
+
+async function renderDocs() {
+  const sections = [
+    ["start", "Getting started", [
+      ["Create your account", "Sign in on <a href=\"" + ROOT + "/Login\">the login page</a> with Google or an email address. " +
+        "Authentication is handled by Firebase and shared with the rest of HTMLTools."],
+      ["Claim a username", "Your username is your handle and the folder your repositories live in. " +
+        "Lowercase letters, numbers and dashes, 2–30 characters."],
+      ["Create a repository", "A repository is a folder of files with its own README, visibility and optional website."],
+    ]],
+    ["files", "Repositories & files", [
+      ["Files and folders", "Any file type. Folders are just paths — <code>assets/site.css</code>. " +
+        "The file editor commits straight to GitHub, one commit per save with an automatic message."],
+      ["Editing limits", "The built-in editor handles files up to 1 MB (a GitHub API limit). " +
+        "Bigger files can be downloaded and deleted, but not edited in the browser."],
+      ["Deleting", "Files and whole repositories can be deleted from the file view and the Settings tab. " +
+        "Deleting a repository also frees its subdomain."],
+    ]],
+    ["publish", "Publishing a site", [
+      ["Turn it on", "Open a repository → <b>Settings</b> → <b>Publish as a website</b>, choose a subdomain, save."],
+      ["What gets served", "The files in the repository, exactly as stored: <code>index.html</code> is the home page, " +
+        "other files are served by path with correct content types."],
+      ["Custom 404", "Add a <code>404.html</code> to the repository and it is served for missing paths."],
+      ["Caching", "Published files are cached at the edge for a few minutes; a fresh commit replaces them automatically."],
+    ]],
+    ["subdomains", "Subdomains", [
+      ["Your address", "Publishing picks <code>&lt;name&gt;." + SITE_ZONE + "</code>. Names are first come, first served " +
+        "and a handful are reserved (www, api, mail, admin, …)."],
+      ["TLS", "HTTPS is automatic — Cloudflare's universal certificate covers every subdomain."],
+      ["Moving a site", "Change the subdomain in Settings at any time; the old name is released immediately."],
+    ]],
+    ["storage", "Where your data lives", [
+      ["GitHub-backed", "Everything is stored in the <code>SharcBloc749/htmltools.eu.cc</code> repository, one folder per user, " +
+        "one folder per repository — a normal Git history you can clone."],
+      ["Privacy", "The in-CodeHub <i>Private</i> flag hides a repository from other CodeHub users. " +
+        "It is not encryption: if the storage repository is public, its files are readable on GitHub. " +
+        "Make the repository private if you need real secrecy."],
+      ["Portability", "Because it is Git, you can move out at any time — clone, fork or download."],
+    ]],
+    ["api", "API & automation", [
+      ["JSON API", "The API worker answers under <code>/api</code>: <code>/api/repos</code>, " +
+        "<code>/api/repos/&lt;user&gt;/&lt;repo&gt;</code>, <code>/api/repos/&lt;user&gt;/&lt;repo&gt;/file</code>, " +
+        "<code>/api/repos/&lt;user&gt;/&lt;repo&gt;/raw</code>, <code>/api/repos/&lt;user&gt;/&lt;repo&gt;/commits</code>, " +
+        "<code>/api/status</code>."],
+      ["Auth", "Send your Firebase ID token as <code>Authorization: Bearer &lt;token&gt;</code>. " +
+        "Reads on public repositories need no token."],
+      ["Push from Git", "You can also push to the storage repository directly with Git — the indexes stay in sync " +
+        "because the workers read the tree, not a database."],
+    ]],
+    ["limits", "Limits & free tier", [
+      ["Files", "1 MB per file through the editor; static files only — no server-side code runs for published sites."],
+      ["Sites", "Static HTML, CSS, JS, images, fonts and other assets. No Node, no PHP, no databases."],
+      ["Fair use", "CodeHub runs on Cloudflare's free tier. It is fine for personal sites, portfolios and small projects; " +
+        "abusive sites can be blocked."],
+    ]],
+    ["trouble", "Troubleshooting", [
+      ["Site 404s", "Check that the repository has an <code>index.html</code> and that publishing is on in Settings."],
+      ["Site shows old content", "Edge caches hold files for a few minutes — re-save the file, or wait."],
+      ["Private repository is visible", "That is GitHub, not CodeHub: see <b>Where your data lives</b> above."],
+      ["Something is down", "Check <a href=\"" + ROOT + "/Status\">the status page</a> for a live health readout."],
+    ]],
+  ];
+
+  $("#view").innerHTML =
+    '<section class="pagehead"><div class="breadcrumb"><a href="' + ROOT + '">CodeHub</a>' +
+    '<span class="sep">/</span><span class="here">docs</span></div>' +
+    "<h1>" + ico("book") + "<span>Documentation</span></h1>" +
+    '<div class="sub">How repositories, editing and publishing work — and where everything is stored.</div></section>' +
+    '<section class="section" style="margin-top:26px"><div class="docs">' +
+    '<nav class="docs-nav">' +
+    sections.map(function (s) {
+      return '<a href="#' + s[0] + '">' + esc(s[1]) + "</a>";
+    }).join("") + "</nav>" +
+    "<div>" + sections.map(function (s) {
+      return '<div class="doc-sec" id="' + s[0] + '"><h2>' + esc(s[1]) + "</h2>" +
+        s[2].map(function (item) {
+          return "<h3>" + esc(item[0]) + "</h3><p>" + item[1] + "</p>";
+        }).join("") + "</div>";
+    }).join("") +
+    '<div class="doc-sec"><h2>Still stuck?</h2><div class="doc-grid">' +
+    '<div class="doc-tile"><h3>' + ico("activity") + " Status</h3><p>Live health of the API, GitHub and the storage indexes.</p>" +
+    '<p style="margin-top:10px"><a class="btn sm" href="' + ROOT + '/Status">Open status</a></p></div>' +
+    '<div class="doc-tile"><h3>' + ico("search") + " Explore</h3><p>Look at other people\'s repositories for inspiration.</p>" +
+    '<p style="margin-top:10px"><a class="btn sm" href="' + ROOT + '/Explore">Explore repos</a></p></div>' +
+    "</div></div></div></div></section>";
+}
+
+async function renderStatus() {
+  let data = null, error = null;
+  try { data = await api("/status"); } catch (e) { error = e; }
+  $("#view").innerHTML = statusShell(data, error ? (OFFLINE ? "offline" : "err") : "ok", error);
+}
+
+function statusShell(data, state, error) {
+  const ok = state === "ok";
+  const rows = [];
+
+  function row(label, value, dot, sub) {
+    rows.push('<div class="status-row"><span class="dot-lg ' + dot + '"></span>' +
+      '<span class="lbl">' + esc(label) + "</span>" +
+      '<span class="val">' + value + (sub ? '<div class="sub">' + sub + "</div>" : "") + "</span></div>");
+  }
+
+  if (!data) {
+    row("CodeHub API", state === "offline" ? "not connected on this page" : "unreachable", "err",
+      state === "offline" ? "static build — deploy the workers for live status" : esc(error && error.message));
+    row("GitHub storage", "unknown", "");
+    row("Indexes", "unknown", "");
+  } else {
+    row("CodeHub API", ok ? "operational" : "degraded", ok ? "ok" : "err",
+      data.time ? "checked " + esc(timeAgo(data.time)) : "");
+    row("GitHub storage", data.github && data.github.ok ? "reachable" : "unreachable",
+      data.github && data.github.ok ? "ok" : "err",
+      data.github ? "<code>" + esc(data.github.repo || "") + "</code> · branch <code>" + esc(data.github.defaultBranch || "?") + "</code>" : "");
+    if (data.github && data.github.rate) {
+      const rem = data.github.rate.remaining, lim = data.github.rate.limit;
+      const pct = lim ? Math.max(2, Math.round((rem / lim) * 100)) : 2;
+      row("GitHub API budget", esc(rem + " / " + lim + " requests left"), rem > lim * 0.1 ? "ok" : "warn",
+        '<div class="meter" style="width:200px"><i style="width:' + pct + '%"></i></div>');
+    }
+    if (data.indexes) {
+      row("Users index", esc(String(data.indexes.users)) + " accounts", data.indexes.users > 0 ? "ok" : "warn");
+      row("Repositories index", esc(String(data.indexes.repos)) + " repositories", "ok");
+      row("Sites index", esc(String(data.indexes.sites)) + " published sites", "ok");
+    }
+  }
+
+  return '<section class="pagehead"><div class="breadcrumb"><a href="' + ROOT + '">CodeHub</a>' +
+    '<span class="sep">/</span><span class="here">status</span></div>' +
+    "<h1>" + ico("activity") + "<span>Status</span></h1>" +
+    '<div class="sub">A live readout of the services CodeHub depends on. Nothing is cached — every visit re-checks.</div>' +
+    '<div class="toolbar" style="margin-top:14px"><button class="btn" data-action="refresh-status">' +
+    ico("refresh") + "Re-check</button>" +
+    '<a class="btn ghost" href="' + ROOT + '/Docs#trouble">Troubleshooting</a></div></section>' +
+    '<section class="section" style="margin-top:26px">' +
+    '<div class="status-list">' + rows.join("") + "</div>" +
+    (state === "offline"
+      ? '<div class="hint" style="margin-top:14px">This page is one of the standalone HTML builds, which has no API of its own. ' +
+        "Open it from the deployed site to see real numbers.</div>"
+      : "") +
+    "</section>";
+}
+
+function renderLogin() {
+  const next = new URLSearchParams(location.search).get("next") || ROOT;
+  $("#view").innerHTML =
+    '<div class="center-card"><div class="card auth-card">' +
+    '<img class="logo" src="' + LOGO + '" alt="" onerror="this.style.visibility=\'hidden\'">' +
+    "<h1>Sign in to CodeHub</h1>" +
+    '<p class="hint" style="margin-top:0">Same account as the rest of HTMLTools.</p>' +
+    '<button class="btn primary gbtn" data-action="google">' +
+    '<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.6"/><path d="M8 5.4v5.2M5.4 8h5.2"/></svg>' +
+    "Continue with Google</button>" +
+    '<div class="sep">or use email</div>' +
+    '<div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com"></div>' +
+    '<div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="••••••••"></div>' +
+    '<div class="inline"><button class="btn primary grow" data-action="signin">Sign in</button>' +
+    '<button class="btn grow" data-action="signup">Create account</button></div>' +
+    '<p class="auth-msg" id="authMsg"></p>' +
+    '<div class="auth-foot">By signing in you agree to keep it civil — free subdomains get abused, ' +
+    "and abused sites get blocked.</div>" +
+    '<input type="hidden" id="nextUrl" value="' + esc(next) + '">' +
+    "</div></div>";
+}
+
+async function renderLogout() {
+  $("#view").innerHTML = '<div class="center-card"><div class="card center">' +
+    '<span class="spinner" style="margin:0 auto"></span><h1 style="margin-top:14px">Signing out…</h1></div></div>';
+  try { if (firebase && auth) await firebase.signOut(auth); } catch (e) {}
+  location.replace(ROOT);
+}
+
+async function renderAccount() {
+  if (!me || !me.uid) {
+    $("#view").innerHTML = '<div class="center-card"><div class="card">' + "<h1>Account</h1>" +
+      '<p class="muted">Sign in to see your account details.</p>' +
+      '<a class="btn primary" href="' + ROOT + '/Login">Sign in</a></div></div>';
+    return;
+  }
+  let profile = null;
+  if (me.username) profile = await api("/users/" + me.username).catch(function () { return null; });
+  const repos = (profile && profile.repos) || [];
+  const sites = repos.filter(function (r) { return r.site && r.site.enabled; });
+
+  $("#view").innerHTML =
+    '<section class="pagehead"><div class="breadcrumb"><a href="' + ROOT + '">CodeHub</a>' +
+    '<span class="sep">/</span><span class="here">account</span></div>' +
+    "<h1>" + ico("user") + "<span>Account</span></h1></section>" +
+    '<section class="section" style="margin-top:26px"><div class="two-col">' +
+    "<div>" +
+    '<div class="card"><div class="profile-head">' + avatar(me.username || me.email, "lg") +
+    '<div class="who"><h1>@' + esc(me.username || "no username yet") + "</h1>" +
+    '<div class="sub">' + esc(me.email || "") + "</div>" +
+    (profile && profile.createdAt ? '<div class="sub">member since ' + esc(fmtDate(profile.createdAt)) + "</div>" : "") +
+    "</div></div>" +
+    '<div class="inline" style="margin-top:18px">' +
+    (me.username ? '<a class="btn" href="' + ROOT + "/" + esc(me.username) + '">' + ico("user") + "Your profile</a>" : "") +
+    '<a class="btn" href="' + ROOT + '/New">' + ico("plus") + "New repository</a>" +
+    '<a class="btn ghost" href="' + ROOT + '/Logout">Sign out</a></div></div>' +
+
+    '<div class="card" style="margin-top:16px"><h2>Your published sites</h2>' +
+    (sites.length
+      ? '<div class="list" style="margin-top:12px">' + sites.map(function (r) {
+          return siteRow({ subdomain: r.site.subdomain, url: "https://" + r.site.subdomain + "." + SITE_ZONE,
+            user: r.user, repo: r.repo, description: r.description, updatedAt: r.updatedAt });
+        }).join("") + "</div>"
+      : '<p class="hint">Nothing published yet. Open a repository, go to Settings and turn on publishing.</p>') +
+    "</div></div>" +
+
+    '<div class="stack">' +
+    statCard("Repositories", repos.length, "owned by you") +
+    statCard("Published sites", sites.length, "live right now") +
+    '<div class="card"><h2>Identifiers</h2>' +
+    '<div class="stack" style="margin-top:12px">' +
+    '<div><div class="label">Firebase uid</div><code style="display:block;overflow-x:auto">' + esc(me.uid) + "</code></div>" +
+    '<div><div class="label">CodeHub</div><code style="display:block">' + esc(me.username ? "/CodeHub/" + me.username : "username not claimed") + "</code></div>" +
+    '<div><div class="label">Sites</div><code style="display:block">' + esc(me.username ? "*.htmltools.eu.cc" : "—") + "</code></div>" +
+    "</div>" +
+    '<p class="hint">Authentication is Firebase; all content lives in GitHub. CodeHub never stores your password.</p></div>' +
+    "</div></div></section>";
+}
+
+async function renderNewRepoPage() {
+  if (!me || !me.username) {
+    $("#view").innerHTML = '<div class="center-card"><div class="card">' + "<h1>Create a repository</h1>" +
+      '<p class="muted">' + (me ? "Claim a username first — it becomes your repository namespace."
+        : "Sign in to create repositories.") + "</p>" +
+      '<a class="btn primary" href="' + ROOT + (me ? "" : "/Login") + '">' + (me ? "Go to dashboard" : "Sign in") + "</a></div></div>";
+    return;
+  }
+  $("#view").innerHTML =
+    '<section class="pagehead"><div class="breadcrumb"><a href="' + ROOT + '">CodeHub</a>' +
+    '<span class="sep">/</span><span class="here">new</span></div>' +
+    "<h1>" + ico("plus") + "<span>New repository</span></h1>" +
+    '<div class="sub">It will live at <code>' + esc(me.username) + "/&lt;name&gt;</code> and can be published on a subdomain later.</div>" +
+    "</section>" +
+    '<section class="section" style="margin-top:26px"><div class="two-col">' +
+    '<div class="card">' +
+    '<div class="field"><label for="repoName">Repository name</label>' +
+    '<input id="repoName" type="text" placeholder="my-site" autocomplete="off" autofocus></div>' +
+    '<div class="field"><label for="repoDesc">Description <span class="dim">optional</span></label>' +
+    '<input id="repoDesc" type="text" placeholder="What is this?"></div>' +
+    '<div class="field"><label for="repoVis">Visibility inside CodeHub</label>' +
+    '<select id="repoVis"><option value="public">Public — anyone can browse it</option>' +
+    '<option value="private">Private — only you</option></select>' +
+    '<div class="hint">Privacy only applies inside CodeHub. The storage repository decides who can read the bytes on GitHub.</div></div>' +
+    '<div class="field"><label class="switch"><input type="checkbox" id="repoStarter" checked>' +
+    '<span class="track"></span><span class="lbl">Start with a ready-to-publish index.html</span></label>' +
+    '<div class="hint">Adds a minimal black HTML page you can edit and put online in one step.</div></div>' +
+    '<div class="inline"><button class="btn primary" data-action="create-repo">' + ico("plus") + "Create repository</button>" +
+    '<a class="btn ghost" href="' + ROOT + '">Cancel</a></div>' +
+    "</div>" +
+    '<div class="stack">' +
+    '<div class="card"><h2>What you get</h2><div class="kv" style="margin-top:10px">' +
+    "<div><div class=\"label\">Path</div><code>" + esc(me.username) + "/&lt;name&gt;</code></div>" +
+    '<div class="label" style="margin-top:12px">Files</div><p class="hint" style="margin:0">README.md, .codehub.json (settings) and your files.</p>' +
+    '<div class="label" style="margin-top:12px">Website</div><p class="hint" style="margin:0">Turn on publishing in Settings to serve it on <code>&lt;name&gt;.' + SITE_ZONE + "</code>.</p>" +
+    "</div></div>" +
+    '<div class="card"><h2>Naming rules</h2><p class="hint">Letters, numbers, dots, dashes and underscores — up to 64 characters. ' +
+    "Pick something you will be happy to share.</p></div>" +
+    "</div></div></section>";
+}
+
+async function renderProfile() {
+  const user = (CH.user || "").toLowerCase();
+  const data = await api("/users/" + encodeURIComponent(user));
+  const isMe = me && me.username === data.user;
+  const sites = data.repos.filter(function (r) { return r.site && r.site.enabled; });
+
+  $("#view").innerHTML =
+    '<section class="pagehead"><div class="breadcrumb"><a href="' + ROOT + '">CodeHub</a>' +
+    '<span class="sep">/</span><span class="here">' + esc(data.user) + "</span></div>" +
+    '<div class="profile-head"><span class="avatar lg">' + esc(initials(data.user)) + "</span>" +
+    "<div class=\"who\"><h1>@" + esc(data.user) + "</h1>" +
+    '<div class="sub">' + data.repoCount + " public " + (data.repoCount === 1 ? "repository" : "repositories") +
+    (data.createdAt ? " · joined " + esc(fmtDate(data.createdAt)) : "") + "</div></div></div>" +
+    (isMe ? '<div class="toolbar" style="margin-top:16px"><a class="btn primary" href="' + ROOT + '/New">' + ico("plus") + "New repository</a>" +
+      '<a class="btn" href="' + ROOT + '/Account">Account</a></div>' : "") +
+    "</section>" +
+    '<section class="section"><div class="section-head"><h2>Repositories</h2>' +
+    (sites.length ? '<span class="more">' + sites.length + " published</span>" : "") + "</div>" +
+    (data.repos.length
+      ? '<div class="list">' + data.repos.map(function (r) { return repoRow(r); }).join("") + "</div>"
+      : emptyState({ icon: "folder", title: "Nothing public yet", text: isMe ? "Create your first repository." : "This user has no public repositories.",
+          cta: isMe ? '<a class="btn primary sm" href="' + ROOT + '/New">New repository</a>' : "" })) +
+    "</section>";
+}
+
+async function renderRepo() {
+  const user = (CH.user || "").toLowerCase();
+  const repo = CH.repo || "";
+  const q = CH.path ? "?path=" + encodeURIComponent(CH.path) : "";
+  const data = await api("/repos/" + encodeURIComponent(user) + "/" + encodeURIComponent(repo) + q);
+  const meta = data.meta || {};
+  const isOwner = me && me.username === data.user;
+
+  if (data.kind !== "dir") {
+    // a file path — hand over to the file renderer
+    CH.path = data.path; CH.mode = "blob"; CH.view = "file";
+    return renderFile();
+  }
+
+  const parts = data.path ? data.path.split("/") : [];
+  let body = "";
+
+  if (data.path) {
+    const crumbs = ['<a href="' + ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + '">' + esc(data.repo) + "</a>"];
+    let acc = "";
+    parts.forEach(function (part, i) {
+      acc += (i ? "/" : "") + part;
+      crumbs.push('<span class="sep">/</span>');
+      if (i === parts.length - 1) crumbs.push('<span class="here">' + esc(part) + "</span>");
+      else crumbs.push('<a href="' + ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + "?path=" + encodeURIComponent(acc) + '">' + esc(part) + "</a>");
+    });
+    body += '<div class="breadcrumb" style="margin-bottom:12px">' + crumbs.join(" ") + "</div>";
+  }
+
+  const parent = data.path ? parts.slice(0, -1).join("/") : null;
+  const rows = [];
+
+  if (data.path) {
+    rows.push('<div class="frow up"><div class="fname">' + ico("arrowleft") +
+      '<a href="' + ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + (parent ? "?path=" + encodeURIComponent(parent) : "") + '">..</a>' +
+      '</div><div class="fsize">—</div><div class="factions"></div></div>');
+  }
+
+  data.entries.forEach(function (entry) {
+    const isDir = entry.type === "dir";
+    const href = isDir
+      ? ROOT + "/" + data.user + "/" + data.repo + "?path=" + encodeURIComponent(entry.path)
+      : ROOT + "/" + data.user + "/" + data.repo + "/blob/" + entry.path.split("/").map(encodeURIComponent).join("/");
+    rows.push('<div class="frow">' +
+      '<div class="fname">' + fileIcon(entry.name, entry.type) + '<a href="' + href + '">' + esc(entry.name) + "</a></div>" +
+      '<div class="fsize">' + (isDir ? "folder" : esc(fmtBytes(entry.size))) + "</div>" +
+      '<div class="factions">' +
+      (isOwner && !isDir
+        ? '<button class="iconbtn" title="Download" data-action="download-file" data-path="' + esc(entry.path) + '">' + ico("download") + "</button>" +
+          '<button class="iconbtn" title="Delete" data-action="delete-file" data-path="' + esc(entry.path) + '">' + ico("trash") + "</button>"
+        : "") +
+      "</div></div>");
+  });
+
+  body += '<div class="files">' +
+    '<div class="fhead"><span>Name</span><span>Size</span><span style="text-align:right">Actions</span></div>' +
+    (data.entries.length ? rows.join("")
+      : '<div class="empty" style="border:0;border-radius:0">' + ico("folder") +
+        '<span class="title">This folder is empty</span><span>Use New file to add something.</span>' +
+        (isOwner ? '<span class="cta"><a class="btn sm primary" href="' + ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + '/new">' + ico("plus") + "New file</a></span>" : "") +
+        "</div>") +
+    "</div>";
+
+  if (data.readme) {
+    body += '<div class="section-head" style="margin-top:26px"><h2>README.md</h2></div>' +
+      '<div class="md">' + md(data.readme) + "</div>";
+  }
+
+  const actions = '<div class="toolbar" style="margin-top:16px">' +
+    (isOwner
+      ? '<a class="btn primary" href="' + ROOT + "/" + esc(data.user) + "/" + esc(data.repo) + '/new">' + ico("plus") + "New file</a>"
+      : "") +
+    '<button class="btn" data-action="copy" data-copy="' + esc(data.user + "/" + data.repo) + '">' + ico("copy") + "Copy path</button>" +
+    (meta.site && meta.site.enabled
+      ? '<a class="btn" href="https://' + esc(meta.site.subdomain) + "." + SITE_ZONE + '" target="_blank" rel="noopener">' + ico("external") + "Visit site</a>"
+      : "") +
+    "</div>";
+
+  $("#view").innerHTML = repoHeader(data, meta, { active: "code" }) +
+    '<section class="section">' + actions + body + "</section>";
+}
+
+async function renderHistory() {
+  const user = (CH.user || "").toLowerCase();
+  const repo = CH.repo || "";
+  const data = await api("/repos/" + encodeURIComponent(user) + "/" + encodeURIComponent(repo));
+  const meta = data.meta || {};
+  let commits = [];
+  try {
+    const c = await api("/repos/" + encodeURIComponent(user) + "/" + encodeURIComponent(repo) + "/commits");
+    commits = c.commits || [];
+  } catch (e) { commits = []; }
+
+  const list = commits.length
+    ? '<div class="list commits">' + commits.map(function (c) {
+        return '<div class="commit">' + ico("branch") +
+          '<div class="grow"><div class="msg">' + esc(c.message || "(no message)") + "</div>" +
+          '<div class="who">' + esc(c.author || "unknown") + (c.date ? " · " + esc(timeAgo(c.date)) : "") + "</div></div>" +
+          '<span class="sha" title="' + esc(c.sha) + '">' + esc(String(c.sha || "").slice(0, 7)) + "</span>" +
+          '<span class="when">' + esc(c.date ? fmtDate(c.date) : "") + "</span></div>";
+      }).join("") + "</div>"
+    : emptyState({ icon: "clock", title: "No commits yet", text: "Every save in CodeHub becomes a commit — make a change and it shows up here." });
+
+  $("#view").innerHTML = repoHeader(data, meta, { active: "history" }) +
+    '<section class="section"><div class="section-head"><h2>Recent commits</h2>' +
+    (commits.length ? '<span class="more">' + commits.length + " shown</span>" : "") + "</div>" + list + "</section>";
+}
+
+async function renderFile() {
+  const base = "/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo);
+  const data = await api(base + "/file?path=" + encodeURIComponent(CH.path));
+  const isOwner = me && me.username === CH.user;
+  const parts = CH.path.split("/");
+  const crumbHtml = ['<a href="' + ROOT + "/" + esc(CH.user) + "/" + esc(CH.repo) + '">' + esc(CH.repo) + "</a>"]
+    .concat(parts.map(function (part, i) {
+      const isLast = i === parts.length - 1;
+      const acc = parts.slice(0, i + 1).join("/");
+      return '<span class="sep">/</span>' + (isLast
+        ? '<span class="here">' + esc(part) + "</span>"
+        : '<a href="' + ROOT + "/" + esc(CH.user) + "/" + esc(CH.repo) + "?path=" + encodeURIComponent(parts.slice(0, i + 1).join("/")) + '">' + esc(part) + "</a>");
+    })).join(" ");
+
+  const rawUrl = API + base + "/raw?path=" + encodeURIComponent(CH.path);
+
+  if (CH.mode === "edit" && isOwner) {
+    $("#view").innerHTML =
+      '<section class="pagehead"><div class="breadcrumb">' + crumbHtml + "</div>" +
+      '<h1>' + ico("pencil") + "<span>Editing " + esc(CH.path) + "</span></h1>" +
+      '<div class="sub">' + esc(data.note || "Saves straight to the repository as a new commit.") + "</div></section>" +
+      '<section class="section"><div class="card flush">' +
+      '<div class="card-head"><h2>' + esc(parts[parts.length - 1]) + "</h2>" +
+      '<span class="chip">' + esc(fmtBytes(data.size)) + "</span>" +
+      '<button class="btn sm" data-action="insert-tab">Tab = 2 spaces</button></div>' +
+      '<div class="card-body"><textarea id="editor" spellcheck="false"></textarea></div>' +
+      '<div class="card-foot"><div class="inline between"><span>Commit message is generated automatically.</span>' +
+      '<span class="inline"><a class="btn ghost sm" href="' + ROOT + "/" + esc(CH.user) + "/" + esc(CH.repo) + "/blob/" + parts.map(encodeURIComponent).join("/") + '">Cancel</a>' +
+      '<button class="btn primary sm" data-action="save-file" data-path="' + esc(CH.path) + '">' + ico("check") + "Commit changes</button></span></div></div>" +
+      "</div></section>";
+    const editor = $("#editor");
+    editor.value = data.text || "";
+    editor.dataset.sha = data.sha || "";
+    editor.dataset.path = CH.path;
+    return;
+  }
+
+  const lines = String(data.text || "").split("\n");
+  const numbered = lines.map(function (line, i) {
+    return '<span class="code-row"><span class="num">' + (i + 1) + '</span><span class="txt">' + esc(line) + "</span></span>";
+  }).join("\n");
+
+  $("#view").innerHTML =
+    '<section class="pagehead"><div class="breadcrumb">' + crumbHtml + "</div>" +
+    "<h1>" + fileIcon(parts[parts.length - 1]) + "<span>" + esc(parts[parts.length - 1]) + "</span></h1>" +
+    '<div class="sub">' + esc(fmtBytes(data.size)) + " · sha <code>" + esc(String(data.sha || "").slice(0, 7)) + "</code>" +
+    (data.site && data.site.enabled ? " · part of a published site" : "") + "</div>" +
+    '<div class="toolbar" style="margin-top:16px">' +
+    (isOwner && data.editable ? '<a class="btn primary" href="' + ROOT + "/" + esc(CH.user) + "/" + esc(CH.repo) + "/edit/" + parts.map(encodeURIComponent).join("/") + '">' + ico("pencil") + "Edit</a>" : "") +
+    '<a class="btn" href="' + rawUrl + '" data-action="download-file" data-path="' + esc(CH.path) + '">' + ico("download") + "Download</a>" +
+    '<button class="btn ghost" data-action="copy" data-copy="' + esc(CH.path) + '">' + ico("copy") + "Copy path</button>" +
+    (isOwner ? '<button class="btn danger right" data-action="delete-file" data-path="' + esc(CH.path) + '">' + ico("trash") + "Delete</button>" : "") +
+    "</div></section>" +
+    '<section class="section"><div class="code">' +
+    '<div class="codebar"><span class="path grow">' + esc(CH.path) + "</span>" +
+    (data.site && data.site.enabled
+      ? '<a class="chip link" href="https://' + esc(data.site.subdomain) + "." + SITE_ZONE + "/" + parts.map(encodeURIComponent).join("/") + '" target="_blank" rel="noopener">' + ico("external") + "live file</a>"
+      : "") +
+    (data.note ? '<span class="chip warn">' + esc(data.note) + "</span>" : "") +
+    "</div>" +
+    (data.editable
+      ? '<pre class="code-body">' + numbered + "</pre>"
+      : '<div class="empty" style="border:0;border-radius:0">' + ico("file") +
+        '<span class="title">' + esc(data.note || "Preview not available") + "</span>" +
+        "<span>You can still download it, or edit it on GitHub.</span></div>") +
+    "</div></section>";
+}
+
+async function renderNewFile() {
+  const sample = [
+    "<!doctype html>",
+    '<html lang="en">',
+    "<head>",
+    '  <meta charset="utf-8">',
+    '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+    "  <title>Hello</title>",
+    '  <link rel="icon" href="https://htmltools.me/logo3.png">',
+    "</head>",
+    '<body style="background:#000;color:#f5f5f7;font-family:monospace;padding:40px">',
+    "  <h1>It works.</h1>",
+    "  <p>Edit this file in CodeHub and reload.</p>",
+    "</body>",
+    "</html>",
+  ].join("\n");
+
+  $("#view").innerHTML =
+    '<section class="pagehead"><div class="breadcrumb"><a href="' + ROOT + '">CodeHub</a>' +
+    '<span class="sep">/</span><a href="' + ROOT + "/" + esc(CH.user) + "/" + esc(CH.repo) + '">' + esc(CH.repo) + "</a>" +
+    '<span class="sep">/</span><span class="here">new file</span></div>' +
+    "<h1>" + ico("plus") + "<span>New file</span></h1>" +
+    '<div class="sub">Tip: <code>index.html</code> at the repository root becomes the published home page.</div></section>' +
+    '<section class="section"><div class="card flush">' +
+    '<div class="card-body">' +
+    '<div class="field"><label for="newPath">File name or path</label>' +
+    '<input id="newPath" type="text" placeholder="index.html" autocomplete="off" autofocus>' +
+    '<div class="hint">Folders are created automatically — <code>assets/site.css</code> works.</div></div>' +
+    '<div class="field" style="margin-bottom:0"><label for="editor">Contents</label>' +
+    '<textarea id="editor" spellcheck="false"></textarea></div>' +
+    "</div>" +
+    '<div class="card-foot"><div class="inline between"><span>Save creates one commit.</span><span class="inline">' +
+    '<a class="btn ghost sm" href="' + ROOT + "/" + esc(CH.user) + "/" + esc(CH.repo) + '">Cancel</a>' +
+    '<button class="btn primary sm" data-action="create-file">' + ico("check") + "Create file</button></span></div></div>" +
+    "</div></section>";
+  $("#editor").value = sample;
+}
+
+async function renderSettings() {
+  const data = await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo));
+  const meta = data.meta || {};
+  const site = meta.site || { enabled: false, subdomain: "" };
+  const isOwner = me && me.username === CH.user;
+
+  if (!isOwner) {
+    $("#view").innerHTML = repoHeader(data, meta, { active: "settings" }) +
+      '<section class="section">' + alertBox("warn", "<strong>Read only.</strong> Only <b>@" + esc(CH.user) +
+      "</b> can change these settings.", "lock") + "</section>";
+    return;
+  }
+
+  const suggested = site.subdomain || CH.user;
+
+  $("#view").innerHTML = repoHeader(data, meta, { active: "settings" }) +
+    '<section class="section"><div class="two-col">' +
+    "<div>" +
+
+    '<div class="card"><div class="card-head"><h2>Repository</h2></div><div class="card-body">' +
+    '<div class="field"><label for="setDesc">Description</label>' +
+    '<input id="setDesc" type="text" value="' + esc(meta.description || "") + '" placeholder="What is this repository?"></div>' +
+    '<div class="field" style="margin-bottom:0"><label for="setVis">Visibility inside CodeHub</label>' +
+    '<select id="setVis"><option value="public"' + (meta.visibility !== "private" ? " selected" : "") + ">Public — anyone can browse it</option>" +
+    '<option value="private"' + (meta.visibility === "private" ? " selected" : "") + ">Private — only you</option></select>" +
+    '<div class="hint">Heads-up: storage is a GitHub repository. If that repository is public, files are readable on GitHub ' +
+    "no matter what this says.</div></div>" +
+    '<button class="btn primary" data-action="save-settings">' + ico("check") + "Save changes</button>" +
+    "</div></div>" +
+
+    '<div class="card" style="margin-top:16px"><div class="card-head"><h2>Publish as a website</h2>' +
+    (site.enabled ? '<span class="chip ok right">' + ico("globe") + "live</span>" : "") + "</div><div class=\"card-body\">" +
+    '<label class="switch" style="margin-bottom:16px"><input type="checkbox" id="siteOn"' + (site.enabled ? " checked" : "") + ">" +
+    '<span class="track"></span><span class="lbl">Serve this repository at a subdomain</span></label>' +
+    '<div class="field"><label for="siteSub">Subdomain</label>' +
+    '<div class="inline tight"><input id="siteSub" type="text" style="max-width:250px" value="' + esc(suggested) + '" placeholder="yourname">' +
+    '<span class="muted">.' + SITE_ZONE + "</span></div>" +
+    '<div class="hint">Reserved names are blocked (www, api, mail, admin, …). A site serves <code>index.html</code> ' +
+    "from the repository root, plus any assets next to it.</div></div>" +
+    '<div class="inline">' +
+    '<button class="btn primary" data-action="save-site">' + ico("check") + "Save publishing</button>" +
+    (site.enabled
+      ? '<a class="btn" href="https://' + esc(site.subdomain) + "." + SITE_ZONE + '" target="_blank" rel="noopener">' + ico("external") + "Open site</a>" +
+        '<button class="btn ghost" data-action="create-index">' + ico("plus") + "Starter index.html</button>"
+      : "") +
+    "</div></div></div>" +
+
+    '<div class="card" style="margin-top:16px;border-color:#2a1c1e"><div class="card-head"><h2>Danger zone</h2></div><div class="card-body">' +
+    '<p class="hint" style="margin-top:0">Deleting removes every file in this repository, releases its subdomain and cannot be undone. ' +
+    "The GitHub history keeps the commits if you ever need them back.</p>" +
+    '<button class="btn danger" data-action="delete-repo">' + ico("trash") + "Delete this repository</button>" +
+    "</div></div>" +
+
+    "</div>" +
+
+    '<div class="stack">' +
+    (site.enabled
+      ? '<div class="card"><h2>Your site</h2><div class="stack" style="margin-top:12px">' +
+        '<div><div class="label">Address</div><a href="https://' + esc(site.subdomain) + "." + SITE_ZONE + '" target="_blank" rel="noopener">' +
+        esc(site.subdomain) + "." + SITE_ZONE + " ↗</a></div>" +
+        '<div><div class="label">Home page</div><code>index.html</code></div>' +
+        '<div><div class="label">Certificate</div><span class="chip ok">' + ico("shield") + "automatic TLS</span></div>" +
+        "</div></div>"
+      : '<div class="card"><h2>Publishing</h2><p class="hint" style="margin-top:6px">Turn the switch on and pick a name — ' +
+        "your files go live in seconds on a free subdomain with HTTPS.</p></div>") +
+    '<div class="card"><h2>Details</h2><div class="stack" style="margin-top:12px">' +
+    '<div><div class="label">Path</div><code>CodeHub/' + esc(CH.user) + "/" + esc(CH.repo) + "</code></div>" +
+    '<div><div class="label">Branch</div><code>' + esc(meta.defaultBranch || "main") + "</code></div>" +
+    '<div><div class="label">Created</div><span class="muted">' + esc(fmtDate(meta.createdAt) || "—") + "</span></div>" +
+    '<div><div class="label">Updated</div><span class="muted">' + esc(timeAgo(meta.updatedAt) || "—") + "</span></div>" +
+    "</div></div>" +
+    "</div></div></section>";
+}
+
+/* ---------- markdown (minimal, safe) -------------------------------------- */
+function md(src) {
+  let s = esc(src || "");
+  s = s.replace(/\x60\x60\x60([\s\S]*?)\x60\x60\x60/g, function (m, code) { return "<pre><code>" + code + "</code></pre>"; });
+  s = s.replace(/^###### (.*)$/gm, "<h3>$1</h3>")
+       .replace(/^##### (.*)$/gm, "<h3>$1</h3>")
+       .replace(/^#### (.*)$/gm, "<h3>$1</h3>")
+       .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+       .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+       .replace(/^# (.*)$/gm, "<h1>$1</h1>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+       .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+  s = s.replace(/(^|[^A-Za-z0-9_])_([^_\n]+)_(?![A-Za-z0-9_])/g, "$1<em>$2</em>");
+  s = s.replace(/\x60([^\x60\n]+)\x60/g, "<code>$1</code>");
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" rel="noopener noreferrer" target="_blank">$1</a>');
+  s = s.replace(/^(?:- |\* )(.*)$/gm, "<li>$1</li>");
+  s = s.replace(/(<li>[\s\S]*?<\/li>)(?!\s*<li>)/g, "<ul>$1</ul>");
+  s = s.replace(/\n{2,}/g, "</p><p>");
+  s = s.replace(/(^|<p>)(?!<h|<ul|<pre|<li)([^<])/g, "$1<p>$2");
+  s = s.replace(/<p>\s*<\/p>/g, "").replace(/<\/p><\/ul>/g, "</ul>");
+  return s;
+}
+
+/* ========================================================================== */
+/*  Actions                                                                   */
+/* ========================================================================== */
+
+function requireSignIn() {
+  if (!me) { toast("Sign in first", "err"); return true; }
+  return false;
+}
+
+function requireUsername() {
+  if (!me) { toast("Sign in first", "err"); return true; }
+  if (!me.username) { toast("Claim a username first", "err"); return true; }
+  return false;
+}
+
+async function doGoogle() {
+  if (!firebase) return toast("Offline preview — sign in works on the live site.", "err");
+  const provider = new firebase.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  try {
+    await firebase.signInWithPopup(auth, provider);
+    location.href = $("#nextUrl") ? $("#nextUrl").value : ROOT;
+  } catch (e) { authMsg(e.message); }
+}
+
+async function doEmail(mode) {
+  if (!firebase) return toast("Offline preview — sign in works on the live site.", "err");
+  const email = ($("#email").value || "").trim();
+  const password = $("#password").value || "";
+  if (!email || !password) return authMsg("Email and password are required.");
+  try {
+    if (mode === "signup") await firebase.createUserWithEmailAndPassword(auth, email, password);
+    else await firebase.signInWithEmailAndPassword(auth, email, password);
+    location.href = $("#nextUrl") ? $("#nextUrl").value : ROOT;
+  } catch (e) { authMsg(e.message); }
+}
+
+function authMsg(text) {
+  const el = $("#authMsg");
+  if (el) el.textContent = text || "";
+  else toast(text, "err");
+}
+
+async function createRepo(redirect) {
+  if (requireUsername()) return;
+  const name = ($("#repoName").value || "").trim();
+  if (!name) { toast("Repository name is required", "err"); return; }
+  const body = {
+    name: name,
+    description: ($("#repoDesc") ? $("#repoDesc").value : "").trim(),
+    visibility: $("#repoVis") ? $("#repoVis").value : "public",
+    starter: $("#repoStarter") ? $("#repoStarter").checked : false,
+  };
+  const created = await api("/repos", { method: "POST", body: JSON.stringify(body) });
+  toast("Created " + created.user + "/" + created.repo, "ok");
+  if (redirect === "stay") {
+    location.href = ROOT + "/" + created.user + "/" + created.repo + "/settings";
+  } else {
+    location.href = ROOT + "/" + created.user + "/" + created.repo;
+  }
+}
+
+function downloadFile(path) {
+  const url = API + "/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo) +
+    "/raw?path=" + encodeURIComponent(path);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = String(path).split("/").pop();
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function deleteFile(path, reload) {
+  if (!confirm("Delete " + path + "?\n\nIt can be recovered from the GitHub history, but not from CodeHub.")) return;
+  await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo) + "/file", {
+    method: "DELETE",
+    body: JSON.stringify({ path: path }),
+  });
+  toast("Deleted " + path, "ok");
+  if (reload) location.href = ROOT + "/" + CH.user + "/" + CH.repo;
+  else render();
+}
+
+async function deleteRepo() {
+  const label = CH.user + "/" + CH.repo;
+  if (!confirm("Delete the whole repository " + label + "?\n\nEvery file is removed and the subdomain is released.")) return;
+  await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo), { method: "DELETE" });
+  toast("Deleted " + label, "ok");
+  location.href = ROOT;
+}
+
+async function saveFile() {
+  const editor = $("#editor");
+  const path = editor.dataset.path;
+  const body = { path: path, content: editor.value };
+  if (editor.dataset.sha) body.sha = editor.dataset.sha;
+  await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo) + "/file", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  toast("Committed " + path, "ok");
+  location.href = ROOT + "/" + CH.user + "/" + CH.repo + "/blob/" + path.split("/").map(encodeURIComponent).join("/");
+}
+
+async function createFile() {
+  const path = ($("#newPath").value || "").trim().replace(/^\/+/, "");
+  if (!path) { toast("File name is required", "err"); return; }
+  await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo) + "/file", {
+    method: "PUT",
+    body: JSON.stringify({ path: path, content: $("#editor").value }),
+  });
+  toast("Created " + path, "ok");
+  location.href = ROOT + "/" + CH.user + "/" + CH.repo + "/blob/" + path.split("/").map(encodeURIComponent).join("/");
+}
+
+async function saveSettings() {
+  await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo), {
+    method: "PATCH",
+    body: JSON.stringify({
+      description: $("#setDesc").value.trim(),
+      visibility: $("#setVis").value,
+    }),
+  });
+  toast("Settings saved", "ok");
+  render();
+}
+
+async function saveSite() {
+  const enabled = $("#siteOn").checked;
+  const subdomain = ($("#siteSub").value || "").toLowerCase().trim();
+  const out = await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo), {
+    method: "PATCH",
+    body: JSON.stringify({ site: { enabled: enabled, subdomain: subdomain } }),
+  });
+  toast(out.url ? "Live at " + out.url : "Publishing off", "ok");
+  render();
+}
+
+async function createStarterIndex() {
+  const html = [
+    "<!doctype html>",
+    '<html lang="en">',
+    "<head>",
+    '  <meta charset="utf-8">',
+    '  <meta name="viewport" content="width=device-width, initial-scale=1">',
+    "  <title>My CodeHub site</title>",
+    '  <link rel="icon" href="https://htmltools.me/logo3.png">',
+    "  <style>",
+    "    body{margin:0;background:#000;color:#f5f5f7;font-family:'IBM Plex Mono',Menlo,monospace;",
+    "         min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center}",
+    "    img{width:56px;height:56px;border-radius:14px;margin-bottom:18px}",
+    "    h1{font-size:20px;margin:0 0 10px}p{color:#8a8a8e;font-size:13px}",
+    "  </style>",
+    "</head>",
+    "<body>",
+    "  <div>",
+    '    <img src="https://htmltools.me/logo3.png" alt="">',
+    "    <h1>It works.</h1>",
+    "    <p>Edit index.html in CodeHub to change this page.</p>",
+    "  </div>",
+    "</body>",
+    "</html>",
+  ].join("\n");
+
+  let sha = null;
+  try {
+    const existing = await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo) + "/file?path=index.html");
+    sha = existing.sha;
+  } catch (e) { sha = null; }
+  if (sha && !confirm("index.html already exists. Overwrite it?")) return;
+
+  const body = { path: "index.html", content: html };
+  if (sha) body.sha = sha;
+  await api("/repos/" + encodeURIComponent(CH.user) + "/" + encodeURIComponent(CH.repo) + "/file", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  toast("index.html saved — your site is live", "ok");
+  location.href = ROOT + "/" + CH.user + "/" + CH.repo;
+}
+
+/* ---------- delegated events --------------------------------------------- */
+document.addEventListener("click", async function (event) {
+  const trigger = event.target.closest ? event.target.closest("[data-action]") : null;
+  if (!trigger) return;
+  const action = trigger.dataset.action;
+  if (action === "download-file") return; // the <a download> handles it
+  event.preventDefault();
+
+  try {
+    if (action === "google") return doGoogle();
+    if (action === "signin") return doEmail("signin");
+    if (action === "signup") return doEmail("signup");
+
+    if (action === "claim") {
+      const username = ($("#claimName").value || "").toLowerCase().trim();
+      if (!username) return toast("Pick a username", "err");
+      await api("/auth/claim", { method: "POST", body: JSON.stringify({ username: username }) });
+      toast("Username claimed: @" + username, "ok");
+      me = await api("/auth/me");
+      renderAuthSlot();
+      return render();
+    }
+
+    if (action === "create-repo") {
+      trigger.disabled = true;
+      try { return await createRepo(CH.view === "newrepo" ? "stay" : "go"); }
+      finally { trigger.disabled = false; }
+    }
+
+    if (action === "save-file") {
+      trigger.disabled = true;
+      try { return await saveFile(); } finally { trigger.disabled = false; }
+    }
+
+    if (action === "create-file") {
+      trigger.disabled = true;
+      try { return await createFile(); } finally { trigger.disabled = false; }
+    }
+
+    if (action === "delete-file") return deleteFile(trigger.dataset.path, CH.view === "file");
+    if (action === "delete-repo") return deleteRepo();
+    if (action === "save-settings") {
+      trigger.disabled = true;
+      try { return await saveSettings(); } finally { trigger.disabled = false; }
+    }
+    if (action === "save-site") {
+      trigger.disabled = true;
+      try { return await saveSite(); } finally { trigger.disabled = false; }
+    }
+    if (action === "create-index") return createStarterIndex();
+    if (action === "refresh-status") { $("#view").innerHTML = spinner("checking…"); return renderStatus(); }
+    if (action === "copy") return copyText(trigger.dataset.copy || "", trigger.dataset.copy);
+
+    if (action === "insert-tab") {
+      toast("The editor inserts two spaces when you press Tab", "ok");
+      return;
+    }
+  } catch (e) {
+    toast(e.message || String(e), "err");
+  }
+});
+
+document.addEventListener("keydown", function (event) {
+  if (event.key === "Tab" && event.target && event.target.id === "editor") {
+    event.preventDefault();
+    const el = event.target;
+    el.setRangeText("  ", el.selectionStart, el.selectionEnd, "end");
+  }
+});
+
+/* Static builds: deep links that need the live API get an explanation instead of a 404. */
+if (CH.preview) {
+  document.addEventListener("click", function (event) {
+    if (!event.target || !event.target.closest) return;
+    const link = event.target.closest("a[href]");
+    if (!link) return;
+    const href = link.getAttribute("href") || "";
+    if (/^\/CodeHub\/[^/?#]+\/[^/?#]+\/(blob|edit|new)/.test(href) || (/^\/CodeHub\//.test(href) && /[?&]path=/.test(href))) {
+      event.preventDefault();
+      event.stopPropagation();
+      toast("That view needs the live API — it works on htmltools.me/CodeHub.", "err");
+    }
+  }, true);
+}
+
+boot();
+
+</script>
+</body>
+</html>
