@@ -175,6 +175,7 @@ textarea.f-input{height:auto;padding:8px 10px;font-size:12px;line-height:1.6;res
 .line-badge.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green-hi);}
 .line-badge.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:var(--yellow-hi);}
 .line-badge.over{background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);color:var(--red-hi);}
+.quota-note{font-size:.7rem;color:var(--tx-3);font-family:var(--mono);user-select:none;}
 
 /* REFINE */
 .refine-row{display:flex;gap:5px;}
@@ -359,11 +360,12 @@ iframe.prev-frame{width:100%;height:400px;border:none;background:#fff;display:bl
           <div class="f-group">
             <label class="f-label">Describe your game *</label>
             <textarea class="f-input" id="ai-prompt" style="min-height:120px" placeholder="e.g. A Snake game with neon colours and a high score counter. Include keyboard and touch controls."></textarea>
-            <div class="f-note">Be specific — colours, mechanics, features, controls. Output is capped at 2,000 lines.</div>
+            <div class="f-note">Be specific — colours, mechanics, features, controls. Output is capped at 1 MB of code.</div>
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="quota-note" id="quota-note-ai"></span>
         <button class="btn btn-prim" onclick="aiGenerate()">✨ Generate</button>
       </div>
     </div>
@@ -498,11 +500,12 @@ iframe.prev-frame{width:100%;height:400px;border:none;background:#fff;display:bl
           <div class="f-group">
             <label class="f-label">What do you want to change? *</label>
             <textarea class="f-input" id="remix-prompt" style="min-height:110px" placeholder="e.g. Change the colour scheme to deep purple, add a lives system, make it endless…&#10;&#10;Or just describe a brand-new twist on this game!"></textarea>
-            <div class="f-note">Tip: you can also ask for a completely different mechanic — this is your remix! Output is capped at 2,000 lines.</div>
+            <div class="f-note">Tip: you can also ask for a completely different mechanic — this is your remix! Output is capped at 1 MB of code.</div>
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="quota-note" id="quota-note-remix"></span>
         <button class="btn-purple" onclick="remixGenerate()">🎛 Generate Remix</button>
       </div>
     </div>
@@ -615,11 +618,12 @@ iframe.prev-frame{width:100%;height:400px;border:none;background:#fff;display:bl
           <div class="f-group">
             <label class="f-label">What to change? *</label>
             <textarea class="f-input" id="aiedit-prompt" style="min-height:110px" placeholder="e.g. Change the background to dark purple, add a lives system, make the player move faster…"></textarea>
-            <div class="f-note">Describe only the changes you want. Everything else stays intact. Output is capped at 2,000 lines.</div>
+            <div class="f-note">Describe only the changes you want. Everything else stays intact. Output is capped at 1 MB of code.</div>
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="quota-note" id="quota-note-aiedit"></span>
         <button class="btn btn-prim" onclick="aieditGenerate()">✨ Apply AI Changes</button>
       </div>
     </div>
@@ -683,7 +687,9 @@ import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/fireb
 const WORKER='https://aged-heart-d9b9.bozhetarnikmatthew.workers.dev/';
 const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
 const GH_CACHE_KEY="htmlib_github_cache_v2";
-const MAX_LINES=2000;
+const MAX_CODE_BYTES=1024*1024; /* 1 MB of code — matches GitHub's per-file upload cap. Logo & background images are stored separately and never count toward this. */
+const codeBytes=s=>new TextEncoder().encode(s||'').length;
+const fmtSize=n=>n>=1048576?(n/1048576).toFixed(2).replace(/\.?0+$/,'')+' MB':n>=1024?(n/1024).toFixed(1).replace(/\.0$/,'')+' KB':n+' B';
 const oldApp=initializeApp({apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"},'old');
 const auth=getAuth(oldApp);
 const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
@@ -692,9 +698,9 @@ const db=getDatabase(newApp);
 
 /* ── AI SYSTEM PROMPTS ── */
 const AI_MODELS={fast:'us.anthropic.claude-haiku-4-5-20251001-v1:0',smart:'us.anthropic.claude-sonnet-4-6'};
-const SYS_GEN=`You are an expert HTML5 game developer.\nRULES (no exceptions):\n1. Respond with ONLY a complete self-contained HTML file.\n2. Start with <!DOCTYPE html>, end with </html>.\n3. No markdown, explanations, or code fences.\n4. All CSS and JS inside the file.\n5. Make it polished and fun.\n6. CRITICAL: Keep output under ${MAX_LINES} lines.`;
-const SYS_EDIT=`You are an expert HTML5 game developer making targeted edits.\nRULES (no exceptions):\n1. You will receive existing game code and a change request.\n2. Apply changes and return the COMPLETE updated HTML file.\n3. Respond with ONLY the updated HTML — no markdown, no explanations.\n4. Start with <!DOCTYPE html>, end with </html>.\n5. Preserve all existing features, styles, and logic unless explicitly asked to change them.\n6. CRITICAL: Keep output under ${MAX_LINES} lines.`;
-const SYS_REMIX=`You are an expert HTML5 game developer creating a remix/fork of an existing game.\nRULES (no exceptions):\n1. You will receive an existing game's code and a description of changes.\n2. Apply the changes creatively and return a COMPLETE updated HTML file.\n3. Respond with ONLY the HTML — no markdown, no explanations.\n4. Start with <!DOCTYPE html>, end with </html>.\n5. Make the changes feel purposeful and polished. This is a new creative work, not just a patch.\n6. CRITICAL: Keep output under ${MAX_LINES} lines.`;
+const SYS_GEN=`You are an expert HTML5 game developer.\nRULES (no exceptions):\n1. Respond with ONLY a complete self-contained HTML file.\n2. Start with <!DOCTYPE html>, end with </html>.\n3. No markdown, explanations, or code fences.\n4. All CSS and JS inside the file.\n5. Make it polished and fun.\n6. CRITICAL: The complete file must stay under 1MB in size — write compact code (minimal whitespace, no redundant comments).`;
+const SYS_EDIT=`You are an expert HTML5 game developer making targeted edits.\nRULES (no exceptions):\n1. You will receive existing game code and a change request.\n2. Apply changes and return the COMPLETE updated HTML file.\n3. Respond with ONLY the updated HTML — no markdown, no explanations.\n4. Start with <!DOCTYPE html>, end with </html>.\n5. Preserve all existing features, styles, and logic unless explicitly asked to change them.\n6. CRITICAL: The complete file must stay under 1MB in size — write compact code (minimal whitespace, no redundant comments).`;
+const SYS_REMIX=`You are an expert HTML5 game developer creating a remix/fork of an existing game.\nRULES (no exceptions):\n1. You will receive an existing game's code and a description of changes.\n2. Apply the changes creatively and return a COMPLETE updated HTML file.\n3. Respond with ONLY the HTML — no markdown, no explanations.\n4. Start with <!DOCTYPE html>, end with </html>.\n5. Make the changes feel purposeful and polished. This is a new creative work, not just a patch.\n6. CRITICAL: The complete file must stay under 1MB in size — write compact code (minimal whitespace, no redundant comments).`;
 
 /* ── STATE ── */
 let CU=null;
@@ -711,7 +717,6 @@ let _progT={};
 
 /* ── UTILS ── */
 const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
-const countLines=s=>s?s.split('\n').length:0;
 window.showToast=(m,t='')=>{const el=document.getElementById('toast');el.textContent=m;el.className='toast show '+(t||'');clearTimeout(window._tt);window._tt=setTimeout(()=>{el.className='toast';},3200);};
 
 /* ── DRAFTS ── */
@@ -726,6 +731,8 @@ onAuthStateChanged(auth,async u=>{
     document.getElementById('page').style.display='flex';
     document.getElementById('nav-uname').textContent=u.displayName||u.email;
     if(localStorage.getItem('studio_lightmode')==='1')document.body.classList.add('light-mode');
+    refreshQuotaNotes();
+    fetchQuotaFromServer();
     await handleUrlParams();
   }else{
     document.getElementById('signin-gate').style.display='flex';
@@ -804,22 +811,100 @@ window.setMode=function(mode){
   document.getElementById('tab-ai').className='mode-tab'+(mode==='ai'?' active':'');
 };
 
-/* ── LINE COUNT HELPERS ── */
-function lineBadgeClass(n){return n>MAX_LINES?'over':n>MAX_LINES*.85?'warn':'ok';}
-function updateLineBadge(badgeId,n){
+/* ── SIZE HELPERS (limit: 1 MB of code — the GitHub file cap; logo/background images are stored separately and never count) ── */
+function sizeBadgeClass(n){return n>MAX_CODE_BYTES?'over':n>MAX_CODE_BYTES*.85?'warn':'ok';}
+function updateSizeBadge(badgeId,code){
   const el=document.getElementById(badgeId);if(!el)return;
-  el.className='line-badge '+lineBadgeClass(n);
-  el.textContent=n+' / '+MAX_LINES+' lines';
+  const n=codeBytes(code);
+  el.className='line-badge '+sizeBadgeClass(n);
+  el.textContent=fmtSize(n)+' / 1 MB';
 }
 window.updateManualLineCount=function(){
   const code=document.getElementById('bk-code').value;
-  const n=countLines(code);
   const note=document.getElementById('manual-line-note');
   if(!code){note.textContent='';return;}
-  const cls=lineBadgeClass(n);
+  const n=codeBytes(code);
+  const cls=sizeBadgeClass(n);
   note.className='f-note'+(cls==='over'?' err':cls==='warn'?' warn':'');
-  note.textContent=n+' lines'+(cls==='over'?` — exceeds the ${MAX_LINES}-line limit`:cls==='warn'?` — approaching the ${MAX_LINES}-line limit`:'');
+  note.textContent=fmtSize(n)+' / 1 MB of code (images don\'t count)'+(cls==='over'?' — exceeds the 1 MB size limit':cls==='warn'?' — approaching the 1 MB size limit':'');
 };
+
+
+/* ── AI QUOTA — 3 prompts per 12 hours, per ACCOUNT and per DEVICE ──
+   Saved to the device here (localStorage) AND to the account server-side
+   inside the worker (verified Firebase uid) — so switching accounts on
+   this browser keeps the block, and opening another tab/window/Chrome
+   profile with the same account keeps it too. The worker is the
+   authority; this mirrors it for instant UI. One user action (generate
+   / refine / remix / edit) = 1 prompt no matter the speed mode. */
+const AI_QUOTA_MAX=3;
+const AI_QUOTA_WINDOW_MS=12*3600*1000;
+const AI_QUOTA_KEY='studio_ai_quota_v1';
+const DEVICE_ID_KEY='studio_device_id_v1';
+function getDeviceId(){
+  let id=localStorage.getItem(DEVICE_ID_KEY);
+  if(!id||!/^[A-Za-z0-9-]{8,80}$/.test(id)){
+    id=(crypto.randomUUID?crypto.randomUUID():'d-'+Date.now().toString(36)+Math.random().toString(36).slice(2,12)+'-'+Math.random().toString(36).slice(2,12));
+    localStorage.setItem(DEVICE_ID_KEY,id);
+  }
+  return id;
+}
+const newActionId=()=>crypto.randomUUID?crypto.randomUUID():'a-'+Date.now().toString(36)+Math.random().toString(36).slice(2,12)+'-'+Math.random().toString(36).slice(2,12);
+function readLocalQuotaActions(){
+  try{
+    const arr=JSON.parse(localStorage.getItem(AI_QUOTA_KEY)||'[]');
+    if(!Array.isArray(arr))return[];
+    return arr.filter(a=>a&&typeof a.t==='number'&&Date.now()-a.t<AI_QUOTA_WINDOW_MS);
+  }catch{return[];}
+}
+function writeLocalQuotaActions(a){try{localStorage.setItem(AI_QUOTA_KEY,JSON.stringify(a.slice(-20)));}catch{}}
+function recordLocalQuotaAction(actionId){
+  const arr=readLocalQuotaActions();
+  if(!arr.some(a=>a.a===actionId)){arr.push({a:actionId,t:Date.now()});writeLocalQuotaActions(arr);}
+}
+const fmtWait=ms=>{
+  ms=Math.max(0,ms);
+  const h=Math.floor(ms/3600000),m=Math.ceil((ms%3600000)/60000);
+  return h>0?h+'h '+(m%60)+'m':Math.max(1,m)+'m';
+};
+let _serverQuota=null; // authoritative values reported back by the worker
+function quotaUsedNow(){
+  const localUsed=readLocalQuotaActions().length;
+  return _serverQuota&&typeof _serverQuota.used==='number'?Math.max(localUsed,_serverQuota.used):localUsed;
+}
+function quotaResetAt(){
+  const times=[];
+  const loc=readLocalQuotaActions();
+  if(loc.length)times.push(Math.min(...loc.map(a=>a.t))+AI_QUOTA_WINDOW_MS);
+  if(_serverQuota&&_serverQuota.resetAt)times.push(_serverQuota.resetAt);
+  return times.length?Math.min(...times):null;
+}
+function refreshQuotaNotes(){
+  const used=Math.min(AI_QUOTA_MAX,quotaUsedNow());
+  const left=AI_QUOTA_MAX-used;
+  let txt,color='';
+  if(left>0){txt='⚡ '+left+'/3 AI prompts left — each lasts 12h';}
+  else{const r=quotaResetAt();txt='🚫 0/3 AI prompts left'+(r?' — resets in '+fmtWait(r-Date.now()):'');color='var(--red-hi)';}
+  for(const id of ['quota-note-ai','quota-note-remix','quota-note-aiedit']){
+    const el=document.getElementById(id);
+    if(el){el.textContent=txt;el.style.color=color;}
+  }
+}
+function syncQuotaFromServer(q){
+  if(!q||typeof q!=='object')return;
+  _serverQuota={used:typeof q.used==='number'?q.used:0,remaining:q.remaining,resetAt:q.resetAt||null};
+  refreshQuotaNotes();
+}
+async function fetchQuotaFromServer(){
+  if(!CU)return;
+  try{
+    const idToken=await CU.getIdToken();
+    const r=await fetch(WORKER+'studio/ai/quota',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken,deviceId:getDeviceId()})});
+    if(r.ok){syncQuotaFromServer(await r.json());}
+  }catch{}
+}
+setInterval(refreshQuotaNotes,30000);
+window.addEventListener('storage',e=>{if(e.key===AI_QUOTA_KEY)refreshQuotaNotes();}); // live sync across tabs
 
 /* ── IFRAME LOADER ── */
 function loadFrame(id,html){
@@ -895,15 +980,45 @@ window.prevToggleCode=function(which){
 const isCompleteHTML=s=>!!s&&/<!doctype html/i.test(s)&&/<\/html>\s*$/i.test(s.trim());
 
 async function callAI(msgs,spd,sys){
+  if(!CU)throw new Error('You must be signed in to use the AI.');
+  // Local pre-check so an exhausted user gets instant feedback without
+  // burning a network round trip — the worker re-verifies everything
+  // server-side anyway.
+  if(quotaUsedNow()>=AI_QUOTA_MAX){
+    refreshQuotaNotes();
+    const r0=quotaResetAt();
+    throw new Error('You have used all 3 AI prompts. Try again in '+(r0?fmtWait(r0-Date.now()):'12 hours')+'.');
+  }
   const model=AI_MODELS[spd]||AI_MODELS.fast;
+  const deviceId=getDeviceId();
+  const actionId=newActionId(); // one id for every HTTP round of THIS user action → counts as 1 prompt
+  let idToken=await CU.getIdToken();
+  const postRound=body=>fetch(WORKER+'studio/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   let fullText='';
   let roundMsgs=[...msgs];
   const MAX_ROUNDS=4; // safety cap on continuation calls
 
   for(let round=0;round<MAX_ROUNDS;round++){
-    const r=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,system:sys,messages:roundMsgs,max_tokens:8192})});
+    const payload={model,system:sys,messages:roundMsgs,max_tokens:8192,idToken,deviceId,actionId};
+    let r=await postRound(payload);
+    if(r.status===401){ // token may have expired mid-session — refresh once and retry (still the same action)
+      idToken=await CU.getIdToken(true);
+      payload.idToken=idToken;
+      r=await postRound(payload);
+    }
+    if(r.status===429){ // quota exhausted (account OR device) — sync UI from the worker's verdict
+      const j=await r.json().catch(()=>({}));
+      syncQuotaFromServer({used:AI_QUOTA_MAX,remaining:0,resetAt:j.resetAt||null});
+      throw new Error(j.message||'You have used all 3 AI prompts. Try again in '+(j.resetAt?fmtWait(j.resetAt-Date.now()):'12 hours')+'.');
+    }
+    if(r.status===409)throw new Error('That AI prompt session expired. Please try your request again.');
     if(!r.ok){const t=await r.text().catch(()=>r.status);throw new Error('Error '+r.status+': '+t);}
     const data=await r.json();
+    if(data&&data.quota)syncQuotaFromServer(data.quota);
+    // The worker consumed one prompt for this action the first time the
+    // model answered successfully — mirror that on the device.
+    recordLocalQuotaAction(actionId);
+    refreshQuotaNotes();
     let raw='';
     if(Array.isArray(data.content))raw=data.content.map(x=>x.text||'').join('');
     else if(data.content)raw=String(data.content);
@@ -925,13 +1040,17 @@ async function callAI(msgs,spd,sys){
 }
 
 function enforceLimit(code){
-  const lines=code.split('\n');
-  if(lines.length>MAX_LINES){
-    const trunc=lines.slice(0,MAX_LINES);
-    if(trunc[trunc.length-1].trim()!=='</html>')trunc.push('</html>');
-    return{code:trunc.join('\n'),truncated:true,count:lines.length};
+  const total=codeBytes(code);
+  if(total<=MAX_CODE_BYTES)return{code,truncated:false,count:total};
+  const enc=new TextEncoder();
+  let out='',size=0;
+  for(const line of code.split('\n')){
+    const s=enc.encode(line+'\n').length;
+    if(size+s+16>MAX_CODE_BYTES)break; /* headroom so the appended </html> stays under the cap */
+    out+=line+'\n';size+=s;
   }
-  return{code,truncated:false,count:lines.length};
+  if(!out.trimEnd().endsWith('</html>'))out=out.trimEnd()+'\n</html>';
+  return{code:out,truncated:true,count:total};
 }
 
 /* ── PROGRESS BARS ── */
@@ -968,7 +1087,7 @@ window.aiGenerate=async function(){
     if(!isCompleteHTML(raw))throw new Error('AI did not return a complete HTML file (it may have been cut off). Try again or use Smart mode.');
     const{code,truncated,count}=enforceLimit(raw);
     _ai.code=code;_ai.conv.push({role:'assistant',content:code});
-    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines (was ${count}).`,'');
+    if(truncated)showToast(`Output trimmed to 1 MB (was ${fmtSize(count)}).`,'');
     if(!document.getElementById('ai-title').value){
       const w=prompt.split(' ').slice(0,5).join(' ');
       document.getElementById('ai-title').value=w.charAt(0).toUpperCase()+w.slice(1);
@@ -977,7 +1096,7 @@ window.aiGenerate=async function(){
     document.getElementById('ai-s2').style.display='none';
     document.getElementById('ai-s3').style.display='';
     document.getElementById('ai-prev-label').textContent=document.getElementById('ai-title').value||'Generated Game';
-    updateLineBadge('ai-line-badge',countLines(_ai.code));
+    updateSizeBadge('ai-line-badge',_ai.code);
     loadFrame('ai-frame',_ai.code);
     autoSave('ai');
   }catch(e){
@@ -1003,12 +1122,12 @@ window.aiRefine=async function(){
     if(!isCompleteHTML(raw))throw new Error('AI returned an incomplete HTML file. Try again.');
     const{code,truncated}=enforceLimit(raw);
     _ai.code=code;_ai.conv.push({role:'assistant',content:code});
-    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    if(truncated)showToast(`Output trimmed to 1 MB.`,'');
     document.getElementById('ai-refine').value='';
     stopProg('ai-prog');
     document.getElementById('ai-s2').style.display='none';
     document.getElementById('ai-s3').style.display='';
-    updateLineBadge('ai-line-badge',countLines(_ai.code));
+    updateSizeBadge('ai-line-badge',_ai.code);
     loadFrame('ai-frame',_ai.code);
     showToast('Updated! 🎉','ok');autoSave('ai');
   }catch(e){
@@ -1114,11 +1233,11 @@ window.remixGenerate=async function(){
     if(!isCompleteHTML(raw))throw new Error('AI did not return a complete HTML file (it may have been cut off). Try again or use Smart mode.');
     const{code,truncated,count}=enforceLimit(raw);
     _rx.code=code;_rx.conv.push({role:'assistant',content:code});
-    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines (was ${count}).`,'');
+    if(truncated)showToast(`Output trimmed to 1 MB (was ${fmtSize(count)}).`,'');
     stopProg('remix-prog');
     document.getElementById('remix-s2').style.display='none';
     document.getElementById('remix-s3').style.display='';
-    updateLineBadge('remix-line-badge',countLines(_rx.code));
+    updateSizeBadge('remix-line-badge',_rx.code);
     loadFrame('remix-frame',_rx.code);
     showToast('Remix ready! 🎛','ok');
     autoSave('remix');
@@ -1144,12 +1263,12 @@ window.remixRefine=async function(){
     if(!isCompleteHTML(raw))throw new Error('AI returned an incomplete HTML file. Try again.');
     const{code,truncated}=enforceLimit(raw);
     _rx.code=code;_rx.conv.push({role:'assistant',content:code});
-    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    if(truncated)showToast(`Output trimmed to 1 MB.`,'');
     document.getElementById('remix-refine').value='';
     stopProg('remix-prog');
     document.getElementById('remix-s2').style.display='none';
     document.getElementById('remix-s3').style.display='';
-    updateLineBadge('remix-line-badge',countLines(_rx.code));
+    updateSizeBadge('remix-line-badge',_rx.code);
     loadFrame('remix-frame',_rx.code);
     showToast('Updated! 🎉','ok');autoSave('remix');
   }catch(e){
@@ -1262,11 +1381,11 @@ window.aieditGenerate=async function(){
     if(!isCompleteHTML(raw))throw new Error('AI did not return a complete HTML file (it may have been cut off). Try again or use Smart mode.');
     const{code,truncated,count}=enforceLimit(raw);
     _ae.code=code;_ae.conv.push({role:'assistant',content:code});
-    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    if(truncated)showToast(`Output trimmed to 1 MB.`,'');
     stopProg('aiedit-prog');
     document.getElementById('aiedit-s2').style.display='none';
     document.getElementById('aiedit-s3').style.display='';
-    updateLineBadge('aiedit-line-badge',countLines(_ae.code));
+    updateSizeBadge('aiedit-line-badge',_ae.code);
     loadFrame('aiedit-frame',_ae.code);
     showToast('Changes applied! ✨','ok');
     autoSave('aiedit');
@@ -1292,12 +1411,12 @@ window.aieditRefine=async function(){
     if(!isCompleteHTML(raw))throw new Error('AI returned an incomplete HTML file. Try again.');
     const{code,truncated}=enforceLimit(raw);
     _ae.code=code;_ae.conv.push({role:'assistant',content:code});
-    if(truncated)showToast(`Output trimmed to ${MAX_LINES} lines.`,'');
+    if(truncated)showToast(`Output trimmed to 1 MB.`,'');
     document.getElementById('aiedit-refine').value='';
     stopProg('aiedit-prog');
     document.getElementById('aiedit-s2').style.display='none';
     document.getElementById('aiedit-s3').style.display='';
-    updateLineBadge('aiedit-line-badge',countLines(_ae.code));
+    updateSizeBadge('aiedit-line-badge',_ae.code);
     loadFrame('aiedit-frame',_ae.code);
     showToast('Updated! 🎉','ok');autoSave('aiedit');
   }catch(e){
@@ -1390,8 +1509,8 @@ window.submitManual=async function(){
   const code=document.getElementById('bk-code').value.trim();
   if(!title){showToast('Add a title.','err');_m.submitting=false;return;}
   if(!code){showToast('Add HTML code.','err');_m.submitting=false;return;}
-  const lines=countLines(code);
-  if(lines>MAX_LINES){showToast(`Code exceeds ${MAX_LINES} lines (${lines} lines). Please trim it.`,'err');_m.submitting=false;return;}
+  const size=codeBytes(code);
+  if(size>MAX_CODE_BYTES){showToast(`Code is ${fmtSize(size)} — over the 1 MB code limit (logo/background images don't count). Please trim it.`,'err');_m.submitting=false;return;}
   const btn=document.getElementById('upload-btn');const origHTML=btn.innerHTML;
   btn.innerHTML='<span class="spin">⟳</span> Saving…';btn.disabled=true;
   const co={};_m.collabs.forEach((c,i)=>{co['c'+i]={email:c.email};});
@@ -1616,7 +1735,7 @@ function restoreDraftUI(d){
     if(_ai.code){
       document.getElementById('ai-s1').style.display='none';
       document.getElementById('ai-s3').style.display='';
-      updateLineBadge('ai-line-badge',countLines(_ai.code));
+      updateSizeBadge('ai-line-badge',_ai.code);
       loadFrame('ai-frame',_ai.code);
     }
   }else{
@@ -1640,5 +1759,5 @@ function restoreDraftUI(d){
 }
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a4dac449face0f87',t:'MTc5MjUyODA4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
