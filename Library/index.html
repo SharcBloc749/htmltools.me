@@ -668,30 +668,101 @@ try{
   }
 }catch(e){}
 
-// FIX: Firebase `books` is a HEAVY node (~20MB right now — many games still store
-// their full HTML code + base64 images there). The old code `await`ed this download
-// BEFORE renderBooks(), and re-ran it every 30s poll with no guard, so the downloads
-// stacked up and the grid got stuck on its last (stale) render. Now: it never blocks
-// rendering, never runs concurrently with itself, is throttled, and re-renders on
-// completion.
+// ── BANDWIDTH-SAFE STATS (tiny `bookStats` mirror) ───────────
+// Firebase `books` is a HEAVY node: older games still carry base64 logo /
+// background images (sometimes whole HTML documents) inside it, so ONE full
+// read of it costs tens of MB. This page used to `get(ref(db,'books'))` on
+// every load and then again on a repeating timer — a single tab left open
+// burned ~900 MB of RTDB downloads per hour. That is what ate the quota.
+//
+// All counters/UI flags now live in `bookStats/<id>` (~100 bytes per game).
+// Every stats write goes to BOTH nodes atomically (see bookPatch), and the
+// heavy `books` node is read at most once per browser (one-time migration).
+const STATS_FIELDS=['likes','views','playtimeSeconds','ratingAvg','ratingCount','likedBy','undeletable','chatEnabled','chatScope','allowViewCode','ownerId','ownerName','createdAt'];
+const STATS_FLAG_KEY='htmllib_stats_mirror_v1';
 let _statsMerging=false, _lastStatsMerge=0;
+const STATS_POLL_MS=10*60*1000; // bookStats is tiny; 10 min is plenty
+
+function pickStats(src){
+  const out={};
+  if(!src||typeof src!=='object')return out;
+  for(const k of STATS_FIELDS){ if(src[k]!==undefined&&src[k]!==null)out[k]=src[k]; }
+  return out;
+}
+
+// Atomic multi-path update: writes `patch` to books/<id> and mirrors the
+// stats fields into bookStats/<id> in the SAME request (one connection).
+function bookPatch(id,patch){
+  const paths={};
+  Object.entries(patch).forEach(([k,v])=>{
+    paths['books/'+id+'/'+k]=v;
+    if(STATS_FIELDS.includes(k))paths['bookStats/'+id+'/'+k]=v;
+  });
+  return paths;
+}
+
+// One-time migration: copy existing counters out of `books` into `bookStats`.
+// It first writes a tiny probe so a permission-denied node can never turn into
+// repeated tens-of-MB downloads, and it is stamped in localStorage so each
+// browser only ever tries once a day at most.
+async function buildStatsMirrorOnce(){
+  let flag='';
+  try{flag=localStorage.getItem(STATS_FLAG_KEY)||'';}catch(e){}
+  if(flag==='done')return false;
+  if(flag&&Date.now()-Number(flag)<864e5)return false; // failed recently → back off a day
+  try{
+    // 1) Writability probe (~40 bytes). Abort BEFORE the heavy read if denied.
+    await set(ref(db,'bookStats/_meta'),{v:0,probe:Date.now()});
+  }catch(e){
+    try{localStorage.setItem(STATS_FLAG_KEY,String(Date.now()));}catch(_){}
+    console.warn('[Stats] bookStats is not writable — add a Firebase rule: "bookStats":{".read":true,".write":"auth != null"}. Stats will stay at 0 until then; `books` was NOT downloaded.',e);
+    return false;
+  }
+  try{
+    const snap=await get(ref(db,'books')); // the last full read of `books` ever
+    const raw=snap.val()||{};
+    const updates={};let n=0;
+    Object.entries(raw).forEach(([id,book])=>{
+      if(id==='_meta')return;
+      const s=pickStats(book);
+      if(!Object.keys(s).length)return;
+      Object.entries(s).forEach(([k,v])=>{updates['bookStats/'+id+'/'+k]=v;});
+      n++;
+    });
+    updates['bookStats/_meta']={v:1,at:Date.now(),games:n};
+    await update(ref(db),updates);
+    try{localStorage.setItem(STATS_FLAG_KEY,'done');}catch(e){}
+    console.info('[Stats] Mirrored '+n+' games into bookStats — `books` will not be read again');
+    return true;
+  }catch(e){
+    try{localStorage.setItem(STATS_FLAG_KEY,String(Date.now()));}catch(_){}
+    console.warn('[Stats] Stats mirror write failed',e);
+    return false;
+  }
+}
+
+async function fetchBookStats(){
+  const snap=await get(ref(db,'bookStats'));
+  const stats=snap.val();
+  const migrated=!!(stats&&stats._meta&&Number(stats._meta.v)>=1);
+  if(!migrated&&await buildStatsMirrorOnce()){
+    const again=await get(ref(db,'bookStats'));
+    return again.val()||null;
+  }
+  return stats||null;
+}
 
 async function mergeStatsFromFirebase(){
-  if(_statsMerging) return; // never stack concurrent downloads of the heavy node
+  if(_statsMerging) return; // never stack concurrent reads
   _statsMerging=true;
   try{
-    const snap=await get(ref(db,'books'));
-    const stats=snap.val()||{};
-    Object.entries(allBooks).forEach(([id,meta])=>{
-      const s=stats[id]||{};
-      if(s.likes!==undefined) meta.likes=s.likes;
-      if(s.views!==undefined) meta.views=s.views;
-      if(s.playtimeSeconds!==undefined) meta.playtimeSeconds=s.playtimeSeconds;
-      if(s.ratingAvg!==undefined) meta.ratingAvg=s.ratingAvg;
-      if(s.ratingCount!==undefined) meta.ratingCount=s.ratingCount;
-      if(s.likedBy!==undefined) meta.likedBy=s.likedBy;
-      if(s.undeletable!==undefined) meta.undeletable=s.undeletable;
-    });
+    const stats=await fetchBookStats();
+    if(stats){
+      Object.entries(allBooks).forEach(([id,meta])=>{
+        const s=stats[id];if(!s)return;
+        STATS_FIELDS.forEach(k=>{ if(s[k]!==undefined)meta[k]=s[k]; });
+      });
+    }
     _lastStatsMerge=Date.now();
     if(_booksLoaded){ renderPins(); renderBooks(); }
   }catch(e){
@@ -702,7 +773,7 @@ async function mergeStatsFromFirebase(){
 }
 
 // Background merge (likes/views/ratings) — throttled, deliberately NOT awaited.
-function maybeMergeStats(minIntervalMs=120000){
+function maybeMergeStats(minIntervalMs=STATS_POLL_MS){
   if(Date.now()-_lastStatsMerge<minIntervalMs) return;
   mergeStatsFromFirebase();
 }
@@ -781,14 +852,10 @@ onValue(ref(db,'commentCounts'),snap=>{
   Object.entries(data).forEach(([id,cnt])=>{commentCountCache[id]=cnt||0;});
   if(_booksLoaded){renderBooks();renderPins();}
 });
-onValue(ref(db,'comments'),snap=>{
-  const data=snap.val()||{};
-  // Only fill in missing entries to avoid double-rendering stomping commentCounts
-  Object.entries(data).forEach(([id,comms])=>{
-    if(commentCountCache[id]===undefined)commentCountCache[id]=comms?Object.keys(comms).length:0;
-  });
-  if(_booksLoaded){renderBooks();renderPins();}
-});
+// NOTE: the old `onValue(ref(db,'comments'))` listener downloaded EVERY comment
+// (with their text/images) on every visit and re-synced it forever — pure bandwidth
+// for a number that `commentCounts` already provides. Comments for a single game
+// are still fetched on demand when you open its comment modal.
 
 onValue(ref(db,'bannedUsers'),snap=>{bannedUsers=snap.val()||{};if(CU&&!isOwner(CU))checkBanFromCache();});
 onValue(ref(db,'siteConfig/announcement'),snap=>{
@@ -998,7 +1065,7 @@ window.remixBook=function(id,title){
 
 // ── PLAY ──────────────────────────────────────────────────────
 window.playBook=function(id){
-  const book=allBooks[id];if(book)update(ref(db,'books/'+book._origId),{views:(book.views||0)+1});
+  const book=allBooks[id];if(book)update(ref(db),bookPatch(book._origId,{views:(book.views||0)+1}));
   window.location.href='/Library/book/'+id;
 };
 
@@ -1013,6 +1080,9 @@ window.toggleLike=async function(id){
   const updates={};
   updates['books/'+book._origId+'/likedBy/'+CU.uid]=liked?null:true;
   updates['books/'+book._origId+'/likes']=Math.max(0,(book.likes||0)+(liked?-1:1));
+  // mirror into the tiny bookStats node so nothing has to read `books`
+  updates['bookStats/'+book._origId+'/likedBy/'+CU.uid]=liked?null:true;
+  updates['bookStats/'+book._origId+'/likes']=Math.max(0,(book.likes||0)+(liked?-1:1));
   await update(ref(db),updates);
   if(!liked&&book.ownerId&&book.ownerId!==CU.uid){
     set(push(ref(db,'notifications/'+book.ownerId)),{type:'like',fromName:CU.displayName||CU.email,fromUid:CU.uid,bookTitle:book.title,bookId:id,createdAt:Date.now(),read:false});
@@ -1092,7 +1162,7 @@ window.submitRate=async function(){
   const snap=await get(ref(db,'ratings/'+_ratingBookId));
   const vals=Object.values(snap.val()||{}).map(r=>r.rating||r||0).filter(Boolean);
   const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10:0;
-  await update(ref(db,'books/'+book._origId),{ratingAvg:avg,ratingCount:vals.length});
+  await update(ref(db),bookPatch(book._origId,{ratingAvg:avg,ratingCount:vals.length}));
   showToast(`Rated ${_selectedStar} ⭐ — thanks!`,'success');
   closeOverlay('rate-overlay');
 };
@@ -1115,7 +1185,7 @@ window.togglePin=async function(id){
 };
 window.toggleUndeletable=async function(id){
   if(!isOwner(CU))return;const book=allBooks[id];if(!book)return;
-  await update(ref(db,'books/'+book._origId),{undeletable:!book.undeletable});showToast(book.undeletable?'Protection removed':'Protected 🔒','success');
+  await update(ref(db),bookPatch(book._origId,{undeletable:!book.undeletable}));showToast(book.undeletable?'Protection removed':'Protected 🔒','success');
 };
 
 // ── DELETE ────────────────────────────────────────────────────
@@ -1137,6 +1207,7 @@ window.deleteBook=async function(id){
     if(!ghRes.ok || !ghJson.ok) throw new Error(ghJson.error||ghJson.details||`GitHub delete failed ${ghRes.status}`);
     // 2. Delete lightweight stats from Firebase
     try{await remove(ref(db,'books/'+_origId));}catch{}
+    try{await remove(ref(db,'bookStats/'+_origId));}catch{}
     try{await remove(ref(db,'bookCode/'+_origId));}catch{}
     try{await remove(ref(db,'comments/'+id));}catch{}
     try{await remove(ref(db,'commentCounts/'+id));}catch{}

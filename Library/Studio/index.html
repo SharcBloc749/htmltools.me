@@ -636,13 +636,27 @@ window.doSignout=async()=>await fbSignOut(auth);
 // Firebase is only a background stats/settings refresh and a fallback.
 let _statsMerging=false,_lastStatsMerge=0;
 
+// ── BANDWIDTH-SAFE STATS (`bookStats` mirror) ─────────────────
+// `books` is a heavy node (legacy base64 images / whole HTML documents), so this
+// page no longer reads it on load — stats come from the tiny `bookStats` mirror,
+// and setting changes are written to both nodes in one atomic update.
+const STATS_FIELDS=['likes','views','playtimeSeconds','ratingAvg','ratingCount','likedBy','undeletable','chatEnabled','chatScope','allowViewCode','ownerId','ownerName','createdAt','collaborators'];
+function bookPatch(id,patch){
+  const paths={};
+  Object.entries(patch).forEach(([k,v])=>{
+    paths['books/'+id+'/'+k]=v;
+    if(STATS_FIELDS.includes(k))paths['bookStats/'+id+'/'+k]=v;
+  });
+  return paths;
+}
+
 async function mergeStatsFromFirebase(){
   if(_statsMerging)return;_statsMerging=true;
   try{
-    const snap=await get(ref(db,'books'));const stats=snap.val()||{};
+    const snap=await get(ref(db,'bookStats'));const stats=snap.val()||{};
     Object.entries(allBooks).forEach(([id,meta])=>{
-      const s=stats[id];if(!s)return;
-      ['likes','views','playtimeSeconds','ratingAvg','ratingCount','likedBy','undeletable','chatEnabled','chatScope','collaborators'].forEach(k=>{if(s[k]!==undefined)meta[k]=s[k];});
+      const s=stats[id];if(!s||typeof s!=='object')return;
+      STATS_FIELDS.forEach(k=>{if(s[k]!==undefined)meta[k]=s[k];});
     });
     _lastStatsMerge=Date.now();
     renderMyGames();renderShared();updateSidebarStats();
@@ -789,14 +803,14 @@ function buildCard(id,bk,isShared){
 
 window.toggleBookChat=async function(id,val){
   const bk=allBooks[id];if(!bk)return;
-  await update(ref(db,'books/'+id),{chatEnabled:val});
+  await update(ref(db),bookPatch(id,{chatEnabled:val}));
   bk.chatEnabled=val;myBooks[id]=bk;
   const c=document.getElementById('gc-'+id);if(c)c.outerHTML=buildCard(id,bk,false);
   showToast(val?'Chat enabled':'Chat disabled','ok');
 };
 window.setBookScope=async function(id,scope){
   const bk=allBooks[id];if(!bk)return;
-  await update(ref(db,'books/'+id),{chatScope:scope});
+  await update(ref(db),bookPatch(id,{chatScope:scope}));
   bk.chatScope=scope;myBooks[id]=bk;
   const c=document.getElementById('gc-'+id);if(c)c.outerHTML=buildCard(id,bk,false);
   showToast('Scope updated','ok');
@@ -896,6 +910,7 @@ window.deleteBook=async function(id){
     // 3) Firebase cleanup (stats, code, comments, archive)
     try{await set(push(ref(db,'recentlyDeleted')),{...bk,originalId:id,deletedAt:Date.now(),deletedBy:CU.email||''});}catch{}
     await remove(ref(db,'books/'+_oid));
+    try{await remove(ref(db,'bookStats/'+_oid));}catch{}
     try{await remove(ref(db,'bookCode/'+_oid));}catch{}
     try{await remove(ref(db,'comments/'+id));}catch{}
     delete allBooks[id];delete myBooks[id];delete sharedBooks[id];

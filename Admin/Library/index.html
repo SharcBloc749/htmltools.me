@@ -721,6 +721,45 @@
 							</div>
 						</div>
 						<div class="tool-box">
+							<h3>🧹 RTDB Bandwidth Cleanup</h3>
+							<p>
+								Older games stored base64 logos, backgrounds
+								and even their full HTML directly in the realtime
+								database. That is what makes the <code>books</code>
+								node huge — and why every read of it burned
+								megabytes of download quota. Scan first, then purge
+								the blobs that already live on GitHub.<br />
+								If likes/views show 0 in the Library, allow the
+								mirror node:
+								<code>"bookStats": {".read": true, ".write": "auth != null"}</code>
+							</p>
+							<div
+								id="purge-status"
+								style="
+									margin-bottom: 0.75rem;
+									font-size: 0.75rem;
+									color: var(--muted);
+									line-height: 1.6;
+								"
+							>
+								Not scanned yet.
+							</div>
+							<div class="row">
+								<button
+									class="btn btn-ghost btn-sm"
+									onclick="scanLegacyBlobs()"
+								>
+									🔍 Scan
+								</button>
+								<button
+									class="btn btn-danger btn-sm"
+									onclick="purgeLegacyBlobs()"
+								>
+									🧹 Purge Safe Blobs
+								</button>
+							</div>
+						</div>
+						<div class="tool-box">
 							<h3>📨 Broadcast Notification</h3>
 							<p>
 								Send a notification to every registered user at
@@ -1390,6 +1429,95 @@
 				await delUserBooks(user[0],email);
 				document.getElementById('bulk-email').value='';
 			};
+			// ── RTDB BANDWIDTH CLEANUP ────────────────────────────────────────────
+			// Legacy games kept base64 logos/backgrounds (and sometimes their whole
+			// HTML) inside `books`. Nothing reads those images any more — the GitHub
+			// index is the source of truth — so they are pure download/storage weight.
+			let _blobScan = null;
+			const _blobBytes = (v) => (typeof v === 'string' ? new Blob([v]).size : 0);
+			function _fmtB(n) {
+				if (n >= 1048576) return (n / 1048576).toFixed(2) + ' MB';
+				if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+				return n + ' B';
+			}
+
+			window.scanLegacyBlobs = async function () {
+				const box = document.getElementById('purge-status');
+				box.textContent = 'Scanning books + bookCode (one-time, this is the big read)…';
+				try {
+					let idxIds = new Set();
+					try {
+						const r = await fetch('https://black-field-f5e8.bozhetarnikmatthew.workers.dev/github/index.json', { cache: 'no-store' });
+						if (r.ok) { const j = await r.json(); Object.keys(j.games || {}).forEach((k) => idxIds.add(k)); }
+					} catch (e) {}
+					const [booksSnap, codeSnap, delSnap] = await Promise.all([
+						get(ref(newDb, 'books')),
+						get(ref(newDb, 'bookCode')).catch(() => null),
+						get(ref(newDb, 'recentlyDeleted')).catch(() => null),
+					]);
+					const books = booksSnap.val() || {};
+					const codeNode = codeSnap ? codeSnap.val() || {} : {};
+					const deletedNode = delSnap ? delSnap.val() || {} : {};
+					const imgPaths = [], codePaths = [], unsafeCode = [];
+					let imgBytes = 0, codeBytes = 0, totalBytes = 0;
+					const walk = (base, obj) => {
+						Object.entries(obj || {}).forEach(([k, v]) => {
+							if (typeof v === 'string') {
+								const b = _blobBytes(v);
+								totalBytes += b;
+								if (b < 2048) return;
+								const path = base + '/' + k;
+								if (k === 'logoImage' || k === 'bgImage' || v.startsWith('data:')) {
+									imgPaths.push(path); imgBytes += b;
+								} else if (k === 'code' || k === 'html') {
+									const id = base.split('/')[1];
+									if (idxIds.has(id)) { codePaths.push(path); codeBytes += b; }
+									else unsafeCode.push(base.split('/').slice(-1)[0]);
+								}
+							} else if (v && typeof v === 'object' && !Array.isArray(v)) {
+								walk(base + '/' + k, v);
+							}
+						});
+					};
+					Object.entries(books).forEach(([id, b]) => walk('books/' + id, b));
+					Object.entries(codeNode).forEach(([id, b]) => walk('bookCode/' + id, b));
+					Object.entries(deletedNode).forEach(([id, b]) => walk('recentlyDeleted/' + id, b));
+					_blobScan = { imgPaths, codePaths };
+					box.innerHTML = [
+						`Total scanned: <b>${_fmtB(totalBytes)}</b>`,
+						`🖼 Base64 images (safe to purge): <b>${imgPaths.length}</b> → ${_fmtB(imgBytes)}`,
+						`📄 Legacy code on GitHub already (safe to purge): <b>${codePaths.length}</b> → ${_fmtB(codeBytes)}`,
+						unsafeCode.length ? `⚠️ ${unsafeCode.length} code blob(s) NOT in the GitHub index — kept.` : '✅ Every code blob is backed by GitHub.',
+					].join('<br>');
+				} catch (e) {
+					box.textContent = 'Scan failed: ' + (e.message || e);
+				}
+			};
+
+			window.purgeLegacyBlobs = async function () {
+				if (!_blobScan) { toast('Run the scan first', 'e'); return; }
+				const paths = [..._blobScan.imgPaths, ..._blobScan.codePaths];
+				if (!paths.length) { toast('Nothing to purge', 's'); return; }
+				if (!confirm(`Purge ${paths.length} blob(s) from the realtime database?\n\nThe images/code already live on GitHub, so games keep working — only dead weight is removed.`)) return;
+				const box = document.getElementById('purge-status');
+				box.textContent = 'Purging…';
+				try {
+					const CHUNK = 150;
+					for (let i = 0; i < paths.length; i += CHUNK) {
+						const upd = {};
+						paths.slice(i, i + CHUNK).forEach((p) => { upd[p] = null; });
+						await update(ref(newDb), upd);
+						box.textContent = `Purging… ${Math.min(i + CHUNK, paths.length)}/${paths.length}`;
+					}
+					logAct('cleanup', `Admin purged ${paths.length} legacy RTDB blobs`);
+					toast('Blobs purged 🧹', 's');
+					box.innerHTML = `✅ Purged ${paths.length} blob(s). The <code>books</code> node is now small, so reads are cheap again.<br>Run the scan again to confirm.`;
+					_blobScan = null;
+				} catch (e) {
+					box.textContent = 'Purge failed: ' + (e.message || e);
+				}
+			};
+
 			window.exportData=function(type){
 				let data;
 				if(type==='books'){data=Object.entries(allBooks).map(([id,b])=>({id,title:b.title,author:b.ownerName,db:b._db,likes:b.likes||0,views:b.views||0,playtimeSeconds:b.playtimeSeconds||0,createdAt:new Date(b.createdAt||0).toISOString()}));}

@@ -968,10 +968,34 @@
 						    if (currentPanel === 'overview')  renderOverview();
 						    if (currentPanel === 'analytics') renderAnalytics();
 						  });
-						  onValue(ref(db, 'books'), snap => {
-						    allBooks = snap.val() || {};
+						  // NOTE: this used to be `onValue(ref(db,'books'))`, which downloaded the WHOLE
+						  // books node (tens of MB of legacy base64 images/HTML) on every admin visit.
+						  // Book metadata now comes from the GitHub index (same source the public
+						  // Library uses) and counters from the tiny `bookStats` mirror.
+						  const renderBookPanels = () => {
 						    if (currentPanel === 'overview')  renderOverview();
 						    if (currentPanel === 'analytics') renderAnalytics();
+						  };
+						  (async () => {
+						    try {
+						      const res = await fetch('https://black-field-f5e8.bozhetarnikmatthew.workers.dev/github/index.json', { cache: 'no-store' });
+						      if (res.ok) {
+						        const idx = await res.json();
+						        allBooks = idx.games || {};
+						        renderBookPanels();
+						      }
+						    } catch (e) { console.warn('[Admin] GitHub index unavailable', e); }
+						  })();
+						  onValue(ref(db, 'bookStats'), snap => {
+						    const stats = snap.val() || {};
+						    Object.entries(allBooks).forEach(([id, b]) => {
+						      const st = stats[id];
+						      if (!st || typeof st !== 'object') return;
+						      ['likes','views','playtimeSeconds','ratingAvg','ratingCount'].forEach(k => {
+						        if (st[k] !== undefined) b[k] = st[k];
+						      });
+						    });
+						    renderBookPanels();
 						  });
 						  onValue(ref(db, 'sites'), snap => {
 						    allSites = {};

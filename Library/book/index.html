@@ -316,6 +316,21 @@ const OWNER_EMAIL='matthewbozhe@gmail.com';
 const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
 const GH_CACHE_KEY="htmlib_github_cache_v2"; // shared with the Library page
 
+// ── BANDWIDTH-SAFE STATS (`bookStats` mirror) ─────────────────
+// The `books` node is heavy (older games store base64 logo/background images and
+// sometimes whole HTML documents in it), so reading one book used to download all
+// of that on every play. Gameplay stats + chat/view settings now live in the tiny
+// `bookStats/<id>` mirror; writes go to both nodes in a single atomic update.
+const STATS_FIELDS=['likes','views','playtimeSeconds','ratingAvg','ratingCount','likedBy','undeletable','chatEnabled','chatScope','allowViewCode','ownerId','ownerName','createdAt'];
+function bookPatch(id,patch){
+  const paths={};
+  Object.entries(patch).forEach(([k,v])=>{
+    paths['books/'+id+'/'+k]=v;
+    if(STATS_FIELDS.includes(k))paths['bookStats/'+id+'/'+k]=v;
+  });
+  return paths;
+}
+
 // ── State ─────────────────────────────────────────────────────
 let currentUser=null;
 let bookId=null;
@@ -397,16 +412,27 @@ async function boot(){
   // GitHub index (full meta for new games — code lives only on GitHub).
   let fbMeta=null,ghMeta=null;
   await Promise.all([
-    (async()=>{try{const snap=await get(ref(db,'books/'+bookId));if(snap.exists()&&snap.val()&&snap.val().title)fbMeta=snap.val();}catch(e){}})(),
+    // Only the tiny mirror is read here — never the heavy `books/<id>` node (it can
+    // still contain legacy base64 images/HTML and would cost megabytes per play).
+    (async()=>{try{const snap=await get(ref(db,'bookStats/'+bookId));const v=snap.val();if(v&&typeof v==='object'&&!Array.isArray(v))fbMeta=v;}catch(e){}})(),
     (async()=>{ghMeta=await loadGitHubMeta();})()
   ]);
   bookData={...(ghMeta||{}),...(fbMeta||{})};
   if(!bookData.title){showNotFound();return;}
-  // If Firebase has no entry yet (GitHub-only game), create a lightweight one so
-  // views/likes/playtime writes have a home.
+  // If Firebase has no stats entry yet (GitHub-only game), create lightweight
+  // ones so views/likes/playtime writes have a home. No images/code go in here.
   if(!fbMeta&&ghMeta&&ghMeta.title){
     try{
-      await set(ref(db,'books/'+bookId),{title:ghMeta.title,ownerId:ghMeta.ownerId||null,ownerName:ghMeta.ownerName||null,createdAt:ghMeta.createdAt||Date.now(),likes:0,views:0});
+      await update(ref(db),{
+        ['books/'+bookId+'/title']:ghMeta.title,
+        ['books/'+bookId+'/ownerId']:ghMeta.ownerId||null,
+        ['books/'+bookId+'/ownerName']:ghMeta.ownerName||null,
+        ['books/'+bookId+'/createdAt']:ghMeta.createdAt||Date.now(),
+        ['bookStats/'+bookId+'/likes']:0,
+        ['bookStats/'+bookId+'/views']:0,
+        ['bookStats/'+bookId+'/ownerId']:ghMeta.ownerId||null,
+        ['bookStats/'+bookId+'/ownerName']:ghMeta.ownerName||null
+      });
     }catch(e){}
   }
 
@@ -428,7 +454,7 @@ async function boot(){
   document.getElementById('game-frame').srcdoc=code;
 
   // Increment view count
-  update(ref(db,'books/'+bookId),{views:(bookData.views||0)+1});
+  update(ref(db),bookPatch(bookId,{views:(bookData.views||0)+1}));
 
   // Start playtime timer
   playtimeStart=Date.now();
@@ -562,7 +588,7 @@ async function savePlaytime(){
     await set(push(ref(db,'playSessions/'+bookId)),{uid:currentUser.uid,displayName:currentUser.displayName||currentUser.email||'User',seconds:secs,playedAt:Date.now()});
   }
   const cur=bookData?bookData.playtimeSeconds||0:0;
-  await update(ref(db,'books/'+bookId),{playtimeSeconds:cur+secs});
+  await update(ref(db),bookPatch(bookId,{playtimeSeconds:cur+secs}));
   if(bookData)bookData.playtimeSeconds=(bookData.playtimeSeconds||0)+secs;
 }
 setInterval(()=>savePlaytime(),30000);
@@ -577,6 +603,9 @@ window.toggleLike=async function(){
   const updates={};
   updates[`books/${bookId}/likedBy/${currentUser.uid}`]=liked?null:true;
   updates[`books/${bookId}/likes`]=Math.max(0,(bookData.likes||0)+(liked?-1:1));
+  // mirror into `bookStats` so the Library never has to read `books`
+  updates[`bookStats/${bookId}/likedBy/${currentUser.uid}`]=liked?null:true;
+  updates[`bookStats/${bookId}/likes`]=Math.max(0,(bookData.likes||0)+(liked?-1:1));
   await update(ref(db),updates);
   if(!bookData.likedBy)bookData.likedBy={};
   if(liked)delete bookData.likedBy[currentUser.uid];else bookData.likedBy[currentUser.uid]=true;
@@ -619,7 +648,7 @@ window.submitRate=async function(){
   const ratings=snap.val()||{};const vals=Object.values(ratings).map(r=>r.rating||r||0).filter(Boolean);
   const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10:0;
   const count=vals.length;
-  await update(ref(db,'books/'+bookId),{ratingAvg:avg,ratingCount:count});
+  await update(ref(db),bookPatch(bookId,{ratingAvg:avg,ratingCount:count}));
   showToast(`Rated ${selectedStar} ⭐ — thank you!`,'success');
   closeRate();
 };
