@@ -686,6 +686,17 @@ import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/fireb
 /* ── FIREBASE ── */
 const WORKER='https://aged-heart-d9b9.bozhetarnikmatthew.workers.dev/';
 const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
+
+// Firestore-free light record: the Library reads ONLY `bookStats` (a tiny mirror)
+// so it never has to download the heavy `books` node. Write both in one update.
+function lightBookPaths(id,meta){
+  return {
+    ['books/'+id]:{title:meta.title,ownerId:CU.uid,ownerName:meta.ownerName,createdAt:meta.createdAt||Date.now(),likes:0,views:0,playtimeSeconds:0},
+    ['bookStats/'+id]:{ownerId:CU.uid,ownerName:meta.ownerName,createdAt:meta.createdAt||Date.now(),likes:0,views:0,playtimeSeconds:0,
+      chatEnabled:meta.chatEnabled!==false,chatScope:meta.chatScope||'global',allowViewCode:!!meta.allowViewCode,
+      collaborators:meta.collaborators||null}
+  };
+}
 const GH_CACHE_KEY="htmlib_github_cache_v2";
 const MAX_CODE_BYTES=1024*1024; /* 1 MB of code — matches GitHub's per-file upload cap. Logo & background images are stored separately and never count toward this. */
 const codeBytes=s=>new TextEncoder().encode(s||'').length;
@@ -1174,7 +1185,7 @@ window.aiPublish=async function(){
     });
     const j=await res.json();
     if(!res.ok || !j.ok) throw new Error(j.error||j.details||'Publish failed');
-    try{ await set(ref(db,'books/'+newId), {title: meta.title, ownerId: CU.uid, ownerName: meta.ownerName, createdAt: meta.createdAt, likes:0, views:0}); }catch{}
+    try{ await update(ref(db), lightBookPaths(newId, meta)); }catch{}
     try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(_ai.code,{headers:{"Content-Type":"text/html"}})); }catch{}
     removeAutoSave('ai');
     showToast('Published! 🎉','ok');
@@ -1313,7 +1324,7 @@ window.remixPublish=async function(){
     });
     const j=await res.json();
     if(!res.ok || !j.ok) throw new Error(j.error||j.details||'Publish failed');
-    try{ await set(ref(db,'books/'+newId), {title: meta.title, ownerId: CU.uid, ownerName: meta.ownerName, createdAt: meta.createdAt, likes:0, views:0}); }catch{}
+    try{ await update(ref(db), lightBookPaths(newId, meta)); }catch{}
     try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(_rx.code,{headers:{"Content-Type":"text/html"}})); }catch{}
     removeAutoSave('remix');
     showToast('Remix published! 🎛','ok');
@@ -1544,7 +1555,19 @@ window.submitManual=async function(){
       const j=await res.json();
       if(!res.ok || !j.ok) throw new Error(j.error||'Save failed');
       // Also keep Firebase stats in sync (for likes/views) - update lightweight entry
-      try{ await update(ref(db,'books/'+_m.editId), {title: saveMeta.title, desc: saveMeta.desc, updatedAt: saveMeta.updatedAt}); }catch{}
+      // Keep the light `books` record AND the tiny `bookStats` mirror in sync so the
+      // Library/Studio never need to download the heavy `books` node.
+      try{ await update(ref(db), {
+        ['books/'+_m.editId+'/title']:saveMeta.title,
+        ['books/'+_m.editId+'/desc']:saveMeta.desc,
+        ['books/'+_m.editId+'/updatedAt']:saveMeta.updatedAt,
+        ['bookStats/'+_m.editId+'/chatEnabled']:saveMeta.chatEnabled!==false,
+        ['bookStats/'+_m.editId+'/chatScope']:saveMeta.chatScope||'global',
+        ['bookStats/'+_m.editId+'/allowViewCode']:!!saveMeta.allowViewCode,
+        ['bookStats/'+_m.editId+'/collaborators']:saveMeta.collaborators||null,
+        ['bookStats/'+_m.editId+'/ownerId']:saveMeta.ownerId||CU.uid,
+        ['bookStats/'+_m.editId+'/ownerName']:saveMeta.ownerName||CU.displayName||CU.email
+      }); }catch{}
       try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${_m.editId}`, new Response(code,{headers:{"Content-Type":"text/html"}})); }catch{}
       showToast('Saved! ✅','ok');
     }else{
@@ -1558,7 +1581,7 @@ window.submitManual=async function(){
       const j=await res.json();
       if(!res.ok || !j.ok) throw new Error(j.error||j.details||'Publish failed');
       // Create lightweight Firebase entry for stats
-      try{ await set(ref(db,'books/'+newId), {title: saveMeta.title, ownerId: CU.uid, ownerName: saveMeta.ownerName, createdAt: saveMeta.createdAt, likes:0, views:0, playtimeSeconds:0}); }catch{}
+      try{ await update(ref(db), lightBookPaths(newId, saveMeta)); }catch{}
       try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(code,{headers:{"Content-Type":"text/html"}})); }catch{}
       removeAutoSave('manual');
       showToast('Published! 🎉','ok');
