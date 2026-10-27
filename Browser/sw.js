@@ -11,20 +11,37 @@ function hostAllowed() { try { var h = location.hostname.toLowerCase(); return A
 // URL inspection. The service worker decodes it before calling the backend.
 
 
+// The key repeated to a fixed block size, so the hot loop needs no modulo and
+// no per-character string concatenation (that version dominated page rewriting:
+// every link, image and script URL pays for it).
+const XOR_PAD = (() => {
+  const k = Uint8Array.from(KEY, (c) => c.charCodeAt(0));
+  const n = k.length * Math.floor(8192 / k.length);
+  const pad = new Uint8Array(n);
+  for (let i = 0; i < n; i++) pad[i] = k[i % k.length];
+  return pad;
+})();
+
 function xorStr(s) {
+  const n = s.length;
+  if (!n) return '';
+  const cl = XOR_PAD.length;
   let out = '';
-  for (let i = 0; i < s.length; i++) {
-    out += String.fromCharCode(s.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
+  for (let start = 0; start < n; start += cl) {
+    const len = n - start < cl ? n - start : cl;
+    const buf = new Array(len);
+    for (let j = 0; j < len; j++) buf[j] = s.charCodeAt(start + j) ^ XOR_PAD[j];
+    out += String.fromCharCode.apply(null, buf);
   }
   return out;
 }
 
 function b64urlEncode(s) {
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(s).replace(/[+/=]/g, (c) => (c === '+' ? '-' : c === '/' ? '_' : ''));
 }
 
 function b64urlDecode(s) {
-  let b = s.replace(/-/g, '+').replace(/_/g, '/');
+  let b = s.replace(/[-_]/g, (c) => (c === '-' ? '+' : '/'));
   while (b.length % 4) b += '=';
   return atob(b);
 }
@@ -34,9 +51,22 @@ function b64urlDecode(s) {
  * @param {string} url    absolute URL, e.g. https://example.com/page
  * @param {string} prefix base path of the app, e.g. '/' or '/browser/'
  */
+// Encoding is pure, and pages repeat the same URLs constantly (menus, icons,
+// beacons, site chrome). Remember recent results instead of re-scrambling them.
+const ENC_MEMO = new Map();
+function memoEncode(kind, url, prefix, make) {
+  const k = kind + prefix + '\u0000' + url;
+  const hit = ENC_MEMO.get(k);
+  if (hit !== undefined) return hit;
+  const out = make();
+  if (ENC_MEMO.size > 4000) ENC_MEMO.clear();
+  ENC_MEMO.set(k, out);
+  return out;
+}
+
 function encodeUrl(url, prefix = '/') {
   const p = prefix.endsWith('/') ? prefix : prefix + '/';
-  return p + '~/' + b64urlEncode(xorStr(encodeURIComponent(url)));
+  return memoEncode('p', String(url), p, () => p + '~/' + b64urlEncode(xorStr(encodeURIComponent(url))));
 }
 
 /**
@@ -81,13 +111,22 @@ function decodeBlob(tail) {
   return out;
 }
 
+/** Decode the proxied URL out of a Referer header (path form or ?u= form). */
+function decodeRefUrl(ref) {
+  if (!ref) return null;
+  try {
+    const u = new URL(ref);
+    return decodeBlob(u.searchParams.get('u') || '') || decodeUrl(u.pathname) || null;
+  } catch { return null; }
+}
+
 /**
  * Query-string form: path stays short (/~/?u=…) so the browser's service
  * worker never skips the request for URL-length reasons on navigations.
  */
 function encodeUrlQ(url, prefix = '/') {
   const p = prefix.endsWith('/') ? prefix : prefix + '/';
-  return p + '~/?u=' + b64urlEncode(xorStr(encodeURIComponent(url)));
+  return memoEncode('q', String(url), p, () => p + '~/?u=' + b64urlEncode(xorStr(encodeURIComponent(url))));
 }
 
 // HTMLTools Browser — HTML/CSS URL rewriter.
@@ -100,6 +139,7 @@ const SKIP_RE = /^(#|data:|blob:|about:|mailto:|tel:|sms:|javascript:|file:|cid:
 /** Decode HTML entities in attribute values (&amp; → & etc). Without this,
  *  every URL with a query string gets literal "&amp;" baked into its encoded
  *  form and the target site receives garbage parameters. */
+const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 function decodeEntities(s) {
   return s.replace(/&(#[xX]?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (m, ent) => {
     if (ent[0] === '#') {
@@ -113,8 +153,7 @@ function decodeEntities(s) {
       return m;
     }
     const e = ent.toLowerCase();
-    const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
-    return named[e] !== undefined ? named[e] : m;
+    return NAMED_ENTITIES[e] !== undefined ? NAMED_ENTITIES[e] : m;
   });
 }
 
@@ -608,12 +647,18 @@ const DEBUG_PATH = ROOT + '/~/__ht/debug';
 const dbg = [];
 const pageBase = new Map(); // clientId → <base href> of that page (if any)
 const pageReal = new Map(); // clientId → real URL of the page painted in that frame
+const pageMiss = new Map(); // clientId → when we last failed to resolve it (negative cache)
 let lastReal = '';
 
 // Which real page does this (nested) client show? Cached; if the worker was
-// restarted and forgot, ask the frame itself.
+// restarted and forgot, ask the frame itself. A frame that does not answer is
+// remembered for a few seconds: this runs for nearly every subresource, and
+// waiting on (or re-asking) a frame that never replies stalls the request.
+const REAL_MISS_MS = 8000;
 async function realFor(clientId) {
   if (pageReal.has(clientId)) return pageReal.get(clientId);
+  const missed = pageMiss.get(clientId);
+  if (missed && Date.now() - missed < REAL_MISS_MS) return lastReal || null;
   try {
     const c = await self.clients.get(clientId);
     if (!c || c.frameType !== 'nested') return null; // the app page itself — never touch
@@ -621,10 +666,12 @@ async function realFor(clientId) {
       const ch = new MessageChannel();
       ch.port1.onmessage = (m) => res(m.data && m.data.url);
       c.postMessage({ type: 'whoami' }, [ch.port2]);
-      setTimeout(() => res(null), 400);
+      setTimeout(() => res(null), 150);
     });
     const url = r || lastReal || null;
-    if (url) pageReal.set(clientId, url);
+    if (url) { pageReal.set(clientId, url); pageMiss.delete(clientId); }
+    else pageMiss.set(clientId, Date.now());
+    if (pageMiss.size > 300) pageMiss.delete(pageMiss.keys().next().value);
     return url;
   } catch { return null; }
 }
@@ -634,7 +681,11 @@ async function realFor(clientId) {
 // real site that path lives on the REAL origin — map it there instead of
 // letting the host answer with its own 404.
 async function catchAll(event, req, url) {
-  const real = await realFor(event.clientId);
+  // Resolve the page from the request's own referer when possible: this path
+  // runs for every same-origin asset of a proxied page, and asking the client
+  // (round-trip + possible timeout) for each one made page loads drag.
+  let real = decodeRefUrl(req.headers.get('referer') || req.referrer || '') || '';
+  if (!/^https?:/i.test(real)) real = await realFor(event.clientId);
   if (!real) return fetch(req);
   let target;
   try {
@@ -830,17 +881,109 @@ function extInject(targetUrl, isTop) {
 }
 
 
+// ── static asset cache ───────────────────────────────────────────────────
+// Proxied images, fonts, stylesheets and scripts were re-downloaded through
+// the backend on every page view. Keep the ones whose OWN response says it may
+// be cached (max-age / immutable, no Set-Cookie, no Vary: cookie) and serve
+// repeat requests straight out of Cache Storage. Navigations, no-store assets,
+// ranged requests and personalised responses are never touched — so dynamic
+// images (captchas, avatars served with no-store) still hit the network.
+const ASSET_CACHE = 'htmltools-assets-' + VERSION;
+const CACHE_DESTS = new Set(['image', 'font', 'style', 'script', 'manifest']);
+const ASSET_MAX_BYTES = 4 * 1024 * 1024; // don't cache a single file bigger than this
+const ASSET_MAX_ENTRIES = 500;
+const ASSET_MAX_TTL = 24 * 60 * 60 * 1000; // never honour more than a day
+let assetWrites = 0;
+
+/** Cache lifetime (ms) declared by an upstream Cache-Control header, else 0. */
+function cacheTTL(cc) {
+  if (!cc) return 0;
+  const s = String(cc);
+  if (/no-store|no-cache/i.test(s)) return 0;
+  const m = /(?:^|,)\s*(?:s-maxage|max-age)\s*=\s*"?(\d+)/i.exec(s);
+  let ttl = m ? Number(m[1]) * 1000 : (/immutable/i.test(s) ? 86400000 : 0);
+  if (!(ttl > 0)) return 0;
+  return Math.min(ttl, ASSET_MAX_TTL);
+}
+
+/** Cache key for a request, or '' when the request must not be served from cache. */
+function assetKey(request, targetUrl) {
+  if (!targetUrl) return '';
+  if (request.method !== 'GET') return '';
+  if (!CACHE_DESTS.has(request.destination || '')) return '';
+  if (request.headers.get('range')) return '';
+  if (request.headers.get('x-ht-nav') === '1') return '';
+  return targetUrl;
+}
+
+// URLs whose responses said "don't cache" — skip the Cache Storage lookup for
+// them instead of paying one on every repeat request (beacons, avatars, ads).
+const assetMiss = new Map();
+const ASSET_MISS_MS = 5 * 60 * 1000;
+function assetKnownUncacheable(key) {
+  const t = assetMiss.get(key);
+  if (!t) return false;
+  if (Date.now() - t < ASSET_MISS_MS) return true;
+  assetMiss.delete(key);
+  return false;
+}
+function assetNoteUncacheable(key) {
+  if (!key) return;
+  assetMiss.set(key, Date.now());
+  if (assetMiss.size > 2000) assetMiss.delete(assetMiss.keys().next().value);
+}
+
+async function assetGet(key) {
+  if (!key) return null;
+  try {
+    const cache = await caches.open(ASSET_CACHE);
+    const hit = await cache.match(key);
+    if (!hit) return null;
+    const exp = Number(hit.headers.get('x-ht-exp') || 0);
+    if (!exp || exp < Date.now()) { cache.delete(key).catch(() => {}); return null; }
+    const headers = new Headers(hit.headers);
+    headers.delete('x-ht-exp');
+    return new Response(hit.body, { status: 200, statusText: 'OK', headers });
+  } catch { return null; }
+}
+
+function assetPut(event, key, status, headers, body, size, meta) {
+  if (!key || status !== 200 || body == null) return;
+  if (size > ASSET_MAX_BYTES) { assetNoteUncacheable(key); return; }
+  if (meta['set-cookie'] && meta['set-cookie'].length) { assetNoteUncacheable(key); return; }
+  if (/\*|cookie|authorization/i.test(String(meta['vary'] || ''))) { assetNoteUncacheable(key); return; }
+  const ttl = cacheTTL(meta['cache-control']);
+  if (!ttl) { assetNoteUncacheable(key); return; }
+  const out = new Headers(headers);
+  out.delete('content-length');
+  out.set('x-ht-exp', String(Date.now() + ttl));
+  const job = caches.open(ASSET_CACHE)
+    .then((c) => c.put(key, new Response(body, { status: 200, headers: out })))
+    .then(async () => {
+      if (++assetWrites % 20 !== 0) return;
+      const c = await caches.open(ASSET_CACHE);
+      const keys = await c.keys();
+      const extra = keys.length - ASSET_MAX_ENTRIES;
+      for (let i = 0; i < extra; i++) await c.delete(keys[i]);
+    })
+    .catch(() => {});
+  if (event && typeof event.waitUntil === 'function') event.waitUntil(job); else job.catch(() => {});
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
-      if (!RUNTIME_SRC) {
-        try { RUNTIME_SRC = await (await fetch('./runtime.js')).text(); } catch { RUNTIME_SRC = ''; }
-      }
-      const cache = await caches.open('htmltools-' + VERSION);
-      for (const f of ['./', './index.html']) {
-        try { await cache.add(f); } catch { /* optional */ }
-      }
+      // Take over right away; warming the shell cache must not delay activation.
+      const warm = (async () => {
+        if (!RUNTIME_SRC) {
+          try { RUNTIME_SRC = await (await fetch('./runtime.js')).text(); } catch { RUNTIME_SRC = ''; }
+        }
+        const cache = await caches.open('htmltools-' + VERSION);
+        // One copy of the shell (./ and ./index.html are the same document).
+        await cache.add('./').catch(() => {});
+      })().catch(() => {});
       await self.skipWaiting();
+      await warm;
     })()
   );
 });
@@ -849,7 +992,8 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== 'htmltools-' + VERSION).map((k) => caches.delete(k)));
+      const keep = new Set(['htmltools-' + VERSION, ASSET_CACHE]);
+      await Promise.all(keys.filter((k) => !keep.has(k)).map((k) => caches.delete(k)));
       await self.clients.claim();
     })()
   );
@@ -922,6 +1066,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Our own shell: load it normally, but fall back to the install-time copy when
+  // the network is gone (so the browser still opens instead of erroring).
+  if (req.mode === 'navigate' && (url.pathname === SCOPE || url.pathname === SCOPE + 'index.html')) {
+    event.respondWith((async () => {
+      try {
+        return await fetch(req);
+      } catch {
+        try {
+          const cache = await caches.open('htmltools-' + VERSION);
+          return (await cache.match('./', { ignoreSearch: true })) || Response.error();
+        } catch {
+          return Response.error();
+        }
+      }
+    })());
+    return;
+  }
+
   let target = decodeUrl(url.pathname) || decodeBlob(url.searchParams.get('u') || '');
   if (!target || !/^https?:/i.test(target)) {
     // A /~/ path we can't decode = a mangled/double-wrapped link. Show a
@@ -944,7 +1106,7 @@ self.addEventListener('fetch', (event) => {
     return; // otherwise: normal app traffic
   }
   event.respondWith(
-    handle(req, target, { clientId: event.clientId }).catch((err) => {
+    handle(req, target, { clientId: event.clientId, event }).catch((err) => {
       console.error('[htmltools] engine error:', err);
       return new Response('HTMLTools engine error: ' + (err && err.message), {
         status: 502,
@@ -955,11 +1117,20 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ── runtime script (served live with current settings) ──────────────────
+let runtimeMemo = null;
+let runtimeMemoKey = '';
 function runtimeSource() {
-  return (RUNTIME_SRC || '')
+  // Runs for every proxied page (injectRuntime). The source only changes when
+  // the runtime/settings do, so expand the placeholders once and reuse it —
+  // three full-string scans per navigation add up on big pages.
+  const key = KEY + '\u0000' + SCOPE + '\u0000' + backend + '\u0000' + RUNTIME_SRC.length;
+  if (runtimeMemo !== null && runtimeMemoKey === key) return runtimeMemo;
+  runtimeMemoKey = key;
+  runtimeMemo = (RUNTIME_SRC || '')
     .replaceAll('__HT_KEY__', KEY)
     .replaceAll('__HT_PREFIX__', SCOPE)
     .replaceAll('__HT_BACKEND__', backend);
+  return runtimeMemo;
 }
 async function serveRuntime() {
   await backendReady;
@@ -988,14 +1159,15 @@ async function handle(request, targetUrl, opts = {}) {
   }
   // Our own /~/ referer decodes into the real referer.
   const ref = request.headers.get('referer') || request.referrer || '';
-  let decRef = null;
-  if (ref) {
-    try { decRef = decodeUrl(new URL(ref).pathname); } catch {}
-  }
+  const decRef = decodeRefUrl(ref);
   // Referer/Origin must be those of the REAL PAGE making the request (APIs such as
   // Firebase/YouTube keys are locked to the site's own domain and answered 403
   // "Requests from referer https://www.googleapis.com/ are blocked" before).
+  // The referer header of a proxied request already decodes to that page, so use
+  // it first: asking the client instead costs a round-trip inside the worker for
+  // every single subresource (the slowest part of loading a page).
   let pageUrl = opts.referer || '';
+  if (!pageUrl && decRef && /^https?:/i.test(decRef)) pageUrl = decRef;
   if (!pageUrl && opts.clientId) { try { pageUrl = (await realFor(opts.clientId)) || ''; } catch {} }
   let pageOrigin = '';
   try { pageOrigin = pageUrl ? new URL(pageUrl).origin : ''; } catch {}
@@ -1061,6 +1233,14 @@ async function handle(request, targetUrl, opts = {}) {
 
   const cookie = store.forUrl(tURL);
   if (cookie) fwd['cookie'] = cookie;
+
+  // Static assets the upstream said are cacheable come straight from Cache
+  // Storage — no backend round-trip at all.
+  const cKey = assetKey(request, targetUrl);
+  if (cKey && !assetKnownUncacheable(cKey)) {
+    const hit = await assetGet(cKey);
+    if (hit) return hit;
+  }
   if (request.method !== 'GET' && request.method !== 'HEAD') fwd['origin'] = pageOrigin || tURL.origin;
   else if (pageOrigin && pageOrigin !== tURL.origin && request.mode === 'cors') fwd['origin'] = pageOrigin;
 
@@ -1170,6 +1350,7 @@ async function handle(request, targetUrl, opts = {}) {
       const js = rewriteJsLoc(await resp.text());
       headers.set('content-type', ctype || 'text/javascript; charset=utf-8');
       headers.delete('content-length');
+      assetPut(opts.event, cKey, status, headers, js, js.length, meta);
       return new Response(js, { status, headers });
     } catch (e) { /* fall through to raw */ }
   }
@@ -1177,6 +1358,7 @@ async function handle(request, targetUrl, opts = {}) {
   if (isCSS) {
     const css = rewriteCss(await resp.text(), targetUrl, (u) => encodeUrlQ(u, SCOPE));
     headers.set('content-type', ctype || 'text/css; charset=utf-8');
+    assetPut(opts.event, cKey, status, headers, css, css.length, meta);
     return new Response(css, { status, headers });
   }
 
@@ -1187,6 +1369,7 @@ async function handle(request, targetUrl, opts = {}) {
   const buf = await resp.arrayBuffer();
   const noBody = status === 204 || status === 205 || status === 304;
   if (isNavReq && status >= 500 && buf.byteLength === 0) return upstreamErrorPage(targetUrl, 'The site answered with an error (' + status + ') and no page.');
+  if (!noBody) assetPut(opts.event, cKey, status, headers, buf, buf.byteLength, meta);
   return new Response(noBody ? null : buf, { status, headers });
 }
 
@@ -1311,7 +1494,16 @@ async function inlineStylesheets(html, targetUrl) {
       return null;
     }
   });
-  const results = await Promise.all(jobs);
+  // Never let a slow stylesheet hold up the HTML response: the browser can
+  // fetch the (already rewritten) <link> itself, in parallel with everything
+  // else it discovers while parsing, which beats blocking the whole page.
+  let timer = 0;
+  const results = await Promise.race([
+    Promise.all(jobs),
+    new Promise((res) => { timer = setTimeout(() => res(null), 600); }),
+  ]);
+  clearTimeout(timer);
+  if (!results) return html;
   for (const r of results) {
     if (r) html = html.replace(r.tag, '<style data-ht-inlined="1">' + r.css + '</style>');
   }
@@ -1365,13 +1557,26 @@ function findBase(html, targetUrl) {
   } catch { return ''; }
 }
 
+// The runtime is inlined into every page, so keep the "safe to embed" copy
+// around: escaping 36 KB of JS again for each navigation is wasted work.
+let runtimeInlineMemo = null;
+let runtimeInlineFor = null;
+function runtimeInlineSource() {
+  const src = runtimeSource();
+  if (runtimeInlineFor !== src) {
+    runtimeInlineFor = src;
+    runtimeInlineMemo = src.replace(/<\/script/gi, '<\\/script');
+  }
+  return runtimeInlineMemo;
+}
+
 function injectRuntime(html, targetUrl, baseUrl, isTop) {
   // Inline the runtime: painted (document.write) frames and strict-CSP-ish
   // pages can be flaky about loading external scripts, but fetches through
   // the SW always work — so ship the runtime inside the HTML itself.
   const tag =
     `<script>window.__HT_REAL_URL__=${JSON.stringify(targetUrl)};${baseUrl ? 'window.__HT_BASE__=' + JSON.stringify(baseUrl) + ';' : ''}</script>` +
-    `<script>${runtimeSource().replace(/<\/script/gi, '<\\/script')}</script>` +
+    `<script>${runtimeInlineSource()}</script>` +
     siteFixes(targetUrl) + extInject(targetUrl, !!isTop);
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => m + tag);
   if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => m + tag);
