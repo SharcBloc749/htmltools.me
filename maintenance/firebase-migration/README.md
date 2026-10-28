@@ -1,5 +1,27 @@
 # Safe Firebase cutover
 
+## Button-based Authentication transfer (Windows)
+
+For an HTML interface instead of Firebase CLI commands:
+
+1. Download/extract this repository to your computer. Install **Node.js 24 LTS** from https://nodejs.org (Node 22 also supported). Close/reopen any existing terminal after installation.
+2. Open `maintenance/firebase-migration` and double-click **START-AUTH-TRANSFER.cmd**. It installs the existing local dependencies on first run, starts a local server, and prints a private localhost URL. Copy that whole URL into your browser. Keep the terminal open. Do not upload this folder's admin service to a public host.
+3. In Firebase Console, open the **old project** → Project settings → Service accounts → Firebase Admin SDK → Generate new private key. Repeat for the **new project**. Store these JSON files outside the checkout. These are administrator credentials, not the public Firebase web config.
+4. Select those two files in the HTML interface and click **Preview accounts — no writes**. Source service-account permissions must include user listing and `firebaseauth.configs.getHashConfig` to read password hashes. The destination needs user import/list permissions. The tool refuses an occupied destination, unavailable hashes, and detected MFA accounts.
+5. Enter the **old project's SCRYPT hash parameters** into the labeled fields. Nothing is prefilled with private values. No Firebase login CLI command is needed for this interface.
+6. Back up both projects first, pause destination sign-ups and other admin writes, check the confirmation box, type `general-database-4cb1c`, then click **Import accounts into new project**.
+7. Review the result and test original passwords/provider sign-in and matching UIDs. Enable/configure the same providers in the new Firebase project. Click **Clear private session**, then press Ctrl+C in the terminal. Delete key downloads when finished and revoke temporary service-account keys.
+
+Opening `auth-transfer.html` directly only displays the form; use the launcher's localhost URL for working buttons. On macOS/Linux, run `npm ci` then `node auth-server.mjs` from this directory instead.
+
+The source is never written to. The tool copies the default project's Auth user pool, retaining UIDs, password hashes/salts, linked provider records, user profile fields, disabled/email-verified status, custom claims and available creation/sign-in metadata. It does **not** filter Auth accounts for spam, copy MFA, tenant users, refresh-token sessions, provider secrets, provider/project settings, Storage or database data. MFA accounts detected in the default pool block the import for manual handling. The source SCRYPT settings must be correct; the tool cannot test users' plaintext passwords for you.
+
+The destination-empty check is not an atomic lock on Firebase Auth. Keep sign-ups and other administrators' writes paused throughout. Imports run in batches of up to 1,000; partial failures can leave imported users in the destination. Do not blindly delete or retry after errors. Inspect the destination and use a deliberate reconciliation procedure. After a successful transfer this interface clears its in-memory user list and Firebase app credentials; it never saves key files or account exports itself. Uploaded files still exist wherever you downloaded them, and server/SDK memory can persist until the process exits.
+
+The server binds to `0.0.0.0` but rejects non-loopback connections and unexpected hosts. It also requires a random launch token, an HTTP-only same-site session cookie, and same-origin JSON POSTs. This is a local administrative utility, not a remotely hosted service. No Analytics or other third-party browser assets are loaded. Do not run it behind a public reverse proxy.
+
+**Tests:** `node --test review.test.mjs auth-server.test.mjs`. Local session/origin guards, invalid project handling, and UI script syntax are tested. Live account export/import and password verification require your admin credentials and have not been run in this sandbox.
+
 ## What is and is not done
 
 The 23 HTML pages in this repository referencing `website-encryption-htmltools` now target `general-database-4cb1c`. Other Firebase projects are intentionally unchanged. No production data, accounts, rules, worker deployment, or Cloudflare configuration has been modified by these files. Do **not** deploy the frontend before completing the migration below. The screenshot shows download usage, not its cause; it cannot establish whether bots, legitimate artwork/history downloads, or worker traffic caused it.
