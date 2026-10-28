@@ -195,13 +195,13 @@ footer .dot{color:var(--borderhi);}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
 var FB_CONFIG = {
-  apiKey:"AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
-  authDomain:"website-encryption-htmltools.firebaseapp.com",
-  databaseURL:"https://website-encryption-htmltools-default-rtdb.firebaseio.com",
-  projectId:"website-encryption-htmltools",
-  storageBucket:"website-encryption-htmltools.firebasestorage.app",
-  messagingSenderId:"211271935323",
-  appId:"1:211271935323:web:1abb9d416087ea89c0e67e"
+  apiKey:"AIzaSyDNelWu7deMsAKfDdZjbQX_G-hJkcyzbUw",
+  authDomain:"general-database-4cb1c.firebaseapp.com",
+  databaseURL:"https://general-database-4cb1c-default-rtdb.firebaseio.com",
+  projectId:"general-database-4cb1c",
+  storageBucket:"general-database-4cb1c.firebasestorage.app",
+  messagingSenderId:"291066015509",
+  appId:"1:291066015509:web:33761d4f042656f595431c"
 };
 firebase.initializeApp(FB_CONFIG);
 var db = firebase.database();
@@ -308,14 +308,23 @@ document.getElementById('signout-btn').addEventListener('click', async function(
 // ── LOAD PIECES (from art_museum, where the Upload flow actually publishes to) ──
 var allPieces = [];
 
+var museumRef = null;
 function loadPieces(){
-  db.ref('art_museum').on('value', function(snap){
-    var val = snap.val() || {};
-    allPieces = Object.keys(val).map(function(id){
-      var p = val[id]; p.id = id; return p;
-    });
-    renderStats();
-    applyFiltersAndRender();
+  // Attach once; child events avoid re-downloading every artwork on each view/like.
+  if (museumRef) return;
+  museumRef = db.ref('art_museum');
+  function changed(snap){
+    var p = snap.val(); if (!p || typeof p !== 'object') return;
+    p.id = snap.key;
+    var i = allPieces.findIndex(function(item){ return item.id === snap.key; });
+    if (i < 0) allPieces.push(p); else allPieces[i] = p;
+    renderStats(); applyFiltersAndRender();
+  }
+  museumRef.on('child_added', changed);
+  museumRef.on('child_changed', changed);
+  museumRef.on('child_removed', function(snap){
+    allPieces = allPieces.filter(function(p){ return p.id !== snap.key; });
+    renderStats(); applyFiltersAndRender();
   });
 }
 

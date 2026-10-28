@@ -35,3 +35,7 @@ Then open <http://localhost:8000>. Tools that depend on APIs, sign-in, or hosted
 ---
 
 Made by Matthew · [htmltools.me](https://htmltools.me)
+
+## Firebase project migration
+
+The old website-encryption Firebase configuration has been replaced in the affected tools. **Complete the administrative migration before deploying these changes.** See [the migration runbook](maintenance/firebase-migration/README.md) for account/password migration, worker updates, database rules, verification and rollback. The [offline HTML review page](maintenance/firebase-migration/index.html) screens an exported RTDB JSON file without sending it to a server.
