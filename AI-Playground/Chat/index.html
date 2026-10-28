@@ -1451,7 +1451,12 @@
   </section>
 
   <!-- Firebase Scripts -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script>
+    // The AI worker can also serve this HTML; its router does not host static assets.
+    // Keep local/preview hosting relative, and load the deployed site's asset on workers.dev.
+    document.write('<script src="' + (location.hostname.endsWith('.workers.dev') ? 'https://htmltools.me' : '') + '/assets/firebase-data.js"><\/script>');
+  </script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
@@ -2051,20 +2056,17 @@
       if (!user) return;
       const generation = ++listLoadGeneration;
       try {
-        const snap = await db.ref("users/" + user.uid + "/conversations").once("value");
-        if (generation !== listLoadGeneration) return;
-        const val = snap.val() || {};
-        conversationsCache = Object.entries(val)
-          .filter(([, v]) => v && typeof v === "object")
-          .map(([id, v]) => ({ id, ...v }))
-          .sort((a, b) => (b.updated || 0) - (a.updated || 0));
-        renderList(conversationsCache);
-      } catch (_) {}
+        await HTData.page(db, 'conversation_index/' + user.uid + '/playground', 'updated', function(values){
+          if (generation !== listLoadGeneration) return;
+          conversationsCache = values;
+          renderList(values);
+        }, '#list');
+      } catch (error) { console.error("Could not load conversation index", error); }
     }
 
     function renderList(items) {
       const countEl = document.getElementById("convCount");
-      if (countEl) countEl.textContent = items.length + " thread" + (items.length === 1 ? "" : "s");
+      if (countEl) countEl.textContent = items.length + " loaded thread" + (items.length === 1 ? "" : "s");
 
       const listEl = document.getElementById("list");
       if (!items.length) {
@@ -2102,7 +2104,7 @@
       e.stopPropagation();
       if (!confirm("Delete this conversation?")) return;
       try {
-        await db.ref("users/" + user.uid + "/conversations/" + id).remove();
+        await HTData.remove(db, 'users/' + user.uid + '/conversations/' + id, 'conversation_index/' + user.uid + '/playground/' + id);
         conversationsCache = conversationsCache.filter(c => c.id !== id);
         renderList(conversationsCache);
         if (convId === id) {
@@ -2141,7 +2143,7 @@
 
     function saveConversation(id, patch) {
       if (!user || !id) return Promise.resolve();
-      return db.ref("users/" + user.uid + "/conversations/" + id).update(patch);
+      return HTData.save(db, 'users/' + user.uid + '/conversations/' + id, 'conversation_index/' + user.uid + '/playground/' + id, patch, true);
     }
 
     function setStatus(text, isActive) {
@@ -2303,7 +2305,7 @@
               deep: requestDeep,
               updated: Date.now()
             });
-          } catch (_) {}
+          } catch (error) { alert("Reply was not saved: " + error.message + ". Copy it before leaving this page."); }
         }
 
         // If the user stayed on this conversation, keep the active thread in
@@ -2385,7 +2387,7 @@
           patch.modelName = selectedModel.name;
         }
 
-        saveConversation(selectedConversationId, patch).catch(err => console.error("Firebase update error:", err));
+        saveConversation(selectedConversationId, patch).catch(err => alert("Conversation was not saved: " + err.message));
       }
 
       runModel(selectedModel, selectedThread, selectedConversationId, selectedDeep);
@@ -2421,8 +2423,7 @@
 
       while (retries > 0) {
         try {
-          const snap = await db.ref("users/" + user.uid + "/conversations/" + id).once("value");
-          v = snap.val();
+          v = await HTData.detail(db,'users/'+user.uid+'/conversations/'+id);
           if (v) break;
         } catch (_) {}
 

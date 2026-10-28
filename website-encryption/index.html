@@ -415,15 +415,23 @@ function slugFor(email, uid) {
 /* ── worker API (Firebase ID token as bearer) ── */
 async function api(path, opts) {
   opts = opts || {};
-  var token = await currentUser.getIdToken();
-  var res = await fetch(WORKER + path, {
-    method: opts.method || 'GET',
-    headers: { 'authorization': 'Bearer ' + token, 'content-type': 'application/json' },
-    body: opts.body ? JSON.stringify(opts.body) : undefined
-  });
-  var data = {};
-  try { data = await res.json(); } catch (e) {}
-  if (!res.ok) throw new Error(data.error || ('Worker error HTTP ' + res.status));
+  if(!currentUser)throw new Error('Sign in before using the vault.');
+  var res, data;
+  // A 401 occurs before authenticated writes. Refresh once, never loop/retry 5xx writes.
+  for(var attempt=0;attempt<2;attempt++){
+    var token=await currentUser.getIdToken(attempt===1);
+    res=await fetch(WORKER+path,{
+      method:opts.method||'GET',headers:{authorization:'Bearer '+token,'content-type':'application/json'},
+      body:opts.body?JSON.stringify(opts.body):undefined
+    });
+    data={};try{data=await res.json();}catch(e){}
+    if(res.status!==401)break;
+  }
+  if(!res.ok){
+    var message=data.error||('Worker error HTTP '+res.status);
+    if(res.status===401)message+=' — sign in again; the worker must use FIREBASE_PROJECT_ID=general-database-4cb1c.';
+    throw new Error(message);
+  }
   return data;
 }
 
