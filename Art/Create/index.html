@@ -334,13 +334,13 @@ input.inp:focus{border-color:var(--borderhi);}
 <script>
 // ══════════════════════════ SETUP ══════════════════════════
 var FB_CONFIG = {
-  apiKey:"AIzaSyD5a8c91a66S6DeTbXN_ltfA8kwqoenl7s",
-  authDomain:"website-encryption-htmltools.firebaseapp.com",
-  databaseURL:"https://website-encryption-htmltools-default-rtdb.firebaseio.com",
-  projectId:"website-encryption-htmltools",
-  storageBucket:"website-encryption-htmltools.firebasestorage.app",
-  messagingSenderId:"211271935323",
-  appId:"1:211271935323:web:1abb9d416087ea89c0e67e"
+  apiKey:"AIzaSyDNelWu7deMsAKfDdZjbQX_G-hJkcyzbUw",
+  authDomain:"general-database-4cb1c.firebaseapp.com",
+  databaseURL:"https://general-database-4cb1c-default-rtdb.firebaseio.com",
+  projectId:"general-database-4cb1c",
+  storageBucket:"general-database-4cb1c.firebasestorage.app",
+  messagingSenderId:"291066015509",
+  appId:"1:291066015509:web:33761d4f042656f595431c"
 };
 firebase.initializeApp(FB_CONFIG);
 var db = firebase.database();
@@ -743,6 +743,7 @@ function dbRefForPixel(x,y){
 }
 function writePixelRaw(x,y,color){
   var key=pxKey(x,y);
+  if ((pixelData[key] || null) === color) return; // Do not re-write unchanged pixels.
   if(color===null){
     delete pixelData[key];
     ctx.clearRect(canvasXFor(x), canvasYFor(y), cellSizeCanvas(), cellSizeCanvas());
@@ -1045,12 +1046,13 @@ function sendChat(){
 }
 
 // ══════════════════════════ PRESENCE ══════════════════════════
-var presenceUsers={}; var lastCursorSend=0;
+var presenceUsers={}; var lastCursorSend=0; var presenceStarted=false;
 function updateMyCursorFirebase(x,y,drawing){
-  var now=Date.now(); if(now-lastCursorSend<60) return; lastCursorSend=now;
+  var now=Date.now(); if(document.hidden || now-lastCursorSend<250) return; lastCursorSend=now;
   db.ref('art_presence/'+ROOM_ID+'/'+myUid).set({ name:myName, x:x, y:y, drawing:!!drawing, ts:firebase.database.ServerValue.TIMESTAMP });
 }
 function startPresence(){
+  if(presenceStarted) return; presenceStarted=true;
   var myRef=db.ref('art_presence/'+ROOM_ID+'/'+myUid);
   myRef.onDisconnect().remove();
   db.ref('art_presence/'+ROOM_ID).on('value', function(snap){
@@ -1058,7 +1060,7 @@ function startPresence(){
     Object.keys(val).forEach(function(uid){ if(uid===myUid) return; if(now-(val[uid].ts||0)>15000) return; active[uid]=val[uid]; });
     presenceUsers=active; renderPresenceStack();
   });
-  setInterval(function(){ db.ref('art_presence/'+ROOM_ID+'/'+myUid+'/ts').set(firebase.database.ServerValue.TIMESTAMP); },8000);
+  setInterval(function(){ if(document.hidden || Date.now()-lastCursorSend<7000) return; db.ref('art_presence/'+ROOM_ID+'/'+myUid+'/ts').set(firebase.database.ServerValue.TIMESTAMP); },8000);
 }
 function renderPresenceStack(){
   var stack=document.getElementById('presence-stack');

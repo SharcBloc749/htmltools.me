@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Firebase migration review — local only</title>
+<style>body{font:16px system-ui;max-width:980px;margin:40px auto;padding:20px;background:#111827;color:#eee}h1{color:#93c5fd}button,input,textarea{font:inherit;margin:8px 0;padding:10px}button{cursor:pointer}textarea{width:95%;height:80px}article{border:1px solid #475569;padding:15px;margin:12px 0;overflow-wrap:anywhere}pre{white-space:pre-wrap}small{color:#cbd5e1}.warning{border-left:4px solid #fbbf24;padding:16px}label{display:block}</style>
+<h1>Firebase migration review</h1>
+<p>Source: <b>website-encryption-htmltools</b> → destination: <b>general-database-4cb1c</b></p>
+<p class="warning">This page makes <b>no network requests</b> and does not alter either database. Export the old Realtime Database JSON from Firebase Console, review it here, then use the accompanying admin importer. Authentication accounts require the separate admin procedure in README.md. Storage files, Firestore, and worker secrets are not included in an RTDB export.</p>
+<p>Spam cannot be identified reliably from text alone. This conservative review flags large records, explicit spam flags, and paths you specify. Unknown data is retained for review, not automatically deleted. UIDs and database paths are preserved.</p>
+<label>Source RTDB JSON export <input id="file" type="file" accept="application/json,.json"></label>
+<label>Path prefixes to quarantine (one per line, e.g. art_chat/ROOM_ID). Use only paths you have verified are abusive. <textarea id="deny" placeholder="Optional verified spam paths"></textarea></label>
+<label>Large-record review threshold in KiB <input id="threshold" type="number" value="1024" min="1"></label>
+<button id="review">Analyze / reset review</button>
+<p id="status" role="status">Choose an export. All processing stays in this browser tab.</p>
+<button id="download" disabled>Download approved-data.json</button> <button id="report" disabled>Download review-report.json</button>
+<p><small>Records are grouped by top-level collection / immediate child, so a user account's nested history remains together. Expand previews carefully: exports may contain private conversations and secrets. No keyword censorship or cross-user deduplication is performed.</small></p>
+<div id="records"></div>
+<script>
+'use strict';
+let records=[];
+const $=id=>document.getElementById(id);
+const encoder=new TextEncoder();
+function download(name,value){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function stats(){const good=records.filter(r=>r.keep);$('status').textContent=`${good.length} approved; ${records.length-good.length} quarantined. Review every collection before exporting. Original export is unchanged.`;}
+$('review').onclick=async()=>{
+ try{
+ $('download').disabled=true;$('report').disabled=true;records=[];$('records').replaceChildren();
+ const file=$('file').files[0];if(!file)throw Error('Choose an RTDB JSON export first.');
+ if(file.size>200*1024*1024)throw Error('Export exceeds 200 MiB. Split it by collection in Firebase Console.');
+ const data=JSON.parse(await file.text());if(!data||Array.isArray(data)||typeof data!=='object')throw Error('Expected an RTDB root JSON object.');
+ const limit=Number($('threshold').value)*1024;if(!Number.isFinite(limit)||limit<1024)throw Error('Threshold must be at least 1 KiB.');
+ const deny=$('deny').value.split('\n').map(s=>s.trim().replace(/^\/+|\/+$/g,'')).filter(Boolean);
+ function add(path,value){
+ const reasons=[];const bytes=encoder.encode(JSON.stringify(value)).length;
+ if(path==='art_presence'||path.startsWith('art_presence/'))reasons.push('Transient live presence: not persistent account data');
+ if(deny.some(p=>path===p||path.startsWith(p+'/')||p.startsWith(path+'/')))reasons.push('Contains a manually quarantined path');
+ if(bytes>limit)reasons.push('Large record — may be legitimate images or artwork');
+ if(value&&typeof value==='object'&&(value.spam===true||value.isSpam===true))reasons.push('Explicit spam flag — verify before excluding');
+ records.push({path,value,bytes,reasons,keep:reasons.length===0});
+ }
+ for(const [collection,value] of Object.entries(data)){
+ if(value&&typeof value==='object'&&!Array.isArray(value))for(const [id,record] of Object.entries(value))add(collection+'/'+id,record);
+ else add(collection,value);
+ }
+ // Render in pages to keep large exports responsive.
+ let shown=0;
+ function more(){const end=Math.min(shown+100,records.length);for(;shown<end;shown++){
+ const r=records[shown],card=document.createElement('article'),label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.checked=r.keep;check.onchange=()=>{r.keep=check.checked;stats();};label.append(check,document.createTextNode(` Include ${r.path} (${r.bytes.toLocaleString()} bytes)`));card.append(label);
+ const reason=document.createElement('p');reason.textContent=r.reasons.join('; ')||'No automatic flags. This is not a guarantee of clean content.';card.append(reason);
+ const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Preview (first 4,000 characters)';const pre=document.createElement('pre');details.append(summary,pre);details.ontoggle=()=>{if(details.open)pre.textContent=JSON.stringify(r.value,null,2).slice(0,4000);};card.append(details);$('records').append(card);
+ }if(shown<records.length){const btn=document.createElement('button');btn.textContent='Show next 100 records';btn.onclick=()=>{btn.remove();more();};$('records').append(btn);}}
+ more();stats();$('download').disabled=false;$('report').disabled=false;
+ }catch(e){$('status').textContent=e.message;}
+};
+$('download').onclick=()=>{
+ if(!confirm('Have you reviewed the approved records? Keep the untouched original export as your rollback backup.'))return;
+ const output=Object.create(null);
+ for(const r of records.filter(r=>r.keep)){
+ const parts=r.path.split('/');if(parts.length===1)output[parts[0]]=r.value;
+ else {if(!Object.hasOwn(output,parts[0]))output[parts[0]]=Object.create(null);output[parts[0]][parts[1]]=r.value;}
+ }download('approved-data.json',output);
+};
+$('report').onclick=()=>download('review-report.json',{source:'website-encryption-htmltools',destination:'general-database-4cb1c',created:new Date().toISOString(),records:records.map(({path,bytes,reasons,keep})=>({path,bytes,reasons,keep}))});
+</script></html>
