@@ -204,6 +204,8 @@ footer .dot{color:var(--borderhi);}
 <div class="toast" id="toast"></div>
 <footer><strong>HTML Tools</strong><span class="dot">·</span><span>SlidesAI</span><span class="dot">·</span><span>built by Matthew</span></footer>
 
+<script src="/assets/vendor/purify.min.js"></script>
+<script src="/assets/firebase-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -220,7 +222,6 @@ var FB_CONFIG = {
   messagingSenderId: "291066015509",
   appId: "1:291066015509:web:33761d4f042656f595431c"
 };
-var ADMIN_EMAILS = ["matthewbozhe@gmail.com"];
 
 firebase.initializeApp(FB_CONFIG);
 var db   = firebase.database();
@@ -300,8 +301,8 @@ function renderSlideHTML(theme, slide, sceneSvg, icons) {
       '<div class="slide-body" style="color:'+tx2+';font-family:\''+bodyFont+'\',sans-serif;">'+esc(slide.body)+'</div>';
   }
 
-  return '<div style="position:absolute;inset:0;background:'+bg+';">'+scene+iconScatter+
-    '<div class="slide-content">'+inner+'</div></div>';
+  return HTData.safeMarkup('<div style="position:absolute;inset:0;background:'+bg+';">'+scene+iconScatter+
+    '<div class="slide-content">'+inner+'</div></div>');
 }
 
 // ── PPTX EXPORT (real editable pptx, built client-side with pptxgenjs) ──
@@ -587,11 +588,11 @@ var currentUser = null;
 var isAdmin = false;
 var libraryEntries = [];
 
-auth.onAuthStateChanged(function(user) {
+auth.onAuthStateChanged(async function(user) {
   document.getElementById('app-loading').classList.add('hidden');
   if (user) {
     currentUser = user;
-    isAdmin = ADMIN_EMAILS.indexOf((user.email||'').toLowerCase()) !== -1;
+    isAdmin = (await user.getIdTokenResult()).claims.admin === true;
     document.getElementById('main-app').style.display = 'flex';
     document.getElementById('main-nav').style.display = 'flex';
     document.getElementById('nav-email').textContent  = user.email || user.displayName || 'Signed in';
@@ -609,30 +610,9 @@ document.getElementById('signout-btn').addEventListener('click', async function(
 async function loadLibrary() {
   document.getElementById('lib-count').textContent = 'Loading…';
   try {
-    var snap = await db.ref('slidesai_library').get();
-    var raw = [];
-    if (snap.exists()) snap.forEach(function(c){ raw.push(c.val()); });
-
-    // Defensive: skip/repair malformed entries instead of letting one bad
-    // record throw inside renderGrid and blank the whole library.
-    libraryEntries = raw.filter(function(e){
-      if (!e || typeof e !== 'object') return false;
-      if (!e.theme || !Array.isArray(e.theme.slides) || !e.theme.slides.length) return false;
-      if (!e.id) return false;
-      if (!Array.isArray(e.scenes)) e.scenes = [];
-      if (!e.iconsBySlide) e.iconsBySlide = {};
-      return true;
-    });
-
-    libraryEntries.sort(function(a,b){ return (b.created||0)-(a.created||0); });
-
-    try {
-      renderGrid(libraryEntries);
-    } catch(renderErr) {
-      console.error('renderGrid failed:', renderErr);
-      document.getElementById('lib-count').textContent = 'Failed to render library: ' + (renderErr && renderErr.message ? renderErr.message : 'unknown error');
-      showToast('Some templates could not be displayed.');
-    }
+    await HTData.page(db, 'slidesai_index', 'created', function(values){
+      libraryEntries=values;renderGrid(values);
+    }, '.lib-body');
   } catch(e) {
     console.error('loadLibrary failed:', e);
     var msg = (e && e.code) ? (e.code + ': ' + e.message) : (e && e.message ? e.message : 'unknown error');
@@ -662,7 +642,7 @@ function renderGrid(entries) {
       '<div class="card-thumb"><div class="card-thumb-inner" id="grid-thumb-'+e.id+'"></div></div>' +
       '<div class="card-info">' +
         '<div class="card-name">'+esc(e.name||'Untitled')+'</div>' +
-        (isAdmin ? '<div class="card-owner">'+esc(e.ownerEmail||'unknown')+'</div>' : '') +
+        (isAdmin ? '<div class="card-owner">'+esc(e.ownerUid||'unknown')+'</div>' : '') +
         '<div class="card-tags">'+tags.map(function(t){return '<span class="card-tag">'+esc(t)+'</span>';}).join('')+'</div>' +
       '</div>' +
     '</div>';
@@ -698,19 +678,25 @@ document.getElementById('search-input').addEventListener('input', function(){
 });
 
 // ── VIEWER MODAL ──
+var viewerLoadVersion=0;
 var viewerEntry = null;
 var viewerSlideIdx = 0;
 
-function openViewer(id) {
-  var entry = libraryEntries.find(function(e){ return e.id === id; });
-  if (!entry) return;
+async function openViewer(id) {
+  var version=++viewerLoadVersion,entry;
+  try { entry=await HTData.detail(db,'slidesai_library/'+id); }
+  catch(e){showToast('Could not load deck');return;}
+  if (!entry || version!==viewerLoadVersion) return;
+  if(!entry.theme || !entry.theme.slides){showToast("Deck is incomplete");return;}
+  if(!Array.isArray(entry.theme.slides))entry.theme.slides=Object.values(entry.theme.slides);
+  entry.id=id;
   viewerEntry = entry;
   viewerSlideIdx = 0;
   document.getElementById('viewer-title').textContent = entry.name;
   document.getElementById('viewer-sub').textContent = entry.mood || '';
   document.getElementById('viewer-delete-btn').style.display = isAdmin ? 'inline-flex' : 'none';
   document.getElementById('viewer-admin-info').innerHTML = isAdmin
-    ? 'Generated by <b>'+esc(entry.ownerEmail||'unknown')+'</b>'
+    ? 'Generated by <b>'+esc(entry.ownerUid||'unknown')+'</b>'
     : '';
   renderViewerThumbs();
   renderViewerSlide();
@@ -745,7 +731,7 @@ function renderViewerSlide() {
     document.getElementById('viewer-frame').innerHTML = '';
   }
 }
-function closeViewer() { document.getElementById('viewer-bg').classList.remove('open'); viewerEntry = null; }
+function closeViewer() { viewerLoadVersion++; document.getElementById('viewer-bg').classList.remove('open'); viewerEntry = null; }
 document.getElementById('viewer-close').addEventListener('click', closeViewer);
 document.getElementById('viewer-bg').addEventListener('click', function(e){ if (e.target === this) closeViewer(); });
 
@@ -769,7 +755,7 @@ document.getElementById('viewer-delete-btn').addEventListener('click', async fun
   if (!viewerEntry || !isAdmin) return;
   if (!confirm('Delete "'+viewerEntry.name+'" from the Library? This cannot be undone.')) return;
   try {
-    await db.ref('slidesai_library/' + viewerEntry.id).remove();
+    await HTData.remove(db, 'slidesai_library/' + viewerEntry.id, 'slidesai_index/' + viewerEntry.id);
     libraryEntries = libraryEntries.filter(function(e){ return e.id !== viewerEntry.id; });
     closeViewer();
     renderGrid(libraryEntries);

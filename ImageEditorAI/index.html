@@ -323,8 +323,8 @@ input.inp::placeholder{color:var(--tx3);}
   <button class="nav-link-btn icon-only" id="sidebarToggle" style="width:30px;padding:0;justify-content:center;display:none;">&#9776;</button>
   <span class="nav-title"><span class="pulse-dot"></span>Image AI</span>
   <div class="nav-spacer"></div>
-  <a class="nav-link-btn accent" href="https://htmltools.me/Gemini">
-    <span>&#10024;</span><span>Not sure? Talk about it with Gemini</span>
+  <a class="nav-link-btn accent" href="https://htmltools.me/AI-Playground/">
+    <span>&#10024;</span><span>Not sure? Ask AI Playground</span>
   </a>
   <a class="nav-link-btn" href="https://htmltools.me/ImageGeneratorAI">
     <span>&#128247;</span><span>Text to Image</span>
@@ -468,6 +468,7 @@ input.inp::placeholder{color:var(--tx3);}
 
 <footer><strong>HTML Tools</strong><span class="dot">·</span><span>Image AI</span><span class="dot">·</span><span>built by Matthew</span></footer>
 
+<script src="/assets/firebase-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -641,21 +642,10 @@ function convPath(id) { return 'image_ai_conversations/' + currentUser.uid + (id
 
 async function loadConversationList() {
   try {
-    // Plain .get() with no orderByChild — ordering by a child key requires
-    // a ".indexOn" rule in the Realtime Database rules for this path, and
-    // without it Firebase can reject the query entirely (this is what was
-    // causing everything to disappear on reload). We already sort client
-    // side below, so no index is needed.
-    var snap = await db.ref(convPath()).get();
-    conversations = [];
-    if (snap.exists()) {
-      snap.forEach(function(c) {
-        var v = c.val();
-        conversations.push({ id: c.key, title: v.title || 'Untitled edit', updated: v.updated || 0 });
-      });
-    }
-    conversations.sort(function(a,b){ return b.updated - a.updated; });
-    renderConvList();
+    await HTData.page(db, 'conversation_index/' + currentUser.uid + '/image_ai', 'updated', function(values){
+      conversations = values;
+      renderConvList();
+    }, convList);
     if (conversations.length > 0) {
       await openConversation(conversations[0].id);
     } else {
@@ -690,7 +680,7 @@ function renderConvList() {
       if (!confirm('Delete this conversation? This cannot be undone.')) return;
       var id = el.dataset.id;
       try {
-        await db.ref(convPath(id)).remove();
+        await HTData.remove(db, convPath(id), 'conversation_index/' + currentUser.uid + '/image_ai/' + id);
         conversations = conversations.filter(function(c){ return c.id !== id; });
         if (activeConv && activeConv.id === id) {
           if (conversations.length) await openConversation(conversations[0].id);
@@ -702,11 +692,14 @@ function renderConvList() {
   });
 }
 
+var conversationOpenVersion=0;
 async function openConversation(id) {
+  var version=++conversationOpenVersion;
   try {
-    var snap = await db.ref(convPath(id)).get();
-    if (!snap.exists()) { showToast('Conversation not found.'); return; }
-    var v = snap.val();
+    var v = await HTData.detail(db,convPath(id));
+    if(version!==conversationOpenVersion)return;
+    if (!v) { showToast('Conversation not found.'); return; }
+    if(!Array.isArray(v.messages))v.messages=Object.values(v.messages||{});
     activeConv = { id: id, title: v.title || 'Untitled edit', created: v.created, updated: v.updated, messages: v.messages || [] };
     selectedBaseImage = null;
     renderEditingBase();
@@ -716,6 +709,7 @@ async function openConversation(id) {
 }
 
 function startNewConversation() {
+  conversationOpenVersion++;
   activeConv = { id: null, title: 'New conversation', created: Date.now(), updated: Date.now(), messages: [] };
   selectedBaseImage = null;
   renderEditingBase();
@@ -728,7 +722,7 @@ async function persistConversation() {
   try {
     if (!activeConv.id) activeConv.id = genUid(20);
     activeConv.updated = Date.now();
-    await db.ref(convPath(activeConv.id)).set({
+    await HTData.save(db, convPath(activeConv.id), 'conversation_index/' + currentUser.uid + '/image_ai/' + activeConv.id, {
       title: activeConv.title,
       created: activeConv.created,
       updated: activeConv.updated,
@@ -742,7 +736,7 @@ async function persistConversation() {
     conversations.sort(function(a,b){ return b.updated - a.updated; });
     renderConvList();
   } catch (e) {
-    showToast('Could not save — check your connection.');
+    showToast('Could not save: '+e.message);
   }
 }
 

@@ -344,6 +344,11 @@ var FB_CONFIG = {
 };
 firebase.initializeApp(FB_CONFIG);
 var db = firebase.database();
+// Hidden collaborative tabs should not download every other participant's edits.
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){flushPixels();db.goOffline();}
+  else db.goOnline();
+});
 var auth = firebase.auth();
 var ADMIN_EMAIL = 'matthewbozhe@gmail.com';
 var CHUNK = 16; // chunk size for infinite grid
@@ -566,6 +571,7 @@ function sizeCanvasToContainer(){
   var maxW=area.clientWidth, maxH=area.clientHeight;
   if(INFINITE){
     displayW=maxW; displayH=maxH;
+    zoom=Math.max(zoom,minimumZoom());
     canvas.width=Math.round(displayW*DPR); canvas.height=Math.round(displayH*DPR);
     canvas.style.width=displayW+'px'; canvas.style.height=displayH+'px';
     cursorCanvas.width=canvas.width; cursorCanvas.height=canvas.height;
@@ -685,7 +691,8 @@ function buildToolbar(){
     updateZoomLabel();
   }
 }
-function setZoom(z){ zoom=Math.max(0.15,Math.min(6,z)); updateZoomLabel(); redrawAll(); }
+function minimumZoom(){return Math.max(0.15,displayW/(6*CHUNK*BASE_CELL),displayH/(6*CHUNK*BASE_CELL));}
+function setZoom(z){ zoom=Math.max(minimumZoom(),Math.min(6,z)); updateZoomLabel(); redrawAll(); }
 function updateZoomLabel(){ var el=document.getElementById('zoom-label'); if(el) el.textContent=Math.round(zoom*100)+'%'; }
 
 function updateSelectionButtons(){
@@ -741,18 +748,28 @@ function dbRefForPixel(x,y){
     return db.ref('art_pixels/'+ROOM_ID+'/cells/'+pxKey(x,y));
   }
 }
+var pendingPixels={},pixelFlushTimer=null;
+function queuePixel(ref,value){
+  pendingPixels[decodeURIComponent(new URL(ref.toString()).pathname).replace(/^\//,'')]=value;
+  if(!pixelFlushTimer)pixelFlushTimer=setTimeout(flushPixels,50);
+}
+function flushPixels(){
+  pixelFlushTimer=null;var batch=pendingPixels;pendingPixels={};
+  if(!Object.keys(batch).length)return;
+  db.ref().update(batch).catch(function(){showToast('Pixel save failed. Check your connection and room permissions.');});
+}
 function writePixelRaw(x,y,color){
   var key=pxKey(x,y);
   if ((pixelData[key] || null) === color) return; // Do not re-write unchanged pixels.
   if(color===null){
     delete pixelData[key];
     ctx.clearRect(canvasXFor(x), canvasYFor(y), cellSizeCanvas(), cellSizeCanvas());
-    dbRefForPixel(x,y).remove();
+    queuePixel(dbRefForPixel(x,y),null);
   } else {
     pixelData[key]=color;
     ctx.fillStyle=color;
     ctx.fillRect(canvasXFor(x), canvasYFor(y), cellSizeCanvas(), cellSizeCanvas());
-    dbRefForPixel(x,y).set({ c:color, uid:myUid, ts:firebase.database.ServerValue.TIMESTAMP });
+    queuePixel(dbRefForPixel(x,y),{ c:color, uid:myUid, ts:firebase.database.ServerValue.TIMESTAMP });
   }
 }
 // For finite mode we draw directly onto the 1:1 canvas (GRID x GRID). For infinite, canvas is full-res screen pixels,
@@ -907,7 +924,7 @@ function initPixelInteractions(){
       var sx=e.clientX-rect.left, sy=e.clientY-rect.top;
       var before=screenToWorldCell(sx,sy);
       var factor = e.deltaY<0 ? 1.12 : 1/1.12;
-      zoom=Math.max(0.15,Math.min(6,zoom*factor));
+      zoom=Math.max(minimumZoom(),Math.min(6,zoom*factor));
       var after=screenToWorldCell(sx,sy);
       viewX += (before.x-after.x);
       viewY += (before.y-after.y);
@@ -947,29 +964,23 @@ function redrawAll(){
 }
 
 function ensureChunksLoaded(startX,startY,endX,endY){
-  var cx0=Math.floor(startX/CHUNK)-1, cx1=Math.floor(endX/CHUNK)+1;
-  var cy0=Math.floor(startY/CHUNK)-1, cy1=Math.floor(endY/CHUNK)+1;
-  for(var cx=cx0;cx<=cx1;cx++){
-    for(var cy=cy0;cy<=cy1;cy++){
-      var ck=chunkKey(cx,cy);
-      if(loadedChunks[ck]) continue;
-      loadedChunks[ck]=true;
-      attachChunkListener(cx,cy,ck);
-    }
+  var cx0=Math.floor(startX/CHUNK)-1,cy0=Math.floor(startY/CHUNK)-1;
+  var cx1=Math.min(Math.floor(endX/CHUNK)+1,cx0+8),cy1=Math.min(Math.floor(endY/CHUNK)+1,cy0+8);
+  var visible={};
+  for(var cx=cx0;cx<=cx1;cx++)for(var cy=cy0;cy<=cy1;cy++){
+    var ck=chunkKey(cx,cy);visible[ck]=true;
+    if(!loadedChunks[ck])loadedChunks[ck]=attachChunkListener(cx,cy,ck);
   }
+  Object.keys(loadedChunks).forEach(function(ck){if(!visible[ck]){loadedChunks[ck].stop();delete loadedChunks[ck];}});
 }
+var chunkDrawPending=false;
+function requestChunkDraw(){if(chunkDrawPending)return;chunkDrawPending=true;requestAnimationFrame(function(){chunkDrawPending=false;redrawAll();});}
 function attachChunkListener(cx,cy,ck){
-  var ref=db.ref('art_pixels/'+ROOM_ID+'/chunks/'+ck);
-  ref.on('value', function(snap){
-    var val=snap.val()||{};
-    // clear old cells from this chunk in pixelData, then repopulate
-    for(var lx=0;lx<CHUNK;lx++) for(var ly=0;ly<CHUNK;ly++){ delete pixelData[pxKey(cx*CHUNK+lx, cy*CHUNK+ly)]; }
-    Object.keys(val).forEach(function(lkey){
-      var lp=lkey.split('_'); var lx=parseInt(lp[0]), ly=parseInt(lp[1]);
-      var v=val[lkey]; if(v&&v.c) pixelData[pxKey(cx*CHUNK+lx, cy*CHUNK+ly)] = v.c;
-    });
-    redrawAll();
-  });
+  var ref=db.ref('art_pixels/'+ROOM_ID+'/chunks/'+ck),keys={};
+  function changed(snap){var lp=snap.key.split('_'),key=pxKey(cx*CHUNK+(+lp[0]),cy*CHUNK+(+lp[1]));var v=snap.val();keys[key]=true;if(v&&v.c)pixelData[key]=v.c;requestChunkDraw();}
+  function removed(snap){var lp=snap.key.split('_'),key=pxKey(cx*CHUNK+(+lp[0]),cy*CHUNK+(+lp[1]));delete pixelData[key];delete keys[key];requestChunkDraw();}
+  ref.on('child_added',changed);ref.on('child_changed',changed);ref.on('child_removed',removed);
+  return {stop:function(){ref.off();Object.keys(keys).forEach(function(k){delete pixelData[k];});}};
 }
 
 function renderOverlay(){
@@ -1010,7 +1021,7 @@ function renderOverlay(){
   }
   var scaleX = INFINITE ? cell : cellPx, scaleY = scaleX;
   Object.keys(presenceUsers).forEach(function(uid){
-    var u=presenceUsers[uid]; if(u.x==null||u.y==null) return;
+    var u=presenceUsers[uid]; if(Date.now()-(u.ts||0)>15000)return; if(u.x==null||u.y==null) return;
     var s=toScreen(u.x+0.5,u.y+0.5);
     cctx.beginPath(); cctx.arc(s.x,s.y,u.drawing?6:4,0,Math.PI*2);
     cctx.fillStyle=colorForUid(uid); cctx.globalAlpha=u.drawing?0.9:0.55; cctx.fill(); cctx.globalAlpha=1;
@@ -1040,9 +1051,11 @@ function appendChatMsg(msg){
 document.getElementById('chat-send').addEventListener('click', sendChat);
 document.getElementById('chat-input').addEventListener('keydown', function(e){ if(e.key==='Enter') sendChat(); });
 function sendChat(){
-  var inp=document.getElementById('chat-input'); var text=inp.value.trim(); if(!text) return;
-  db.ref('art_chat/'+ROOM_ID).push({ uid:myUid, name:myName, text:text, ts:firebase.database.ServerValue.TIMESTAMP });
-  inp.value='';
+  var inp=document.getElementById('chat-input'); var text=inp.value.trim().slice(0,1000); if(!text) return;
+  var id=db.ref('art_chat/'+ROOM_ID).push().key,writes={};
+  writes['art_chat/'+ROOM_ID+'/'+id]={uid:myUid,name:myName,text:text,ts:firebase.database.ServerValue.TIMESTAMP};
+  writes['art_chat_last/'+ROOM_ID+'/'+myUid]=firebase.database.ServerValue.TIMESTAMP;
+  db.ref().update(writes).then(function(){inp.value='';}).catch(function(){showToast('Please wait a second between chat messages, and check room access.');});
 }
 
 // ══════════════════════════ PRESENCE ══════════════════════════
@@ -1054,17 +1067,18 @@ function updateMyCursorFirebase(x,y,drawing){
 function startPresence(){
   if(presenceStarted) return; presenceStarted=true;
   var myRef=db.ref('art_presence/'+ROOM_ID+'/'+myUid);
-  myRef.onDisconnect().remove();
-  db.ref('art_presence/'+ROOM_ID).on('value', function(snap){
-    var val=snap.val()||{}; var now=Date.now(); var active={};
-    Object.keys(val).forEach(function(uid){ if(uid===myUid) return; if(now-(val[uid].ts||0)>15000) return; active[uid]=val[uid]; });
-    presenceUsers=active; renderPresenceStack();
+  db.ref('.info/connected').on('value',function(snap){
+    if(snap.val()){myRef.onDisconnect().remove();lastCursorSend=Date.now();myRef.set({name:myName,drawing:false,ts:firebase.database.ServerValue.TIMESTAMP}).catch(function(){});}
   });
+  var presenceRef=db.ref('art_presence/'+ROOM_ID);
+  function cursorChanged(snap){if(snap.key!==myUid){presenceUsers[snap.key]=snap.val();renderPresenceStack();}}
+  presenceRef.on('child_added',cursorChanged);presenceRef.on('child_changed',cursorChanged);
+  presenceRef.on('child_removed',function(snap){delete presenceUsers[snap.key];renderPresenceStack();});
   setInterval(function(){ if(document.hidden || Date.now()-lastCursorSend<7000) return; db.ref('art_presence/'+ROOM_ID+'/'+myUid+'/ts').set(firebase.database.ServerValue.TIMESTAMP); },8000);
 }
 function renderPresenceStack(){
   var stack=document.getElementById('presence-stack');
-  var uids=Object.keys(presenceUsers).slice(0,5);
+  var uids=Object.keys(presenceUsers).filter(function(uid){return Date.now()-(presenceUsers[uid].ts||0)<15000;}).slice(0,5);
   stack.innerHTML=uids.map(function(uid){ var u=presenceUsers[uid]; var initial=(u.name||'?').charAt(0).toUpperCase(); return '<div class="presence-dot" style="background:'+colorForUid(uid)+'" title="'+esc(u.name||'Guest')+'">'+initial+'</div>'; }).join('');
 }
 
@@ -1242,6 +1256,7 @@ async function loadDrawingIntoRoom(payload){
     buildToolbar();
     sizeCanvasToContainer();
   }
+  Object.keys(loadedChunks).forEach(function(k){loadedChunks[k].stop();});
   loadedChunks = {}; pixelData = {};
   var cells = payload.cells || {};
   var writes = {};

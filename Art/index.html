@@ -240,6 +240,7 @@ input.inp:focus{border-color:var(--borderhi);}
   </div>
 </div>
 
+<script src="/assets/firebase-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -423,18 +424,8 @@ async function doJoinByCode(){
     var snap = await db.ref('art_joincodes/'+code).once('value');
     var internalId = snap.val();
     if(!internalId){ errEl.textContent='No room found with that code.'; btn.disabled=false; btn.textContent='Join'; return; }
-    var roomSnap = await db.ref('art_rooms/'+internalId).once('value');
-    var room = roomSnap.val();
-    if(!room){ errEl.textContent='No room found with that code.'; btn.disabled=false; btn.textContent='Join'; return; }
-    if(room.banned && room.banned[myUid]){ errEl.textContent='You\'ve been banned from this room.'; btn.disabled=false; btn.textContent='Join'; return; }
-    if(room.members && room.members[myUid]){
-      // already a member, just go
-      window.location.href = '/Art/Create?r='+internalId;
-      return;
-    }
-    if(room.locked){ errEl.textContent='This room isn\'t accepting new members right now.'; btn.disabled=false; btn.textContent='Join'; return; }
-    if(room.joinCode !== code){ errEl.textContent='That code is no longer valid.'; btn.disabled=false; btn.textContent='Join'; return; }
-    await db.ref('art_rooms/'+internalId+'/members/'+myUid).set({ name: myName, joinedAt: Date.now() });
+    // Rules validate the invitation before granting any room read access.
+    await db.ref('art_rooms/'+internalId+'/members/'+myUid).set({ name: myName, joinedAt: Date.now(), code: code });
     await db.ref('art_user_rooms/'+myUid+'/'+internalId).set(true);
     window.location.href = '/Art/Create?r='+internalId;
   }catch(e){
@@ -445,26 +436,19 @@ async function doJoinByCode(){
 
 // ── MY ROOMS LIST ──
 function loadMyRooms(){
-  db.ref('art_user_rooms/'+myUid).on('value', function(snap){
-    var ids = Object.keys(snap.val()||{});
-    if(!ids.length){
-      document.getElementById('room-list').innerHTML = '<div class="empty-state"><i class="fas fa-panorama"></i><span>You\'re not in any rooms yet. Create one, or join with a code.</span></div>';
-      return;
-    }
-    Promise.all(ids.map(function(id){ return db.ref('art_rooms/'+id).once('value'); })).then(function(snaps){
-      var rooms = [];
-      snaps.forEach(function(s, i){
-        var r = s.val();
-        if(!r){ db.ref('art_user_rooms/'+myUid+'/'+ids[i]).remove(); return; } // stale (room deleted)
-        if(r.banned && r.banned[myUid]){ db.ref('art_user_rooms/'+myUid+'/'+ids[i]).remove(); return; } // banned, drop from list
-        r._id = ids[i];
-        rooms.push(r);
-      });
-      rooms.sort(function(a,b){ return (b.created||0)-(a.created||0); });
-      renderRoomList(rooms);
+  HTData.page(db, 'art_user_rooms/'+myUid, '$key', async function(values){
+    var ids=values.map(function(v){return v.id;});
+    var snaps=await Promise.all(ids.map(function(id){return db.ref('art_rooms/'+id).once('value').catch(function(e){if(e.code==='PERMISSION_DENIED')return null;throw e;});}));
+    var rooms=[];
+    snaps.forEach(function(s,i){
+      var r=s&&s.val();
+      if(!r){db.ref('art_user_rooms/'+myUid+'/'+ids[i]).remove().catch(function(){});return;}
+      r._id=ids[i];rooms.push(r);
     });
-  });
+    rooms.sort(function(a,b){return(b.created||0)-(a.created||0);});renderRoomList(rooms);
+  }, '#room-list').catch(function(e){showToast('Could not load rooms: '+e.message);});
 }
+
 function renderRoomList(rooms){
   var el = document.getElementById('room-list');
   if(!rooms.length){

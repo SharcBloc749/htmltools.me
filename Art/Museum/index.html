@@ -134,9 +134,9 @@ footer .dot{color:var(--borderhi);}
   <h1>The Museum</h1>
   <p>Snapshots artists have chosen to publish from their rooms. Open a piece to view it full-size, or remix it into your own room.</p>
   <div class="stats-row">
-    <div class="stat"><b id="stat-rooms">—</b><span>Pieces</span></div>
-    <div class="stat"><b id="stat-artists">—</b><span>Artists</span></div>
-    <div class="stat"><b id="stat-views">—</b><span>Views</span></div>
+    <div class="stat"><b id="stat-rooms">—</b><span>Loaded pieces</span></div>
+    <div class="stat"><b id="stat-artists">—</b><span>Loaded artists</span></div>
+    <div class="stat"><b id="stat-views">—</b><span>Views (loaded)</span></div>
   </div>
 </div>
 
@@ -190,6 +190,7 @@ footer .dot{color:var(--borderhi);}
 </div>
 <style>#auth-modal.open{display:flex !important;}</style>
 
+<script src="/assets/firebase-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -206,7 +207,6 @@ var FB_CONFIG = {
 firebase.initializeApp(FB_CONFIG);
 var db = firebase.database();
 var auth = firebase.auth();
-var ADMIN_EMAIL = 'matthewbozhe@gmail.com';
 
 function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 var _toastTimer;
@@ -226,11 +226,11 @@ function timeAgo(ts){
 
 // ── AUTH ──
 var myUid = null, myName = 'Guest', isAdmin = false;
-auth.onAuthStateChanged(function(user){
+auth.onAuthStateChanged(async function(user){
   if(user){
     myUid = user.uid;
     myName = user.isAnonymous ? ('Guest-'+user.uid.slice(0,4)) : (user.displayName || (user.email ? user.email.split('@')[0] : 'User'));
-    isAdmin = !user.isAnonymous && user.email===ADMIN_EMAIL;
+    isAdmin = (await user.getIdTokenResult()).claims.admin === true;
     document.getElementById('nav-email').textContent = user.isAnonymous ? '' : myName;
     document.getElementById('signin-btn').style.display = user.isAnonymous ? 'inline-flex' : 'none';
     document.getElementById('signout-btn').style.display = user.isAnonymous ? 'none' : 'inline-flex';
@@ -308,24 +308,14 @@ document.getElementById('signout-btn').addEventListener('click', async function(
 // ── LOAD PIECES (from art_museum, where the Upload flow actually publishes to) ──
 var allPieces = [];
 
-var museumRef = null;
-function loadPieces(){
-  // Attach once; child events avoid re-downloading every artwork on each view/like.
-  if (museumRef) return;
-  museumRef = db.ref('art_museum');
-  function changed(snap){
-    var p = snap.val(); if (!p || typeof p !== 'object') return;
-    p.id = snap.key;
-    var i = allPieces.findIndex(function(item){ return item.id === snap.key; });
-    if (i < 0) allPieces.push(p); else allPieces[i] = p;
-    renderStats(); applyFiltersAndRender();
-  }
-  museumRef.on('child_added', changed);
-  museumRef.on('child_changed', changed);
-  museumRef.on('child_removed', function(snap){
-    allPieces = allPieces.filter(function(p){ return p.id !== snap.key; });
-    renderStats(); applyFiltersAndRender();
-  });
+async function loadPieces(){
+  try {
+    await HTData.page(db, 'art_museum_index', 'created', async function(values){
+      // Fetch only this viewer's tiny like flags, never the public list of liker UIDs.
+      await Promise.all(values.map(async function(p){var liked=(await db.ref('art_museum_likes/'+p.id+'/'+myUid).get()).val();p.likes={};if(liked)p.likes[myUid]=true;}));
+      allPieces=values;renderStats();applyFiltersAndRender();
+    }, '#gallery-grid');
+  } catch(e){showToast('Could not load museum: '+e.message);}
 }
 
 function renderStats(){
@@ -356,7 +346,7 @@ function applyFiltersAndRender(){
   }
   list.sort(function(a,b){
     if(sortBy==='views') return (b.views||0)-(a.views||0);
-    if(sortBy==='likes') return Object.keys(b.likes||{}).length - Object.keys(a.likes||{}).length;
+    if(sortBy==='likes') return (b.likeCount||0) - (a.likeCount||0);
     return (b.created||0)-(a.created||0);
   });
   renderGallery(list);
@@ -388,7 +378,7 @@ function renderGallery(list){
 
 function cardHtml(p){
   var likedByMe = !!(p.likes && p.likes[myUid]);
-  var likeCount = Object.keys(p.likes||{}).length;
+  var likeCount = p.likeCount || 0;
   var artistInitial = (p.publisherName||'?').charAt(0).toUpperCase();
   var artistUid = p.publisherUid || 'anon';
 
@@ -419,68 +409,55 @@ function cardHtml(p){
     '</div>';
 }
 
-function openPiece(p){
-  db.ref('art_museum/'+p.id+'/views').transaction(function(v){ return (v||0)+1; });
-  var host = document.getElementById('thumb-'+p.id);
-  var cv = host ? host.querySelector('canvas') : null;
-  if(cv){
-    var w = window.open('', '_blank');
-    if(w){
-      w.document.write('<title>'+esc(p.name||'Untitled')+'</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="'+cv.toDataURL('image/png')+'" style="max-width:95vw;max-height:95vh;image-rendering:pixelated;"/></body>');
+async function openPiece(p){
+  var w=window.open('', '_blank');
+  if(!w)return;
+  w.document.body.textContent='Loading artwork…';
+  try {
+    var detail=await HTData.detail(db,'art_museum/'+p.id);
+    if(!detail)throw Error('Artwork not found');
+    var cv=HTData.artCanvas((detail.snapshot||{}).cells||{},2048);
+    w.document.title=p.name||'Artwork';w.document.body.replaceChildren(cv);
+    w.document.body.style.cssText='margin:0;background:#111;display:flex;justify-content:center;align-items:center;min-height:100vh';
+    cv.style.cssText='max-width:95vw;max-height:95vh;image-rendering:pixelated';
+    // At most one view per browser session; counters are small independent leaves.
+    if(!sessionStorage.getItem('art-view-'+p.id)){
+      sessionStorage.setItem('art-view-'+p.id,'1');
+      var writes={};writes['art_museum_index/'+p.id+'/views']=firebase.database.ServerValue.increment(1);writes['art_museum_views/'+p.id+'/'+myUid]=true;db.ref().update(writes).catch(function(){});
     }
-  }
+  }catch(e){w.document.body.textContent='Could not load artwork.';}
 }
 
 function remixPiece(p){
   window.location.href = '/Art/Upload/?remix='+p.id;
 }
 
-function toggleLike(id){
-  var ref = db.ref('art_museum/'+id+'/likes/'+myUid);
-  ref.once('value').then(function(snap){
-    if(snap.exists()) ref.remove(); else ref.set(true);
-  });
+async function toggleLike(id){
+  try {
+    var ref=db.ref('art_museum_likes/'+id+'/'+myUid),next=!(await ref.get()).exists(),writes={};
+    writes['art_museum_likes/'+id+'/'+myUid]=next?true:null;
+    writes['art_museum_index/'+id+'/likeCount']=firebase.database.ServerValue.increment(next?1:-1);
+    writes['art_museum_like_last/'+id+'/'+myUid]=firebase.database.ServerValue.TIMESTAMP;
+    await db.ref().update(writes);
+    var p=allPieces.find(function(x){return x.id===id;});
+    if(p){p.likes=p.likes||{};if(next)p.likes[myUid]=true;else delete p.likes[myUid];p.likeCount=Math.max(0,(p.likeCount||0)+(next?1:-1));applyFiltersAndRender();}
+  }catch(e){showToast('Could not change like. Wait a second between changes.');}
 }
 
 function deletePiece(p){
   if(!isAdmin) return;
   if(!confirm('Permanently delete "'+(p.name||'Untitled')+'" from the Museum? This cannot be undone.')) return;
-  db.ref('art_museum/'+p.id).remove().then(function(){ showToast('Deleted'); });
+  HTData.remove(db, 'art_museum/'+p.id, 'art_museum_index/'+p.id).then(function(){allPieces=allPieces.filter(function(x){return x.id!==p.id;});applyFiltersAndRender();showToast('Deleted');}).catch(function(e){showToast(e.message);});
 }
 
 // ── THUMBNAILS (piece snapshots store cells as "x_y" -> color hex string) ──
 function paintThumb(p){
-  var host = document.getElementById('thumb-'+p.id);
-  if(!host) return;
-  var cells = (p.snapshot && p.snapshot.cells) || {};
-  var keys = Object.keys(cells);
-  if(!keys.length){
-    host.innerHTML += '<div class="thumb-empty">Empty</div>';
-    return;
-  }
-  var minX,minY,maxX,maxY;
-  keys.forEach(function(k,i){
-    var parts = k.split('_');
-    var x = parseInt(parts[0]), y = parseInt(parts[1]);
-    if(i===0){ minX=maxX=x; minY=maxY=y; }
-    if(x<minX) minX=x; if(x>maxX) maxX=x;
-    if(y<minY) minY=y; if(y>maxY) maxY=y;
-  });
-  var w = (maxX-minX+1), h = (maxY-minY+1);
-  var cv = document.createElement('canvas');
-  cv.width = w; cv.height = h;
-  var gctx = cv.getContext('2d');
-  gctx.imageSmoothingEnabled = false;
-  keys.forEach(function(k){
-    var parts = k.split('_');
-    var x = parseInt(parts[0])-minX, y = parseInt(parts[1])-minY;
-    var color = cells[k];
-    if(!color) return;
-    gctx.fillStyle = color;
-    gctx.fillRect(x, y, 1, 1);
-  });
-  host.appendChild(cv);
+  var host=document.getElementById('thumb-'+p.id);if(!host)return;
+  if(p.thumbnail && /^data:image\/png;base64,/.test(p.thumbnail)){
+    var img=document.createElement('img');img.src=p.thumbnail;img.alt=p.name||'Artwork';img.style.cssText='max-width:100%;max-height:100%;image-rendering:pixelated';host.appendChild(img);
+  }else{var label=document.createElement('span');label.textContent='Open to view artwork';host.appendChild(label);}
 }
+
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"9a1552a647324c3cb132ae3ad34c1517","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>

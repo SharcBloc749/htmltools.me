@@ -280,6 +280,8 @@ footer .dot{color:var(--borderhi);}
 <div class="toast" id="toast"></div>
 <footer><strong>HTML Tools</strong><span class="dot">·</span><span>SlidesAI</span><span class="dot">·</span><span>built by Matthew</span></footer>
 
+<script src="/assets/vendor/purify.min.js"></script>
+<script src="/assets/firebase-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -506,8 +508,8 @@ function renderSlideHTML(theme, slide, sceneSvg, icons) {
       '<div class="slide-body" style="color:'+tx2+';font-family:\''+bodyFont+'\',sans-serif;">'+esc(slide.body)+'</div>';
   }
 
-  return '<div style="position:absolute;inset:0;background:'+bg+';">'+scene+iconScatter+
-    '<div class="slide-content">'+inner+'</div></div>';
+  return HTData.safeMarkup('<div style="position:absolute;inset:0;background:'+bg+';">'+scene+iconScatter+
+    '<div class="slide-content">'+inner+'</div></div>');
 }
 
 function loadGoogleFont(fontName) {
@@ -1064,7 +1066,7 @@ async function saveToLibrary(deck) {
     name: deck.theme.name || 'Untitled deck',
     mood: deck.theme.mood || '',
     prompt: deck.prompt || '',
-    keywords: (deck.theme.icon_keywords || []).map(function(k){return String(k).toLowerCase();}),
+    keywords: (deck.theme.icon_keywords || []).slice(0,8).map(function(k){return String(k).toLowerCase().slice(0,40);}),
     theme: deck.theme,
     icons: deck.icons || [],
     iconsBySlide: deck.iconsBySlide || {},
@@ -1073,10 +1075,9 @@ async function saveToLibrary(deck) {
     created: deck.created || Date.now(),
     // Owner is stored so admins can trace it — never surfaced to regular users.
     ownerUid: currentUser.uid,
-    ownerEmail: currentUser.email || null
   };
   try {
-    await db.ref('slidesai_library/' + deck.id).set(entry);
+    await HTData.save(db, 'slidesai_library/' + deck.id, 'slidesai_index/' + deck.id, entry);
   } catch (e) {
     console.error('saveToLibrary: Firebase write failed', e);
     throw new Error('Could not save to Library: ' + (e && e.message ? e.message : 'unknown error'));

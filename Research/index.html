@@ -455,6 +455,7 @@ a{color:inherit;text-decoration:none;}
 
 <div class="toast" id="toast"></div>
 
+<script src="/assets/firebase-data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -508,7 +509,7 @@ auth.onAuthStateChanged(function(user){
     document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
     loadSessions();
   } else {
-    window.location.href = "/Gemini/login";
+    window.location.href = "/AI-Playground/Login/?next=%2FResearch%2F";
   }
 });
 
@@ -829,6 +830,7 @@ function updateTopDeleteBtn(){
 }
 
 function resetToWelcome(){
+  sessionLoadVersion++;
   activeId = null;
   currentTurns = [];
   document.getElementById('welcomeWrap').style.display = 'flex';
@@ -1134,12 +1136,12 @@ function userPath(){ return 'research_users/' + currentUser.uid + '/sessions'; }
 
 async function loadSessions(){
   try {
-    var snap = await db.ref(userPath()).get();
-    sessions = [];
-    if (snap.exists()) snap.forEach(function(c){ sessions.push(c.val()); });
-    sessions.sort(function(a,b){ return (b.updated||0)-(a.updated||0); });
-    renderHistory();
-  } catch(e) {}
+    await HTData.page(db, 'conversation_index/' + currentUser.uid + '/research', 'updated', function(values){
+      // Keep already-open session details in memory; index rows contain no turns.
+      sessions = values.map(function(v){ var old=sessions.find(function(s){return s.id===v.id;});return Object.assign({},old,v); });
+      renderHistory();
+    }, '#historyList');
+  } catch(e) {showToast('Could not load research history');}
 }
 
 // Ask the worker (same Gemini backend used for answers) to name this conversation,
@@ -1181,12 +1183,12 @@ async function saveSession(sessionId, turns, generateTitle){
 
   var sess = { id: sessionId, title: title, updated: Date.now(), turns: turns };
   try {
-    await db.ref(userPath()+'/'+sessionId).set(sess);
+    await HTData.save(db, userPath()+'/'+sessionId, 'conversation_index/' + currentUser.uid + '/research/' + sessionId, sess);
     var i = sessions.findIndex(function(s){ return s.id===sessionId; });
     if (i>=0) sessions[i]=sess; else sessions.unshift(sess);
     sessions.sort(function(a,b){ return (b.updated||0)-(a.updated||0); });
     renderHistory();
-  } catch(e) {}
+  } catch(e) {showToast('Research was not saved: '+e.message);}
 
   // Fire the AI title generation after the first turn's answer has actually landed
   // (not on the initial pending save), and patch it in without disturbing anything
@@ -1194,7 +1196,7 @@ async function saveSession(sessionId, turns, generateTitle){
   if (generateTitle && turns[0] && !turns[0].pending && turns[0].answer) {
     generateSessionTitle(turns[0].query, turns[0].answer).then(async function(niceTitle){
       try {
-        await db.ref(userPath()+'/'+sessionId+'/title').set(niceTitle);
+        await HTData.save(db, userPath()+'/'+sessionId, 'conversation_index/' + currentUser.uid + '/research/' + sessionId, {title:niceTitle,updated:Date.now()}, true);
         var s = sessions.find(function(s){ return s.id===sessionId; });
         if (s) s.title = niceTitle;
         renderHistory();
@@ -1231,11 +1233,17 @@ function renderHistory(filterText){
   });
 }
 
-function loadSession(id){
+var sessionLoadVersion = 0;
+async function loadSession(id){
+  var version=++sessionLoadVersion;
   var sess = sessions.find(function(s){ return s.id===id; });
   if (!sess) return;
+  if (!sess.turns) {
+    try { var full=await HTData.detail(db,userPath()+'/'+id); if(version!==sessionLoadVersion)return;if(!full){showToast('Session not found');return;}Object.assign(sess,full); }
+    catch(e){showToast('Could not load session');return;}
+  }
   activeId = id;
-  currentTurns = sess.turns || [];
+  currentTurns = Array.isArray(sess.turns)?sess.turns:Object.values(sess.turns||{});
   document.getElementById('welcomeWrap').style.display = 'none';
   var msgsEl = document.getElementById('messages');
   msgsEl.style.display = 'block';
@@ -1344,7 +1352,7 @@ deleteModal.addEventListener('click', function(e){ if (e.target===deleteModal){ 
 document.getElementById('deleteConfirm').addEventListener('click', async function(){
   if (!pendingDeleteId || !currentUser) { deleteModal.classList.remove('open'); return; }
   var wasActive = pendingDeleteId === activeId;
-  try { await db.ref(userPath()+'/'+pendingDeleteId).remove(); } catch(e){}
+  try { await HTData.remove(db, userPath()+'/'+pendingDeleteId, 'conversation_index/' + currentUser.uid + '/research/' + pendingDeleteId); } catch(e){}
   sessions = sessions.filter(function(s){ return s.id!==pendingDeleteId; });
   deleteModal.classList.remove('open');
   pendingDeleteId = null;
