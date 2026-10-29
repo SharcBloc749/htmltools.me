@@ -64,7 +64,7 @@ window.addEventListener('beforeunload', event => {
 document.addEventListener('visibilitychange', () => { if (document.hidden && workspace && revision > savedRevision) persist(); });
 
 function renderProject() {
-  $('project-name').innerHTML = escapeHTML(workspace.name) + icon('edit'); $('project-name').title = `Rename “${workspace.name}”`;
+  $('project-name').innerHTML = `<span class="project-name-text">${escapeHTML(workspace.name)}</span>` + icon('edit'); $('project-name').title = `Rename “${workspace.name}”`;
   document.title = `${workspace.name} · Advanced · HTMLTools`;
   $('file-count').textContent = workspace.files.length;
   $('entry-file').replaceChildren(...workspace.files.map(file => {
@@ -93,7 +93,7 @@ function openFile(id, focus = false) {
   const changed = workspace.activeId !== id; workspace.activeId = id;
   editor.open(file, focus); renderExplorer(); renderTabs();
   if (changed) { $('tab-' + id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); markChanged(); }
-  if (window.matchMedia('(max-width:760px)').matches) toggleFiles(false);
+  if (window.matchMedia('(max-width:980px)').matches) toggleFiles(false);
 }
 $('file-list').addEventListener('click', event => {
   const open = event.target.closest('[data-open]');
@@ -137,7 +137,7 @@ document.addEventListener('pointerdown', event => { if (!event.target.closest('#
 
 function showFileDialog(mode = 'new', id) {
   fileDialogMode = mode; renameId = id; const file = workspace.files.find(item => item.id === id);
-  $('file-dialog-title').textContent = mode === 'rename' ? 'A new name. Same idea.' : 'A fresh file. A fresh possibility.';
+  $('file-dialog-title').textContent = mode === 'rename' ? 'Rename file' : 'New file';
   $('file-template-group').hidden = mode === 'rename'; $('file-name').value = file?.name || 'untitled.txt'; $('file-template').value = 'txt';
   $('file-submit').innerHTML = (mode === 'rename' ? 'Rename file' : 'Create file') + icon(mode === 'rename' ? 'edit' : 'plus');
   $('file-error').hidden = true; updateFileTypeHint(); showDialog('file-dialog'); $('file-name').focus();
@@ -161,7 +161,7 @@ $('file-form').onsubmit = event => {
       const file = makeFile(name, templates[$('file-template').value] || '');
       validateWorkspace({ ...workspace, files: [...workspace.files, file] }); workspace.files.push(file); workspace.activeId = file.id; workspace.entryId = file.id;
     }
-    $('file-dialog').close(); if (window.matchMedia('(max-width:760px)').matches) toggleFiles(false); markChanged(); renderProject(); editor.open(activeFile(), true);
+    $('file-dialog').close(); if (window.matchMedia('(max-width:980px)').matches) toggleFiles(false); markChanged(); renderProject(); editor.open(activeFile(), true);
     toast(fileDialogMode === 'rename' ? 'Renamed. Local web references updated.' : `“${name}” is ready. It’s now your entry file.`);
   } catch (error) { $('file-error').textContent = error.message; $('file-error').hidden = false; }
 };
@@ -174,8 +174,8 @@ $('name-form').onsubmit = event => {
 };
 $('settings-new-project').onclick = () => { $('settings-dialog').close(); $('new-project').click(); };
 $('new-project').onclick = async () => {
-  if (!await confirmAction('Make room for a fresh start?', 'This replaces the workspace saved in this browser. Download your current files first if you want to keep them.', 'Start fresh')) return;
-  stopPreview(false); selected.clear(); workspace = defaultWorkspace(); markChanged(); renderProject(); editor.open(activeFile()); clearConsole(); toast('A fresh start. Make it yours.'); run();
+  if (!await confirmAction('Create a new project?', 'This replaces the workspace saved in this browser. Download your current files first if you want to keep them.', 'Create project')) return;
+  stopPreview(false); selected.clear(); workspace = defaultWorkspace(); markChanged(); renderProject(); editor.open(activeFile()); clearConsole(); toast('New project created.'); run();
 };
 
 function closeMenu(restoreFocus = false) { $('file-menu').hidden = true; menuTrigger?.setAttribute('aria-expanded', 'false'); if (restoreFocus) menuTrigger?.focus(); }
@@ -203,7 +203,7 @@ $('file-menu').onclick = async event => {
   const file = workspace.files.find(item => item.id === menuFileId); closeMenu(true);
   if (action === 'rename') showFileDialog('rename', file.id);
   if (action === 'download') openDownload([file.id]);
-  if (action === 'run') { workspace.entryId = file.id; openFile(file.id); markChanged(); renderProject(); setView(window.innerWidth <= 760 ? 'preview' : 'split'); run(); }
+  if (action === 'run') { workspace.entryId = file.id; openFile(file.id); markChanged(); renderProject(); setView(window.innerWidth <= 980 ? 'preview' : 'split'); run(); }
   if (action === 'duplicate') {
     try {
       const copy = { ...file, id: uid(), name: nextName(file.name, workspace.files) };
@@ -305,13 +305,13 @@ function setPage(page) {
 $('nav-editor').onclick = $('back-to-editor').onclick = () => setPage('editor');
 $('nav-reference').onclick = () => { renderReference(); setPage('reference'); };
 function setView(view) {
-  if (view === 'split' && window.matchMedia('(max-width:760px)').matches) view = 'code';
+  if (view === 'split' && window.matchMedia('(max-width:640px)').matches) view = 'code';
   $('workbench').dataset.view = view;
   document.querySelectorAll('[data-view].icon-button').forEach(button => { button.classList.toggle('active', button.dataset.view === view); button.setAttribute('aria-pressed', String(button.dataset.view === view)); });
   editor?.view.requestMeasure();
 }
 document.querySelectorAll('[data-view].icon-button').forEach(button => { button.onclick = () => setView(button.dataset.view); });
-window.matchMedia('(max-width:760px)').addEventListener('change', event => { if (event.matches && $('workbench').dataset.view === 'split') setView('code'); });
+window.matchMedia('(max-width:980px)').addEventListener('change', event => { if (event.matches && $('workbench').dataset.view === 'split') setView('code'); });
 $('preview-size').onchange = () => {
   const size = $('preview-size').value; frame.style.width = size === 'full' ? '100%' : size + 'px'; $('preview-stage').classList.toggle('sized', size !== 'full');
   $('preview-stage').style.justifyContent = size !== 'full' && Number(size) > $('preview-stage').clientWidth ? 'flex-start' : 'center';
@@ -328,7 +328,7 @@ function renderConsole() {
   const output = $('console-output'), filter = $('console-filter').value;
   const nearBottom = output.scrollTop + output.clientHeight >= output.scrollHeight - 35;
   const visible = logs.filter(item => filter === 'all' || item.level === filter || filter === 'log' && item.level === 'info');
-  output.innerHTML = visible.length ? visible.map(item => `<div class="console-entry ${item.level}"><span class="console-level">${item.level}</span><span class="console-message">${escapeHTML(item.message)}</span><time>${escapeHTML(item.time)}</time></div>`).join('') : `<div class="console-empty">${logs.length ? 'No messages at this level.' : 'A clean slate. Console output will appear here.'}</div>`;
+  output.innerHTML = visible.length ? visible.map(item => `<div class="console-entry ${item.level}"><span class="console-level">${item.level}</span><span class="console-message">${escapeHTML(item.message)}</span><time>${escapeHTML(item.time)}</time></div>`).join('') : `<div class="console-empty">${logs.length ? 'No messages at this level.' : 'Console output will appear here.'}</div>`;
   $('console-count').textContent = logs.length; const errors = logs.filter(item => item.level === 'error').length;
   $('console-summary').textContent = errors ? `${errors} error${errors === 1 ? '' : 's'}` : '';
   if (nearBottom || visible.length <= 1) output.scrollTop = output.scrollHeight;
@@ -341,7 +341,7 @@ function runtimeStatus(message, state = '') {
 function stopPreview(notify = true) {
   runNumber++; previewToken = ''; pythonPayload = null; clearTimeout(autoRunTimer);
   frame.srcdoc = ''; $('preview-placeholder').hidden = false;
-  $('preview-placeholder').querySelector('h2').textContent = 'A moment to pause.'; $('preview-placeholder').querySelector('p').textContent = 'Preview stopped. Your files are right where you left them.';
+  $('preview-placeholder').querySelector('h2').textContent = 'Preview stopped'; $('preview-placeholder').querySelector('p').textContent = 'Your files are unchanged. Click Run to start again.';
   $('stop-button').disabled = true; $('run-button').disabled = false; $('run-button').querySelector('span').textContent = 'Run';
   runtimeStatus('Preview stopped'); if (notify) toast('Preview stopped.');
 }
@@ -357,10 +357,10 @@ async function run(automatic = false) {
   // Navigating the iframe also terminates any worker owned by its old document.
   frame.srcdoc = ''; $('stop-button').disabled = false; $('run-button').disabled = true;
   $('run-button').querySelector('span').textContent = 'Building…'; $('preview-file').textContent = entry.name;
-  $('preview-placeholder').querySelector('h2').textContent = extension(entry.name) === 'py' ? 'A little Python, coming right up.' : 'Bringing your idea to life…';
+  $('preview-placeholder').querySelector('h2').textContent = extension(entry.name) === 'py' ? 'Loading Python…' : 'Building preview…';
   $('preview-placeholder').querySelector('p').textContent = extension(entry.name) === 'py' ? 'Loading the local Python runtime. The first run takes a moment.' : 'Building project files locally. Nothing is uploaded.';
   $('preview-placeholder').hidden = false; runtimeStatus(extension(entry.name) === 'py' ? 'Loading Python…' : 'Building locally…');
-  if (!automatic && window.matchMedia('(max-width:760px)').matches) setView('preview');
+  if (!automatic && window.matchMedia('(max-width:980px)').matches) setView('preview');
   try {
     if (extension(entry.name) === 'py') {
       const assets = await loadPythonAssets(); if (currentRun !== runNumber) return;
@@ -376,7 +376,7 @@ async function run(automatic = false) {
     if (currentRun !== runNumber) return;
     const message = error.errors?.map(item => `${item.location ? `${item.location.file}:${item.location.line}:${item.location.column + 1} · ` : ''}${item.text}`).join('\n') || error.message || String(error);
     log('error', message); runtimeStatus('Could not run · check console', 'error');
-    $('preview-placeholder').querySelector('h2').textContent = 'A small bump. Nothing lost.'; $('preview-placeholder').querySelector('p').textContent = 'Check the console below for details, make a change, and try again.';
+    $('preview-placeholder').querySelector('h2').textContent = 'Could not run this file'; $('preview-placeholder').querySelector('p').textContent = 'Check the console below for details, make a change, and try again.';
     $('preview-placeholder').hidden = false; $('console-pane').classList.remove('collapsed'); $('horizontal-resizer').hidden = false; $('console-toggle').setAttribute('aria-expanded', 'true');
   } finally {
     if (currentRun === runNumber) { $('run-button').disabled = false; $('run-button').querySelector('span').textContent = 'Run'; }
@@ -462,7 +462,7 @@ async function init() {
     if (size > MAX_FILE_BYTES || totalSize > MAX_PROJECT_BYTES) { toast(size > MAX_FILE_BYTES ? 'This file exceeds 2 MiB. The last edit was not applied.' : 'This project exceeds 16 MiB. The last edit was not applied.'); editor.replaceAll(file.content); return; }
     file.content = content; markChanged(); scheduleRun();
   }, (line, column, lines) => { $('cursor-position').textContent = `Ln ${line}, Col ${column}`; $('line-count').textContent = `${lines} line${lines === 1 ? '' : 's'}`; });
-  renderProject(); editor.open(activeFile()); renderSettings(); setView(window.matchMedia('(max-width:760px)').matches ? 'code' : 'split');
+  renderProject(); editor.open(activeFile()); renderSettings(); setView(window.matchMedia('(max-width:980px)').matches ? 'code' : 'split');
   $('editor-page').inert = false; $('editor-page').setAttribute('aria-busy', 'false');
   $('run-shortcut').textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ ↵' : 'Ctrl ↵';
   if (!restoreFailed) await persist();

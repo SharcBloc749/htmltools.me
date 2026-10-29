@@ -28,12 +28,12 @@ export async function saveWorkspace(workspace) {
     transaction.onabort = () => reject(transaction.error || new Error('Save interrupted.'));
   });
 }
-export const defaults = { fontSize: 13, tabSize: 2, wordWrap: false, autoRun: false, clearConsole: true };
+export const defaults = { fontSize: 14, tabSize: 2, wordWrap: false, autoRun: false, clearConsole: true };
 export function loadSettings() {
   try {
     const data = JSON.parse(localStorage.getItem('ahr3_settings') || 'null');
     if (data && typeof data === 'object') return {
-      fontSize: [12, 13, 14, 15, 16, 18].includes(Number(data.fontSize)) ? Number(data.fontSize) : 13,
+      fontSize: [12, 13, 14, 15, 16, 18].includes(Number(data.fontSize)) ? Number(data.fontSize) : defaults.fontSize,
       tabSize: Number(data.tabSize) === 4 ? 4 : 2,
       wordWrap: data.wordWrap === true, autoRun: data.autoRun === true, clearConsole: data.clearConsole !== false,
     };

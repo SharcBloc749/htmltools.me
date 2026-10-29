@@ -114,9 +114,15 @@ test('settings tolerate corrupted or blocked storage and migrate non-secret pref
   globalThis.localStorage = { getItem: key => key === 'ahr2_settings' ? '{"wordwrap":true,"autorun":true}' : null };
   assert.equal(loadSettings().wordWrap, true); assert.equal(loadSettings().autoRun, true);
   globalThis.localStorage = { getItem: () => '{"fontSize":999,"tabSize":8,"autoRun":"yes"}' };
-  assert.equal(loadSettings().fontSize, 13); assert.equal(loadSettings().tabSize, 2); assert.equal(loadSettings().autoRun, false);
+  assert.equal(loadSettings().fontSize, 14); assert.equal(loadSettings().tabSize, 2); assert.equal(loadSettings().autoRun, false);
   const removed = []; globalThis.localStorage = { removeItem: key => removed.push(key) }; clearRetiredAssistant();
   assert.deepEqual(removed, ['ahr2_ai', 'ahr2_aichat']); delete globalThis.localStorage;
+});
+test('readable defaults do not override an explicitly saved font size', () => {
+  assert.equal(defaults.fontSize, 14);
+  globalThis.localStorage = { getItem: key => key === 'ahr3_settings' ? '{"fontSize":13,"wordWrap":true}' : null };
+  assert.equal(loadSettings().fontSize, 13); assert.equal(loadSettings().wordWrap, true);
+  delete globalThis.localStorage;
 });
 test('Google sign-in uses the existing account project and has actionable deployment and cancellation errors', () => {
   assert.equal(firebaseConfig.projectId, 'htmltools-library');
