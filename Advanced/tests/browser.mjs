@@ -39,12 +39,51 @@ async function addFile(name, template = 'txt') {
 }
 async function importText(files) { await page.locator('#import-input').setInputFiles(files.map(([name, content]) => ({ name, mimeType: 'text/plain', buffer: Buffer.from(content) }))); await page.waitForFunction(n => document.querySelectorAll('#file-list .file-row').length === n, 4 + files.length); }
 
+async function assertOriginalLogo(selector = '.brand-logo') {
+  const logo = page.locator(selector);
+  await logo.waitFor();
+  await page.waitForFunction(selector => {
+    const image = document.querySelector(selector);
+    return image.complete && image.naturalWidth === 400;
+  }, selector);
+  assert.equal(await logo.getAttribute('src'), '/logo3.png');
+  const box = await logo.boundingBox();
+  assert.ok(box.width >= 36 && box.height >= 36, 'the original logo must remain clearly visible');
+  assert.equal(await logo.evaluate(image => getComputedStyle(image).filter), 'none');
+}
+async function assertToolbarGeometry() {
+  const selectors = ['.brand', '#nav-editor', '#nav-reference', '#settings-button', '#account-button',
+    '#toggle-files', '#project-name', '#entry-file', '#run-button', '#stop-button', '.auto-run', '#find-button',
+    '.view-switch [data-view="code"]', '.view-switch [data-view="split"]', '.view-switch [data-view="preview"]',
+    '#new-project', '#import-button', '#download-button'];
+  const controls = await page.evaluate(selectors => selectors.map(selector => {
+    const rect = document.querySelector(selector).getBoundingClientRect();
+    return { selector, x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  }).filter(rect => rect.width && rect.height), selectors);
+  const { width, height } = page.viewportSize();
+  for (const a of controls) {
+    assert.ok(a.x >= -.5 && a.x + a.width <= width + .5 && a.y >= -.5 && a.y + a.height <= height + .5, `${a.selector} must be inside ${width}px viewport`);
+    for (const b of controls) {
+      if (a === b) continue;
+      const overlap = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > .5 &&
+        Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > .5;
+      assert.equal(overlap, false, `${a.selector} overlaps ${b.selector} at ${width}px`);
+    }
+  }
+}
+
 try {
   await fresh();
+  await check('the original HTMLTools logo loads with readable default editor text and controls', async () => {
+    await assertOriginalLogo(); await assertToolbarGeometry();
+    assert.equal(await page.locator('.cm-content').evaluate(node => getComputedStyle(node).fontSize), '14px');
+    assert.ok((await page.locator('#run-button').boundingBox()).height >= 38);
+    assert.equal(await page.locator('#run-button').evaluate(node => node.closest('.project-bar') !== null), true);
+  });
   await check('starter project runs with local CSS, JavaScript, and console bridge', async () => {
     const button = page.frameLocator('#preview-frame').getByRole('button', { name: 'Say hello' }); await button.waitFor(); await button.click();
-    await page.waitForFunction(() => document.querySelector('#console-output').textContent.includes('A little hello'));
-    assert.match(await page.frameLocator('#preview-frame').locator('#message').textContent(), /Hello, maker/);
+    await page.waitForFunction(() => document.querySelector('#console-output').textContent.includes('Hello from JavaScript.'));
+    assert.match(await page.frameLocator('#preview-frame').locator('#message').textContent(), /Hello from your project/);
     assert.equal(compilerRequests, 0, 'ordinary web starter does not download a WASM compiler');
     await page.screenshot({ path: artifacts + 'desktop.png' });
   });
@@ -84,12 +123,13 @@ try {
   });
   await check('word wrap, font size, indentation, search, and keyboard resizing respond', async () => {
     await page.locator('#settings-button').click(); await page.selectOption('#setting-font', '16'); await page.selectOption('#setting-tab', '4'); await page.locator('#setting-wrap').check();
-    await page.locator('#settings-dialog').getByRole('button', { name: 'All comfortable' }).click();
+    await page.locator('#settings-dialog').getByRole('button', { name: 'Done', exact: true }).click();
     assert.equal(await page.locator('.cm-content').evaluate(node => getComputedStyle(node).fontSize), '16px');
     assert.equal(await page.locator('#wrap-toggle').getAttribute('aria-pressed'), 'true');
     await page.locator('#find-button').click(); await page.locator('.cm-search input[name="search"]').fill('ideas'); await page.locator('.cm-search button[name="close"]').click();
-    await page.locator('#vertical-resizer').focus(); await page.keyboard.press('ArrowRight'); assert.equal(await page.locator('#vertical-resizer').getAttribute('aria-valuenow'), '55');
-    await page.locator('#console-toggle').click(); assert.equal(await page.locator('#console-pane').evaluate(node => Math.round(node.getBoundingClientRect().height)), 37); await page.locator('#console-toggle').click();
+    const split = Number(await page.locator('#vertical-resizer').getAttribute('aria-valuenow'));
+    await page.locator('#vertical-resizer').focus(); await page.keyboard.press('ArrowRight'); assert.equal(Number(await page.locator('#vertical-resizer').getAttribute('aria-valuenow')), split + 5);
+    await page.locator('#console-toggle').click(); assert.equal(await page.locator('#console-pane').evaluate(node => Math.round(node.getBoundingClientRect().height)), 42); await page.locator('#console-toggle').click();
   });
   await check('reference retains web snippets and adds Python and TypeScript search', async () => {
     await page.locator('#nav-reference').click(); await page.locator('[data-category="py"]').click();
@@ -100,7 +140,18 @@ try {
     await page.locator('#account-button').click(); await page.locator('#google-sign-in').waitFor(); assert.match(await page.locator('#google-sign-in').textContent(), /Continue with Google/);
     await page.locator('#auth-register-tab').click(); assert.equal(await page.locator('#auth-name-group').isVisible(), true); assert.equal(await page.locator('#auth-password').getAttribute('autocomplete'), 'new-password');
     await page.locator('#auth-sign-in-tab').click(); assert.equal(await page.locator('#auth-name-group').isVisible(), false);
+    await assertOriginalLogo('.auth-brand img');
     await page.screenshot({ path: artifacts + 'sign-in.png' }); await page.locator('#auth-dialog').getByRole('button', { name: 'Keep working locally' }).click();
+  });
+  await check('UI refresh preserves saved project contents and explicit editor preferences', async () => {
+    const source = await page.locator('.cm-content').textContent();
+    await saved(); await page.reload(); await page.locator('.cm-content').waitFor(); await saved();
+    assert.equal(await page.locator('.cm-content').textContent(), source);
+    assert.equal(await page.locator('.cm-content').evaluate(node => getComputedStyle(node).fontSize), '16px');
+    assert.equal(await page.locator('#wrap-toggle').getAttribute('aria-pressed'), 'true');
+    assert.match(await page.locator('#project-name').textContent(), /My comfortable workspace/);
+    assert.equal(await page.locator('#preview-placeholder').isVisible(), true);
+    await assertOriginalLogo();
   });
 
   await fresh();
@@ -176,11 +227,28 @@ try {
     await code('input("Your name?")'); await runUntil('Interactive input() is not supported');
   });
 
+  await fresh();
+  await check('toolbar controls remain in bounds and do not overlap across desktop, tablet, and phone breakpoints', async () => {
+    for (const width of [1920, 1600, 1440, 1366, 1321, 1320, 1280, 1141, 1140, 1024, 1000, 981, 980, 900, 861, 860, 768, 641, 640, 600, 480, 390, 360, 320]) {
+      await page.setViewportSize({ width, height: 940 });
+      await assertOriginalLogo(); await assertToolbarGeometry();
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      if ([1280, 1024, 900, 390, 320].includes(width)) await page.screenshot({ path: artifacts + `workspace-${width}.png` });
+    }
+    await page.locator('#project-name').click(); await page.fill('#project-name-input', 'A long project name '.repeat(4).trim());
+    await page.locator('#name-form').getByRole('button', { name: 'Save name' }).click();
+    await page.locator('#toggle-files').click(); await addFile('src/components/a-long-file-name-that-needs-to-be-truncated-in-the-toolbar.tsx');
+    for (const width of [320, 390, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 940 }); await assertToolbarGeometry();
+    }
+  });
+
   for (const width of [390, 320, 768]) {
     await fresh({ width, height: 844 });
     await check(`responsive ${width}px layout has usable file tools, preview, and dialogs without page overflow`, async () => {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-      if (width <= 760) { await page.locator('#toggle-files').click(); assert.equal(await page.locator('#explorer').isVisible(), true); await page.locator('#new-file').click(); }
+      await assertOriginalLogo(); await assertToolbarGeometry();
+      if (width <= 980) { await page.locator('#toggle-files').click(); assert.equal(await page.locator('#explorer').isVisible(), true); await page.locator('#new-file').click(); }
       else await page.locator('#new-file').click();
       await page.fill('#file-name', 'mobile.py'); await page.selectOption('#file-template', 'py'); await page.locator('#file-submit').click();
       const entryRect = await page.locator('#entry-file').boundingBox(), runRect = await page.locator('#run-button').boundingBox();
@@ -189,9 +257,27 @@ try {
       assert.equal(await page.locator('#preview-frame').isVisible(), true); await page.screenshot({ path: artifacts + `mobile-${width}.png` });
       await page.locator('#download-button').click(); assert.equal(await page.locator('#download-dialog').isVisible(), true);
       const dialog = await page.locator('#download-dialog').boundingBox(); assert.ok(dialog.x >= 0 && dialog.x + dialog.width <= width);
+      assert.equal(await page.locator('#download-dialog').evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth), true);
+      await page.screenshot({ path: artifacts + `download-${width}.png` });
       await page.locator('#download-dialog').getByRole('button', { name: 'Cancel' }).click();
+      await page.locator('#account-button').click(); await assertOriginalLogo('.auth-brand img');
+      assert.equal(await page.locator('#auth-dialog').evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth), true);
+      await page.screenshot({ path: artifacts + `sign-in-${width}.png` });
+      await page.locator('#auth-dialog').getByRole('button', { name: 'Keep working locally' }).click();
+      await page.locator('#settings-button').click();
+      assert.equal(await page.locator('#settings-dialog').evaluate(dialog => dialog.scrollWidth <= dialog.clientWidth), true);
+      await page.screenshot({ path: artifacts + `settings-${width}.png` });
+      await page.locator('#settings-dialog').getByRole('button', { name: 'Done', exact: true }).click();
     });
   }
+  await fresh();
+  await check('legacy downloads URL keeps the original branding and opens the workspace file picker', async () => {
+    await page.goto(new URL('Download/', base).href); await assertOriginalLogo('.brand img');
+    await page.getByRole('link', { name: 'Choose files to download' }).click();
+    await page.locator('#download-dialog').waitFor();
+    assert.equal(await page.locator('.download-file').count(), 4);
+    await assertOriginalLogo();
+  });
   console.log(`\n${checks} browser scenarios passed. Screenshots: Advanced/.test-results/`);
 } catch (error) {
   if (page && !page.isClosed()) await page.screenshot({ path: artifacts + 'failure.png' }).catch(() => {});

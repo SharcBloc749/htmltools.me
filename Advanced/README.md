@@ -5,12 +5,16 @@ A static, local-first coding workspace for HTMLTools. The editor, icons, syntax 
 ## Use it
 
 - Create any UTF-8 text file; names can include folders (`src/helper.ts`). Import multiple text files, supported images, or a ZIP. Imports merge into the current project and ask before replacing matching filenames.
-- Choose an **Entry** file and press **Run** or **Ctrl / ⌘ + Enter**. Switching editor tabs does not change the entry. A newly created or imported file becomes the entry; the file-actions menu can run any specific file.
+- Choose a **Run file** (entry) and press **Run** or **Ctrl / ⌘ + Enter**. Switching editor tabs does not change the entry. A newly created or imported file becomes the entry; the file-actions menu can run any specific file.
 - Rename the project by clicking its name. Rename files from their actions menu or with **F2**. Explicit local HTML, CSS, JS/TS, and Markdown references are updated on file moves/renames; Python dotted imports and runtime-generated paths may need manual updates.
 - **Download** opens a file picker. Export one original file, any subset, or the whole project. Multiple files are zipped with their relative paths preserved. A single file can also be zipped to keep its folder path. The download filename is editable.
 - Autosave uses IndexedDB, not an account or a server. Preferences use localStorage. Save failures are visible; export a backup before leaving if saving is unavailable. **Ctrl / ⌘ + S** forces a local save, and **Ctrl / ⌘ + Shift + S** opens downloads.
 - Restored code is **not** executed automatically. Only the newly created built-in starter is initially previewed. Auto-run is opt-in and never runs Python.
-- The layout supports editor-only, split, and preview-only modes. On phones, use the folder button to open files and the layout buttons to switch editor/preview. Resizers support pointer capture and arrow keys. CodeMirror provides real scrollable syntax highlighting, undo per file, completion, find/replace, bracket matching, and folding. Press **Escape, then Tab** to leave the editor by keyboard.
+- The layout supports editor-only, split, and preview-only modes. At tablet and phone widths (980px and below), the file explorer becomes a drawer so the editor is not squeezed into three columns. Use **Files** / the folder button to open it, and the layout buttons to switch editor/preview. Split view remains available above 640px. Resizers support pointer capture and arrow keys. CodeMirror provides real scrollable syntax highlighting, undo per file, completion, find/replace, bracket matching, and folding. Press **Escape, then Tab** to leave the editor by keyboard.
+
+## Appearance and branding
+
+The header, sign-in dialog, and downloads handoff use the site's original `/logo3.png` HTMLTools logo. Do not replace it with the generic code icon used by editor actions. The UI keeps the black-and-white theme, a single project/run toolbar, and readable monochrome syntax. New preferences default to a 14px editor font; explicit saved preferences and existing projects are preserved. The simplified built-in starter only applies to new workspaces.
 
 ## What runs
 
@@ -68,4 +72,4 @@ node --test ../tests/*.test.mjs   # existing repository regressions
 npm audit --omit=dev
 ```
 
-The browser suite starts and closes its own static server, exercises web/TypeScript/Python execution and downloads, verifies sandbox isolation and stopping infinite Python, and checks 320/390/768px layouts. It uses an npm-distributed Chromium in minimal Linux environments; set `CHROMIUM_EXECUTABLE` to use an existing browser elsewhere. Screenshots in `.test-results/` and `node_modules/` are ignored. Third-party licenses are in `assets/THIRD_PARTY_NOTICES.txt` and `assets/python/*-LICENSE`.
+The browser suite starts and closes its own static server, exercises web/TypeScript/Python execution and downloads, verifies sandbox isolation and stopping infinite Python, and checks toolbar/logo geometry across 24 viewport widths from 320px to 1920px, plus phone/tablet file tools, downloads, settings, and sign-in dialogs. It uses an npm-distributed Chromium in minimal Linux environments; set `CHROMIUM_EXECUTABLE` to use an existing browser elsewhere. Screenshots in `.test-results/` and `node_modules/` are ignored. Third-party licenses are in `assets/THIRD_PARTY_NOTICES.txt` and `assets/python/*-LICENSE`.
