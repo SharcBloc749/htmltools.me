@@ -12,7 +12,7 @@ The current directory lists 18 tools in five categories:
 
 - **Popular:** HTMLTools Browser, AI Playground, MatTube, HTML Library, MatTok
 - **AI:** Make Your Own AI, AI Image Editor, AI Image Generator, Research AI (chat models are consolidated in AI Playground)
-- **Tech:** Past Time, Website Encryption, Make a Website, Advanced HTML Runner, HTMLTools Proxy, Translator
+- **Tech:** Past Time, Website Encryption, Make a Website, Advanced Workspace, HTMLTools Proxy, Translator
 - **Media:** Remove Background, Art
 - **Communication:** HTMeet
 
@@ -43,3 +43,7 @@ The old website-encryption Firebase configuration has been replaced in the affec
 ## Firebase bandwidth controls
 
 See [the Firebase deployment and bandwidth runbook](firebase/README.md). The new metadata indexes must be backfilled before deploying the new query-restricted rules and clients together. Rules are specific to `general-database-4cb1c`, not the other Firebase projects used by this repository.
+
+## Advanced coding workspace
+
+[Advanced](Advanced/README.md) is a local-first, multi-file editor with sandboxed web and TypeScript execution, isolated Python, document previews, editable filenames, and selective ZIP downloads. It remains a static deployment; the checked-in assets are rebuilt with `cd Advanced && npm ci && npm run build`. See its README for local development, tests, file limits, and the Firebase Google sign-in deployment checklist.
