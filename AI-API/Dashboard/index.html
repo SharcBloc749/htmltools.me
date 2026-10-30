@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · HTMLTools AI API</title>
+<meta name="description" content="Create, inspect and revoke htmltools.me AI API keys, watch your usage and limits, and connect your own Groq key.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png">
+<link rel="stylesheet" href="/AI-API/assets/theme.css">
+<style>
+  .auth-shell { max-width: 430px; margin: 64px auto; }
+  .auth-card { padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+  .account-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px 20px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    background: var(--elev); border: 1px solid var(--border-strong); font-family: var(--mono); font-size: 14px;
+  }
+  .account-bar .who { flex: 1; min-width: 180px; }
+  .account-bar .name { font-size: 15px; font-weight: 600; }
+  .account-bar .mail { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+  .tabbar { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin: 26px 0 22px; padding-bottom: 10px; }
+  .tabbar button {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); padding: 7px 12px; border-radius: 8px; border: 1px solid transparent;
+  }
+  .tabbar button[aria-selected="true"] { color: var(--white); background: rgba(255,255,255,.07); border-color: var(--border); }
+  .tabbar button:hover { color: var(--white); }
+  .panel-stack { display: flex; flex-direction: column; gap: 18px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 760px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+  .history { display: flex; align-items: flex-end; gap: 4px; height: 74px; margin-top: 6px; }
+  .history div { flex: 1; background: rgba(255,255,255,.14); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+  .history div[data-today="1"] { background: rgba(255,255,255,.6); }
+  .history + .history-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9.5px; color: var(--dim); margin-top: 6px; letter-spacing: .06em; }
+  .key-reveal { font-family: var(--mono); font-size: 13px; background: #08080a; border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px; word-break: break-all; }
+  .action-cell { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .admin-table td { font-size: 12.5px; }
+  .divider-label { display: flex; align-items: center; gap: 10px; color: var(--dim); font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+  .divider-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+</style>
+</head>
+<body>
+
+<header class="site-head">
+  <div class="bar">
+    <a class="brand" href="https://htmltools.me/">
+      <span class="mark"><img src="https://htmltools.me/logo3.png" alt="HTMLTools"></span>
+      <span>HTMLTools</span><span class="slash">/</span><span class="sub">AI API</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/AI-API/">Overview</a>
+      <a href="/AI-API/Docs/">Docs</a>
+      <a href="/AI-API/Playground/">Playground</a>
+      <a href="/AI-API/Dashboard/" aria-current="page">Dashboard</a>
+      <a class="nav-cta" href="#keys" data-scroll-keys>Get a key</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" style="padding:34px 0 80px">
+
+  <!-- ── signed out ───────────────────────────────────────────────────── -->
+  <section id="signedOut" class="hidden">
+    <div class="auth-shell">
+      <div class="kicker"><span class="dot" aria-hidden="true"></span> Account</div>
+      <h1 style="font-size:clamp(28px,4vw,38px);margin-bottom:10px">Sign in to <em>manage keys.</em></h1>
+      <p class="muted" style="font-size:14px;margin-bottom:22px">
+        Accounts come from the shared HTMLTools Firebase project used by AI Playground and Website Encryption.
+      </p>
+
+      <div class="panel auth-card">
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+        </div>
+        <p class="err" id="authErr" role="alert"></p>
+        <button class="btn btn-primary" type="button" id="submit">
+          <span id="submitLabel">Sign in</span>
+        </button>
+        <div class="hr-label">or</div>
+        <button class="btn btn-ghost" type="button" id="google">Continue with Google</button>
+        <p class="hint" style="text-align:center">
+          <span id="switchText">No account yet?</span>
+          <button type="button" id="toggle" style="color:#fff;text-decoration:underline">Create one</button>
+        </p>
+      </div>
+
+      <div class="notice" style="margin-top:18px">
+        <span>This dashboard signs you in with the <b>general-database-4cb1c</b> Firebase project, not the
+          htmltools-main account used by Main. If you have never opened AI Playground, you may need to create an
+          account here once.</span>
+      </div>
+      <p class="hint" style="margin-top:14px"><a href="/AI-API/Docs/" style="text-decoration:underline">Read the API reference →</a></p>
+    </div>
+  </section>
+
+  <!-- ── signed in ────────────────────────────────────────────────────── -->
+  <section id="signedIn" class="hidden">
+    <div class="panel account-bar">
+      <div class="avatar" data-initial>–</div>
+      <div class="who">
+        <div class="name" data-user-name>Signed in</div>
+        <div class="mail" data-user-mail></div>
+      </div>
+      <span class="badge" data-user-ref></span>
+      <span class="badge hidden" data-admin-badge>operator</span>
+      <button class="btn btn-quiet btn-sm" type="button" data-refresh>Refresh</button>
+      <button class="btn btn-quiet btn-sm" type="button" id="signOut">Sign out</button>
+    </div>
+
+    <div class="baseurl" style="margin-top:16px">
+      <span class="tag">Base URL</span>
+      <code>https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1</code>
+      <button class="btn btn-primary btn-sm" type="button" data-copy="https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1">Copy</button>
+    </div>
+
+    <div class="tabbar" role="tablist" aria-label="Dashboard sections">
+      <button role="tab" data-tab="keys" aria-selected="true">API keys</button>
+      <button role="tab" data-tab="usage" aria-selected="false">Usage</button>
+      <button role="tab" data-tab="byok" aria-selected="false">Provider keys</button>
+      <button role="tab" data-tab="admin" aria-selected="false" class="hidden" data-admin-tab>Admin</button>
+    </div>
+
+    <!-- keys -->
+    <div data-panel="keys" class="panel-stack">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>Your keys</h3>
+            <p class="hint" style="margin-top:3px">Shown once at creation. Revocation takes effect on the next request.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" type="button" data-new-key>Create key</button>
+        </div>
+        <div class="panel-body" data-keys-list>
+          <p class="muted">Loading keys…</p>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Daily limits</h3></div>
+          <div class="panel-body" data-key-limits>
+            <p class="muted">Loading…</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Shared free pool</h3></div>
+          <div class="panel-body">
+            <div class="meter" data-pool-meter></div>
+            <p class="hint" style="margin-top:12px">Free-pool models stop at the daily cap. They never fall back to a paid model.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- usage -->
+    <div data-panel="usage" class="panel-stack hidden">
+      <div class="panel">
+        <div class="panel-head"><h3>Today</h3><span class="badge" data-day-badge>UTC</span></div>
+        <div class="panel-body">
+          <div class="stat-grid">
+            <div class="stat"><span class="n" data-usage-requests>—</span><span class="k">requests</span></div>
+            <div class="stat"><span class="n" data-usage-tokens>—</span><span class="k">tokens (est.)</span></div>
+            <div class="stat"><span class="n" data-usage-neurons>—</span><span class="k">neurons reserved</span></div>
+            <div class="stat"><span class="n" data-usage-keys>—</span><span class="k">active keys</span></div>
+          </div>
+          <div style="margin-top:22px">
+            <div class="meter" data-usage-meter></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Last 14 days</h3></div>
+        <div class="panel-body">
+          <div class="history" data-history></div>
+          <div class="history-labels"><span data-history-first>—</span><span>today</span></div>
+          <p class="hint" style="margin-top:12px">Daily request totals from the gateway's counters. History is kept for two weeks.</p>
+        </div>
+      </div>
+
+      <div class="notice">
+        <span>Free-pool requests count against both your account quota and the site-wide pool. Requests made with
+          your own Groq key do not touch the pool, but they still count toward the per-account request cap.</span>
+      </div>
+    </div>
+
+    <!-- byok -->
+    <div data-panel="byok" class="panel-stack hidden">
+      <div class="panel">
+        <div class="panel-head"><h3>Groq account</h3><span class="badge" data-byok-badge>checking…</span></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:13.5px;margin-bottom:16px">
+            Connect your own Groq key to run Groq model ids on your account and your rate limits. Your key is
+            encrypted with AES-256-GCM before storage and is never returned to any browser.
+          </p>
+
+          <form data-byok-form class="panel-stack" style="gap:12px;max-width:460px">
+            <div class="field">
+              <label for="groqKey">Groq API key</label>
+              <input id="groqKey" type="password" autocomplete="off" placeholder="gsk_…" spellcheck="false">
+              <span class="hint">Created at console.groq.com. Paste only here — never into a chat.</span>
+            </div>
+            <div class="field">
+              <label for="byokPassword">Confirm your password</label>
+              <input id="byokPassword" type="password" autocomplete="current-password" placeholder="Required to store a secret">
+              <span class="hint" data-byok-password-hint>Used once to refresh your session; it is never sent to the gateway.</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" type="submit">Connect key</button>
+              <button class="btn btn-quiet btn-sm" type="button" data-byok-google-reauth hidden>Confirm with Google</button>
+              <button class="btn btn-danger btn-sm" type="button" data-byok-remove hidden>Disconnect</button>
+            </div>
+            <p class="err" data-byok-err role="alert"></p>
+          </form>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="notice">
+          <span><b>Where the secret lives.</b> The encryption secret is a Cloudflare Worker secret
+            (<code class="inline">BYOK_ENCRYPTION_KEY</code>). It is not in this repository and not in the private roster.
+            Deleting the key destroys the ciphertext immediately.</span>
+        </div>
+        <div class="notice">
+          <span><b>What Groq sees.</b> Prompts for Groq model ids are sent to Groq under your account. htmltools.me
+            only stores usage counters for those requests.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- admin -->
+    <div data-panel="admin" class="panel-stack hidden">
+      <div class="panel">
+        <div class="panel-head">
+          <div><h3>Operator tools</h3><p class="hint" style="margin-top:3px">Requires a sign-in within 5 minutes and the admin passphrase.</p></div>
+        </div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;max-width:620px">
+            <div class="field" style="flex:1;min-width:220px">
+              <label for="adminPass">Admin passphrase</label>
+              <input id="adminPass" type="password" autocomplete="off" placeholder="Set as ADMIN_PASSPHRASE">
+            </div>
+            <button class="btn btn-primary btn-sm" type="button" data-admin-load>Load roster</button>
+            <button class="btn btn-quiet btn-sm" type="button" data-admin-sync>Sync now</button>
+          </div>
+          <p class="err" data-admin-err role="alert" style="margin-top:10px"></p>
+          <div data-admin-body style="margin-top:18px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="loading" style="padding:80px 0;text-align:center">
+    <span class="spin"></span>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap bar">
+    <span>htmltools.me / AI API · dashboard</span>
+    <span class="links">
+      <a href="/AI-API/">Overview</a>
+      <a href="/AI-API/Docs/">Docs</a>
+      <a href="/AI-API/Playground/">Playground</a>
+      <a href="https://htmltools.me/Tools/">All tools</a>
+    </span>
+  </div>
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="/AI-API/assets/config.js"></script>
+<script src="/AI-API/assets/app.js"></script>
+<script>
+(function () {
+  var H = window.HTAI;
+  var $ = H.$, $$ = H.$$;
+  var state = { me: null, keys: [], usage: null, escrow: false, adminPass: '', mode: 'in', busy: false };
+
+  /* ── generic modal ─────────────────────────────────────────────────── */
+  function modal(options) {
+    return new Promise(function (resolve) {
+      var dialog = document.createElement('dialog');
+      dialog.className = 'modal';
+      dialog.innerHTML =
+        '<div class="modal-head"><h3>' + H.esc(options.title) + '</h3>' +
+        '<button class="x" type="button" data-close aria-label="Close">✕</button></div>' +
+        '<div class="modal-body">' + options.body + '</div>' +
+        (options.actions ? '<div class="modal-foot">' + options.actions.map(function (action, i) {
+          return '<button class="btn ' + (action.primary ? 'btn-primary' : 'btn-quiet') + ' btn-sm" type="button" data-i="' + i + '">' + H.esc(action.label) + '</button>';
+        }).join('') + '</div>' : '');
+
+      function finish(value) {
+        dialog.close();
+        dialog.remove();
+        resolve(value);
+      }
+
+      dialog.addEventListener('click', function (event) {
+        if (event.target.matches('[data-close]')) finish(null);
+        var button = event.target.closest('[data-i]');
+        if (button) {
+          var action = options.actions[Number(button.dataset.i)];
+          var fields = {};
+          $$('[data-field]', dialog).forEach(function (input) { fields[input.dataset.field] = input.value; });
+          if (action.onClick) {
+            var outcome = action.onClick(fields, dialog);
+            if (outcome === false) return;
+          }
+          finish(action.value === undefined ? true : action.value);
+        }
+      });
+      dialog.addEventListener('cancel', function (event) { event.preventDefault(); finish(null); });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+      if (options.onOpen) options.onOpen(dialog);
+      var first = $('input, textarea', dialog);
+      if (first) setTimeout(function () { first.focus(); }, 30);
+    });
+  }
+
+  function field(label, name, type, placeholder, extra) {
+    return '<div class="field"><label>' + H.esc(label) + '</label>' +
+      '<input data-field="' + name + '" type="' + (type || 'text') + '" placeholder="' + H.esc(placeholder || '') + '" ' + (extra || '') + '>' +
+      '</div>';
+  }
+
+  /* ── auth screen ───────────────────────────────────────────────────── */
+  var authErr = $('#authErr');
+
+  function setMode(mode) {
+    state.mode = mode;
+    $('#submitLabel').textContent = mode === 'in' ? 'Sign in' : 'Create account';
+    $('#switchText').textContent = mode === 'in' ? 'No account yet?' : 'Already have an account?';
+    $('#toggle').textContent = mode === 'in' ? 'Create one' : 'Sign in';
+    $('#password').autocomplete = mode === 'in' ? 'current-password' : 'new-password';
+    authErr.textContent = '';
+  }
+
+  $('#toggle').addEventListener('click', function () { setMode(state.mode === 'in' ? 'up' : 'in'); });
+
+  async function submitAuth() {
+    authErr.textContent = '';
+    var email = $('#email').value.trim();
+    var password = $('#password').value;
+    if (!email || !password) { authErr.textContent = 'Email and password are required.'; return; }
+    $('#submit').disabled = true;
+    try {
+      if (state.mode === 'in') await H.signIn(email, password);
+      else await H.signUp(email, password);
+    } catch (error) {
+      authErr.textContent = H.friendlyAuthError(error);
+    } finally {
+      $('#submit').disabled = false;
+    }
+  }
+
+  $('#submit').addEventListener('click', submitAuth);
+  $('#password').addEventListener('keydown', function (event) { if (event.key === 'Enter') submitAuth(); });
+  $('#google').addEventListener('click', async function () {
+    authErr.textContent = '';
+    try { await H.google(); } catch (error) { authErr.textContent = H.friendlyAuthError(error); }
+  });
+  $('#signOut').addEventListener('click', function () { H.signOut(); });
+
+  /* ── data loading ──────────────────────────────────────────────────── */
+  async function loadMe() {
+    state.me = await H.api('/account/me');
+    var user = H.auth.currentUser || {};
+    var name = state.me.name || user.displayName || 'Your account';
+    $('[data-user-name]').textContent = name;
+    $('[data-user-mail]').textContent = state.me.email || user.email || 'no email on account';
+    $('[data-user-ref]').textContent = 'ref ' + state.me.ref;
+    $('[data-initial]').textContent = (name || '?').trim().charAt(0).toUpperCase();
+    $('[data-admin-badge]').classList.toggle('hidden', !state.me.admin);
+    $('[data-admin-tab]').classList.toggle('hidden', !state.me.admin);
+    H.renderPool($('[data-pool-meter]'), state.me.pool);
+    if (state.me.byok) renderByok(state.me.byok);
+  }
+
+  async function loadKeys() {
+    var data = await H.api('/account/keys');
+    state.keys = data.keys || [];
+    state.escrow = Boolean(data.escrow);
+    renderKeys();
+    renderLimits(data.usage);
+    if (data.usage) renderUsage(data.usage, true);
+  }
+
+  async function loadUsage() {
+    var usage = await H.api('/account/usage');
+    renderUsage(usage, false);
+  }
+
+  function renderLimits(usage) {
+    var host = $('[data-key-limits]');
+    var limits = (usage && usage.limits) || (state.me && state.me.limits) || {};
+    var today = (usage && usage.today) || {};
+    host.innerHTML =
+      '<div class="rows">' +
+      row('Requests today', H.fmtNum(today.requests || 0) + ' / ' + H.fmtNum(limits.requestsPerDay || '—')) +
+      row('Requests per minute', H.fmtNum(limits.requestsPerMinute || '—')) +
+      row('Active keys', H.fmtNum(usage ? usage.activeKeys : state.keys.filter(function (k) { return !k.revoked; }).length) + ' / ' + H.fmtNum(limits.maxActiveKeys || '—')) +
+      row('Key recovery', state.escrow ? 'enabled by operator' : 'hash-only (not recoverable)') +
+      '</div>';
+  }
+
+  function row(label, value) {
+    return '<div class="row"><div class="grow"><div class="sub">' + H.esc(label) + '</div></div><div class="mono" style="font-size:13px">' + H.esc(value) + '</div></div>';
+  }
+
+  function renderKeys() {
+    var host = $('[data-keys-list]');
+    if (!state.keys.length) {
+      host.innerHTML = '<div class="card empty"><h3>No keys yet</h3><p class="hint" style="margin:8px 0 16px">Create one to start calling the API.</p>' +
+        '<button class="btn btn-primary btn-sm" type="button" data-new-key>Create your first key</button></div>';
+      return;
+    }
+    var rows = state.keys.map(function (key) {
+      var status = key.revoked
+        ? '<span class="badge bad">revoked</span>'
+        : '<span class="badge ok">active</span>';
+      var actions = '<div class="action-cell">' +
+        (key.revoked ? '' : '<button class="btn btn-quiet btn-sm" type="button" data-revoke="' + H.esc(key.id) + '">Revoke</button>') +
+        (key.recoverable ? '<button class="btn btn-quiet btn-sm" type="button" data-reveal="' + H.esc(key.id) + '">Show key</button>' : '') +
+        '</div>';
+      return '<tr>' +
+        '<td><code>' + H.esc(key.id) + '</code><div class="sub" style="font-family:var(--mono);font-size:10.5px;color:var(--dim)">' + H.esc(key.label || 'no label') + '</div></td>' +
+        '<td>' + status + '</td>' +
+        '<td class="num">' + H.fmtDate(key.created) + '</td>' +
+        '<td class="num">' + H.relTime(key.lastUsed) + '</td>' +
+        '<td class="num">' + H.fmtNum(key.usage && key.usage.requests || 0) + '</td>' +
+        '<td class="num">' + H.fmtNum(key.usage && key.usage.tokens || 0) + '</td>' +
+        '<td>' + actions + '</td>' +
+        '</tr>';
+    }).join('');
+    host.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+      '<th>Key</th><th>Status</th><th class="num">Created</th><th class="num">Last used</th>' +
+      '<th class="num">Requests</th><th class="num">Tokens</th><th style="text-align:right">Actions</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      (state.escrow
+        ? '<p class="hint" style="margin-top:10px">“Show key” decrypts an escrowed copy and requires your password again.</p>'
+        : '<p class="hint" style="margin-top:10px">Keys are stored as one-way hashes on this deployment, so they cannot be shown again after creation.</p>');
+  }
+
+  function renderUsage(usage, quiet) {
+    var today = usage.today || {};
+    var limits = usage.limits || {};
+    $('[data-usage-requests]').textContent = H.fmtNum(today.requests || 0);
+    $('[data-usage-tokens]').textContent = H.fmtNum(today.tokens || 0);
+    $('[data-usage-neurons]').textContent = H.fmtNum(today.neurons || 0);
+    $('[data-usage-keys]').textContent = H.fmtNum(usage.activeKeys || 0);
+    $('[data-day-badge]').textContent = new Date().toISOString().slice(0, 10) + ' UTC';
+
+    var host = $('[data-usage-meter]');
+    var cap = limits.requestsPerDay || 150;
+    var used = Math.min(cap, today.requests || 0);
+    var pct = cap ? Math.round((used / cap) * 100) : 0;
+    host.innerHTML = '<div class="meter-top"><span>Your daily requests</span><span><b>' + H.fmtNum(used) + '</b> / ' + H.fmtNum(cap) + '</span></div>' +
+      '<div class="meter-bar ' + (pct >= 100 ? 'out' : pct > 80 ? 'low' : '') + '"><span style="width:' + Math.min(100, pct) + '%"></span></div>';
+
+    var history = usage.history || {};
+    var days = Object.keys(history).sort().slice(-14);
+    var values = days.map(function (day) { return Number(history[day] && history[day].requests) || 0; });
+    var max = Math.max(1, values.concat([today.requests || 0]).reduce(function (a, b) { return Math.max(a, b); }, 1));
+    var bars = days.map(function (day, i) {
+      var height = Math.max(2, Math.round((values[i] / max) * 68));
+      return '<div style="height:' + height + 'px" title="' + day + ': ' + values[i] + ' requests"></div>';
+    });
+    bars.push('<div data-today="1" style="height:' + Math.max(2, Math.round(((today.requests || 0) / max) * 68)) + 'px" title="today: ' + (today.requests || 0) + ' requests"></div>');
+    $('[data-history]').innerHTML = bars.join('');
+    $('[data-history-first]').textContent = days[0] || 'no history yet';
+    if (!quiet && usage.pool) H.renderPool($('[data-pool-meter]'), usage.pool);
+  }
+
+  function renderByok(byok) {
+    var badge = $('[data-byok-badge]');
+    var connected = Boolean(byok && byok.connected);
+    badge.className = 'badge ' + (connected ? 'ok' : 'off');
+    badge.textContent = connected ? 'connected' : 'not connected';
+    $('[data-byok-remove]').hidden = !connected;
+    $('[data-byok-form] [type="submit"]').textContent = connected ? 'Replace key' : 'Connect key';
+    var hint = $('[data-byok-password-hint]');
+    var isGoogle = state.me && state.me.provider === 'google.com';
+    hint.textContent = isGoogle
+      ? 'Google accounts confirm with a popup instead of a password.'
+      : 'Used once to refresh your session; it is never sent to the gateway.';
+    $('[data-byok-google-reauth]').hidden = !isGoogle;
+    if (isGoogle) $('#byokPassword').closest('.field').hidden = true;
+  }
+
+  /* ── actions ───────────────────────────────────────────────────────── */
+  function ensureFreshThen(action) {
+    return Promise.resolve(action()).catch(function (error) {
+      if (error.code === 'reauth_required') {
+        H.toast('Confirm your password again to continue', 'bad');
+      } else {
+        H.toast(error.message, 'bad');
+      }
+      throw error;
+    });
+  }
+
+  async function createKey() {
+    var label = await modal({
+      title: 'Create API key',
+      body: field('Label (optional)', 'label', 'text', 'laptop, script, open-webui…', 'maxlength="60"') +
+        '<p class="hint">You will see the full key exactly once. Store it in a password manager.</p>',
+      actions: [{ label: 'Cancel', value: null }, { label: 'Create', primary: true, value: 'create' }],
+    });
+    if (!label) return;
+    try {
+      var result = await H.api('/account/keys', { method: 'POST', body: { label: label.label || '' } });
+      await modal({
+        title: 'Copy your key now',
+        body: '<p class="hint">This is the only time the full key is shown.</p>' +
+          '<div class="key-reveal">' + H.esc(result.key) + '</div>' +
+          '<div style="display:flex;gap:8px"><button class="btn btn-quiet btn-sm" type="button" data-copy="' + H.esc(result.key) + '">Copy key</button></div>' +
+          '<p class="hint">Use it as <code class="inline">Authorization: Bearer ' + H.esc(result.key.slice(0, 13)) + '…</code></p>',
+        actions: [{ label: 'Done', primary: true, value: true }],
+      });
+      H.toast('Key created');
+      await loadKeys();
+    } catch (error) {
+      H.toast(error.message, 'bad');
+    }
+  }
+
+  async function revokeKey(id) {
+    var ok = await modal({
+      title: 'Revoke this key?',
+      body: '<p class="hint">Requests using <code class="inline">' + H.esc(id) + '</code> will fail immediately. This cannot be undone.</p>',
+      actions: [{ label: 'Cancel', value: null }, { label: 'Revoke key', primary: true, value: 'revoke' }],
+    });
+    if (!ok) return;
+    try {
+      await H.api('/account/keys/' + id + '/revoke', { method: 'POST' });
+      H.toast('Key revoked');
+      await loadKeys();
+    } catch (error) {
+      H.toast(error.message, 'bad');
+    }
+  }
+
+  async function revealKey(id) {
+    var credentials = await modal({
+      title: 'Confirm it is you',
+      body: '<p class="hint">Showing <code class="inline">' + H.esc(id) + '</code> needs a fresh sign-in. ' +
+        (state.me && state.me.provider === 'google.com'
+          ? 'Use the Google button after closing this dialog.'
+          : 'Your password goes straight to Firebase, never to the gateway.') + '</p>' +
+        (state.me && state.me.provider === 'google.com' ? '' : field('Password', 'password', 'password', '••••••••')),
+      actions: (state.me && state.me.provider === 'google.com')
+        ? [{ label: 'Cancel', value: null }, { label: 'Continue with Google', primary: true, value: 'google' }]
+        : [{ label: 'Cancel', value: null }, { label: 'Confirm', primary: true, value: 'confirm' }],
+    });
+    if (!credentials) return;
+    try {
+      if (state.me && state.me.provider === 'google.com') await H.reauthGoogle();
+      else {
+        if (!credentials.password) { H.toast('Password required', 'bad'); return; }
+        await H.reauthPassword(credentials.password);
+      }
+      var result = await H.api('/account/keys/' + id + '/reveal', { method: 'POST' });
+      await modal({
+        title: 'Your key',
+        body: '<p class="hint">Close this dialog when you are done. Do not leave it on screen.</p>' +
+          '<div class="key-reveal">' + H.esc(result.key) + '</div>' +
+          '<button class="btn btn-quiet btn-sm" type="button" data-copy="' + H.esc(result.key) + '">Copy key</button>',
+        actions: [{ label: 'Done', primary: true, value: true }],
+      });
+    } catch (error) {
+      H.toast(error.status === 409 ? error.message : (H.friendlyAuthError(error) || error.message), 'bad');
+    }
+  }
+
+  async function connectByok(event) {
+    event.preventDefault();
+    var err = $('[data-byok-err]');
+    err.textContent = '';
+    var key = $('#groqKey').value.trim();
+    var password = $('#byokPassword').value;
+    var isGoogle = state.me && state.me.provider === 'google.com';
+    if (!key) { err.textContent = 'Paste your Groq key.'; return; }
+    if (!isGoogle && !password) { err.textContent = 'Confirm your password so the session is fresh.'; return; }
+    var button = $('[data-byok-form] [type="submit"]');
+    button.disabled = true;
+    try {
+      if (isGoogle) await H.reauthGoogle();
+      else await H.reauthPassword(password);
+      $('#byokPassword').value = '';
+      await H.api('/account/byok', { method: 'POST', body: { provider: 'groq', key: key } });
+      $('#groqKey').value = '';
+      H.toast('Groq key connected');
+      renderByok({ connected: true });
+      await loadMe();
+    } catch (error) {
+      err.textContent = H.friendlyAuthError(error) || error.message;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function removeByok() {
+    var ok = await modal({
+      title: 'Disconnect Groq?',
+      body: '<p class="hint">The stored ciphertext is deleted. Groq model ids will stop working until you connect a key again.</p>',
+      actions: [{ label: 'Cancel', value: null }, { label: 'Disconnect', primary: true, value: 'remove' }],
+    });
+    if (!ok) return;
+    try {
+      await H.api('/account/byok', { method: 'DELETE' });
+      H.toast('Groq key removed');
+      renderByok({ connected: false });
+      await loadMe();
+    } catch (error) {
+      H.toast(error.message, 'bad');
+    }
+  }
+
+  /* ── admin ─────────────────────────────────────────────────────────── */
+  async function loadAdmin() {
+    var err = $('[data-admin-err]');
+    err.textContent = '';
+    state.adminPass = $('#adminPass').value;
+    if (!state.adminPass) { err.textContent = 'Enter the admin passphrase.'; return; }
+    try {
+      var data = await H.api('/admin/roster', { adminPassphrase: state.adminPass });
+      renderAdmin(data);
+    } catch (error) {
+      err.textContent = error.status === 403
+        ? 'Rejected. Sign in again if it has been more than five minutes, then re-enter the passphrase.'
+        : error.message;
+    }
+  }
+
+  function renderAdmin(data) {
+    var host = $('[data-admin-body]');
+    var totals = data.keys.length;
+    var users = new Set(data.keys.map(function (k) { return k.uid; })).size;
+    var sync = data.sync || {};
+    var rows = data.keys.map(function (key) {
+      return '<tr>' +
+        '<td><code>' + H.esc(key.id) + '</code></td>' +
+        '<td>' + H.esc(key.name || '—') + '<div class="sub" style="color:var(--dim);font-size:10.5px">' + H.esc(key.email || '—') + '</div></td>' +
+        '<td>' + (key.revoked ? '<span class="badge bad">revoked</span>' : '<span class="badge ok">active</span>') + '</td>' +
+        '<td class="num">' + H.fmtDate(key.created) + '</td>' +
+        '<td class="num">' + H.relTime(key.lastUsed) + '</td>' +
+        '<td class="num">' + H.fmtNum(key.usage && key.usage.requests || 0) + '</td>' +
+        '<td>' + (key.revoked ? '' : '<button class="btn btn-quiet btn-sm" type="button" data-admin-revoke="' + H.esc(key.id) + '">Revoke</button>') + '</td>' +
+        '</tr>';
+    }).join('');
+
+    host.innerHTML =
+      '<div class="stat-grid" style="margin-bottom:18px">' +
+        '<div class="stat"><span class="n">' + H.fmtNum(totals) + '</span><span class="k">keys</span></div>' +
+        '<div class="stat"><span class="n">' + H.fmtNum(users) + '</span><span class="k">accounts</span></div>' +
+        '<div class="stat"><span class="n">' + H.fmtNum(data.pool.requestsToday) + '</span><span class="k">requests today</span></div>' +
+        '<div class="stat"><span class="n">' + H.fmtNum(data.pool.spent) + '</span><span class="k">neurons spent</span></div>' +
+      '</div>' +
+      '<div class="notice" style="margin-bottom:16px"><span>GitHub roster: <b>' +
+        (sync.configured ? 'configured' : 'not configured') + '</b>' +
+        (sync.lastSync ? ' · last sync ' + H.relTime(sync.lastSync) : '') +
+        (sync.error ? ' · error: ' + H.esc(sync.error) : '') +
+        ' · escrow ' + (data.escrow ? 'enabled' : 'disabled') + '</span></div>' +
+      '<div class="table-wrap admin-table"><table><thead><tr>' +
+        '<th>Key</th><th>Owner</th><th>Status</th><th class="num">Created</th><th class="num">Last used</th><th class="num">Requests</th><th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="hint" style="margin-top:10px">Full keys are never shown here. Use the owner\'s dashboard reveal, or the escrow secret, if recovery is required.</p>';
+  }
+
+  async function adminRevoke(id) {
+    try {
+      await H.api('/admin/keys/' + id + '/revoke', { method: 'POST', adminPassphrase: state.adminPass });
+      H.toast('Key revoked');
+      await loadAdmin();
+    } catch (error) {
+      H.toast(error.message, 'bad');
+    }
+  }
+
+  async function adminSync() {
+    try {
+      await H.api('/admin/sync', { method: 'POST', adminPassphrase: state.adminPass });
+      H.toast('Roster synced');
+      if (state.adminPass) await loadAdmin();
+    } catch (error) {
+      H.toast(error.message, 'bad');
+    }
+  }
+
+  /* ── wiring ────────────────────────────────────────────────────────── */
+  document.addEventListener('click', function (event) {
+    var newKey = event.target.closest('[data-new-key]');
+    if (newKey) { createKey(); return; }
+    var revoke = event.target.closest('[data-revoke]');
+    if (revoke) { revokeKey(revoke.dataset.revoke); return; }
+    var reveal = event.target.closest('[data-reveal]');
+    if (reveal) { revealKey(reveal.dataset.reveal); return; }
+    var adminRev = event.target.closest('[data-admin-revoke]');
+    if (adminRev) { adminRevoke(adminRev.dataset.adminRevoke); return; }
+    if (event.target.closest('[data-admin-load]')) { loadAdmin(); return; }
+    if (event.target.closest('[data-admin-sync]')) { adminSync(); return; }
+    if (event.target.closest('[data-byok-remove]')) { removeByok(); return; }
+    if (event.target.closest('[data-refresh]')) { refresh().then(function () { H.toast('Refreshed'); }); return; }
+    var scroll = event.target.closest('[data-scroll-keys]');
+    if (scroll) {
+      event.preventDefault();
+      if ($('#signedIn').classList.contains('hidden')) { $('#email').focus(); }
+      else { selectTab('keys'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    }
+  });
+
+  $('[data-byok-form]').addEventListener('submit', connectByok);
+  $('[data-byok-google-reauth]').addEventListener('click', function () { $('#groqKey').focus(); H.toast('Press “Connect key” to trigger the Google confirmation'); });
+
+  $$('.tabbar [data-tab]').forEach(function (button) {
+    button.addEventListener('click', function () { selectTab(button.dataset.tab); });
+  });
+
+  function selectTab(name) {
+    $$('.tabbar [data-tab]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === name)); });
+    $$('[data-panel]').forEach(function (panel) { panel.classList.toggle('hidden', panel.dataset.panel !== name); });
+    if (name === 'usage' && state.me) loadUsage().catch(function (error) { H.toast(error.message, 'bad'); });
+    if (name === 'byok' && state.me) loadMe().catch(function () {});
+    if (name === 'admin' && state.me && !state.me.admin) selectTab('keys');
+  }
+
+  async function refresh() {
+    await loadMe();
+    await Promise.all([loadKeys(), loadUsage().catch(function () {})]);
+  }
+
+  function afterSignIn() {
+    var next = new URLSearchParams(location.search).get('next');
+    if (next) {
+      try {
+        var target = new URL(next, location.origin);
+        if (target.origin === location.origin && target.pathname !== '/AI-API/Dashboard/') {
+          location.replace(target.href);
+          return true;
+        }
+      } catch (_) { /* ignore bad next */ }
+    }
+    return false;
+  }
+
+  H.ready.then(function () {
+    H.onAuth(async function (user) {
+      $('#loading').classList.add('hidden');
+      if (!user) {
+        state.me = null;
+        $('#signedIn').classList.add('hidden');
+        $('#signedOut').classList.remove('hidden');
+        return;
+      }
+      if (afterSignIn()) return;
+      $('#signedOut').classList.add('hidden');
+      $('#signedIn').classList.remove('hidden');
+      $('#password').value = '';
+      try {
+        await refresh();
+      } catch (error) {
+        H.toast(error.message || 'Could not load your account.', 'bad');
+      }
+    });
+  }).catch(function (error) {
+    $('#loading').classList.add('hidden');
+    $('#signedOut').classList.remove('hidden');
+    authErr.textContent = 'Firebase failed to load: ' + error.message;
+  });
+})();
+</script>
+<script src="/AI-API/assets/htsilo.js"></script>
+</body>
+</html>

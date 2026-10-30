@@ -8,7 +8,7 @@ HTMLTools is a directory of web utilities, coding sandboxes, AI tools, media app
 
 ## The directory
 
-The current directory lists 18 tools in five categories:
+The directory's tool list changes over time; one recent snapshot had 18 tools in five categories:
 
 - **Popular:** HTMLTools Browser, AI Playground, MatTube, HTML Library, MatTok
 - **AI:** Make Your Own AI, AI Image Editor, AI Image Generator, Research AI (chat models are consolidated in AI Playground)
@@ -43,6 +43,19 @@ The old website-encryption Firebase configuration has been replaced in the affec
 ## Firebase bandwidth controls
 
 See [the Firebase deployment and bandwidth runbook](firebase/README.md). The new metadata indexes must be backfilled before deploying the new query-restricted rules and clients together. Rules are specific to `general-database-4cb1c`, not the other Firebase projects used by this repository.
+
+## AI API gateway
+
+[AI-API](AI-API/README.md) is an OpenAI-compatible gateway at
+<https://htmltools.me/AI-API>: `GET /v1/models` and `POST /v1/chat/completions` with
+`ht-` API keys, streaming and tool calling, backed by Cloudflare Workers AI (shared free
+pool) or a user's own Groq key. Users sign in with the `general-database-4cb1c` Firebase
+project, create and revoke hashed keys, and see their usage and limits.
+
+The Worker source lives in `AI-API/worker/`; it is deployed separately from Pages and
+needs the `AI` binding, the `GatewayState` Durable Object and four secrets. See the
+[operator runbook](AI-API/README.md) for the deploy order, free-tier arithmetic and the
+documented limits. The worker suite runs with `cd AI-API/worker && npm test`.
 
 ## Advanced coding workspace
 

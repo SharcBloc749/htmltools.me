@@ -1,0 +1,92 @@
+# htmltools.me AI API
+
+> OpenAI-compatible chat completions gateway on Cloudflare Workers. Free shared pool
+> on Cloudflare Workers AI, plus an optional bring-your-own-key path for Groq. This
+> file is written for AI agents and tools that need a compact, accurate description.
+
+Base URL: https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1
+Authentication: `Authorization: Bearer ht-...` (keys are created at https://htmltools.me/AI-API/Dashboard/)
+Response format: OpenAI `chat.completion` / `chat.completion.chunk` / error envelope
+Human docs: https://htmltools.me/AI-API/Docs/
+OpenAPI: https://htmltools.me/AI-API/openapi.json
+
+## Endpoints
+
+GET  /v1/models
+     Lists only the model ids this gateway accepts, with an `x_ht` extension carrying
+     provider, availability, streaming/tool support and output caps.
+     Requires a valid key. Does not consume daily quota.
+
+POST /v1/chat/completions
+     Body: { model, messages, stream?, max_tokens?, temperature?, top_p?, stop?,
+             tools?, tool_choice?, response_format?, stream_options? }
+     Supported message roles: system, user, assistant, tool. `developer` becomes `system`.
+     Text content only: image_url and audio parts are rejected with `unsupported_content`.
+     `n` must be 1. `logprobs` are rejected. 1-40 messages, 128 KB body ceiling.
+
+GET  /health            Liveness only. No AI work.
+GET  /public/status     Pool remaining, request counts, model list. No auth, no AI work.
+POST /htsilo/chat       In-site helper. Requires a Firebase ID token, not an API key.
+
+## Models (allowlist)
+
+Free pool (Workers AI):
+  @cf/meta/llama-3.2-3b-instruct                 max output 768,  tools: no
+  @cf/meta/llama-3.1-8b-instruct                 max output 1024, tools: yes  (default)
+  @cf/meta/llama-3.3-70b-instruct-fp8-fast       max output 1024, tools: yes  (expensive)
+  auto                                            resolves to a free model, or the Groq model when a key is connected
+
+Bring your own Groq key (only when the account has connected one):
+  llama-3.1-8b-instant
+  llama-3.3-70b-versatile
+  openai/gpt-oss-20b
+  openai/gpt-oss-120b
+  qwen/qwen3-32b
+  meta-llama/llama-4-scout-17b-16e-instruct
+
+Any other model id returns 400 `model_not_found`.
+
+## Limits (documented defaults)
+
+  10 requests/minute per key
+  10 requests/minute per account
+  60 requests/minute site-wide
+  150 free-pool requests/day per account
+  1,200 free-pool requests/day site-wide
+  6,000 Neurons/day free-pool budget site-wide
+  2,000 requests/day per account when using your own Groq key
+  Resets at 00:00 UTC.
+
+## Error codes
+
+  401 invalid_api_key | key_revoked
+  400 model_not_found | provider_not_connected | unsupported_content |
+      unsupported_parameter | unsupported_feature | context_length_exceeded |
+      invalid_request
+  403 reauth_required
+  404 not_found
+  409 key_not_recoverable
+  413 request_too_large
+  429 rate_limit_exceeded | site_rate_limit | free_pool_exhausted | user_daily_limit
+  502 upstream_error | provider_error
+
+Error body: {"error":{"message":string,"type":string,"param":null|string,"code":string}}
+429 responses carry Retry-After in seconds.
+
+## Behaviour notes
+
+- The shared free pool stops at its daily cap; it never falls back to a paid provider.
+- Streaming is server-sent events ending with `data: [DONE]`.
+- Tool calling is available only on models marked tool-capable above.
+- No embeddings, images, audio, files, batches or fine-tuning endpoints exist.
+- Prompts are not stored by the gateway. Prompts are processed by Cloudflare Workers AI,
+  or by Groq under the user's account when a Groq key is connected.
+- Users manage keys, usage and their Groq key at https://htmltools.me/AI-API/Dashboard/
+  using a Firebase account from project `general-database-4cb1c`.
+
+## Minimal request
+
+curl https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1/chat/completions \
+  -H "Authorization: Bearer ht-YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"@cf/meta/llama-3.1-8b-instruct","messages":[{"role":"user","content":"Hello"}]}'
