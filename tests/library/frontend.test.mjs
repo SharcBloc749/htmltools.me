@@ -45,3 +45,25 @@ test('bridge surfaces actionable backend/App Check errors',()=>{
   assert.ok(s.includes('Library backend is unreachable'));
   assert.ok(s.includes('App Check rejected this site'));
 });
+test('bridge caches the data session and backs off after backend failures',()=>{
+  const s=read('assets/library-session.js');
+  assert.ok(s.includes('BACKEND_BACKOFF_MS'));
+  assert.ok(s.includes('sessionUid === user.uid'));
+  assert.ok(s.includes('lastFailureAt'));
+  assert.ok(s.includes('await this.ready()'));
+  assert.ok(s.includes('npm run repair-invoker'));
+});
+test('backend deploy repairs Cloud Run invoker and verifies preflight',()=>{
+  const pkg=JSON.parse(read('firebase/library/package.json'));
+  assert.ok(pkg.scripts.deploy.includes('repair-invoker'));
+  assert.ok(pkg.scripts.deploy.includes('check-preflight'));
+  assert.ok(pkg.scripts['repair-invoker'].includes('library-backend.mjs'));
+  const s=read('firebase/library/scripts/library-backend.mjs');
+  assert.ok(s.includes('roles/run.invoker')||s.includes("['public']"));
+  assert.ok(s.includes('Access-Control-Request-Method'));
+  assert.ok(s.includes('access-control-allow-origin'));
+  const wf=read('.github/workflows/deploy-library-backend.yml');
+  assert.ok(wf.includes('FIREBASE_SERVICE_ACCOUNT_HTMLTOOLS2'));
+  assert.ok(wf.includes('LIBRARY_OWNER_UID'));
+  assert.ok(wf.includes('npm run deploy'));
+});

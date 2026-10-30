@@ -26,7 +26,11 @@ const opts = {
   timeoutSeconds: 60,
   memory: '256MiB',
   cors: LIBRARY_ORIGINS,
-  invoker: 'public'
+  invoker: 'public',
+  ingressSettings: 'ALLOW_ALL',
+  // App Check is optional anti-abuse, not authorization. Keep callables usable
+  // while the site's reCAPTCHA/App Check registration is being repaired.
+  enforceAppCheck: false
 };
 
 function fail(error) {
