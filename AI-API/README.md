@@ -182,6 +182,14 @@ npx wrangler deploy          # uploads src/index.mjs + the GatewayState migratio
 Afterwards check the Worker's **Triggers** tab: there should be only the `workers.dev`
 URL (and a custom domain only if you deliberately add one).
 
+**No terminal?** The whole Worker also ships as one generated file,
+[`worker/worker.js`](worker/worker.js) (~110 KB, all ten modules inlined). Paste it into
+dashboard → Workers & Pages → `htmltools-me-ai-api` → Edit code, then add the `AI` and
+`GATEWAY` bindings, the `[vars]` values and the five secrets by hand. The exact list is in
+[`worker/README.md` § Single-file deploy](worker/README.md#single-file-deploy-workerjs).
+Regenerate after any source change with `cd AI-API/worker && npm run bundle`; the test
+suite fails if the committed bundle stops working.
+
 ### 5.4 Secrets
 
 Generate values locally and paste them **only** into the `wrangler secret put` prompt:
@@ -363,8 +371,8 @@ plan bills Neurons beyond the free allocation.
 
 ## 11. Verified in this branch vs. needs live credentials
 
-Verified by automated tests (`cd AI-API/worker && npm test`, 31 tests, also run from the
-repository root suite):
+Verified by automated tests (`cd AI-API/worker && npm test`, 34 tests, also run from the
+repository root suite, 18 tests):
 
 - routing allowlist, 404s, no anonymous AI path;
 - key format, salted hashing, one-time display, revocation, restart persistence;
@@ -373,6 +381,8 @@ repository root suite):
 - Firebase verification: valid, forged signature, expired, wrong project;
 - BYOK encryption/uid binding/removal and Groq routing (mocked Groq);
 - owner reveal with a fresh token (and refusal with a stale one), operator reveal with escrow;
+- the generated single-file `worker.js` bundle: exports `fetch` + `GatewayState`, serves
+  `/health`, `/v1/models`, a keyed completion and refuses anonymous traffic;
 - HTSilo auth and limits; CORS split; prompt text never logged;
 - private roster rendering and a secret scan of the Worker tree.
 

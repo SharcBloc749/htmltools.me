@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = path => readFileSync(root + path, 'utf8');
@@ -57,7 +58,9 @@ test('AI-API is listed in the directory, the home page, Main and the sitemap', (
 });
 
 test('no provider key, private key or GitHub token is committed in AI-API', () => {
+  const SKIP = new Set(['node_modules', '.wrangler', '.git']);
   const walk = dir => readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    if (SKIP.has(entry.name)) return [];
     const full = dir + entry.name;
     if (entry.isDirectory()) return walk(full + '/');
     return [full];
@@ -139,4 +142,16 @@ test('gateway worker test suite passes', () => {
   assert.equal(result.status, 0, output);
   assert.match(output, /# fail 0/);
   assert.match(output, /# pass 3\d/);
+});
+
+test('the single-file worker bundle is committed and self-contained', () => {
+  const file = path.join(root, 'AI-API/worker/worker.js');
+  assert.ok(existsSync(file), 'worker.js bundle exists');
+  const code = readFileSync(file, 'utf8');
+  assert.ok(code.length > 40_000, 'bundle contains the whole worker');
+  assert.ok(!/from\s+['"]\.\//.test(code), 'bundle has no relative imports');
+  assert.match(code, /export\s*\{[^}]*GatewayState/);
+  assert.match(code, /generated file, do not edit/);
+  assert.ok(!/KEY_PEPPER\s*=\s*['"][^'"]{8,}/.test(code), 'no pepper in the bundle');
+  assert.ok(!/sb_secret|sk_live|ghp_[A-Za-z0-9]{20,}/.test(code), 'no credentials in the bundle');
 });
