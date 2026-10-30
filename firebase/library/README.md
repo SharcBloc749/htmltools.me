@@ -30,8 +30,25 @@ This package targets **htmltools2** (data) and verifies sessions from **htmltool
    ```sh
    npm run deploy
    ```
+   This now does three things in order:
+   1. `firebase deploy --only functions,database --non-interactive`
+   2. `npm run repair-invoker` — grants `roles/run.invoker` to `allUsers` on every Library Cloud Run service, using your Firebase CLI login / ADC. This repairs already-private v2 callable services that a normal redeploy does not make public.
+   3. `npm run check-preflight` — sends an actual browser-style `OPTIONS` preflight to `createLibrarySession` and fails if `Access-Control-Allow-Origin: https://htmltools.me` is missing.
+
    The static frontend must be deployed in the same window. Old clients that write counters directly will be denied.
 5. Sign out/in as `matthewbozhe@gmail.com`, open `/Admin/Library/`, and verify non-owner accounts are denied. Test like/unlike from `/Library/` and the player, then preview/Share a small engagement total and confirm exact sums in `bookStats`.
+
+### GitHub Actions deploy (optional but recommended)
+
+`.github/workflows/deploy-library-backend.yml` deploys the Library backend on pushes to `main` that touch `firebase/library/**`, and can also be run manually from **Actions → Deploy Library backend**.
+
+Add these repository **Actions secrets**:
+
+- `FIREBASE_SERVICE_ACCOUNT_HTMLTOOLS2` — preferred. JSON key for a service account with Firebase deploy permissions on `htmltools2` and Cloud Run IAM permission to set invoker (`roles/run.admin` or equivalent).
+- `LIBRARY_OWNER_UID` — the UID printed by `node set-owner.mjs` for verified `matthewbozhe@gmail.com`.
+- Optional fallback: `FIREBASE_TOKEN` from `firebase login:ci` if you are not using a service-account key.
+
+If the credentials are absent, the workflow warns and skips instead of pretending the backend is deployed.
 
 ## Callable CORS / invoker (fixes `createLibrarySession` preflight failures)
 
@@ -46,15 +63,25 @@ invoker: 'public'
 
 `invoker: 'public'` is **not** anonymous data access. Every handler still verifies a Firebase ID token, the `librarySession` claim, and (for owner controls) `LIBRARY_OWNER_UID`.
 
-Redeploy, then verify/repair IAM if the service already existed as private:
+Redeploy and repair IAM with the built-in helper:
 
 ```sh
 cd firebase/library
 npm run deploy
+```
 
-# If preflight still fails, grant the Cloud Run invoker role to allUsers for each
-# Library callable service in us-central1. Service names are the lowercase
-# function names (confirm with: gcloud run services list --project htmltools2).
+`npm run deploy` automatically runs `repair-invoker` and `check-preflight`. If you only need to repair an already-deployed backend:
+
+```sh
+npm run repair-invoker
+npm run check-preflight
+```
+
+The helper uses your Firebase CLI login / ADC and the Cloud Run Admin API, so it does not require a separate `gcloud` install. The operator still needs permission to set Cloud Run IAM (`roles/run.admin` or equivalent). If an organization policy blocks `allUsers`, the helper will fail with the IAM error; that policy must be changed by an org admin.
+
+Manual equivalent, if you prefer `gcloud`:
+
+```sh
 for svc in createlibrarysession togglebooklike recordbookview recordbookplaytime ratebook previewlibraryengagement sharelibraryengagement; do
   gcloud run services add-iam-policy-binding "$svc" \
     --project htmltools2 --region us-central1 \
@@ -94,4 +121,4 @@ Until a key is registered for `htmltools.me` / `www.htmltools.me` in Firebase Ap
 
 ## Validation in this checkout
 
-`npm test` runs 13 allocation, frontend-contract and rules-generation tests. The official emulator suite is supplied in `rules.test.mjs`; it skips unless `FIREBASE_DATABASE_EMULATOR_HOST` is set. No production Firebase deployment or live owner login was performed from this sandbox.
+`npm test` runs 15 allocation, frontend-contract and rules-generation tests. The official emulator suite is supplied in `rules.test.mjs`; it skips unless `FIREBASE_DATABASE_EMULATOR_HOST` is set. No production Firebase deployment or live owner login was performed from this sandbox.

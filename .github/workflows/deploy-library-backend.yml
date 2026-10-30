@@ -1,0 +1,69 @@
+name: Deploy Library backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'firebase/library/**'
+      - '.github/workflows/deploy-library-backend.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firebase/library
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            firebase/library/package-lock.json
+            firebase/library/server/package-lock.json
+
+      - name: Install tooling
+        run: |
+          npm ci
+          cd server && npm ci
+
+      - name: Check deployment credentials
+        id: creds
+        env:
+          FIREBASE_SERVICE_ACCOUNT_HTMLTOOLS2: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HTMLTOOLS2 }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          LIBRARY_OWNER_UID: ${{ secrets.LIBRARY_OWNER_UID }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_HTMLTOOLS2" ]; then
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_HTMLTOOLS2" > "$RUNNER_TEMP/firebase-library-sa.json"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-library-sa.json" >> "$GITHUB_ENV"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$FIREBASE_TOKEN" ]; then
+            echo "FIREBASE_TOKEN=$FIREBASE_TOKEN" >> "$GITHUB_ENV"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Library backend deploy skipped: add FIREBASE_SERVICE_ACCOUNT_HTMLTOOLS2 (preferred) or FIREBASE_TOKEN, plus LIBRARY_OWNER_UID, in repository Actions secrets."
+          fi
+          if [ -z "$LIBRARY_OWNER_UID" ]; then
+            echo "owner_missing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "LIBRARY_OWNER_UID=$LIBRARY_OWNER_UID" >> "$GITHUB_ENV"
+            echo "owner_missing=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy functions and rules, repair invoker, verify preflight
+        if: steps.creds.outputs.configured == 'true' && steps.creds.outputs.owner_missing == 'false'
+        run: npm run deploy
+
+      - name: Missing owner UID
+        if: steps.creds.outputs.configured == 'true' && steps.creds.outputs.owner_missing == 'true'
+        run: |
+          echo "::error::LIBRARY_OWNER_UID secret is required. Run node set-owner.mjs locally with trusted ADC and add the printed UID as an Actions secret."
+          exit 1
