@@ -303,6 +303,7 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getDatabase,ref,get,set,push,update,remove,onValue,query,orderByKey,limitToLast,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+import{createLibraryBridge}from"/assets/library-session.js";
 
 // ── Firebase (same as main page) ─────────────────────────────
 const oldApp=initializeApp({apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"},'old');
@@ -310,6 +311,7 @@ const auth=getAuth(oldApp);
 const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
 initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
 const db=getDatabase(newApp);
+const libraryBridge=createLibraryBridge(oldApp,newApp);
 
 const OWNER_EMAIL='matthewbozhe@gmail.com';
 // GitHub backend (same Worker the Library uses) — new games' code lives ONLY there
@@ -419,22 +421,7 @@ async function boot(){
   ]);
   bookData={...(ghMeta||{}),...(fbMeta||{})};
   if(!bookData.title){showNotFound();return;}
-  // If Firebase has no stats entry yet (GitHub-only game), create lightweight
-  // ones so views/likes/playtime writes have a home. No images/code go in here.
-  if(!fbMeta&&ghMeta&&ghMeta.title){
-    try{
-      await update(ref(db),{
-        ['books/'+bookId+'/title']:ghMeta.title,
-        ['books/'+bookId+'/ownerId']:ghMeta.ownerId||null,
-        ['books/'+bookId+'/ownerName']:ghMeta.ownerName||null,
-        ['books/'+bookId+'/createdAt']:ghMeta.createdAt||Date.now(),
-        ['bookStats/'+bookId+'/likes']:0,
-        ['bookStats/'+bookId+'/views']:0,
-        ['bookStats/'+bookId+'/ownerId']:ghMeta.ownerId||null,
-        ['bookStats/'+bookId+'/ownerName']:ghMeta.ownerName||null
-      });
-    }catch(e){}
-  }
+  // Counter homes are created by the verified server functions, not by players.
 
   // Check chat settings from book
   const chatEnabled=bookData.chatEnabled!==false; // default true
@@ -453,8 +440,8 @@ async function boot(){
   // Inject into iframe
   document.getElementById('game-frame').srcdoc=code;
 
-  // Increment view count
-  update(ref(db),bookPatch(bookId,{views:(bookData.views||0)+1}));
+  // Increment view count once through the verified server function.
+  libraryBridge.ready().then(()=>libraryBridge.call('recordBookView',{bookId})).then(({data})=>{bookData.views=data.views;}).catch(e=>console.warn('[Library] view not recorded',e));
 
   // Start playtime timer
   playtimeStart=Date.now();
@@ -565,8 +552,9 @@ function showNotFound(){
 }
 
 // ── Auth ──────────────────────────────────────────────────────
-onAuthStateChanged(auth,user=>{
+onAuthStateChanged(auth,async user=>{
   currentUser=user;
+  try{await libraryBridge.ready();}catch(e){console.warn('[Library] secure data session unavailable',e);}
   if(bookData){
     updateLikeBtn();
     const rateBtn=document.getElementById('rate-btn');
@@ -579,44 +567,37 @@ onAuthStateChanged(auth,user=>{
 });
 
 // ── Playtime save ─────────────────────────────────────────────
+let playtimeSaving=false;
 async function savePlaytime(){
-  if(!bookId||!playtimeStart)return;
-  const secs=Math.floor((Date.now()-playtimeStart)/1000);
+  if(!bookId||!playtimeStart||playtimeSaving)return;
+  const secs=Math.min(300,Math.floor((Date.now()-playtimeStart)/1000));
   if(secs<2)return;
-  playtimeStart=Date.now();
-  if(currentUser){
-    await set(push(ref(db,'playSessions/'+bookId)),{uid:currentUser.uid,displayName:currentUser.displayName||currentUser.email||'User',seconds:secs,playedAt:Date.now()});
-  }
-  const cur=bookData?bookData.playtimeSeconds||0:0;
-  await update(ref(db),bookPatch(bookId,{playtimeSeconds:cur+secs}));
-  if(bookData)bookData.playtimeSeconds=(bookData.playtimeSeconds||0)+secs;
+  playtimeSaving=true;playtimeStart=Date.now();
+  try{
+    await libraryBridge.ready();
+    const {data}=await libraryBridge.call('recordBookPlaytime',{bookId,seconds:secs});
+    if(bookData)bookData.playtimeSeconds=data.playtimeSeconds;
+  }catch(e){console.warn('[Library] playtime not recorded',e);}
+  finally{playtimeSaving=false;}
 }
 setInterval(()=>savePlaytime(),30000);
 window.addEventListener('beforeunload',()=>savePlaytime());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)savePlaytime();});
 
 // ── Like ──────────────────────────────────────────────────────
+let likePending=false;
 window.toggleLike=async function(){
   if(!currentUser){showToast('Sign in to like','error');return;}
-  if(!bookData)return;
-  const liked=bookData.likedBy&&bookData.likedBy[currentUser.uid];
-  const updates={};
-  updates[`books/${bookId}/likedBy/${currentUser.uid}`]=liked?null:true;
-  updates[`books/${bookId}/likes`]=Math.max(0,(bookData.likes||0)+(liked?-1:1));
-  // mirror into `bookStats` so the Library never has to read `books`
-  updates[`bookStats/${bookId}/likedBy/${currentUser.uid}`]=liked?null:true;
-  updates[`bookStats/${bookId}/likes`]=Math.max(0,(bookData.likes||0)+(liked?-1:1));
-  await update(ref(db),updates);
-  if(!bookData.likedBy)bookData.likedBy={};
-  if(liked)delete bookData.likedBy[currentUser.uid];else bookData.likedBy[currentUser.uid]=true;
-  bookData.likes=Math.max(0,(bookData.likes||0)+(liked?-1:1));
-  updateLikeBtn();
-  if(!liked&&bookData.ownerId&&bookData.ownerId!==currentUser.uid){
-    await set(push(ref(db,'notifications/'+bookData.ownerId)),{type:'like',fromName:currentUser.displayName||currentUser.email,fromUid:currentUser.uid,bookTitle:bookData.title,bookId,createdAt:Date.now(),read:false});
-  }
-  if(!liked&&currentUser.email&&currentUser.email.toLowerCase()===OWNER_EMAIL.toLowerCase()){
-    update(ref(db,'books/'+bookId),{ownerLiked:true});
-  }
+  if(!bookData||likePending)return;
+  likePending=true;const btn=document.getElementById('like-btn');if(btn)btn.disabled=true;
+  try{
+    await libraryBridge.ready();
+    const {data}=await libraryBridge.call('toggleBookLike',{bookId});
+    bookData.likes=data.likes;bookData.likedBy={...(bookData.likedBy||{})};
+    if(data.liked)bookData.likedBy[currentUser.uid]=true;else delete bookData.likedBy[currentUser.uid];
+    updateLikeBtn();showToast(data.liked?'Liked ♥':'Like removed','success');
+  }catch(e){showToast(e?.message||'Could not update like.','error');}
+  finally{likePending=false;if(btn)btn.disabled=false;}
 };
 function updateLikeBtn(){
   const btn=document.getElementById('like-btn');const cnt=document.getElementById('like-count');
@@ -642,15 +623,12 @@ window.submitRate=async function(){
   if(!currentUser){showToast('Sign in first','error');return;}
   if(!selectedStar){showToast('Pick a star rating','error');return;}
   if(!bookId)return;
-  await set(ref(db,`ratings/${bookId}/${currentUser.uid}`),{rating:selectedStar,ratedAt:Date.now()});
-  // Recompute average
-  const snap=await get(ref(db,'ratings/'+bookId));
-  const ratings=snap.val()||{};const vals=Object.values(ratings).map(r=>r.rating||r||0).filter(Boolean);
-  const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10:0;
-  const count=vals.length;
-  await update(ref(db),bookPatch(bookId,{ratingAvg:avg,ratingCount:count}));
-  showToast(`Rated ${selectedStar} ⭐ — thank you!`,'success');
-  closeRate();
+  try{
+    await libraryBridge.ready();
+    const {data}=await libraryBridge.call('rateBook',{bookId,rating:selectedStar});
+    bookData.ratingAvg=data.ratingAvg;bookData.ratingCount=data.ratingCount;
+    showToast(`Rated ${selectedStar} ⭐ — thank you!`,'success');closeRate();
+  }catch(e){showToast(e?.message||'Could not save rating.','error');}
 };
 
 // ── Share ─────────────────────────────────────────────────────

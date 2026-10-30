@@ -295,6 +295,9 @@
 					<span class="icon">📚</span>
 					<span class="label">Books</span>
 				</button>
+				<button class="nav-btn" data-tab="engagement" onclick="switchTab('engagement',this)" id="engagement-nav">
+					<span class="icon">📣</span><span class="label">Engagement</span>
+				</button>
 				<button
 					class="nav-btn"
 					data-tab="chat"
@@ -504,6 +507,28 @@
 							</thead>
 							<tbody id="books-body"></tbody>
 						</table>
+					</div>
+				</div>
+
+				<!-- ENGAGEMENT (OWNER ONLY) -->
+				<div class="panel" id="tab-engagement">
+					<div class="section-title">📣 Share Engagement <span class="sub">Owner only · server verified</span></div>
+					<div class="tool-box" style="max-width:760px">
+						<h3>Add totals across the published catalog</h3>
+						<p>Enter the <strong>total</strong> amount to add, not a per-book amount. Preview a bounded random split, then Share to apply it once. Existing counters are preserved.</p>
+						<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;margin:1rem 0">
+							<label class="lg-field" style="margin:0">Views to add<input type="number" id="eng-views" min="0" max="10000000" step="1" value="1000" /></label>
+							<label class="lg-field" style="margin:0">Likes to add<input type="number" id="eng-likes" min="0" max="1000000" step="1" value="100" /></label>
+							<label class="lg-field" style="margin:0">Hours to add<input type="number" id="eng-hours" min="0" max="100000" step="1" value="100" /></label>
+						</div>
+						<div class="actions">
+							<button class="btn btn-ghost btn-sm" id="eng-preview-btn" onclick="previewEngagement()">Preview split</button>
+							<button class="btn btn-primary btn-sm" id="eng-share-btn" onclick="shareEngagement()" disabled>Share</button>
+						</div>
+						<div id="eng-status" role="status" aria-live="polite" style="margin-top:.75rem;font-size:.72rem;color:var(--muted)">Generate a preview before sharing.</div>
+					</div>
+					<div class="table-wrap" id="eng-preview-wrap" hidden>
+						<table><thead><tr><th>Book ID</th><th>+Views</th><th>+Likes</th><th>+Playtime</th></tr></thead><tbody id="eng-preview-body"></tbody></table>
 					</div>
 				</div>
 
@@ -948,6 +973,7 @@
 			import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 			import{getDatabase,ref,push,set,get,onValue,update,remove}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 			import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+			import{createLibraryBridge}from"/assets/library-session.js";
 
 			const OWNER_EMAIL='matthewbozhe@gmail.com';
 
@@ -963,6 +989,7 @@
 
 			// Auth on OLD app so existing accounts work
 			const auth=getAuth(oldApp);
+			const libraryBridge=createLibraryBridge(oldApp,newApp);
 
 			let currentUser=null;
 			let allBooksOld={},allBooksNew={},allBooks={};
@@ -998,16 +1025,10 @@
 			}
 
 			// ── IS OWNER / ADMIN ───────────────────────────────────────────────────
-			function isOwner(u){return u&&u.email&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase();}
+			function isOwner(u){return libraryBridge.owner&&u&&u.uid===auth.currentUser?.uid;}
 			function isAdminUser(u){
-				if(!u||!u.email)return false;
-				if(isOwner(u))return true;
-				return Object.values(extraAdmins).some(v=>{
-					if(!v)return false;
-					if(typeof v==='string')return v.toLowerCase()===u.email.toLowerCase();
-					if(typeof v==='object'&&v.email)return v.email.toLowerCase()===u.email.toLowerCase();
-					return false;
-				});
+				// Server-minted owner claim only. Legacy email allowlists are ignored.
+				return isOwner(u);
 			}
 
 			// ── AUTH ───────────────────────────────────────────────────────────────
@@ -1027,46 +1048,55 @@
 				}
 			};
 
-			window.doSignOut=async function(){await fbSignOut(auth);};
+			window.doSignOut=async function(){await libraryBridge.signOutData();await fbSignOut(auth);};
 
+			let adminListenersStarted=false;
 			onAuthStateChanged(auth,async user=>{
 				currentUser=user;
+				const err=document.getElementById('lg-err');
+				const btn=document.getElementById('lg-btn');
 				if(!user){
+					await libraryBridge.signOutData();
 					document.getElementById('login-screen').classList.remove('hide');
-					document.getElementById('lg-btn').disabled=false;
-					document.getElementById('lg-btn').textContent='ACCESS ADMIN PANEL';
+					btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';
 					return;
 				}
-				// Load extra admins from new DB to verify access
-				const snap=await get(ref(newDb,'siteConfig/adminEmails'));
-				extraAdmins=snap.val()||{};
-				if(!isAdminUser(user)){
-					await fbSignOut(auth);
-					const err=document.getElementById('lg-err');
-					err.textContent='Access denied. You are not an admin.';
-					err.style.display='block';
-					document.getElementById('lg-btn').disabled=false;
-					document.getElementById('lg-btn').textContent='ACCESS ADMIN PANEL';
-					return;
-				}
-				document.getElementById('login-screen').classList.add('hide');
-				document.getElementById('topbar-email').textContent=user.email;
-				document.getElementById('topbar-role').textContent=isOwner(user)?'👑 OWNER':'⚙ ADMIN';
-				if(isOwner(user)){
-					document.getElementById('admins-nav').style.display='flex';
+				btn.disabled=true;btn.textContent='VERIFYING ACCESS…';
+				try{
+					await libraryBridge.ready();
+					if(!libraryBridge.owner){
+						await libraryBridge.signOutData();await fbSignOut(auth);
+						err.textContent='Access denied. This panel is restricted to the verified owner.';
+						err.style.display='block';btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';
+						return;
+					}
+					err.style.display='none';
+					document.getElementById('login-screen').classList.add('hide');
+					document.getElementById('topbar-email').textContent=user.email;
+					document.getElementById('topbar-role').textContent='👑 OWNER';
 					document.getElementById('access-nav').style.display='flex';
+					document.getElementById('admins-nav').style.display='none';
+					if(!adminListenersStarted){adminListenersStarted=true;startListeners();}
+				}catch(e){
+					await libraryBridge.signOutData();
+					err.textContent=e?.message||'Could not verify owner access.';
+					err.style.display='block';btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';
 				}
-				startListeners();
 			});
 
 			// ── LISTENERS ──────────────────────────────────────────────────────────
+			async function loadAdminCatalog(){
+				try{
+					const res=await fetch('https://black-field-f5e8.bozhetarnikmatthew.workers.dev/github/index.json',{cache:'no-store'});
+					if(!res.ok)throw new Error('Catalog unavailable');
+					const idx=await res.json();allBooksOld={};allBooksNew=idx.games||{};mergeBooks();refreshActive();
+				}catch(e){toast('Could not load the published catalog','e');}
+			}
 			function startListeners(){
-				// Old DB books (read-only)
-				onValue(ref(oldDb,'books'),snap=>{allBooksOld=snap.val()||{};mergeBooks();refreshActive();});
-				// New DB books
-				onValue(ref(newDb,'books'),snap=>{allBooksNew=snap.val()||{};mergeBooks();refreshActive();});
-				// New DB everything else
-				onValue(ref(newDb,'bookMirror'),snap=>{bookMirrorData=snap.val()||{};mergeBooks();refreshActive();});
+				// Use the same lightweight published catalog as the public Library.
+				// Never download the heavy legacy `books` node for admin navigation.
+				loadAdminCatalog();
+				onValue(ref(newDb,'bookStats'),snap=>{const stats=snap.val()||{};Object.values(allBooks).forEach(b=>{const s=stats[b._origId];if(!s)return;['likes','views','playtimeSeconds'].forEach(k=>{if(s[k]!=null)b[k]=s[k];});});refreshActive();});
 				onValue(ref(newDb,'siteConfig/deletedOldBooks'),snap=>{deletedOldBooks=snap.val()||{};mergeBooks();refreshActive();});
 				onValue(ref(newDb,'users'),snap=>{allUsers=snap.val()||{};refreshActive();});
 				onValue(ref(newDb,'comments'),snap=>{allComments=snap.val()||{};refreshActive();});
@@ -1124,6 +1154,50 @@
 				});
 			}
 
+			async function mergeStatsFromFirebase(){
+				try{
+					const snap=await get(ref(newDb,'bookStats'));const stats=snap.val()||{};
+					Object.values(allBooks).forEach(b=>{const s=stats[b._origId];if(!s)return;['likes','views','playtimeSeconds'].forEach(k=>{if(s[k]!=null)b[k]=s[k];});});
+					refreshActive();
+				}catch(e){console.warn('stats refresh failed',e);}
+			}
+
+			// ── OWNER ENGAGEMENT ─────────────────────────────────────────────────
+			let engagementPreview=null;
+			function engagementTotals(){
+				return {views:Number(document.getElementById('eng-views').value),likes:Number(document.getElementById('eng-likes').value),hours:Number(document.getElementById('eng-hours').value)};
+			}
+			function invalidateEngagement(){engagementPreview=null;document.getElementById('eng-share-btn').disabled=true;document.getElementById('eng-preview-wrap').hidden=true;document.getElementById('eng-status').textContent='Inputs changed. Generate a new preview.';}
+			['eng-views','eng-likes','eng-hours'].forEach(id=>document.getElementById(id).addEventListener('input',invalidateEngagement));
+			function renderEngagementPreview(){
+				if(!engagementPreview)return;
+				const rows=Object.entries(engagementPreview.allocations);
+				document.getElementById('eng-preview-body').innerHTML=rows.map(([id,a])=>`<tr><td class="mono">${esc(id)}</td><td>${a.views.toLocaleString()}</td><td>${a.likes.toLocaleString()}</td><td>${fmt(a.playtimeSeconds)}</td></tr>`).join('');
+				document.getElementById('eng-preview-wrap').hidden=false;
+			}
+			window.previewEngagement=async function(){
+				if(!isOwner(currentUser)){toast('Owner only','e');return;}
+				const btn=document.getElementById('eng-preview-btn');btn.disabled=true;
+				try{
+					const {data}=await libraryBridge.call('previewLibraryEngagement',engagementTotals());
+					engagementPreview=data;renderEngagementPreview();
+					document.getElementById('eng-share-btn').disabled=false;
+					document.getElementById('eng-status').textContent=`Preview ready: ${data.bookCount} books. Totals match exactly. Expires in 10 minutes.`;
+				}catch(e){toast(e?.message||'Preview failed','e');document.getElementById('eng-status').textContent=e?.message||'Preview failed.';}
+				finally{btn.disabled=false;}
+			};
+			window.shareEngagement=async function(){
+				if(!isOwner(currentUser)||!engagementPreview){toast('Generate a preview first','e');return;}
+				if(!confirm(`Share ${engagementPreview.totals.views} views, ${engagementPreview.totals.likes} likes and ${engagementPreview.totals.hours} hours across ${engagementPreview.bookCount} books?`))return;
+				const btn=document.getElementById('eng-share-btn');btn.disabled=true;
+				try{
+					const {data}=await libraryBridge.call('shareLibraryEngagement',{previewId:engagementPreview.id});
+					document.getElementById('eng-status').textContent=data.duplicate?'This preview was already shared; no counters were added again.':`Shared successfully across ${data.bookCount} books.`;
+					toast('Engagement shared','s');engagementPreview=null;
+					await mergeStatsFromFirebase();
+				}catch(e){btn.disabled=false;toast(e?.message||'Share failed','e');document.getElementById('eng-status').textContent=e?.message||'Share failed.';}
+			};
+
 			// ── TAB SWITCHING ──────────────────────────────────────────────────────
 			let currentTab='overview';
 			window.switchTab=function(tab,el){
@@ -1143,6 +1217,7 @@
 				else if(currentTab==='deleted')renderDeleted();
 				else if(currentTab==='activity')renderActivity();
 				else if(currentTab==='admins')renderAdmins();
+				else if(currentTab==='engagement')renderEngagementPreview();
 			}
 
 			// ── OVERVIEW ──────────────────────────────────────────────────────────
@@ -1376,7 +1451,7 @@
 					return`<div class="admin-list-item"><div><div class="admin-list-email">${esc(email)}</div><div style="font-size:.6rem;color:var(--muted);margin-top:.15rem">Admin access granted</div></div><button class="btn btn-danger btn-sm" onclick="revokeAdmin('${esc(key)}')">Revoke</button></div>`;
 				}).join('');
 			}
-			window.grantAdmin=async function(){
+			window.grantAdmin=async function(){toast('Admin allowlists are disabled. Access is controlled by the server owner claim.','e');return;
 				if(!isOwner(currentUser))return;
 				const email=document.getElementById('grant-email').value.trim().toLowerCase();
 				if(!email||!email.includes('@')){toast('Enter a valid email','e');return;}
@@ -1387,7 +1462,7 @@
 				logAct('admin',`Owner granted admin to ${email}`);
 				toast(`Admin granted to ${email}`,'s');
 			};
-			window.revokeAdmin=async function(key){
+			window.revokeAdmin=async function(key){toast('Admin allowlists are disabled. Access is controlled by the server owner claim.','e');return;
 				if(!isOwner(currentUser))return;
 				if(!confirm('Revoke admin access?'))return;
 				await remove(ref(newDb,`siteConfig/adminEmails/${key}`));

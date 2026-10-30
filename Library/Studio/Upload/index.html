@@ -682,6 +682,7 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getDatabase,ref,push,set,get,update}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+import{createLibraryBridge}from"/assets/library-session.js";
 
 /* ── FIREBASE ── */
 const WORKER='https://aged-heart-d9b9.bozhetarnikmatthew.workers.dev/';
@@ -706,6 +707,7 @@ const auth=getAuth(oldApp);
 const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
 initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
 const db=getDatabase(newApp);
+const libraryBridge=createLibraryBridge(oldApp,newApp);
 
 /* ── AI SYSTEM PROMPTS ── */
 const AI_MODELS={fast:'us.anthropic.claude-haiku-4-5-20251001-v1:0',smart:'us.anthropic.claude-sonnet-4-6'};
@@ -737,6 +739,7 @@ const setDrafts=d=>localStorage.setItem('studio_drafts',JSON.stringify(d));
 /* ── AUTH ── */
 onAuthStateChanged(auth,async u=>{
   CU=u;
+  try{await libraryBridge.ready();}catch(e){console.warn('[Studio] secure data session unavailable',e);if(u)showToast('Secure Library session unavailable. Publishing and settings are paused.','err');}
   if(u){
     document.getElementById('signin-gate').style.display='none';
     document.getElementById('page').style.display='flex';
