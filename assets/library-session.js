@@ -23,7 +23,19 @@ export function createLibraryBridge(oldApp, newApp) {
     dataAuth,
     get owner() { return owner; },
     ready() { if (!pending) pending = connect().finally(() => { pending = null; }); return pending; },
-    call(name, payload) { return httpsCallable(newFunctions, name)(payload); },
+    async call(name, payload) {
+      try { return await httpsCallable(newFunctions, name)(payload); }
+      catch (error) {
+        const code = error?.code || '';
+        if (code === 'functions/internal' || code === 'functions/unavailable' || code === 'internal' || code === 'unavailable') {
+          throw new Error('The Library backend is unreachable. Deploy firebase/library functions and ensure the Cloud Run services allow public invocation (see firebase/library/README.md).');
+        }
+        if (String(code).includes('appCheck')) {
+          throw new Error('Firebase App Check rejected this site. Configure a valid App Check key for htmltools.me or disable App Check enforcement until it is registered.');
+        }
+        throw error;
+      }
+    },
     async signOutData() { owner = false; await signOut(dataAuth).catch(() => {}); }
   };
 }
