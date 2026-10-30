@@ -7,8 +7,22 @@
  * credential is used for authentication, and none belongs in this file.
  */
 window.HTAI = {
-  /* Cloudflare Worker gateway. Users enter `BASE_URL + /v1` as the base URL. */
+  /* Cloudflare Worker gateway — the origin that actually answers.
+   *
+   * Users never need to see this host. If you attach the Worker to a branded route
+   * (api.htmltools.me, or htmltools.me/ai/*) the pages below switch to it on their
+   * own: they probe the same-origin PROXY_PATH once per session and only fall back
+   * to this origin if nothing answers there.
+   *
+   * Set `window.HTAI_GATEWAY` in a <script> before this file to hard-pin any origin. */
+  API_ORIGIN: 'https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev',
   API_BASE: 'https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev',
+
+  /* Same-origin path that forwards to the Worker, when one exists. */
+  PROXY_PATH: '/ai',
+
+  /* Shown to users when the branded route answers; keep it human. */
+  BRANDED_LABEL: 'htmltools.me/ai',
 
   FB_CONFIG: {
     apiKey: 'AIzaSyDNelWu7deMsAKfDdZjbQX_G-hJkcyzbUw',
@@ -30,4 +44,6 @@ window.HTAI = {
   LS_MODEL: 'htai.model',
   LS_DEFAULT_MODEL: 'htai.defaultModel',
 };
+/* Static fallback. Prefer H.base() / H.v1() from app.js, which resolve the branded
+ * route when it exists. */
 window.HTAI.V1 = window.HTAI.API_BASE + '/v1';

@@ -1,23 +1,29 @@
 /**
- * HTSilo — the in-site helper.
+ * SiloAI — the in-site assistant.
  *
  * It is a normal Workers AI completion on the shared free pool, reached only by
- * signed-in users through /htsilo/chat. It uses the same Neuron budget as the public
+ * signed-in users through /siloai/chat. It uses the same Neuron budget as the public
  * API (so it can never bypass the pool) and has its own tighter per-user caps.
  */
 
-export const HTSILO_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+export const SILOAI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
 
-const BASE = 'https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1';
+/** Public base URL shown to users; brand it when the gateway is proxied. */
+export function publicBase(env, request) {
+  const configured = typeof env?.PUBLIC_API_BASE === 'string' ? env.PUBLIC_API_BASE.trim() : '';
+  if (configured) return configured.replace(/\/+$/, '');
+  try { return new URL(request.url).origin; } catch { return 'https://htmltools.me/ai'; }
+}
 
-export function htsiloSystemPrompt(page) {
+export function siloaiSystemPrompt(page, baseUrl = 'https://htmltools.me/ai') {
   const where = typeof page === 'string' ? page.replace(/[^\w/-]/g, '').slice(0, 60) : '';
+  const base = String(baseUrl).replace(/\/+$/, '');
   return [
-    'You are HTSilo, the friendly helper built into htmltools.me AI API. You are concise, practical and encouraging.',
+    'You are SiloAI, the assistant built into htmltools.me AI API. You are concise, practical and calm.',
     'You answer questions about using the htmltools.me AI API, an OpenAI-compatible gateway.',
     '',
     'Facts you may rely on:',
-    `- Base URL for OpenAI-compatible clients: ${BASE}`,
+    `- Base URL for OpenAI-compatible clients: ${base}/v1`,
     '- Endpoints: GET /v1/models and POST /v1/chat/completions. Errors and responses use OpenAI formats.',
     '- Authentication: header `Authorization: Bearer ht-...` with a key the user creates at https://htmltools.me/AI-API/Dashboard/',
     '- Free shared pool models are Cloudflare Workers AI ids such as @cf/meta/llama-3.1-8b-instruct and @cf/meta/llama-3.3-70b-instruct-fp8-fast. They share one daily Neuron budget and stop working (HTTP 429, code free_pool_exhausted) when it runs out.',

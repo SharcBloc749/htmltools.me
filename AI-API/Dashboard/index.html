@@ -60,6 +60,8 @@
 
 <main class="wrap" style="padding:34px 0 80px">
 
+  <div class="panel setup-banner hidden" data-gateway-banner></div>
+
   <!-- ── signed out ───────────────────────────────────────────────────── -->
   <section id="signedOut" class="hidden">
     <div class="auth-shell">
@@ -101,6 +103,8 @@
 
   <!-- ── signed in ────────────────────────────────────────────────────── -->
   <section id="signedIn" class="hidden">
+    <div class="panel setup-banner hidden" data-setup-banner></div>
+
     <div class="panel account-bar">
       <div class="avatar" data-initial>–</div>
       <div class="who">
@@ -780,6 +784,33 @@
     return false;
   }
 
+  /* Even before sign-in, say out loud when the deployment itself is broken. */
+  async function checkGateway() {
+    var host = $('[data-gateway-banner]');
+    try {
+      var base = await H.base();
+      var response = await fetch(base + '/health', { cache: 'no-store' });
+      var health = await response.json();
+      if (health && health.ok) { host.classList.add('hidden'); host.innerHTML = ''; return; }
+      var missing = (health.missing || []).join(', ') || 'unknown';
+      var fixes = health.fixes || {};
+      host.innerHTML =
+        '<div class="setup-head">The gateway is deployed but not finished setting up</div>' +
+        '<p>Missing: <b>' + H.esc(missing) + '</b>. Account tools and SiloAI cannot work until the owner fixes this.</p>' +
+        '<ul>' + Object.keys(fixes).map(function (name) {
+          return '<li><b>' + H.esc(name) + '</b> — ' + H.esc(fixes[name]) + '</li>';
+        }).join('') + '</ul>' +
+        '<p class="setup-docs"><a href="/AI-API/README.md">Operator runbook</a> · <a href="/AI-API/Docs/">Docs</a></p>';
+      host.classList.remove('hidden');
+    } catch (_) {
+      host.innerHTML = '<div class="setup-head">The gateway is unreachable</div>' +
+        '<p>The dashboard could not reach the API. If the Worker was just deployed, give it a moment and refresh.</p>';
+      host.classList.remove('hidden');
+    }
+  }
+
+  checkGateway();
+
   H.ready.then(function () {
     H.onAuth(async function (user) {
       $('#loading').classList.add('hidden');
@@ -795,8 +826,11 @@
       $('#password').value = '';
       try {
         await refresh();
+        H.setupBanner($('[data-setup-banner]'), null);
       } catch (error) {
-        H.toast(error.message || 'Could not load your account.', 'bad');
+        if (!H.setupBanner($('[data-setup-banner]'), error)) {
+          H.toast(error.message || 'Could not load your account.', 'bad');
+        }
       }
     });
   }).catch(function (error) {
@@ -806,6 +840,6 @@
   });
 })();
 </script>
-<script src="/AI-API/assets/htsilo.js"></script>
+<script src="/AI-API/assets/siloai.js"></script>
 </body>
 </html>

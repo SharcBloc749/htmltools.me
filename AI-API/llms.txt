@@ -24,9 +24,10 @@ POST /v1/chat/completions
      Text content only: image_url and audio parts are rejected with `unsupported_content`.
      `n` must be 1. `logprobs` are rejected. 1-40 messages, 128 KB body ceiling.
 
-GET  /health            Liveness only. No AI work.
+GET  /health            Readiness: status ready|degraded, missing[], fixes{}. No AI work.
 GET  /public/status     Pool remaining, request counts, model list. No auth, no AI work.
-POST /htsilo/chat       In-site helper. Requires a Firebase ID token, not an API key.
+POST /siloai/chat       SiloAI, the in-site assistant. Requires a Firebase ID token, not an API key.
+                        (POST /htsilo/chat still answers, deprecated.)
 
 ## Models (allowlist)
 
@@ -83,6 +84,8 @@ Error body: {"error":{"message":string,"type":string,"param":null|string,"code":
   or by Groq under the user's account when a Groq key is connected.
 - Users manage keys, usage and their Groq key at https://htmltools.me/AI-API/Dashboard/
   using a Firebase account from project `general-database-4cb1c`.
+- If every account endpoint answers 503 not_configured, the deployment is incomplete: the
+  body lists exactly which binding or secret is missing. GET /health reports the same.
 - Keys are shown at creation and can be viewed again by their owner after re-entering their
   Firebase password (or Google popup) within a 5-minute freshness window. Revocation is immediate.
 

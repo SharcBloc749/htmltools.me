@@ -29,7 +29,9 @@ test('AI-API pages exist and share the site design system', () => {
   const theme = read('AI-API/assets/theme.css');
   assert.ok(theme.includes('--bg: #070709'), 'matches the site background token');
   assert.ok(theme.includes('IBM Plex Mono'));
-  assert.ok(theme.includes('.silo-face'), 'HTSilo styling lives in the shared sheet');
+  assert.ok(theme.includes('.siloai-panel'), 'SiloAI styling lives in the shared sheet');
+  assert.ok(theme.includes('--silo: #a78bfa'), 'SiloAI uses the violet accent');
+  assert.ok(!/HTSilo/g.test(read('AI-API/index.html')), 'the assistant is called SiloAI');
 });
 
 test('machine-readable contract matches the implemented surface', () => {
@@ -141,7 +143,7 @@ test('gateway worker test suite passes', () => {
   const output = (result.stdout || '') + (result.stderr || '');
   assert.equal(result.status, 0, output);
   assert.match(output, /# fail 0/);
-  assert.match(output, /# pass 3\d/);
+  assert.match(output, /# pass 4\d/);
 });
 
 test('the single-file worker bundle is committed and self-contained', () => {
@@ -154,4 +156,38 @@ test('the single-file worker bundle is committed and self-contained', () => {
   assert.match(code, /generated file, do not edit/);
   assert.ok(!/KEY_PEPPER\s*=\s*['"][^'"]{8,}/.test(code), 'no pepper in the bundle');
   assert.ok(!/sb_secret|sk_live|ghp_[A-Za-z0-9]{20,}/.test(code), 'no credentials in the bundle');
+});
+
+test('the gateway host is resolved at runtime, never hardcoded into the UI', () => {
+  const app = read('AI-API/assets/app.js');
+  assert.ok(app.includes('H.base = function'), 'app.js resolves the base URL');
+  assert.ok(app.includes('H.rewriteBase'), 'app.js can swap the displayed host');
+  assert.ok(app.includes('PROXY_PATH'), 'a same-origin proxy is probed first');
+  assert.ok(app.includes("health.service === 'htmltools-me-ai-api'"), 'the probe verifies it is our gateway');
+
+  const config = read('AI-API/assets/config.js');
+  assert.ok(config.includes('PROXY_PATH'), 'config declares the proxy path');
+  assert.ok(config.includes('API_ORIGIN'), 'config declares the raw origin');
+  assert.ok(!/window\.HTAI_GATEWAY\s*=/.test(config), 'no host is pinned in source');
+});
+
+test('every page uses the shared SiloAI asset and logo', () => {
+  for (const page of PAGES) {
+    const html = read(page);
+    assert.ok(html.includes('/AI-API/assets/siloai.js'), page + ' loads SiloAI');
+    assert.ok(!html.includes('htsilo.js'), page + ' has no stale asset reference');
+  }
+  assert.ok(existsSync(root + 'SiloAI.png'), 'assistant logo exists at the repository root');
+  const widget = read('AI-API/assets/siloai.js');
+  assert.ok(widget.includes('/SiloAI.png'), 'widget uses the logo');
+  assert.ok(widget.includes('/siloai/chat'), 'widget calls the renamed endpoint');
+});
+
+test('the operator gets a doctor command and a troubleshooting section', () => {
+  const pkg = JSON.parse(read('AI-API/worker/package.json'));
+  assert.equal(pkg.scripts.doctor, 'node scripts/doctor.mjs');
+  const doctor = read('AI-API/worker/scripts/doctor.mjs');
+  assert.ok(doctor.includes('/health'));
+  assert.ok(doctor.includes('not_configured') || doctor.includes('configuration complete'));
+  assert.ok(read('AI-API/README.md').includes('When something returns 500 or 503'));
 });

@@ -46,8 +46,8 @@ export function limits(env) {
     byokDailyRequests: num(env.BYOK_DAILY_REQUESTS, 2000),
     maxActiveKeys: num(env.MAX_ACTIVE_KEYS, 5),
     maxKeysPerDay: num(env.MAX_KEYS_PER_DAY, 10),
-    htsiloDaily: num(env.HTSILO_DAILY_MESSAGES, 15),
-    htsiloRpm: num(env.HTSILO_RPM, 4),
+    siloaiDaily: num(env.SILOAI_DAILY_MESSAGES ?? env.HTSILO_DAILY_MESSAGES, 15),
+    siloaiRpm: num(env.SILOAI_RPM ?? env.HTSILO_RPM, 4),
   };
 }
 
@@ -424,21 +424,22 @@ export class GatewayState {
     return { ok: true, pool: this.pool() };
   }
 
-  async op_siteAuthorize({ uid, ip = '', provider = 'workers-ai', modelId = '', maxOutput = 320, inputTokens = 0, kind = 'htsilo' }) {
+  async op_siteAuthorize({ uid, ip = '', provider = 'workers-ai', modelId = '', maxOutput = 320, inputTokens = 0, kind = 'siloai' }) {
     const now = Date.now();
     await this.rollDayIfNeeded();
     this.pruneMinutes(now);
     this.pruneReservations(now);
     const l = limits(this.env);
     const bucket = this.minuteBucket(now, true);
-    const userRpm = kind === 'htsilo' ? l.htsiloRpm : l.perUserRpm;
+    const isAssistant = kind === 'siloai' || kind === 'htsilo';
+    const userRpm = isAssistant ? l.siloaiRpm : l.perUserRpm;
     if ((bucket.users[uid] || 0) >= userRpm) {
       return this.deny(429, 'rate_limit_exceeded', `Slow down: ${userRpm} requests per minute.`, {
         retryAfter: Math.ceil((MINUTE - (now % MINUTE)) / 1000),
       });
     }
     const usage = this.counters.byUser[uid] || { requests: 0, neurons: 0, tokens: 0 };
-    const dailyCap = kind === 'htsilo' ? l.htsiloDaily : l.perUserDailyRequests;
+    const dailyCap = isAssistant ? l.siloaiDaily : l.perUserDailyRequests;
     if (usage.requests >= dailyCap) {
       return this.deny(429, 'user_daily_limit', `Daily limit reached (${dailyCap} messages).`, {
         retryAfter: Math.ceil((nextUtcMidnight() - now) / 1000),

@@ -26,7 +26,7 @@ export const WORKERS_AI_MODELS = [
     supportsStream: true,
     supportsTools: false,
     neurons: { in: 3_000, out: 10_000 },
-    note: 'Cheapest free-pool model. Good for short answers, classification and HTSilo.',
+    note: 'Cheapest free-pool model. Good for short answers, classification and SiloAI.',
   },
   {
     id: '@cf/meta/llama-3.1-8b-instruct',
