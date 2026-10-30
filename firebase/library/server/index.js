@@ -14,7 +14,20 @@ const catalogUrl = defineString('LIBRARY_CATALOG_URL', { default: 'https://black
 const OWNER_EMAIL = 'matthewbozhe@gmail.com';
 let catalogCache = { ids: null, expires: 0 };
 const CATALOG_CACHE_MS = 60 * 1000;
-const opts = { region: 'us-central1', maxInstances: 10, timeoutSeconds: 60, memory: '256MiB' };
+// Callable functions must be reachable by the browser before Firebase Auth can
+// run inside the handler. `invoker: 'public'` only opens the Cloud Run IAM gate;
+// every handler still verifies a Firebase ID token and the librarySession claim.
+// If an existing Cloud Run service was made private, redeploying alone may not
+// repair IAM — see firebase/library/README.md ("Callable CORS / invoker").
+const LIBRARY_ORIGINS = ['https://htmltools.me', 'https://www.htmltools.me'];
+const opts = {
+  region: 'us-central1',
+  maxInstances: 10,
+  timeoutSeconds: 60,
+  memory: '256MiB',
+  cors: LIBRARY_ORIGINS,
+  invoker: 'public'
+};
 
 function fail(error) {
   if (error instanceof RequestError) return new HttpsError(error.code, error.message);
