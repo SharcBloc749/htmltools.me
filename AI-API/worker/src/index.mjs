@@ -170,7 +170,8 @@ async function handlePublicStatus(request, env, requestId) {
   const status = await doCall(env, 'publicStatus', {
     models: modelsPayload(env, { hasByok: true }).data.map(m => ({
       id: m.id, label: m.x_ht.label, provider: m.x_ht.provider,
-      free: m.x_ht.free_pool, available: m.x_ht.available,
+      free: m.x_ht.free_pool, requires_byok: Boolean(m.x_ht.requires_byok),
+      available: m.x_ht.free_pool,
       streaming: m.x_ht.streaming, tools: m.x_ht.tools, max_output_tokens: m.x_ht.max_output_tokens,
     })),
   });

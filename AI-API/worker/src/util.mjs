@@ -108,14 +108,28 @@ export async function readJson(request, maxBytes) {
   if (declared && declared > maxBytes) {
     return { ok: false, status: 413, message: `Request body exceeds ${Math.floor(maxBytes / 1024)} KB.` };
   }
-  let text;
+  let text = '';
   try {
-    text = await request.text();
+    if (!request.body) {
+      text = await request.text();
+    } else {
+      const reader = request.body.getReader();
+      const decoder = new TextDecoder();
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += value.byteLength;
+        if (received > maxBytes) {
+          await reader.cancel().catch(() => {});
+          return { ok: false, status: 413, message: `Request body exceeds ${Math.floor(maxBytes / 1024)} KB.` };
+        }
+        text += decoder.decode(value, { stream: true });
+      }
+      text += decoder.decode();
+    }
   } catch {
     return { ok: false, status: 400, message: 'Could not read request body.' };
-  }
-  if (new TextEncoder().encode(text).length > maxBytes) {
-    return { ok: false, status: 413, message: `Request body exceeds ${Math.floor(maxBytes / 1024)} KB.` };
   }
   if (!text.trim()) return { ok: false, status: 400, message: 'Request body must be a JSON object.' };
   try {

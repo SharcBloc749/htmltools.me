@@ -396,14 +396,16 @@ print(reply.choices[0].message.content)`],
     var tbody = H.$('[data-model-rows]');
     if (!tbody || !models || !models.length) return;
     tbody.innerHTML = models.map(function (m) {
-      var dot = m.available ? '<span class="badge ok">live</span>' : '<span class="badge off">needs key</span>';
+      var pool = m.requires_byok
+        ? '<span class="badge off">your Groq key</span>'
+        : '<span class="badge ok">shared</span>';
       return '<tr>' +
         '<td><code>' + H.esc(m.id) + '</code></td>' +
         '<td>' + H.esc(m.provider === 'workers-ai' ? 'Workers AI' : m.provider === 'groq' ? 'Groq (BYOK)' : 'Auto') + '</td>' +
         '<td>' + (m.streaming ? '<span class="badge ok">yes</span>' : '<span class="badge off">no</span>') + '</td>' +
         '<td>' + (m.tools ? '<span class="badge ok">yes</span>' : '<span class="badge off">no</span>') + '</td>' +
         '<td class="num">' + (m.max_output_tokens ? H.fmtNum(m.max_output_tokens) : '—') + '</td>' +
-        '<td>' + (m.free ? '<span class="badge">shared</span>' : dot) + '</td>' +
+        '<td>' + pool + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -425,8 +427,8 @@ print(reply.choices[0].message.content)`],
         { id: '@cf/meta/llama-3.2-3b-instruct', provider: 'workers-ai', streaming: true, tools: false, max_output_tokens: 768, free: true, available: true },
         { id: '@cf/meta/llama-3.1-8b-instruct', provider: 'workers-ai', streaming: true, tools: true, max_output_tokens: 1024, free: true, available: true },
         { id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', provider: 'workers-ai', streaming: true, tools: true, max_output_tokens: 1024, free: true, available: true },
-        { id: 'llama-3.3-70b-versatile', provider: 'groq', streaming: true, tools: true, max_output_tokens: 2048, free: false, available: false },
-        { id: 'openai/gpt-oss-20b', provider: 'groq', streaming: true, tools: true, max_output_tokens: 2048, free: false, available: false },
+        { id: 'llama-3.3-70b-versatile', provider: 'groq', streaming: true, tools: true, max_output_tokens: 2048, free: false, requires_byok: true, available: false },
+        { id: 'openai/gpt-oss-20b', provider: 'groq', streaming: true, tools: true, max_output_tokens: 2048, free: false, requires_byok: true, available: false },
         { id: 'auto', provider: 'auto', streaming: true, tools: false, free: true, available: true },
       ]);
     }
