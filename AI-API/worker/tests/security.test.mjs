@@ -275,6 +275,46 @@ test('admin roster requires an allowlisted uid, fresh sign-in and the passphrase
   assert.ok(!raw.includes('"salt"'));
 });
 
+test('the operator can recover an escrowed key only with every admin control', async () => {
+  const env = makeEnv({
+    ADMIN_UIDS: 'uid_admin',
+    ADMIN_PASSPHRASE: 'correct horse battery staple',
+    KEY_ESCROW_SECRET: 'test-escrow-secret-0123456789',
+  });
+  const ctx = makeCtx();
+  const userToken = env.__signer.sign({ uid: 'uid_1', name: 'Test User', email: 'tester@example.com' });
+  const key = await createAccountKey(worker, env, ctx, userToken);
+  const id = key.slice(0, 13);
+
+  const userAttempt = await worker.fetch(apiRequest(`/admin/keys/${id}/reveal`, {
+    method: 'POST', token: userToken, headers: { 'x-ht-admin-passphrase': 'correct horse battery staple' },
+  }), env, ctx);
+  assert.equal(userAttempt.status, 403);
+
+  const adminToken = env.__signer.sign({ uid: 'uid_admin' });
+  const noPassphrase = await worker.fetch(apiRequest(`/admin/keys/${id}/reveal`, { method: 'POST', token: adminToken }), env, ctx);
+  assert.equal(noPassphrase.status, 403);
+
+  const recovered = await worker.fetch(apiRequest(`/admin/keys/${id}/reveal`, {
+    method: 'POST', token: adminToken, headers: { 'x-ht-admin-passphrase': 'correct horse battery staple' },
+  }), env, ctx);
+  assert.equal(recovered.status, 200);
+  const body = await recovered.json();
+  assert.equal(body.key, key);
+  assert.equal(body.owner.email, 'tester@example.com');
+
+  // A deployment without the escrow secret cannot recover anything.
+  const noEscrow = makeEnv({ ADMIN_UIDS: 'uid_admin', ADMIN_PASSPHRASE: 'correct horse battery staple' });
+  const plainKey = await createAccountKey(worker, noEscrow, makeCtx(), noEscrow.__signer.sign({ uid: 'uid_2' }));
+  const blockedEnv = await worker.fetch(apiRequest(`/admin/keys/${plainKey.slice(0, 13)}/reveal`, {
+    method: 'POST',
+    token: noEscrow.__signer.sign({ uid: 'uid_admin' }),
+    headers: { 'x-ht-admin-passphrase': 'correct horse battery staple' },
+  }), noEscrow, makeCtx());
+  assert.equal(blockedEnv.status, 409);
+  assert.equal((await blockedEnv.json()).error.code, 'key_not_recoverable');
+});
+
 /* ── transport / privacy ─────────────────────────────────────────────────── */
 
 test('CORS allows third-party API clients but restricts account origins', async () => {

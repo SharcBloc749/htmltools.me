@@ -5,7 +5,7 @@ directory up; the full operator runbook, deployment steps and security model are
 [`../README.md`](../README.md).
 
 ```bash
-npm test        # 30 tests, no network, no credentials
+npm test        # 31 tests, no network, no credentials
 npx wrangler dev
 npx wrangler deploy
 npx wrangler tail

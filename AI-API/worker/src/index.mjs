@@ -464,6 +464,27 @@ async function handleAdmin(request, env, requestId, path, user) {
     return finalize(json(await doCall(env, 'syncNow', {})), request, env, requestId, 'site');
   }
 
+  const adminReveal = /^\/admin\/keys\/(ht-[a-z0-9]{10})\/reveal$/.exec(path);
+  if (adminReveal && request.method === 'POST') {
+    if (!env.KEY_ESCROW_SECRET) {
+      return finalize(apiError(409, 'Escrow is not enabled on this deployment, so keys cannot be recovered.', 'invalid_request_error', 'key_not_recoverable'), request, env, requestId, 'site');
+    }
+    const limited = await doCall(env, 'limitCheck', { scope: 'admin-reveal', key: `admin:${user.uid}`, limit: 10, windowSec: 300 });
+    if (!limited.ok) return finalize(tooManyRequests('Too many reveal attempts. Try again in a few minutes.').response, request, env, requestId, 'site');
+    const record = await doCall(env, 'getKey', { keyId: adminReveal[1], asAdmin: true });
+    if (!record.ok) return finalize(apiError(404, record.message, 'invalid_request_error', record.code), request, env, requestId, 'site');
+    if (!record.record.escrow) {
+      return finalize(apiError(409, 'That key was created before escrow was enabled, so it cannot be recovered.', 'invalid_request_error', 'key_not_recoverable'), request, env, requestId, 'site');
+    }
+    try {
+      const plaintext = await decryptSecret(record.record.escrow, env.KEY_ESCROW_SECRET, escrowContext(adminReveal[1]), 'KEY_ESCROW_SECRET');
+      logEvent(env, { event: 'key_revealed_admin', key: adminReveal[1], user: userRef(user.uid) });
+      return finalize(json({ key: plaintext, id: adminReveal[1], owner: { name: record.record.name, email: record.record.email } }), request, env, requestId, 'site');
+    } catch {
+      return finalize(apiError(409, 'This key could not be decrypted. The escrow secret may have been rotated.', 'server_error', 'ciphertext_undecryptable'), request, env, requestId, 'site');
+    }
+  }
+
   const revoke = /^\/admin\/keys\/(ht-[a-z0-9]{10})\/revoke$/.exec(path);
   if (revoke && request.method === 'POST') {
     const result = await doCall(env, 'revokeKey', { keyId: revoke[1], asAdmin: true });

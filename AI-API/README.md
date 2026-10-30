@@ -187,17 +187,16 @@ URL (and a custom domain only if you deliberately add one).
 Generate values locally and paste them **only** into the `wrangler secret put` prompt:
 
 ```bash
-openssl rand -base64 48        # KEY_PEPPER        (required)
+openssl rand -base64 48        # KEY_PEPPER          (required)
 openssl rand -base64 32        # BYOK_ENCRYPTION_KEY (required for BYOK)
-openssl rand -base64 32        # ADMIN_PASSPHRASE  (required for admin tools)
-openssl rand -base64 32        # KEY_ESCROW_SECRET (optional, see section 7)
+openssl rand -base64 32        # ADMIN_PASSPHRASE    (required for admin tools)
+openssl rand -base64 32        # KEY_ESCROW_SECRET   (required for key recovery)
 
 cd AI-API/worker
 npx wrangler secret put KEY_PEPPER
 npx wrangler secret put GITHUB_TOKEN
 npx wrangler secret put BYOK_ENCRYPTION_KEY
 npx wrangler secret put ADMIN_PASSPHRASE
-# optional:
 npx wrangler secret put KEY_ESCROW_SECRET
 ```
 
@@ -246,8 +245,9 @@ Then in the browser:
 
 1. Sign in on the dashboard; confirm your name/email and the account `ref`.
 2. Create a key; confirm it is shown once and appears in the table as active.
-3. Call the API with it; confirm `GET /v1/models` and a chat completion.
-4. Revoke it; confirm the next call returns `key_revoked`.
+3. Click “Show key”, confirm your password, and check the key that comes back matches.
+4. Call the API with it; confirm `GET /v1/models` and a chat completion.
+5. Revoke it; confirm the next call returns `key_revoked`.
 5. Connect a Groq key; call `llama-3.3-70b-versatile`; confirm usage does not touch the
    pool. Disconnect; confirm `provider_not_connected`.
 6. Check the private repo: `keys.js` should contain a `// ht-… - Your Name - you@…`
@@ -258,20 +258,46 @@ Then in the browser:
 
 ---
 
-## 7. Escrow (optional, off by default)
+## 7. Key recovery (escrow) — enabled by design
 
-By default a key exists in plaintext only in the creation response. If you need to show
-a user their key again (support, migration), set `KEY_ESCROW_SECRET`. New keys then also
-store an AES-256-GCM ciphertext (`escrow` field) encrypted with that secret and bound to
-the key id. Reveal requires a signed-in owner whose Firebase `auth_time` is under five
-minutes old — i.e. they just typed their password (or re-ran the Google popup) — plus a
-5-per-5-minutes rate limit.
+The product decision is: an owner can see their key again, but only after re-entering their
+Firebase password (or re-running the Google popup). That needs a recoverable copy, so the
+gateway stores one — encrypted, not plaintext.
 
-Trade-off: an attacker who steals **both** the roster file and the Worker secret can
-recover live keys. That is why it is opt-in. Existing hash-only keys cannot be revealed
-even after enabling it.
+**What is in the private roster.** For every key, `keys.js` contains:
 
----
+```
+// ht-3jhnnuj2tg - John Doe - johndoe@example.com
+{ id, salt, hash, uid, name, email, created, lastUsed, revoked, usage,
+  escrow: { v: 1, iv: "<base64>", ct: "<base64>" } }
+```
+
+- `hash` is the salted SHA-256 used to authenticate every request.
+- `escrow` is the key encrypted with AES-256-GCM under a key derived by HKDF-SHA-256 from
+  `KEY_ESCROW_SECRET`, with the key id as HKDF context and AAD. It is unreadable without
+  that Worker secret.
+- The plaintext key itself is never written to the file, the Durable Object, logs or the
+  database. Storing plaintext would mean anyone with read access to the repo (or a leaked
+  token, backup or screenshot) holds live credentials; this design gives the same "show my
+  key" feature without that.
+
+**Owner flow.** Dashboard → “Show key” → password dialog → Firebase re-authenticates
+client-side (the password never goes to the gateway) → `POST /account/keys/{id}/reveal`
+with the fresh ID token → the Worker checks the token's `auth_time` is under five minutes
+old, decrypts, and returns the key once. Five attempts per five minutes. Revoked keys can
+still be read by their owner but no longer work.
+
+**Operator flow.** The Admin tab lists every key with a “Show” button:
+`POST /admin/keys/{id}/reveal` needs an allowlisted UID, a sign-in under five minutes old
+and the admin passphrase. Use it only when an owner asks for help.
+
+**Rotating `KEY_ESCROW_SECRET`** makes every stored ciphertext undecryptable (keys keep
+working, because authentication uses the hash). Users would need to create new keys to get
+a recoverable copy again. Treat it like the pepper.
+
+**If you leave it unset,** key creation still works, but the dashboard shows
+“Key recovery is off on this deployment” and reveal returns `409 key_not_recoverable`.
+That is the safe fallback, not the intended setup.
 
 ## 8. Use your own Groq key (BYOK)
 
@@ -337,7 +363,7 @@ plan bills Neurons beyond the free allocation.
 
 ## 11. Verified in this branch vs. needs live credentials
 
-Verified by automated tests (`cd AI-API/worker && npm test`, 30 tests, also run from the
+Verified by automated tests (`cd AI-API/worker && npm test`, 31 tests, also run from the
 repository root suite):
 
 - routing allowlist, 404s, no anonymous AI path;
@@ -346,6 +372,7 @@ repository root suite):
 - OpenAI response shape, SSE translation, tool-call mapping (mocked provider);
 - Firebase verification: valid, forged signature, expired, wrong project;
 - BYOK encryption/uid binding/removal and Groq routing (mocked Groq);
+- owner reveal with a fresh token (and refusal with a stale one), operator reveal with escrow;
 - HTSilo auth and limits; CORS split; prompt text never logged;
 - private roster rendering and a secret scan of the Worker tree.
 
@@ -359,9 +386,10 @@ Needs a live deployment to confirm (no credentials in this sandbox):
 
 ---
 
-## 12. Decisions I did not make for you
+## 12. Decisions
 
-1. **Escrow:** leave off (safer) or enable so you can show users their keys again?
+1. ~~Escrow~~ **decided: enabled.** Password-gated reveal is part of the product; set
+   `KEY_ESCROW_SECRET` as described in section 7.
 2. **Free-pool budget:** 6,000 Neurons is a judgement call to protect AI Playground.
    Raise it if you are happy for the pool to serve more before it stops.
 3. **Workers plan:** staying on Free keeps cost at $0 and means the pool simply stops.

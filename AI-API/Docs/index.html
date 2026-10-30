@@ -153,7 +153,9 @@ for chunk in stream:
     <ul>
       <li>Keys start with <code class="inline">ht-</code> followed by 30 lowercase characters.</li>
       <li>The first 13 characters are the public key id (<code class="inline">ht-3jhnnuj2tg</code>) used in the dashboard and support.</li>
-      <li>Only a salted SHA-256 hash is stored. A lost key cannot be recovered; create a new one and revoke the old one.</li>
+      <li>Only a salted SHA-256 hash is used to authenticate requests. If the operator has enabled escrow (the
+        recommended setting, and the one used on the live gateway), an AES-256-GCM copy is also kept in the private
+        roster so the owner can view the key again after re-entering their password.</li>
       <li>Revocation is immediate — the gateway checks a strongly consistent store on every request.</li>
     </ul>
     <div class="notice warn">
@@ -381,11 +383,13 @@ data: [DONE]</pre>
           <tr><td><code>GET /account/keys</code></td><td>Your keys with masked ids, usage and revocation state.</td></tr>
           <tr><td><code>POST /account/keys</code></td><td>Create a key. The plaintext is returned once.</td></tr>
           <tr><td><code>POST /account/keys/{id}/revoke</code></td><td>Revoke immediately.</td></tr>
-          <tr><td><code>POST /account/keys/{id}/reveal</code></td><td>Show an escrowed key (recent sign-in required, only if the operator enabled escrow).</td></tr>
+          <tr><td><code>POST /account/keys/{id}/reveal</code></td><td>Show your key again. Requires a sign-in within the last 5 minutes (password or Google popup), escrow enabled, and at most 5 attempts per 5 minutes.</td></tr>
           <tr><td><code>GET /account/usage</code></td><td>Today's requests, tokens, Neurons, limits and 14-day history.</td></tr>
           <tr><td><code>GET /account/byok</code></td><td>Whether a provider key is connected (never returns it).</td></tr>
           <tr><td><code>POST /account/byok</code></td><td>Connect a Groq key. Requires a recent sign-in.</td></tr>
           <tr><td><code>DELETE /account/byok</code></td><td>Delete the stored provider key.</td></tr>
+          <tr><td><code>GET /admin/roster</code></td><td>Operator only: every key id, owner, status and usage. Requires an allowlisted UID, a fresh sign-in and the admin passphrase.</td></tr>
+          <tr><td><code>POST /admin/keys/{id}/reveal</code></td><td>Operator only: decrypt an escrowed key when its owner asks for help.</td></tr>
           <tr><td><code>GET /public/status</code></td><td>Pool status and model list. No authentication, no AI work.</td></tr>
           <tr><td><code>GET /health</code></td><td>Liveness only.</td></tr>
         </tbody>
@@ -403,6 +407,9 @@ data: [DONE]</pre>
     <ul>
       <li><b>Not stored:</b> prompt or completion text, in any database, the Durable Object, or the GitHub roster.</li>
       <li><b>Stored:</b> request counts, token estimates, model id, key id, timestamps and byte counts, kept for accounting and abuse control.</li>
+      <li><b>Key material:</b> a salted SHA-256 hash for every key, plus — when escrow is enabled — an AES-256-GCM
+        ciphertext in the private roster. The plaintext is never returned to any browser except after the owner
+        re-authenticates (or the operator uses the admin passphrase).</li>
       <li><b>Logged:</b> structured metadata lines (event, model, key id, latency, token counts). The code never passes message content to the logger.</li>
       <li><b>Sent to providers:</b> the full prompt for the request. Free-pool prompts go to Cloudflare Workers AI; Groq prompts go to Groq using your key.</li>
       <li><b>Third-party policies:</b> Cloudflare and Groq process that data under their own terms. If your prompts are sensitive, use your own provider key and review that provider's data policy.</li>

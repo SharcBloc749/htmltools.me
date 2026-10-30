@@ -445,8 +445,10 @@
       '<th class="num">Requests</th><th class="num">Tokens</th><th style="text-align:right">Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
       (state.escrow
-        ? '<p class="hint" style="margin-top:10px">“Show key” decrypts an escrowed copy and requires your password again.</p>'
-        : '<p class="hint" style="margin-top:10px">Keys are stored as one-way hashes on this deployment, so they cannot be shown again after creation.</p>');
+        ? '<p class="hint" style="margin-top:10px">“Show key” asks for your password again, then decrypts this key from the private roster.</p>'
+        : '<div class="notice warn" style="margin-top:12px"><span><b>Key recovery is off on this deployment.</b> ' +
+          'Set the <code class="inline">KEY_ESCROW_SECRET</code> Worker secret and redeploy to let owners re-view a key after confirming their password. ' +
+          'Without it, keys exist only as one-way hashes.</span></div>');
   }
 
   function renderUsage(usage, quiet) {
@@ -653,7 +655,10 @@
         '<td class="num">' + H.fmtDate(key.created) + '</td>' +
         '<td class="num">' + H.relTime(key.lastUsed) + '</td>' +
         '<td class="num">' + H.fmtNum(key.usage && key.usage.requests || 0) + '</td>' +
-        '<td>' + (key.revoked ? '' : '<button class="btn btn-quiet btn-sm" type="button" data-admin-revoke="' + H.esc(key.id) + '">Revoke</button>') + '</td>' +
+        '<td><div class="action-cell">' +
+          (key.recoverable ? '<button class="btn btn-quiet btn-sm" type="button" data-admin-reveal="' + H.esc(key.id) + '">Show</button>' : '') +
+          (key.revoked ? '' : '<button class="btn btn-quiet btn-sm" type="button" data-admin-revoke="' + H.esc(key.id) + '">Revoke</button>') +
+        '</div></td>' +
         '</tr>';
     }).join('');
 
@@ -673,6 +678,28 @@
         '<th>Key</th><th>Owner</th><th>Status</th><th class="num">Created</th><th class="num">Last used</th><th class="num">Requests</th><th></th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="hint" style="margin-top:10px">Full keys are never shown here. Use the owner\'s dashboard reveal, or the escrow secret, if recovery is required.</p>';
+  }
+
+  async function adminReveal(id) {
+    var confirmed = await modal({
+      title: 'Show this user\'s key?',
+      body: '<p class="hint">Decrypts the escrowed copy of <code class="inline">' + H.esc(id) + '</code> using the Worker\'s escrow secret. ' +
+        'Only do this when the owner asks for help, and do not keep or share the result.</p>',
+      actions: [{ label: 'Cancel', value: null }, { label: 'Show key', primary: true, value: 'show' }],
+    });
+    if (!confirmed) return;
+    try {
+      var result = await H.api('/admin/keys/' + id + '/reveal', { method: 'POST', adminPassphrase: state.adminPass });
+      await modal({
+        title: 'Recovered key',
+        body: '<p class="hint">' + H.esc(result.owner && result.owner.email || 'owner') + '</p>' +
+          '<div class="key-reveal">' + H.esc(result.key) + '</div>' +
+          '<button class="btn btn-quiet btn-sm" type="button" data-copy="' + H.esc(result.key) + '">Copy key</button>',
+        actions: [{ label: 'Close', primary: true, value: true }],
+      });
+    } catch (error) {
+      H.toast(error.message, 'bad');
+    }
   }
 
   async function adminRevoke(id) {
@@ -705,6 +732,8 @@
     if (reveal) { revealKey(reveal.dataset.reveal); return; }
     var adminRev = event.target.closest('[data-admin-revoke]');
     if (adminRev) { adminRevoke(adminRev.dataset.adminRevoke); return; }
+    var adminShow = event.target.closest('[data-admin-reveal]');
+    if (adminShow) { adminReveal(adminShow.dataset.adminReveal); return; }
     if (event.target.closest('[data-admin-load]')) { loadAdmin(); return; }
     if (event.target.closest('[data-admin-sync]')) { adminSync(); return; }
     if (event.target.closest('[data-byok-remove]')) { removeByok(); return; }
