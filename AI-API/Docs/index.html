@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI API reference · HTMLTools</title>
+<meta name="description" content="Reference for the htmltools.me AI API: base URL, authentication, /v1/models, /v1/chat/completions, streaming, tool calling, limits, error codes and provider keys.">
+<link rel="canonical" href="https://htmltools.me/AI-API/Docs/">
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png">
+<link rel="stylesheet" href="/AI-API/assets/theme.css">
+<style>
+  .doc-layout { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 46px; align-items: start; padding: 48px 0 80px; }
+  .toc { position: sticky; top: calc(var(--nav-h) + 26px); }
+  .toc .eyebrow { margin-bottom: 12px; }
+  .toc a { display: block; padding: 5px 0; font-size: 13px; color: var(--muted); border-left: 1px solid transparent; padding-left: 12px; }
+  .toc a:hover { color: var(--white); border-left-color: var(--border-strong); }
+  .doc h2 { margin: 46px 0 14px; padding-top: 10px; }
+  .doc h2:first-of-type { margin-top: 0; }
+  .doc h3 { margin: 26px 0 8px; }
+  .doc p { color: #b6b6c0; margin: 10px 0; font-size: 14.5px; }
+  .doc ul, .doc ol { margin: 10px 0 10px 20px; color: #b6b6c0; font-size: 14.5px; }
+  .doc li { margin: 5px 0; }
+  .doc hr { border: 0; border-top: 1px solid var(--border); margin: 34px 0; }
+  .doc table { font-size: 13px; }
+  .doc .table-wrap { margin: 14px 0; }
+  .doc .code { margin: 14px 0; }
+  .doc .notice { margin: 16px 0; }
+  @media (max-width: 940px) {
+    .doc-layout { grid-template-columns: 1fr; gap: 20px; padding-top: 30px; }
+    .toc { position: static; display: flex; flex-wrap: wrap; gap: 6px 14px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+    .toc a { border: 0; padding: 3px 0; font-size: 12px; }
+    .toc .eyebrow { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-head">
+  <div class="bar">
+    <a class="brand" href="https://htmltools.me/">
+      <span class="mark"><img src="https://htmltools.me/logo3.png" alt="HTMLTools"></span>
+      <span>HTMLTools</span><span class="slash">/</span><span class="sub">AI API</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/AI-API/">Overview</a>
+      <a href="/AI-API/Docs/" aria-current="page">Docs</a>
+      <a href="/AI-API/Playground/">Playground</a>
+      <a href="/AI-API/Dashboard/">Dashboard</a>
+      <a class="nav-cta" href="/AI-API/Dashboard/">Get a key</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap doc-layout">
+  <aside class="toc">
+    <div class="eyebrow">Reference</div>
+    <a href="#start">Getting started</a>
+    <a href="#auth">Authentication</a>
+    <a href="#models-endpoint">GET /v1/models</a>
+    <a href="#chat">POST /v1/chat/completions</a>
+    <a href="#streaming">Streaming</a>
+    <a href="#tools">Tool calling</a>
+    <a href="#models-table">Models &amp; costs</a>
+    <a href="#limits">Limits &amp; quotas</a>
+    <a href="#errors">Errors</a>
+    <a href="#byok">Your own Groq key</a>
+    <a href="#account">Account API</a>
+    <a href="#htsilo">HTSilo</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#limits-of-scope">What is not supported</a>
+    <a href="#tested">What is tested</a>
+  </aside>
+
+  <main class="doc">
+    <div class="kicker"><span class="dot" aria-hidden="true"></span> API reference · v1</div>
+    <h1 style="font-size:clamp(30px,4vw,44px)">The htmltools.me <em>AI API</em></h1>
+    <p class="lead" style="margin-top:16px">
+      An OpenAI-compatible chat completions gateway running on Cloudflare Workers. Two providers are
+      reachable: the shared <strong>Workers AI free pool</strong> and, if you connect one,
+      <strong>your own Groq key</strong>. No other provider, model or billing account is wired up.
+    </p>
+
+    <div class="baseurl" style="margin-top:24px">
+      <span class="tag">Base URL</span>
+      <code>https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1</code>
+      <button class="btn btn-primary btn-sm" type="button" data-copy="https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1">Copy</button>
+    </div>
+
+    <h2 id="start">Getting started</h2>
+    <ol>
+      <li>Sign in at <a href="/AI-API/Dashboard/" style="color:#fff;text-decoration:underline">htmltools.me/AI-API/Dashboard</a> with an AI Playground account (Firebase project <code class="inline">general-database-4cb1c</code>).</li>
+      <li>Create a key. It is shown <b>once</b> — copy it then.</li>
+      <li>Use <code class="inline">https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1</code> as the base URL and the key as the API key.</li>
+      <li>Pick a model from <a href="#models-table" style="color:#fff;text-decoration:underline">the allowlist</a>. <code class="inline">auto</code> works if you do not care which one runs.</li>
+    </ol>
+
+    <div class="code">
+      <div class="code-head"><span class="label">minimal request</span><button class="copy" type="button" data-copy-from="#ex-min">Copy</button></div>
+      <pre id="ex-min">curl https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1/chat/completions \
+  -H "Authorization: Bearer ht-YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "@cf/meta/llama-3.1-8b-instruct",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'</pre>
+    </div>
+
+    <h3>Client configuration cheat sheet</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Client</th><th>Base URL field</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>OpenAI Python / Node SDK</td><td><code>/v1</code></td><td>Set <code>base_url</code> / <code>baseURL</code> and <code>api_key</code>.</td></tr>
+          <tr><td>curl, fetch, requests</td><td><code>/v1</code></td><td>Append <code>/chat/completions</code> yourself.</td></tr>
+          <tr><td>Open WebUI, LibreChat, LobeChat</td><td><code>/v1</code></td><td>Choose “OpenAI compatible”, then paste base URL and key.</td></tr>
+          <tr><td>Continue / Cline / Roo (VS Code)</td><td><code>/v1</code></td><td>Provider: OpenAI-compatible. Tool use depends on the model.</td></tr>
+          <tr><td>LangChain <code>ChatOpenAI</code></td><td><code>/v1</code></td><td>Pass <code>base_url</code> and <code>api_key</code>; <code>streaming=True</code> works.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Some apps append <code class="inline">/v1</code> on their own. If you get a 404 on <code class="inline">/v1/v1/chat/completions</code>, use the origin without the suffix.</p>
+
+    <h3>For tools and agents</h3>
+    <ul>
+      <li><a href="/AI-API/llms.txt" style="color:#fff;text-decoration:underline">llms.txt</a> — a compact plain-text
+        contract (base URL, models, limits, error codes) written to be pasted into an AI tool or agent.</li>
+      <li><a href="/AI-API/openapi.json" style="color:#fff;text-decoration:underline">openapi.json</a> — OpenAPI 3.1
+        description of the two `/v1` endpoints, importable by Postman, Insomnia or a code generator.</li>
+    </ul>
+
+    <h3>OpenAI SDK</h3>
+    <div class="code">
+      <div class="code-head"><span class="label">python</span><button class="copy" type="button" data-copy-from="#ex-sdk">Copy</button></div>
+      <pre id="ex-sdk">from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1",
+    api_key="ht-YOUR_KEY",
+)
+
+stream = client.chat.completions.create(
+    model="@cf/meta/llama-3.1-8b-instruct",
+    messages=[{"role": "user", "content": "Write one sentence about the sea."}],
+    stream=True,
+)
+for chunk in stream:
+    print(chunk.choices[0].delta.content or "", end="")</pre>
+    </div>
+
+    <h2 id="auth">Authentication</h2>
+    <p>Every <code class="inline">/v1</code> request needs a bearer key:</p>
+    <div class="code"><pre>Authorization: Bearer ht-3jhnnuj2tgq8m4xwv7b2n5r0kd9fcs</pre></div>
+    <ul>
+      <li>Keys start with <code class="inline">ht-</code> followed by 30 lowercase characters.</li>
+      <li>The first 13 characters are the public key id (<code class="inline">ht-3jhnnuj2tg</code>) used in the dashboard and support.</li>
+      <li>Only a salted SHA-256 hash is used to authenticate requests. If the operator has enabled escrow (the
+        recommended setting, and the one used on the live gateway), an AES-256-GCM copy is also kept in the private
+        roster so the owner can view the key again after re-entering their password.</li>
+      <li>Revocation is immediate — the gateway checks a strongly consistent store on every request.</li>
+    </ul>
+    <div class="notice warn">
+      <span>Keys are bearer credentials. Do not put them in client-side JavaScript that ships to strangers, public
+      repos, or screenshots. Anyone who has the key can spend your share of the pool.</span>
+    </div>
+
+    <h2 id="models-endpoint">GET /v1/models</h2>
+    <p>Returns only models this gateway will actually accept. Also tells you whether your account has a
+      provider key connected.</p>
+    <div class="code">
+      <div class="code-head"><span class="label">response</span><button class="copy" type="button" data-copy-from="#ex-models">Copy</button></div>
+      <pre id="ex-models">{
+  "object": "list",
+  "data": [
+    {
+      "id": "@cf/meta/llama-3.1-8b-instruct",
+      "object": "model",
+      "created": 0,
+      "owned_by": "cloudflare-workers-ai",
+      "x_ht": {
+        "provider": "workers-ai",
+        "label": "Llama 3.1 8B Instruct",
+        "free_pool": true,
+        "available": true,
+        "streaming": true,
+        "tools": true,
+        "max_output_tokens": 1024,
+        "daily_pool_neurons": 6000
+      }
+    }
+  ]
+}</pre>
+    </div>
+    <p><code class="inline">x_ht</code> is our extension; OpenAI clients ignore unknown fields.</p>
+
+    <h2 id="chat">POST /v1/chat/completions</h2>
+    <p>Accepts an OpenAI chat body and returns an OpenAI chat response. Parameters outside the table are ignored
+      rather than silently forwarded to a provider.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Behaviour</th></tr></thead>
+        <tbody>
+          <tr><td><code>model</code></td><td>string</td><td>Required. Must be in the allowlist, or <code>auto</code>.</td></tr>
+          <tr><td><code>messages</code></td><td>array</td><td>Required, 1–40 items. Roles: <code>system</code>, <code>user</code>, <code>assistant</code>, <code>tool</code>. <code>developer</code> is treated as <code>system</code>.</td></tr>
+          <tr><td><code>stream</code></td><td>boolean</td><td>Server-sent events. Ends with <code>data: [DONE]</code>.</td></tr>
+          <tr><td><code>max_tokens</code>, <code>max_completion_tokens</code></td><td>integer</td><td>Default 512, capped per model (see model table).</td></tr>
+          <tr><td><code>temperature</code></td><td>number</td><td>0–2, default 0.7.</td></tr>
+          <tr><td><code>top_p</code></td><td>number</td><td>0–1, forwarded to the provider.</td></tr>
+          <tr><td><code>stop</code></td><td>string or array</td><td>Up to 4 sequences, 64 characters each.</td></tr>
+          <tr><td><code>tools</code>, <code>tool_choice</code></td><td>array / value</td><td>Only for models marked tool-capable; at most 16 tools.</td></tr>
+          <tr><td><code>response_format</code></td><td>object</td><td><code>text</code> or <code>json_object</code>. Honoured by Groq, best-effort on Workers AI.</td></tr>
+          <tr><td><code>frequency_penalty</code>, <code>presence_penalty</code>, <code>seed</code></td><td>number</td><td>Forwarded to Groq; accepted and ignored by Workers AI.</td></tr>
+          <tr><td><code>stream_options.include_usage</code></td><td>boolean</td><td>Adds a final usage-only chunk.</td></tr>
+          <tr><td><code>n</code></td><td>integer</td><td>Only <code>1</code>; other values return <code>unsupported_parameter</code>.</td></tr>
+          <tr><td><code>logprobs</code>, <code>top_logprobs</code></td><td>—</td><td>Rejected with <code>unsupported_parameter</code>.</td></tr>
+          <tr><td><code>user</code></td><td>string</td><td>Accepted and ignored (no cross-request profiling).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code">
+      <div class="code-head"><span class="label">response</span><button class="copy" type="button" data-copy-from="#ex-resp">Copy</button></div>
+      <pre id="ex-resp">{
+  "id": "chatcmpl-1f0b2b6a8c8e4d7e9a01",
+  "object": "chat.completion",
+  "created": 1793395200,
+  "model": "@cf/meta/llama-3.1-8b-instruct",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "Hello! How can I help?" },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 8, "completion_tokens": 7, "total_tokens": 15 }
+}</pre>
+    </div>
+    <p class="hint">Token counts come from the provider when it reports them. Workers AI does not always do so;
+      in that case counts are estimated at four characters per token and labelled as estimates in your usage page.</p>
+
+    <h2 id="streaming">Streaming</h2>
+    <p>Set <code class="inline">"stream": true</code> to receive <code class="inline">text/event-stream</code>.
+      Workers AI chunk events are translated into OpenAI <code class="inline">chat.completion.chunk</code> events.
+      Groq responses are proxied as-is with <code class="inline">stream_options.include_usage</code> enabled.</p>
+    <div class="code">
+      <div class="code-head"><span class="label">events</span></div>
+      <pre>data: {"id":"chatcmpl-…","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-…","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-…","object":"chat.completion.chunk","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]</pre>
+    </div>
+
+    <h2 id="tools">Tool calling</h2>
+    <p>Tool calling is allowlisted per model. Workers AI's Llama 3.1 8B and 3.3 70B are marked tool-capable in
+      this gateway, as are the Groq models. A tool-capable request is forwarded with <code class="inline">tools</code>
+      and <code class="inline">tool_choice</code>; the reply carries <code class="inline">tool_calls</code> on the
+      assistant message and <code class="inline">finish_reason: "tool_calls"</code>.</p>
+    <div class="code">
+      <div class="code-head"><span class="label">request</span><button class="copy" type="button" data-copy-from="#ex-tools">Copy</button></div>
+      <pre id="ex-tools">{
+  "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  "messages": [{"role": "user", "content": "What is the weather in Halifax?"}],
+  "tools": [{
+    "type": "function",
+    "function": {
+      "name": "get_weather",
+      "description": "Current weather for a city",
+      "parameters": {
+        "type": "object",
+        "properties": { "city": { "type": "string" } },
+        "required": ["city"]
+      }
+    }
+  }],
+  "tool_choice": "auto"
+}</pre>
+    </div>
+    <div class="notice warn">
+      <span>Live behaviour depends on the upstream model. Non-streaming tool calls are covered by the gateway's
+        tests with mocked providers; the exact willingness of a given Workers AI model to emit tool calls must be
+        verified after deployment. Streaming tool-call deltas are forwarded when the provider emits them and are
+        not part of the tested contract.</span>
+    </div>
+
+    <h2 id="models-table">Models &amp; costs</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Model id</th><th>Provider</th><th class="num">Max out</th><th>Tools</th><th>Approx. cost</th></tr></thead>
+        <tbody>
+          <tr><td><code>@cf/meta/llama-3.2-3b-instruct</code></td><td>Workers AI</td><td class="num">768</td><td>no</td><td>cheapest; ~10 neurons / short reply</td></tr>
+          <tr><td><code>@cf/meta/llama-3.1-8b-instruct</code></td><td>Workers AI</td><td class="num">1,024</td><td>yes</td><td>~17 neurons / 1,500 in + 300 out</td></tr>
+          <tr><td><code>@cf/meta/llama-3.3-70b-instruct-fp8-fast</code></td><td>Workers AI</td><td class="num">1,024</td><td>yes</td><td>~100 neurons / same request</td></tr>
+          <tr><td><code>llama-3.1-8b-instant</code></td><td>Groq (your key)</td><td class="num">2,048</td><td>yes</td><td>your Groq quota</td></tr>
+          <tr><td><code>llama-3.3-70b-versatile</code></td><td>Groq (your key)</td><td class="num">2,048</td><td>yes</td><td>your Groq quota</td></tr>
+          <tr><td><code>openai/gpt-oss-20b</code></td><td>Groq (your key)</td><td class="num">2,048</td><td>yes</td><td>your Groq quota</td></tr>
+          <tr><td><code>openai/gpt-oss-120b</code></td><td>Groq (your key)</td><td class="num">2,048</td><td>yes</td><td>your Groq quota</td></tr>
+          <tr><td><code>qwen/qwen3-32b</code></td><td>Groq (your key)</td><td class="num">2,048</td><td>yes</td><td>your Groq quota</td></tr>
+          <tr><td><code>meta-llama/llama-4-scout-17b-16e-instruct</code></td><td>Groq (your key)</td><td class="num">2,048</td><td>yes</td><td>your Groq quota</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Two Workers AI models exist in the code but are <b>disabled</b> by default: <code class="inline">@cf/qwen/qwen2.5-coder-32b-instruct</code>
+      and <code class="inline">@cf/openai/gpt-oss-120b</code>. A disabled model is rejected with <code class="inline">model_not_found</code>.
+      Neuron figures are estimates used for budgeting, not billing statements.</p>
+
+    <h2 id="limits">Limits &amp; quotas</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Scope</th><th class="num">Default</th><th>On exceeding</th></tr></thead>
+        <tbody>
+          <tr><td>Per key, per minute</td><td class="num">10</td><td>429 <code>rate_limit_exceeded</code></td></tr>
+          <tr><td>Per account, per minute</td><td class="num">10</td><td>429 <code>rate_limit_exceeded</code></td></tr>
+          <tr><td>Whole site, per minute</td><td class="num">60</td><td>429 <code>site_rate_limit</code></td></tr>
+          <tr><td>Per account, free pool per day</td><td class="num">150 requests</td><td>429 <code>user_daily_limit</code></td></tr>
+          <tr><td>Per account, free-pool Neurons per day</td><td class="num">1,200</td><td>429 <code>user_daily_limit</code></td></tr>
+          <tr><td>Whole site, free-pool requests per day</td><td class="num">1,200</td><td>429 <code>free_pool_exhausted</code></td></tr>
+          <tr><td>Whole site, free-pool Neurons per day</td><td class="num">6,000</td><td>429 <code>free_pool_exhausted</code></td></tr>
+          <tr><td>Per account, Groq-key requests per day</td><td class="num">2,000</td><td>429 <code>user_daily_limit</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Responses include <code class="inline">x-ratelimit-limit-requests</code>, <code class="inline">x-ht-pool-remaining</code>
+      and <code class="inline">x-ht-daily-remaining</code>. A 429 carries <code class="inline">Retry-After</code> in seconds.</p>
+    <h3>What "budget exhausted" actually means</h3>
+    <ul>
+      <li>Neurons are <b>reserved before</b> the provider call, so concurrent requests cannot overshoot the daily cap.</li>
+      <li>When the pool is empty, free-pool models stop with a 429. <b>There is no fallback to a paid provider</b> — the request simply fails.</li>
+      <li>The pool resets at <b>00:00 UTC</b>. Your own Groq key is unaffected by the shared pool.</li>
+      <li>Counters are checkpointed every 30 seconds; the configured budget keeps headroom for that window.</li>
+    </ul>
+
+    <h2 id="errors">Errors</h2>
+    <p>Errors use the OpenAI envelope: <code class="inline">{"error": {"message", "type", "param", "code"}}</code>.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>HTTP</th><th>code</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>401</td><td><code>invalid_api_key</code></td><td>Missing, malformed or unknown key.</td></tr>
+          <tr><td>401</td><td><code>key_revoked</code></td><td>The key was revoked in the dashboard.</td></tr>
+          <tr><td>400</td><td><code>model_not_found</code></td><td>Model is not on the allowlist or is disabled.</td></tr>
+          <tr><td>400</td><td><code>provider_not_connected</code></td><td>Groq model requested without a connected Groq key.</td></tr>
+          <tr><td>400</td><td><code>unsupported_content</code></td><td>Image or audio content parts.</td></tr>
+          <tr><td>400</td><td><code>unsupported_parameter</code></td><td><code>n &gt; 1</code>, logprobs, unknown response formats.</td></tr>
+          <tr><td>400</td><td><code>unsupported_feature</code></td><td>Tools on a non-tool model, modalities, audio.</td></tr>
+          <tr><td>400</td><td><code>context_length_exceeded</code></td><td>Conversation exceeds the per-model character budget.</td></tr>
+          <tr><td>403</td><td><code>reauth_required</code></td><td>Dashboard action needs a sign-in within the last 5 minutes.</td></tr>
+          <tr><td>409</td><td><code>key_not_recoverable</code></td><td>Key is hash-only on this deployment.</td></tr>
+          <tr><td>413</td><td><code>request_too_large</code></td><td>Body over the 128 KB ceiling.</td></tr>
+          <tr><td>429</td><td><code>rate_limit_exceeded</code> / <code>site_rate_limit</code></td><td>Per-minute limits.</td></tr>
+          <tr><td>429</td><td><code>free_pool_exhausted</code> / <code>user_daily_limit</code></td><td>Daily pool or per-account quota.</td></tr>
+          <tr><td>502</td><td><code>upstream_error</code> / <code>provider_error</code></td><td>The provider failed or rejected the request.</td></tr>
+          <tr><td>404</td><td><code>not_found</code></td><td>No such endpoint — including anything not listed in this reference.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="byok">Your own Groq key (BYOK)</h2>
+    <ol>
+      <li>Create a key at <code class="inline">console.groq.com</code> (free plan is fine).</li>
+      <li>In the <a href="/AI-API/Dashboard/" style="color:#fff;text-decoration:underline">dashboard</a>, open “Provider keys”, confirm your password, and paste the key.</li>
+      <li>The gateway validates it with a non-inference <code class="inline">GET /models</code> call to Groq, then stores an AES-256-GCM ciphertext.</li>
+      <li>Requests for Groq model ids now use your account. Remove the key any time with “Disconnect”; the ciphertext is deleted immediately.</li>
+    </ol>
+    <p><b>Where the encryption secret lives:</b> in Cloudflare Worker secrets as <code class="inline">BYOK_ENCRYPTION_KEY</code>.
+      It is never sent to a browser, never written to the repository and never written to the private roster.
+      The AES key is derived with HKDF-SHA-256 using the Firebase uid as context, so a ciphertext moved to another
+      account will not decrypt. Rotating the secret makes existing ciphertexts unreadable — users must reconnect their keys.</p>
+    <div class="notice">
+      <span>Your Groq key is used only for your own requests. The operator cannot see it in the dashboard; the
+        roster stores ciphertext. Groq's own terms and rate limits apply to those calls.</span>
+    </div>
+
+    <h2 id="account">Account API</h2>
+    <p>These endpoints are for the dashboard. They authenticate with a Firebase ID token, <b>not</b> an API key,
+      and are restricted to htmltools.me origins.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Method &amp; path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /account/me</code></td><td>Identity, admin flag, BYOK status, base URL, pool state.</td></tr>
+          <tr><td><code>GET /account/keys</code></td><td>Your keys with masked ids, usage and revocation state.</td></tr>
+          <tr><td><code>POST /account/keys</code></td><td>Create a key. The plaintext is returned once.</td></tr>
+          <tr><td><code>POST /account/keys/{id}/revoke</code></td><td>Revoke immediately.</td></tr>
+          <tr><td><code>POST /account/keys/{id}/reveal</code></td><td>Show your key again. Requires a sign-in within the last 5 minutes (password or Google popup), escrow enabled, and at most 5 attempts per 5 minutes.</td></tr>
+          <tr><td><code>GET /account/usage</code></td><td>Today's requests, tokens, Neurons, limits and 14-day history.</td></tr>
+          <tr><td><code>GET /account/byok</code></td><td>Whether a provider key is connected (never returns it).</td></tr>
+          <tr><td><code>POST /account/byok</code></td><td>Connect a Groq key. Requires a recent sign-in.</td></tr>
+          <tr><td><code>DELETE /account/byok</code></td><td>Delete the stored provider key.</td></tr>
+          <tr><td><code>GET /admin/roster</code></td><td>Operator only: every key id, owner, status and usage. Requires an allowlisted UID, a fresh sign-in and the admin passphrase.</td></tr>
+          <tr><td><code>POST /admin/keys/{id}/reveal</code></td><td>Operator only: decrypt an escrowed key when its owner asks for help.</td></tr>
+          <tr><td><code>GET /public/status</code></td><td>Pool status and model list. No authentication, no AI work.</td></tr>
+          <tr><td><code>GET /health</code></td><td>Liveness only.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="htsilo">HTSilo</h2>
+    <p><code class="inline">POST /htsilo/chat</code> powers the green assistant on these pages. It requires a
+      Firebase ID token, takes <code class="inline">{"messages": [...]}</code>, and returns
+      <code class="inline">{"reply": "...", "remaining": 14, "model": "..."}</code>. The system prompt, model and
+      320-token cap are fixed server-side; callers cannot override them. Limits: 4 messages per minute and 15 per
+      day per account, all inside the shared pool.</p>
+
+    <h2 id="privacy">Privacy &amp; data handling</h2>
+    <ul>
+      <li><b>Not stored:</b> prompt or completion text, in any database, the Durable Object, or the GitHub roster.</li>
+      <li><b>Stored:</b> request counts, token estimates, model id, key id, timestamps and byte counts, kept for accounting and abuse control.</li>
+      <li><b>Key material:</b> a salted SHA-256 hash for every key, plus — when escrow is enabled — an AES-256-GCM
+        ciphertext in the private roster. The plaintext is never returned to any browser except after the owner
+        re-authenticates (or the operator uses the admin passphrase).</li>
+      <li><b>Logged:</b> structured metadata lines (event, model, key id, latency, token counts). The code never passes message content to the logger.</li>
+      <li><b>Sent to providers:</b> the full prompt for the request. Free-pool prompts go to Cloudflare Workers AI; Groq prompts go to Groq using your key.</li>
+      <li><b>Third-party policies:</b> Cloudflare and Groq process that data under their own terms. If your prompts are sensitive, use your own provider key and review that provider's data policy.</li>
+    </ul>
+
+    <h2 id="limits-of-scope">What this gateway is not</h2>
+    <ul>
+      <li>Not an OpenRouter clone: there is no upstream paid routing, no model catalogue beyond the allowlist, and no billing.</li>
+      <li>No <code class="inline">/v1/completions</code>, <code class="inline">/v1/embeddings</code>, <code class="inline">/v1/responses</code>, image, audio, files, batches or fine-tuning.</li>
+      <li>No image input (vision), even on models that support it upstream, because it would let one request consume a large share of the pool.</li>
+      <li>No guaranteed uptime and no SLA. The free pool is a courtesy and stops when the daily allowance runs out.</li>
+      <li>No cross-account sharing of Groq keys, ever.</li>
+    </ul>
+
+    <h2 id="tested">What is tested, and what needs a live deployment</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Area</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Routing allowlist, 404s, no anonymous AI route</td><td><span class="badge ok">tested</span></td></tr>
+          <tr><td>Bearer auth, key hashing, revocation, restart persistence</td><td><span class="badge ok">tested</span></td></tr>
+          <tr><td>Quota reservation, rate limits, free-pool exhaustion</td><td><span class="badge ok">tested</span></td></tr>
+          <tr><td>OpenAI response shape, streaming translation, tool-call mapping</td><td><span class="badge ok">tested with mocked providers</span></td></tr>
+          <tr><td>Firebase ID-token verification (valid, forged, expired, wrong project)</td><td><span class="badge ok">tested with local keys</span></td></tr>
+          <tr><td>BYOK encryption, uid binding, removal, Groq routing</td><td><span class="badge ok">tested with mocked Groq</span></td></tr>
+          <tr><td>Live Workers AI model ids, real Neuron counts, real streaming output</td><td><span class="badge warn">verify after deploy</span></td></tr>
+          <tr><td>Real Groq account limits and error strings</td><td><span class="badge warn">verify after deploy</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-bottom:40px">Reference version 1.0.0. If a behaviour here disagrees with the
+      live API, the live API wins — please report it on the operator's GitHub.</p>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="wrap bar">
+    <span>htmltools.me / AI API · reference</span>
+    <span class="links">
+      <a href="/AI-API/">Overview</a>
+      <a href="/AI-API/Dashboard/">Dashboard</a>
+      <a href="/AI-API/Playground/">Playground</a>
+      <a href="https://htmltools.me/Tools/">All tools</a>
+    </span>
+  </div>
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="/AI-API/assets/config.js"></script>
+<script src="/AI-API/assets/app.js"></script>
+<script src="/AI-API/assets/htsilo.js"></script>
+</body>
+</html>

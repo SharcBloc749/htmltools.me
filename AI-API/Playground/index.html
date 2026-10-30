@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playground · HTMLTools AI API</title>
+<meta name="description" content="Send real requests to the htmltools.me AI API and inspect streaming output, token usage and error codes.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="https://htmltools.me/logo3.png">
+<link rel="stylesheet" href="/AI-API/assets/theme.css">
+<style>
+  .pg { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 20px; align-items: start; padding: 30px 0 70px; }
+  .pg-left { display: flex; flex-direction: column; gap: 14px; position: sticky; top: calc(var(--nav-h) + 18px); }
+  @media (max-width: 900px) { .pg { grid-template-columns: 1fr; } .pg-left { position: static; } }
+  .pg-chat { display: flex; flex-direction: column; min-height: 520px; }
+  .pg-log { flex: 1; overflow-y: auto; max-height: 60vh; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .turn { display: flex; flex-direction: column; gap: 6px; }
+  .turn .role { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  .turn .text { font-size: 14px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+  .turn.user .text { background: var(--elev); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; }
+  .turn.assistant .text { padding: 2px 0; }
+  .turn.error .text { color: var(--red); font-family: var(--mono); font-size: 12.5px; }
+  .pg-compose { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+  .pg-compose .rowin { display: flex; gap: 8px; align-items: flex-end; }
+  .pg-compose textarea { min-height: 48px; max-height: 160px; resize: none; }
+  .pg-send { height: 40px; padding: 0 18px; flex: none; }
+  .pg-meta { display: flex; flex-wrap: wrap; gap: 10px 16px; font-family: var(--mono); font-size: 10.5px; color: var(--dim); letter-spacing: .04em; }
+  .range { display: flex; align-items: center; gap: 10px; }
+  input[type="range"] { -webkit-appearance: none; appearance: none; height: 3px; background: rgba(255,255,255,.14); border-radius: 99px; padding: 0; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--white); border: 0; cursor: pointer; }
+  input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--white); border: 0; cursor: pointer; }
+  .val { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 30px; text-align: right; }
+  details.raw summary { cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  details.raw pre { margin-top: 8px; background: #08080a; border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow: auto; font-size: 11.5px; max-height: 220px; color: #b9b9c3; }
+  .checkline { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  input[type="checkbox"] { width: 15px; height: 15px; accent-color: #f5f5f7; }
+</style>
+</head>
+<body>
+
+<header class="site-head">
+  <div class="bar">
+    <a class="brand" href="https://htmltools.me/">
+      <span class="mark"><img src="https://htmltools.me/logo3.png" alt="HTMLTools"></span>
+      <span>HTMLTools</span><span class="slash">/</span><span class="sub">AI API</span>
+    </a>
+    <nav class="site-nav">
+      <a href="/AI-API/">Overview</a>
+      <a href="/AI-API/Docs/">Docs</a>
+      <a href="/AI-API/Playground/" aria-current="page">Playground</a>
+      <a href="/AI-API/Dashboard/">Dashboard</a>
+      <a class="nav-cta" href="/AI-API/Dashboard/">Get a key</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap pg">
+  <aside class="pg-left">
+    <div class="panel">
+      <div class="panel-head"><h3>Connection</h3><span class="badge" data-conn>not tested</span></div>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="field">
+          <label for="apiKey">API key</label>
+          <input id="apiKey" type="password" placeholder="ht-…" autocomplete="off" spellcheck="false">
+          <span class="hint">Held in this tab's sessionStorage only. Never use a personal key on a shared computer.</span>
+        </div>
+        <div class="field">
+          <label>Base URL</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" readonly value="https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1" data-baseurl style="font-family:var(--mono);font-size:11.5px">
+            <button class="copy-mini" type="button" data-copy="https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev/v1">Copy</button>
+          </div>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="/AI-API/Dashboard/">Create or revoke a key</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Request</h3></div>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="field">
+          <label for="model">Model</label>
+          <select id="model">
+            <option value="@cf/meta/llama-3.1-8b-instruct">@cf/meta/llama-3.1-8b-instruct</option>
+            <option value="@cf/meta/llama-3.2-3b-instruct">@cf/meta/llama-3.2-3b-instruct</option>
+            <option value="@cf/meta/llama-3.3-70b-instruct-fp8-fast">@cf/meta/llama-3.3-70b-instruct-fp8-fast</option>
+            <option value="auto">auto</option>
+            <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
+            <option value="openai/gpt-oss-20b">openai/gpt-oss-20b (Groq)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="systemPrompt">System prompt</label>
+          <textarea id="systemPrompt" placeholder="Optional. Leave empty to send none."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="temperature">Temperature</label>
+          <div class="range"><input id="temperature" type="range" min="0" max="2" step="0.1" value="0.7"><span class="val" data-temp>0.7</span></div>
+        </div>
+
+        <div class="form-row" style="grid-template-columns:1fr 1fr">
+          <div class="field">
+            <label for="maxTokens">Max tokens</label>
+            <input id="maxTokens" type="number" min="1" max="2048" value="512">
+          </div>
+          <div class="field">
+            <label for="stream">Streaming</label>
+            <label class="checkline" style="padding-top:9px"><input id="stream" type="checkbox" checked> live output</label>
+          </div>
+        </div>
+
+        <button class="btn btn-quiet btn-sm" type="button" data-clear>Clear conversation</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="panel pg-chat">
+    <div class="panel-head">
+      <div>
+        <h3>Conversation</h3>
+        <p class="hint" style="margin-top:2px">Requests go straight from your browser to the gateway.</p>
+      </div>
+      <div class="pg-meta" data-meta></div>
+    </div>
+
+    <div class="pg-log" data-log>
+      <div class="turn assistant">
+        <div class="role">Playground</div>
+        <div class="text">Paste a key, pick a model, and send a message. The raw request and response for the last turn are available below the conversation.</div>
+      </div>
+    </div>
+
+    <div style="padding:0 18px 10px" data-rawwrap hidden>
+      <details class="raw">
+        <summary>Last request / response</summary>
+        <pre data-raw></pre>
+      </details>
+    </div>
+
+    <div class="pg-compose">
+      <div class="rowin">
+        <textarea data-input rows="2" placeholder="Message the model… (Enter to send, Shift+Enter for a new line)"></textarea>
+        <button class="btn btn-primary pg-send" type="button" data-send>Send</button>
+      </div>
+      <div class="pg-meta">
+        <span data-hint>Streaming reads server-sent events.</span>
+        <span style="margin-left:auto" data-status></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap bar">
+    <span>htmltools.me / AI API · playground</span>
+    <span class="links">
+      <a href="/AI-API/">Overview</a>
+      <a href="/AI-API/Docs/">Docs</a>
+      <a href="/AI-API/Dashboard/">Dashboard</a>
+    </span>
+  </div>
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="/AI-API/assets/config.js"></script>
+<script src="/AI-API/assets/app.js"></script>
+<script>
+(function () {
+  var H = window.HTAI;
+  var $ = H.$;
+  var KEY_STORE = 'htai.playground.key';
+  var history = [];
+  var busy = false;
+
+  var keyInput = $('#apiKey');
+  var log = $('[data-log]');
+  var input = $('[data-input]');
+  var sendBtn = $('[data-send]');
+  var temp = $('#temperature');
+  var tempLabel = $('[data-temp]');
+
+  try { keyInput.value = sessionStorage.getItem(KEY_STORE) || ''; } catch (_) {}
+  keyInput.addEventListener('change', function () {
+    try { sessionStorage.setItem(KEY_STORE, keyInput.value.trim()); } catch (_) {}
+  });
+
+  temp.addEventListener('input', function () { tempLabel.textContent = Number(temp.value).toFixed(1); });
+
+  function addTurn(role, text) {
+    var el = document.createElement('div');
+    el.className = 'turn ' + role;
+    el.innerHTML = '<div class="role">' + (role === 'user' ? 'You' : role === 'error' ? 'Error' : 'Assistant') + '</div>' +
+      '<div class="text"></div>';
+    el.querySelector('.text').textContent = text;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el.querySelector('.text');
+  }
+
+  function setStatus(text) { $('[data-status]').textContent = text; }
+  function setMeta(text) { $('[data-meta]').textContent = text; }
+
+  function buildMessages() {
+    var system = $('#systemPrompt').value.trim();
+    var messages = system ? [{ role: 'system', content: system }] : [];
+    return messages.concat(history.map(function (turn) { return { role: turn.role, content: turn.content }; }));
+  }
+
+  async function send() {
+    if (busy) return;
+    var key = keyInput.value.trim();
+    if (!key) { H.toast('Paste an API key first', 'bad'); keyInput.focus(); return; }
+    var text = input.value.trim();
+    if (!text) return;
+
+    var model = $('#model').value;
+    var payload = {
+      model: model,
+      messages: buildMessages().concat([{ role: 'user', content: text }]),
+      temperature: Number(temp.value),
+      max_tokens: Math.max(1, Math.min(2048, Number($('#maxTokens').value) || 512)),
+      stream: $('#stream').checked,
+    };
+
+    addTurn('user', text);
+    history.push({ role: 'user', content: text });
+    input.value = '';
+    busy = true;
+    sendBtn.disabled = true;
+    setStatus('sending…');
+    var started = performance.now();
+    var output = '';
+    var target = addTurn('assistant', '');
+    target.textContent = '…';
+    var requestId = '';
+    var raw = { request: payload };
+
+    try {
+      var response = await fetch(H.V1 + '/chat/completions', {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      requestId = response.headers.get('x-request-id') || '';
+      var poolLeft = response.headers.get('x-ht-pool-remaining');
+      raw.status = response.status;
+      raw.headers = { request_id: requestId, pool_remaining: poolLeft };
+
+      if (!response.ok) {
+        var body = await response.json().catch(function () { return null; });
+        var message = (body && body.error && body.error.message) || ('HTTP ' + response.status);
+        var code = (body && body.error && body.error.code) || 'error';
+        target.textContent = message + '\n\ncode: ' + code;
+        target.parentElement.className = 'turn error';
+        raw.response = body;
+        history.pop();
+        setStatus('failed');
+        return;
+      }
+
+      if (payload.stream) {
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+        var usage = null;
+        while (true) {
+          var chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          var boundary;
+          while ((boundary = buffer.indexOf('\n\n')) >= 0) {
+            var block = buffer.slice(0, boundary).trim();
+            buffer = buffer.slice(boundary + 2);
+            if (!block.startsWith('data:')) continue;
+            var data = block.slice(5).trim();
+            if (data === '[DONE]') continue;
+            try {
+              var event = JSON.parse(data);
+              var delta = event.choices && event.choices[0] && event.choices[0].delta;
+              if (delta && delta.content) {
+                output += delta.content;
+                target.textContent = output;
+                log.scrollTop = log.scrollHeight;
+              }
+              if (event.usage) usage = event.usage;
+            } catch (_) { /* ignore keep-alive comments */ }
+          }
+        }
+        if (!output) target.textContent = '(stream finished with no text — the model may have returned a tool call)';
+        raw.response = { streamed: true, text: output, usage: usage };
+      } else {
+        var json = await response.json();
+        raw.response = json;
+        output = (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) || '';
+        target.textContent = output || '(empty response)';
+      }
+
+      var ms = Math.round(performance.now() - started);
+      history.push({ role: 'assistant', content: output });
+      if (history.length > 20) history = history.slice(-20);
+      setStatus(ms + ' ms');
+      setMeta('model ' + model + (poolLeft ? ' · pool ' + poolLeft : '') + (requestId ? ' · ' + requestId : ''));
+      $('[data-rawwrap]').hidden = false;
+      $('[data-raw]').textContent = JSON.stringify(raw, null, 2);
+    } catch (error) {
+      target.textContent = error.message || 'Network error. The Worker may not be deployed yet.';
+      target.parentElement.className = 'turn error';
+      history.pop();
+      setStatus('failed');
+    } finally {
+      busy = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(); }
+  });
+  input.addEventListener('input', function () {
+    input.style.height = 'auto';
+    input.style.height = Math.min(160, input.scrollHeight) + 'px';
+  });
+
+  $('[data-clear]').addEventListener('click', function () {
+    history = [];
+    log.innerHTML = '';
+    addTurn('assistant', 'Conversation cleared. The model has no memory of earlier turns.');
+    $('[data-rawwrap]').hidden = true;
+    setStatus('');
+    setMeta('');
+  });
+
+  /* Show which models are live and whether the gateway is reachable. */
+  fetch(H.API_BASE + '/public/status', { cache: 'no-store' })
+    .then(function (response) { return response.ok ? response.json() : null; })
+    .then(function (data) {
+      if (!data) throw new Error('status');
+      var badge = $('[data-conn]');
+      badge.className = 'badge ' + (data.pool.exhausted ? 'bad' : 'ok');
+      badge.textContent = data.pool.exhausted ? 'pool empty' : 'gateway online';
+      setMeta('pool ' + H.fmtNum(data.pool.remaining) + ' neurons left');
+    })
+    .catch(function () {
+      var badge = $('[data-conn]');
+      badge.className = 'badge off';
+      badge.textContent = 'unreachable';
+      setMeta('gateway status unavailable');
+    });
+})();
+</script>
+<script src="/AI-API/assets/htsilo.js"></script>
+</body>
+</html>
