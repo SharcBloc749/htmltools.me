@@ -7,8 +7,9 @@ security model are in [`../README.md`](../README.md).
 
 ```bash
 npm install     # wrangler + esbuild
-npm test        # 34 tests, no network, no credentials
+npm test        # 42 tests, no network, no credentials
 npm run bundle  # regenerate worker.js from src/
+npm run doctor  # check a deployed gateway and print the exact fix
 npx wrangler dev
 npx wrangler deploy
 npx wrangler tail
@@ -18,7 +19,7 @@ npx wrangler tail
 
 | File | Responsibility |
 | --- | --- |
-| `src/index.mjs` | Router + all HTTP handlers. Explicit allowlist; unknown paths 404. Exports `GatewayState`. |
+| `src/index.mjs` | Router + all HTTP handlers, readiness (`/health`), and actionable 503s. Explicit allowlist; unknown paths 404. Re-exports `GatewayState`. |
 | `src/state.mjs` | Durable Object: key hashes, revocation, rate windows, Neuron budget with reserve/settle, BYOK blobs, counters, GitHub sync alarm. |
 | `src/firebase.mjs` | Verifies Firebase ID tokens against Google's public JWKS. No Admin SDK, no service account. |
 | `src/keys.mjs` | `ht-` key format, id derivation, salted SHA-256 hashing, verification. |
@@ -26,7 +27,7 @@ npx wrangler tail
 | `src/github.mjs` | Private-repo roster: read/write `keys.js` and `byok.js`, render/parse helpers. |
 | `src/models.mjs` | The only model tables. Provider, caps, tool support and estimated Neuron rates. |
 | `src/providers.mjs` | Request validation, Workers AI call + OpenAI translation (including SSE), Groq proxy, key check. |
-| `src/htsilo.mjs` | Fixed system prompt and model for the in-site helper. |
+| `src/siloai.mjs` | SiloAI: fixed system prompt, model id, and the branded base URL it quotes. |
 | `src/util.mjs` | JSON/error envelopes, CORS, body limits, hex/base64, timing-safe compare. |
 | `scripts/bundle.mjs` | esbuild build that produces the single-file `worker.js`. |
 | `worker.js` | **Generated.** The whole Worker in one pasteable module. Never edit by hand. |
@@ -65,11 +66,11 @@ all ten modules inlined, no imports left — so nothing else needs uploading.
    | Settings → Variables | `GITHUB_REPO` | `owner/name` of your **private** key repo (or leave unset) |
    | Settings → Variables | `GITHUB_BRANCH` / `GITHUB_KEYS_PATH` / `GITHUB_BYOK_PATH` | `main` / `keys.js` / `byok.js` |
    | Settings → Variables | `FREE_DAILY_NEURONS` … `BYOK_DAILY_REQUESTS` | optional; see `wrangler.toml` for defaults |
-   | Settings → Variables | `HTSILO_ENABLED` / `HTSILO_MODEL` / `HTSILO_DAILY_MESSAGES` / `HTSILO_RPM` | `true` / `@cf/meta/llama-3.1-8b-instruct` / `15` / `4` |
+   | Settings → Variables | `SILOAI_ENABLED` / `SILOAI_MODEL` / `SILOAI_DAILY_MESSAGES` / `SILOAI_RPM` | `true` / `@cf/meta/llama-3.1-8b-instruct` / `15` / `4` |
    | Settings → Variables | `ADMIN_UIDS` / `ADMIN_EMAILS` | optional operator allowlist |
    | Settings → Variables | `API_CORS_ORIGINS` / `SITE_CORS_ORIGINS` | `*` / `https://htmltools.me,https://www.htmltools.me` |
    | Settings → Secrets | `KEY_PEPPER`, `GITHUB_TOKEN`, `BYOK_ENCRYPTION_KEY`, `ADMIN_PASSPHRASE`, `KEY_ESCROW_SECRET` | generated locally, pasted into the prompt |
-   | Settings → Bindings → Workers AI | binding name `AI` | required for the free pool and HTSilo |
+   | Settings → Bindings → Workers AI | binding name `AI` | required for the free pool and SiloAI |
    | Settings → Bindings → Durable Object | binding name `GATEWAY`, class `GatewayState` | required — quotas, keys and revocation live here |
 
    Use **SQLite-backed** Durable Objects when the dashboard offers the choice; the

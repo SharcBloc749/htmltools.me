@@ -212,30 +212,30 @@ test('auto model prefers a connected Groq key and falls back to the free pool', 
   assert.equal((await byok.json()).choices[0].message.content, 'auto groq');
 });
 
-/* ── HTSilo ───────────────────────────────────────────────────────────────── */
+/* ── SiloAI ───────────────────────────────────────────────────────────────── */
 
-test('HTSilo needs a signed-in user, is rate limited, and draws from the shared pool', async () => {
+test('SiloAI needs a signed-in user, is rate limited, and draws from the shared pool', async () => {
   const env = makeEnv({ HTSILO_RPM: '1' });
   const ctx = makeCtx();
 
-  const anonymous = await worker.fetch(apiRequest('/htsilo/chat', { method: 'POST', body: { messages: [{ role: 'user', content: 'hi' }] } }), env, ctx);
+  const anonymous = await worker.fetch(apiRequest('/siloai/chat', { method: 'POST', body: { messages: [{ role: 'user', content: 'hi' }] } }), env, ctx);
   assert.equal(anonymous.status, 401);
   assert.equal(env.AI.calls.length, 0);
 
   const tokenA = env.__signer.sign({ uid: 'uid_silo_a' });
-  const ok = await worker.fetch(apiRequest('/htsilo/chat', {
+  const ok = await worker.fetch(apiRequest('/siloai/chat', {
     method: 'POST', token: tokenA, body: { messages: [{ role: 'user', content: 'How do I use the API?' }] },
   }), env, ctx);
   assert.equal(ok.status, 200);
   const body = await ok.json();
   assert.equal(body.reply, 'Hello from the mock model.');
   assert.equal(body.remaining, 14);
-  assert.match(env.AI.calls[0].input.messages[0].content, /HTSilo/);
+  assert.match(env.AI.calls[0].input.messages[0].content, /SiloAI/);
   assert.equal(env.AI.calls[0].input.max_tokens, 320);
 
   const tokenB = env.__signer.sign({ uid: 'uid_silo_b' });
-  await worker.fetch(apiRequest('/htsilo/chat', { method: 'POST', token: tokenB, body: { messages: [{ role: 'user', content: 'one' }] } }), env, ctx);
-  const blocked = await worker.fetch(apiRequest('/htsilo/chat', { method: 'POST', token: tokenB, body: { messages: [{ role: 'user', content: 'two' }] } }), env, ctx);
+  await worker.fetch(apiRequest('/siloai/chat', { method: 'POST', token: tokenB, body: { messages: [{ role: 'user', content: 'one' }] } }), env, ctx);
+  const blocked = await worker.fetch(apiRequest('/siloai/chat', { method: 'POST', token: tokenB, body: { messages: [{ role: 'user', content: 'two' }] } }), env, ctx);
   assert.equal(blocked.status, 429);
   assert.equal((await blocked.json()).error.code, 'rate_limit_exceeded');
 });

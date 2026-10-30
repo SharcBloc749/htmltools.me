@@ -26,7 +26,7 @@ Cloudflare Worker `htmltools-me-ai-api`. This directory contains the static site
 - a place where prompts are stored. Only counters, timestamps and key ids are kept.
 
 There is **no unauthenticated endpoint that reaches AI**. Every `/v1` request needs a
-live `ht-…` key, `POST /htsilo/chat` needs a verified Firebase session, and anything
+live `ht-…` key, `POST /siloai/chat` needs a verified Firebase session, and anything
 not explicitly routed returns `404`. The old public "AI test" route cannot survive a
 deploy of this `src/index.mjs` because it has no such route.
 
@@ -86,7 +86,7 @@ that is an explicit trade-off, not a default.
 
 Cloudflare's free allocation is **10,000 Neurons per day per account**, resetting at
 00:00 UTC. The gateway caps itself at **6,000** by default, leaving room for AI
-Playground, HTSilo and estimation error.
+Playground, SiloAI and estimation error.
 
 Measured in requests, using the gateway's own estimates:
 
@@ -182,6 +182,29 @@ npx wrangler deploy          # uploads src/index.mjs + the GatewayState migratio
 Afterwards check the Worker's **Triggers** tab: there should be only the `workers.dev`
 URL (and a custom domain only if you deliberately add one).
 
+**A note on the workers.dev host.** A public API needs a public address, so the Worker
+cannot be made unreachable. What you *can* do is stop it from being the address anyone
+sees. Attach a branded route (uncomment one block at the bottom of `wrangler.toml`):
+
+```toml
+[[routes]]
+pattern = "api.htmltools.me/*"
+custom_domain = true
+# then: workers_dev = false, and PUBLIC_API_BASE = "https://api.htmltools.me"
+```
+
+or, without new DNS, `pattern = "htmltools.me/ai/*"` with `zone_name = "htmltools.me"`
+(requires htmltools.me to be proxied through Cloudflare). After that:
+
+- the pages probe `<same origin>/ai/health` once per session and, if it answers as this
+  gateway, swap **every** address on screen — copy chips, code samples, SiloAI's answers —
+  to the branded one (`app.js`: `H.base()` → `H.rewriteBase()`);
+- `/account/me` reports the branded base, and SiloAI quotes `PUBLIC_API_BASE`;
+- setting `workers_dev = false` leaves only the branded route.
+
+Requests still terminate in your Cloudflare account, and `dig`/`curl -v` can reveal the
+underlying origin. This hides the host, it does not make it secret.
+
 **No terminal?** The whole Worker also ships as one generated file,
 [`worker/worker.js`](worker/worker.js) (~110 KB, all ten modules inlined). Paste it into
 dashboard → Workers & Pages → `htmltools-me-ai-api` → Edit code, then add the `AI` and
@@ -232,16 +255,20 @@ The static pages need no build step. Deploy the repository as usual; then check:
 - `https://htmltools.me/AI-API/Playground/`
 
 Pages serves `/AI-API/` from `AI-API/index.html`. The pages are plain HTML + two shared
-assets (`assets/theme.css`, `assets/app.js`, `assets/config.js`, `assets/htsilo.js`).
+assets (`assets/theme.css`, `assets/app.js`, `assets/config.js`, `assets/siloai.js`).
 
 ---
 
 ## 6. Verification checklist
 
 ```bash
+cd AI-API/worker
+npm run doctor                                        # everything below, in one command
+# npm run doctor -- https://api.htmltools.me
+
 BASE=https://htmltools-me-ai-api.bozhetarnikmatthew.workers.dev
 
-curl -s $BASE/health                                   # {"ok":true,...}, no AI work
+curl -s $BASE/health                                   # status/ready/missing/fixes, no AI work
 curl -s $BASE/public/status | head -c 400               # pool + models
 curl -s -o /dev/null -w '%{http_code}\n' $BASE/v1/models            # 401
 curl -s -o /dev/null -w '%{http_code}\n' -X POST $BASE/v1/chat/completions \
@@ -256,12 +283,12 @@ Then in the browser:
 3. Click “Show key”, confirm your password, and check the key that comes back matches.
 4. Call the API with it; confirm `GET /v1/models` and a chat completion.
 5. Revoke it; confirm the next call returns `key_revoked`.
-5. Connect a Groq key; call `llama-3.3-70b-versatile`; confirm usage does not touch the
+6. Connect a Groq key; call `llama-3.3-70b-versatile`; confirm usage does not touch the
    pool. Disconnect; confirm `provider_not_connected`.
-6. Check the private repo: `keys.js` should contain a `// ht-… - Your Name - you@…`
+7. Check the private repo: `keys.js` should contain a `// ht-… - Your Name - you@…`
    line and hashes, never a plaintext key.
-7. Ask HTSilo one question while signed in; ask again signed out (must say sign in).
-8. Watch `npx wrangler tail` during a streaming call; confirm the log lines contain
+8. Ask SiloAI one question while signed in; ask again signed out (must say sign in).
+9. Watch `npx wrangler tail` during a streaming call; confirm the log lines contain
    model/key id/latency but **not** your prompt.
 
 ---
@@ -329,7 +356,7 @@ That is the safe fallback, not the intended setup.
 | Stolen roster file | Contains only salted hashes; useless without `KEY_PEPPER` |
 | Forged Firebase token | RS256 signature check against Google JWKS, `aud`/`iss`/`exp`/`sub` |
 | Cross-project token | `aud` must be `general-database-4cb1c` |
-| Anonymous quota drain | No unauthenticated AI route; HTSilo requires a session; body/token caps |
+| Anonymous quota drain | No unauthenticated AI route; SiloAI requires a session; body/token caps |
 | Concurrent budget overshoot | Reserve-before-call inside one serialised Durable Object |
 | Prompt leakage | No prompt storage; metadata-only logs; enforced in tests |
 | Admin abuse | Allowlisted UID + fresh sign-in + passphrase + 5-minute auth window |
@@ -348,12 +375,36 @@ Residual risks worth stating plainly:
 
 ---
 
-## 10. Operations
+## 10. When something returns 500 or 503
+
+Nothing in this gateway should ever answer a bare 500 for a setup mistake. The split is:
+
+| What you see | Meaning | Fix |
+| --- | --- | --- |
+| `503 not_configured` with `error.setup.missing` | A binding or secret is absent | The body names it; the same text appears as a banner in the dashboard |
+| `503 storage_error` | The Durable Object answered with an error | Check `npx wrangler tail`; retry |
+| `503 disabled` on `/siloai/chat` | `SILOAI_ENABLED=false` | Flip the var |
+| `500 internal_error` | A genuine bug | `npx wrangler tail`, then file it with the request id |
+
+`GET /health` reports `status`, `missing` and a `fixes` map (never a secret value), so the
+fastest diagnosis is:
+
+```bash
+npm run doctor            # from AI-API/worker
+# or: curl -s <base>/health | jq '{status, missing, fixes}'
+```
+
+The single most common cause of *every* account endpoint failing with 500 is a Worker that
+was deployed without its Durable Object: the `GATEWAY` binding exists as a name but the
+`GatewayState` class was never migrated. `npx wrangler deploy` applies
+`new_sqlite_classes = ["GatewayState"]` automatically; a dashboard paste does not.
+
+## 11. Operations
 
 **Rotate the pepper:** every key becomes invalid. Announce it, then
 `wrangler secret put KEY_PEPPER` and clear old records if you like (they stop working).
 
-**Emergency stop:** set `FREE_DAILY_NEURONS = "0"` and redeploy, or revoke keys. HTSilo
+**Emergency stop:** set `FREE_DAILY_NEURONS = "0"` and redeploy, or revoke keys. SiloAI
 shares the pool, so it stops too. BYOK traffic continues because it spends the user's
 quota, not yours.
 
@@ -369,10 +420,10 @@ plan bills Neurons beyond the free allocation.
 
 ---
 
-## 11. Verified in this branch vs. needs live credentials
+## 12. Verified in this branch vs. needs live credentials
 
-Verified by automated tests (`cd AI-API/worker && npm test`, 34 tests, also run from the
-repository root suite, 18 tests):
+Verified by automated tests (`cd AI-API/worker && npm test`, 42 tests, also run from the
+repository root suite, 21 tests):
 
 - routing allowlist, 404s, no anonymous AI path;
 - key format, salted hashing, one-time display, revocation, restart persistence;
@@ -383,7 +434,11 @@ repository root suite, 18 tests):
 - owner reveal with a fresh token (and refusal with a stale one), operator reveal with escrow;
 - the generated single-file `worker.js` bundle: exports `fetch` + `GatewayState`, serves
   `/health`, `/v1/models`, a keyed completion and refuses anonymous traffic;
-- HTSilo auth and limits; CORS split; prompt text never logged;
+- readiness reporting: `/health` lists missing bindings/secrets without echoing values, and
+  a missing or unmigrated Durable Object produces `503 not_configured`, not a 500;
+- SiloAI: signed-in only, rate limited, shared pool, answers quote the branded base URL,
+  and the old `/htsilo/chat` path still answers with a `deprecation` header;
+- SiloAI auth and limits; CORS split; prompt text never logged;
 - private roster rendering and a secret scan of the Worker tree.
 
 Needs a live deployment to confirm (no credentials in this sandbox):
@@ -396,7 +451,7 @@ Needs a live deployment to confirm (no credentials in this sandbox):
 
 ---
 
-## 12. Decisions
+## 13. Decisions
 
 1. ~~Escrow~~ **decided: enabled.** Password-gated reveal is part of the product; set
    `KEY_ESCROW_SECRET` as described in section 7.

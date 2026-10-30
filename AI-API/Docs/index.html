@@ -65,7 +65,7 @@
     <a href="#errors">Errors</a>
     <a href="#byok">Your own Groq key</a>
     <a href="#account">Account API</a>
-    <a href="#htsilo">HTSilo</a>
+    <a href="#siloai">SiloAI</a>
     <a href="#privacy">Privacy</a>
     <a href="#limits-of-scope">What is not supported</a>
     <a href="#tested">What is tested</a>
@@ -332,6 +332,11 @@ data: [DONE]</pre>
     </ul>
 
     <h2 id="errors">Errors</h2>
+    <p>Every error uses the OpenAI envelope and a stable <code class="inline">code</code>. Two of them mean the
+      deployment itself is incomplete rather than the request being wrong: <code class="inline">503
+      not_configured</code> (a binding or secret is missing — the body lists exactly which, under
+      <code class="inline">error.setup</code>) and <code class="inline">503 storage_error</code> (the Durable Object
+      returned an error). Retrying will not help; the owner has to fix the Worker.</p>
     <p>Errors use the OpenAI envelope: <code class="inline">{"error": {"message", "type", "param", "code"}}</code>.</p>
     <div class="table-wrap">
       <table>
@@ -391,13 +396,14 @@ data: [DONE]</pre>
           <tr><td><code>GET /admin/roster</code></td><td>Operator only: every key id, owner, status and usage. Requires an allowlisted UID, a fresh sign-in and the admin passphrase.</td></tr>
           <tr><td><code>POST /admin/keys/{id}/reveal</code></td><td>Operator only: decrypt an escrowed key when its owner asks for help.</td></tr>
           <tr><td><code>GET /public/status</code></td><td>Pool status and model list. No authentication, no AI work.</td></tr>
-          <tr><td><code>GET /health</code></td><td>Liveness only.</td></tr>
+          <tr><td><code>GET /health</code></td><td>Liveness and readiness. Reports <code>status</code> (<code>ready</code> or <code>degraded</code>), <code>missing</code> and a <code>fixes</code> map, with no secret values.</td></tr>
+          <tr><td><code>GET /admin/diagnostics</code></td><td>Operator only: readiness, pool limits, public base URL and assistant model.</td></tr>
         </tbody>
       </table>
     </div>
 
-    <h2 id="htsilo">HTSilo</h2>
-    <p><code class="inline">POST /htsilo/chat</code> powers the green assistant on these pages. It requires a
+    <h2 id="siloai">SiloAI</h2>
+    <p><code class="inline">POST /siloai/chat</code> powers the SiloAI assistant on these pages. It requires a
       Firebase ID token, takes <code class="inline">{"messages": [...]}</code>, and returns
       <code class="inline">{"reply": "...", "remaining": 14, "model": "..."}</code>. The system prompt, model and
       320-token cap are fixed server-side; callers cannot override them. Limits: 4 messages per minute and 15 per
@@ -461,6 +467,6 @@ data: [DONE]</pre>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="/AI-API/assets/config.js"></script>
 <script src="/AI-API/assets/app.js"></script>
-<script src="/AI-API/assets/htsilo.js"></script>
+<script src="/AI-API/assets/siloai.js"></script>
 </body>
 </html>

@@ -27,7 +27,7 @@
  *     GET  /admin/stats           POST /admin/sync
  *
  *   Site assistant (Firebase ID token, no user API key):
- *     POST /htsilo/chat
+ *     POST /siloai/chat           (POST /htsilo/chat is a deprecated alias)
  */
 
 import {
@@ -38,7 +38,7 @@ import { generateKey, keyId as deriveKeyId, newSalt, hashKey } from './keys.mjs'
 import { byokContext, decryptSecret, encryptSecret, escrowContext } from './crypto.mjs';
 import { AUTO_MODEL, AUTO_BYOK_MODEL, AUTO_FREE_MODEL, modelsPayload, resolveModel } from './models.mjs';
 import { normalizeChatRequest, callWorkersAI, callGroq, verifyGroqKey } from './providers.mjs';
-import { htsiloSystemPrompt, HTSILO_MODEL } from './htsilo.mjs';
+import { siloaiSystemPrompt, publicBase, SILOAI_MODEL } from './siloai.mjs';
 
 export { GatewayState } from './state.mjs';
 
@@ -49,17 +49,67 @@ const FRESH_AUTH_SECONDS = 300;
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
-function doStub(env) {
-  if (!env.GATEWAY) throw Object.assign(new Error('Gateway storage binding is missing.'), { code: 'misconfigured' });
-  return env.GATEWAY.get(env.GATEWAY.idFromName('global'));
+const DOCS_URL = 'https://htmltools.me/AI-API/Docs/';
+const SETUP_URL = 'https://htmltools.me/AI-API/README.md#5-deployment';
+
+/**
+ * Deployment readiness, reported without any secret values.
+ * `required` entries stop the gateway from working at all; the rest degrade features.
+ */
+function readiness(env) {
+  const enabled = value => String(value ?? 'true').trim().toLowerCase() !== 'false';
+  const checks = {
+    storage: Boolean(env.GATEWAY),
+    workersAi: Boolean(env.AI),
+    firebase: Boolean(env.FIREBASE_PROJECT_ID),
+    keyPepper: Boolean(env.KEY_PEPPER),
+    roster: Boolean(env.GITHUB_TOKEN && env.GITHUB_REPO),
+    byok: Boolean(env.BYOK_ENCRYPTION_KEY),
+    admin: Boolean(env.ADMIN_PASSPHRASE && (env.ADMIN_UIDS || env.ADMIN_EMAILS)),
+    escrow: Boolean(env.KEY_ESCROW_SECRET),
+    siloai: enabled(env.SILOAI_ENABLED ?? env.HTSILO_ENABLED),
+  };
+  const required = ['storage', 'workersAi', 'firebase', 'keyPepper'];
+  const missing = required.filter(name => !checks[name]);
+  const fixes = {
+    storage: 'Add the Durable Object binding GATEWAY (class GatewayState, SQLite-backed) and apply the v1 migration. `npx wrangler deploy` does both.',
+    workersAi: 'Add the Workers AI binding named AI.',
+    firebase: 'Set the FIREBASE_PROJECT_ID variable to general-database-4cb1c.',
+    keyPepper: 'Set the KEY_PEPPER secret: npx wrangler secret put KEY_PEPPER',
+    roster: 'Optional: set GITHUB_REPO and the GITHUB_TOKEN secret to mirror the roster to your private repo.',
+    byok: 'Optional: set BYOK_ENCRYPTION_KEY to allow users to connect a Groq key.',
+    admin: 'Optional: set ADMIN_PASSPHRASE, ADMIN_UIDS and ADMIN_EMAILS to use the admin tab.',
+    escrow: 'Optional but recommended: set KEY_ESCROW_SECRET so owners can view a key again.',
+    siloai: 'SiloAI is switched off by SILOAI_ENABLED=false.',
+  };
+  return {
+    status: missing.length ? 'degraded' : 'ready',
+    missing,
+    checks,
+    fixes: Object.fromEntries(Object.entries(fixes).filter(([k]) => (missing.includes(k) || !checks[k]))),
+  };
+}
+
+function storageMissing() {
+  return Object.assign(new Error('The gateway storage binding (GATEWAY) is not configured.'), { code: 'misconfigured' });
 }
 
 async function doCall(env, op, payload) {
-  const res = await doStub(env).fetch(`https://gateway.internal/${op}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload || {}),
-  });
+  if (!env.GATEWAY) throw storageMissing();
+  let res;
+  try {
+    res = await env.GATEWAY.get(env.GATEWAY.idFromName('global')).fetch(`https://gateway.internal/${op}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+  } catch (error) {
+    // The binding exists but the class was never migrated, or storage is unavailable.
+    throw Object.assign(
+      new Error('The gateway storage class could not be reached. The GATEWAY Durable Object binding is present but its migration has not been applied.'),
+      { code: 'storage_unavailable', cause: error },
+    );
+  }
   if (!res.ok) {
     let message = 'Gateway storage error.';
     try { message = (await res.json()).message || message; } catch { /* ignore */ }
@@ -443,6 +493,27 @@ async function handleAdmin(request, env, requestId, path, user) {
       'invalid_request_error', pass.code), request, env, requestId, 'site');
   }
 
+  if (path === '/admin/diagnostics' && request.method === 'GET') {
+    const ready = readiness(env);
+    let storage = ready.checks.storage;
+    if (storage) {
+      try { await doCall(env, 'publicStatus', { models: [] }); storage = 'ok'; }
+      catch (error) { storage = `error: ${String(error?.code || 'unknown')}`; }
+    }
+    return finalize(json({
+      ...ready,
+      checks: { ...ready.checks, storage },
+      limits: await doCall(env, 'publicStatus', { models: [] }).then(s => s.pool).catch(() => null),
+      config: {
+        publicApiBase: publicBase(env, request),
+        rosterRepo: env.GITHUB_REPO ? 'configured' : 'not configured',
+        siloaiModel: env.SILOAI_MODEL || env.HTSILO_MODEL || SILOAI_MODEL,
+        freeDailyNeurons: env.FREE_DAILY_NEURONS || '6000',
+      },
+      docs: DOCS_URL,
+    }), request, env, requestId, 'site');
+  }
+
   if (path === '/admin/roster' && request.method === 'GET') {
     const roster = await doCall(env, 'roster', {});
     return finalize(json({
@@ -496,11 +567,11 @@ async function handleAdmin(request, env, requestId, path, user) {
   return finalize(apiError(404, 'No such admin endpoint.', 'invalid_request_error', 'not_found'), request, env, requestId, 'site');
 }
 
-/* ── HTSilo ───────────────────────────────────────────────────────────────── */
+/* ── SiloAI ───────────────────────────────────────────────────────────────── */
 
-async function handleHtsilo(request, env, requestId, user) {
-  if (String(env.HTSILO_ENABLED || 'true') === 'false') {
-    return finalize(apiError(503, 'HTSilo is switched off right now.', 'server_error', 'disabled'), request, env, requestId, 'site');
+async function handleSiloAI(request, env, requestId, user) {
+  if (String(env.SILOAI_ENABLED ?? env.HTSILO_ENABLED ?? 'true') === 'false') {
+    return finalize(apiError(503, 'SiloAI is switched off right now.', 'server_error', 'disabled'), request, env, requestId, 'site');
   }
   const body = await readJson(request, 16 * 1024);
   if (!body.ok) return finalize(apiError(body.status, body.message, 'invalid_request_error', 'invalid_request'), request, env, requestId, 'site');
@@ -519,15 +590,15 @@ async function handleHtsilo(request, env, requestId, user) {
     return finalize(apiError(400, '"messages" must end with a user message.', 'invalid_request_error', 'invalid_request'), request, env, requestId, 'site');
   }
   if (chars > 4000) {
-    return finalize(apiError(413, 'That message is too long for HTSilo (4,000 characters max).', 'invalid_request_error', 'request_too_large'), request, env, requestId, 'site');
+    return finalize(apiError(413, 'That message is too long for SiloAI (4,000 characters max).', 'invalid_request_error', 'request_too_large'), request, env, requestId, 'site');
   }
 
-  const model = resolveModel(env.HTSILO_MODEL || HTSILO_MODEL);
-  if (!model) return finalize(apiError(503, 'HTSilo model is not enabled.', 'server_error', 'model_not_found'), request, env, requestId, 'site');
+  const model = resolveModel(env.SILOAI_MODEL || env.HTSILO_MODEL || SILOAI_MODEL);
+  if (!model) return finalize(apiError(503, 'The SiloAI model is not enabled on this gateway.', 'server_error', 'model_not_found'), request, env, requestId, 'site');
 
   const ip = await clientIp(request);
   const auth = await doCall(env, 'siteAuthorize', {
-    uid: user.uid, ip, provider: 'workers-ai', modelId: model.id, maxOutput: 320, inputTokens: Math.ceil(chars / 4), kind: 'htsilo',
+    uid: user.uid, ip, provider: 'workers-ai', modelId: model.id, maxOutput: 320, inputTokens: Math.ceil(chars / 4), kind: 'siloai',
   });
   if (!auth.ok) {
     const retry = auth.retryAfter ? { 'retry-after': String(auth.retryAfter) } : {};
@@ -535,7 +606,7 @@ async function handleHtsilo(request, env, requestId, user) {
   }
 
   const prompt = {
-    messages: [{ role: 'system', content: htsiloSystemPrompt(body.value.page) }, ...messages],
+    messages: [{ role: 'system', content: siloaiSystemPrompt(body.value.page, publicBase(env, request)) }, ...messages],
     maxTokens: 320,
     temperature: 0.6,
     stream: false,
@@ -557,7 +628,7 @@ async function handleHtsilo(request, env, requestId, user) {
     }), request, env, requestId, 'site');
   } catch (error) {
     await doCall(env, 'settle', { keyId: '', uid: user.uid, reservation: auth.reservation, reservationId: auth.reservationId, isFreePool: true, success: false }).catch(() => {});
-    return finalize(apiError(502, 'HTSilo could not reach the model. Try again in a moment.', 'upstream_error', 'provider_error'), request, env, requestId, 'site');
+    return finalize(apiError(502, 'SiloAI could not reach the model. Try again in a moment.', 'upstream_error', 'provider_error'), request, env, requestId, 'site');
   }
 }
 
@@ -576,7 +647,27 @@ export default {
 
     try {
       if (path === '/health' && request.method === 'GET') {
-        return finalize(json({ ok: true, service: 'htmltools-me-ai-api', version: VERSION }), request, env, requestId, 'site', { 'cache-control': 'no-store' });
+        const ready = readiness(env);
+        // Prove the Durable Object actually answers; a bound-but-unmigrated class
+        // otherwise looks healthy until the first real request.
+        if (ready.checks.storage) {
+          try {
+            await doCall(env, 'publicStatus', { models: [] });
+            ready.checks.storage = 'ok';
+          } catch {
+            ready.checks.storage = 'error';
+            ready.status = 'degraded';
+            if (!ready.missing.includes('storage')) ready.missing.push('storage');
+          }
+        }
+        return finalize(json({
+          ok: ready.status === 'ready',
+          status: ready.status,
+          service: 'htmltools-me-ai-api',
+          version: VERSION,
+          ...ready,
+          docs: DOCS_URL,
+        }), request, env, requestId, 'site', { 'cache-control': 'no-store' });
       }
 
       if (path === '/public/status' && request.method === 'GET') {
@@ -594,7 +685,8 @@ export default {
         return await handleChat(request, env, ctx, requestId);
       }
 
-      const needsUser = path.startsWith('/account') || path.startsWith('/admin') || path === '/htsilo/chat';
+      const isSilo = path === '/siloai/chat' || path === '/htsilo/chat';
+      const needsUser = path.startsWith('/account') || path.startsWith('/admin') || isSilo;
       if (needsUser) {
         const auth = await requireUser(request, env);
         if (!auth.ok) {
@@ -602,11 +694,13 @@ export default {
         }
         if (path.startsWith('/account')) return await handleAccount(request, env, ctx, requestId, path, auth.user);
         if (path.startsWith('/admin')) return await handleAdmin(request, env, requestId, path, auth.user);
-        if (path === '/htsilo/chat') {
+        if (isSilo) {
           if (request.method !== 'POST') {
-            return finalize(apiError(405, 'Use POST for /htsilo/chat.', 'invalid_request_error', 'method_not_allowed'), request, env, requestId, 'site');
+            return finalize(apiError(405, 'Use POST for /siloai/chat.', 'invalid_request_error', 'method_not_allowed'), request, env, requestId, 'site');
           }
-          return await handleHtsilo(request, env, requestId, auth.user);
+          const response = await handleSiloAI(request, env, requestId, auth.user);
+          if (path === '/htsilo/chat') response.headers.set('deprecation', 'true');
+          return response;
         }
       }
 
@@ -616,10 +710,31 @@ export default {
       }
       return finalize(json({ error: { message: 'Not found.', type: 'invalid_request_error', code: 'not_found' } }, 404), request, env, requestId, 'site');
     } catch (error) {
-      logEvent(env, { event: 'unhandled', code: String(error?.code || 'error').slice(0, 60), message: String(error?.message || '').slice(0, 120) });
+      const code = String(error?.code || 'error').slice(0, 60);
+      logEvent(env, { event: 'unhandled', code, message: String(error?.message || '').slice(0, 160) });
+      const mode = path.startsWith('/v1') ? 'api' : 'site';
+
+      // Setup problems are the operator's to fix and must never look like a crash:
+      // 503 + the exact missing piece, so the dashboard can say what to do.
+      if (code === 'misconfigured' || code === 'storage_unavailable') {
+        const ready = readiness(env);
+        return finalize(json({
+          error: {
+            message: 'The gateway is not fully configured yet, so this feature is unavailable. The owner needs to finish setup.',
+            type: 'server_error',
+            code: 'not_configured',
+            param: null,
+            setup: { missing: ready.missing, fixes: ready.fixes, docs: DOCS_URL },
+          },
+        }, 503), request, env, requestId, mode);
+      }
+      if (code === 'storage_error') {
+        return finalize(apiError(503, 'The gateway storage layer returned an error. Try again in a moment; if it persists the owner should check the Worker logs.', 'server_error', 'storage_error'), request, env, requestId, mode);
+      }
+
       return finalize(
         apiError(500, 'The gateway hit an unexpected error. If it persists, the operator needs to check the Worker logs.', 'server_error', 'internal_error'),
-        request, env, requestId, path.startsWith('/v1') ? 'api' : 'site',
+        request, env, requestId, mode,
       );
     }
   },
