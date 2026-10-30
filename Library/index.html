@@ -297,8 +297,6 @@
     .cw-send:hover{opacity:.88;}
     .cw-login-notice{text-align:center;padding:.6rem;font-size:.7rem;color:var(--tx-3);}
     .cw-login-notice a{color:var(--neon);}
-    .cw-ai-hint{font-size:.62rem;color:var(--purple-hi);font-family:var(--mono);padding:.15rem .4rem;display:none;}
-    .cw-ai-hint.show{display:block;}
     .cw-del-btn{background:none;border:1px solid transparent;color:var(--tx-3);cursor:pointer;font-size:.55rem;padding:.08rem .28rem;border-radius:2px;transition:all .13s;}
     .cw-del-btn:hover{color:var(--red-hi);border-color:rgba(248,113,113,.2);}
 
@@ -419,13 +417,12 @@
   <div class="cw-messages" id="cw-messages"><div class="cw-empty">No messages yet. Say hi! 👋</div></div>
   <div id="cw-input-area">
     <div class="cw-footer">
-      <div class="cw-ai-hint" id="cw-ai-hint">🤖 /ai mode — AI will answer</div>
       <div class="cw-autodel-row">
         <input type="checkbox" id="cw-autodel-check" class="cw-autodel-check"/>
         <label for="cw-autodel-check" class="cw-autodel-label" id="cw-autodel-label">Auto-delete after 30s</label>
       </div>
       <div class="cw-input-row">
-        <input type="text" class="cw-input" id="cw-input" placeholder="Say something… or /ai <question>" maxlength="400" oninput="onChatInput()" onkeydown="if(event.key==='Enter')sendChatMsg()"/>
+        <input type="text" class="cw-input" id="cw-input" placeholder="Say something…" maxlength="400" onkeydown="if(event.key==='Enter')sendChatMsg()"/>
         <button class="cw-send" onclick="sendChatMsg()">↑</button>
       </div>
     </div>
@@ -586,6 +583,7 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getDatabase,ref,push,set,get,onValue,update,remove,query,limitToLast,orderByKey}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut,updateProfile}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+import{createLibraryBridge}from"/assets/library-session.js";
 
 const OWNER_EMAIL='matthewbozhe@gmail.com';
 const oldApp=initializeApp({apiKey:"AIzaSyDke6bGfoJdP4U5lfA9hWHGFFTcDpWNNC8",authDomain:"htmltools-library.firebaseapp.com",projectId:"htmltools-library",storageBucket:"htmltools-library.firebasestorage.app",messagingSenderId:"973699554480",appId:"1:973699554480:web:33ed9d341fc48ed8092f75"},'old');
@@ -593,6 +591,7 @@ const auth=getAuth(oldApp);
 const newApp=initializeApp({apiKey:"AIzaSyD8KINd1CV5wl3TEisGliE4R5ng_w-apjA",authDomain:"htmltools2.firebaseapp.com",databaseURL:"https://htmltools2-default-rtdb.firebaseio.com",projectId:"htmltools2",storageBucket:"htmltools2.firebasestorage.app",messagingSenderId:"61467480060",appId:"1:61467480060:web:4f964a671a5623d10e2c79"},'new');
 initializeAppCheck(newApp,{provider:new ReCaptchaV3Provider('6LeRK88sAAAAAG_yDwCD-DIfZdl6oqWAYCTJRdmhb'),isTokenAutoRefreshEnabled:true});
 const db=getDatabase(newApp);
+const libraryBridge=createLibraryBridge(oldApp,newApp);
 const GH_WORKER="https://black-field-f5e8.bozhetarnikmatthew.workers.dev";
 const GH_CACHE_KEY="htmlib_github_cache_v2";
 const GH_VER_KEY="htmlib_github_version_v2";
@@ -605,7 +604,6 @@ let myNotifs=[],bannedUsers={},extraAdmins={},savedBooks={},pinnedBooks={};
 let loginDisabled=false,signupDisabled=false;
 let chatMessages={},chatOpen=false,chatUnread=0;
 let _countdownTimers={};
-let _groqKey=null;
 let authMode='login',_authSubmitting=false;
 let _ratingBookId=null,_selectedStar=0;
 let _lbMode='rated';
@@ -701,55 +699,9 @@ function bookPatch(id,patch){
   return paths;
 }
 
-// One-time migration: copy existing counters out of `books` into `bookStats`.
-// It first writes a tiny probe so a permission-denied node can never turn into
-// repeated tens-of-MB downloads, and it is stamped in localStorage so each
-// browser only ever tries once a day at most.
-async function buildStatsMirrorOnce(){
-  let flag='';
-  try{flag=localStorage.getItem(STATS_FLAG_KEY)||'';}catch(e){}
-  if(flag==='done')return false;
-  if(flag&&Date.now()-Number(flag)<864e5)return false; // failed recently → back off a day
-  try{
-    // 1) Writability probe (~40 bytes). Abort BEFORE the heavy read if denied.
-    await set(ref(db,'bookStats/_meta'),{v:0,probe:Date.now()});
-  }catch(e){
-    try{localStorage.setItem(STATS_FLAG_KEY,String(Date.now()));}catch(_){}
-    console.warn('[Stats] bookStats is not writable — add a Firebase rule: "bookStats":{".read":true,".write":"auth != null"}. Stats will stay at 0 until then; `books` was NOT downloaded.',e);
-    return false;
-  }
-  try{
-    const snap=await get(ref(db,'books')); // the last full read of `books` ever
-    const raw=snap.val()||{};
-    const updates={};let n=0;
-    Object.entries(raw).forEach(([id,book])=>{
-      if(id==='_meta')return;
-      const s=pickStats(book);
-      if(!Object.keys(s).length)return;
-      Object.entries(s).forEach(([k,v])=>{updates['bookStats/'+id+'/'+k]=v;});
-      n++;
-    });
-    updates['bookStats/_meta']={v:1,at:Date.now(),games:n};
-    await update(ref(db),updates);
-    try{localStorage.setItem(STATS_FLAG_KEY,'done');}catch(e){}
-    console.info('[Stats] Mirrored '+n+' games into bookStats — `books` will not be read again');
-    return true;
-  }catch(e){
-    try{localStorage.setItem(STATS_FLAG_KEY,String(Date.now()));}catch(_){}
-    console.warn('[Stats] Stats mirror write failed',e);
-    return false;
-  }
-}
-
 async function fetchBookStats(){
   const snap=await get(ref(db,'bookStats'));
-  const stats=snap.val();
-  const migrated=!!(stats&&stats._meta&&Number(stats._meta.v)>=1);
-  if(!migrated&&await buildStatsMirrorOnce()){
-    const again=await get(ref(db,'bookStats'));
-    return again.val()||null;
-  }
-  return stats||null;
+  return snap.val()||null;
 }
 
 async function mergeStatsFromFirebase(){
@@ -890,6 +842,7 @@ onValue(chatQ,snap=>{
 // ── AUTH ──────────────────────────────────────────────────────
 onAuthStateChanged(auth,async u=>{
   CU=u;
+  try{await libraryBridge.ready();}catch(e){console.warn('[Library] secure data session unavailable',e);if(u)showToast('Secure Library session unavailable. Likes and playtime are paused.','error');}
   const ud=document.getElementById('user-display');
   const ab=document.getElementById('auth-btn');
   if(u){
@@ -1043,7 +996,7 @@ function buildCard(id,bk,isPinned){
     ${bk.generatedByAI?'<span class="badge" style="background:rgba(168,85,247,.07);color:var(--purple-hi);border-color:rgba(168,85,247,.2)">AI</span>':''}
   </div>
   <div class="book-actions">
-    <button class="act-btn${liked?' liked':''}" onclick="window.toggleLike('${id}')">♥ ${bk.likes||0}</button>
+    <button class="act-btn${liked?' liked':''}" data-like-id="${id}" aria-pressed="${liked?'true':'false'}" onclick="window.toggleLike('${id}')">♥ ${bk.likes||0}</button>
     <button class="act-btn" onclick="window.openComments('${id}')">💬 ${cCount}</button>
     ${canRate?`<button class="act-btn" onclick="window.openRate('${id}')" style="color:var(--yellow-hi);border-color:rgba(251,191,36,.2)">⭐ Rate</button>`:''}
     ${CU?`<button class="act-btn${isSaved?' saved':''}" onclick="window.toggleSave('${id}')" title="${isSaved?'Unsave':'Save'}">🔖</button>`:''}
@@ -1065,7 +1018,7 @@ window.remixBook=function(id,title){
 
 // ── PLAY ──────────────────────────────────────────────────────
 window.playBook=function(id){
-  const book=allBooks[id];if(book)update(ref(db),bookPatch(book._origId,{views:(book.views||0)+1}));
+  // The player records the view once after the game loads, avoiding double counts.
   window.location.href='/Library/book/'+id;
 };
 
@@ -1073,19 +1026,26 @@ window.playBook=function(id){
 window.editBook=function(id){window.location.href='/Library/Studio/Upload/?edit='+id;};
 
 // ── LIKE ──────────────────────────────────────────────────────
+const _likePending=new Set();
 window.toggleLike=async function(id){
   if(!CU){showToast('Sign in to like games','error');openAuth();return;}
-  const book=allBooks[id];if(!book)return;
-  const liked=book.likedBy?.[CU.uid];
-  const updates={};
-  updates['books/'+book._origId+'/likedBy/'+CU.uid]=liked?null:true;
-  updates['books/'+book._origId+'/likes']=Math.max(0,(book.likes||0)+(liked?-1:1));
-  // mirror into the tiny bookStats node so nothing has to read `books`
-  updates['bookStats/'+book._origId+'/likedBy/'+CU.uid]=liked?null:true;
-  updates['bookStats/'+book._origId+'/likes']=Math.max(0,(book.likes||0)+(liked?-1:1));
-  await update(ref(db),updates);
-  if(!liked&&book.ownerId&&book.ownerId!==CU.uid){
-    set(push(ref(db,'notifications/'+book.ownerId)),{type:'like',fromName:CU.displayName||CU.email,fromUid:CU.uid,bookTitle:book.title,bookId:id,createdAt:Date.now(),read:false});
+  const book=allBooks[id];if(!book||_likePending.has(id))return;
+  _likePending.add(id);
+  document.querySelectorAll(`[data-like-id="${CSS.escape(id)}"]`).forEach(btn=>{btn.disabled=true;btn.setAttribute('aria-busy','true');});
+  try{
+    await libraryBridge.ready();
+    const {data}=await libraryBridge.call('toggleBookLike',{bookId:book._origId});
+    book.likes=data.likes;
+    book.likedBy={...(book.likedBy||{})};
+    if(data.liked)book.likedBy[CU.uid]=true;else delete book.likedBy[CU.uid];
+    renderPins();renderBooks();
+    showToast(data.liked?'Liked ♥':'Like removed','success');
+  }catch(e){
+    console.error('[Library] like failed',e);
+    showToast(e?.message||'Could not update like. Please try again.','error');
+  }finally{
+    _likePending.delete(id);
+    document.querySelectorAll(`[data-like-id="${CSS.escape(id)}"]`).forEach(btn=>{btn.disabled=false;btn.removeAttribute('aria-busy');});
   }
 };
 
@@ -1158,13 +1118,14 @@ window.submitRate=async function(){
   if(!_selectedStar){showToast('Pick a star rating','error');return;}
   if(!_ratingBookId)return;
   const book=allBooks[_ratingBookId];if(!book)return;
-  await set(ref(db,'ratings/'+_ratingBookId+'/'+CU.uid),{rating:_selectedStar,ratedAt:Date.now()});
-  const snap=await get(ref(db,'ratings/'+_ratingBookId));
-  const vals=Object.values(snap.val()||{}).map(r=>r.rating||r||0).filter(Boolean);
-  const avg=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10:0;
-  await update(ref(db),bookPatch(book._origId,{ratingAvg:avg,ratingCount:vals.length}));
-  showToast(`Rated ${_selectedStar} ⭐ — thanks!`,'success');
-  closeOverlay('rate-overlay');
+  try{
+    await libraryBridge.ready();
+    const {data}=await libraryBridge.call('rateBook',{bookId:book._origId,rating:_selectedStar});
+    book.ratingAvg=data.ratingAvg;book.ratingCount=data.ratingCount;
+    renderPins();renderBooks();
+    showToast(`Rated ${_selectedStar} ⭐ — thanks!`,'success');
+    closeOverlay('rate-overlay');
+  }catch(e){showToast(e?.message||'Could not save rating.','error');}
 };
 
 // ── SAVE ──────────────────────────────────────────────────────
@@ -1437,41 +1398,12 @@ function renderChatMsgs(){
   if(wasBottom)container.scrollTop=container.scrollHeight;
 }
 
-window.onChatInput=function(){document.getElementById('cw-ai-hint').classList.toggle('show',(document.getElementById('cw-input').value||'').startsWith('/ai '));};
-
-async function getGroqKey(){
-  if(_groqKey)return _groqKey;
-  try{
-    const res=await fetch('https://hack.htmltools.me/749749535064/',{cache:'no-store'});
-    const html=await res.text();
-    const m=html.match(/_AUDITOR_KEY\s*=\s*["']([^"']+)["']/);
-    if(m?.[1]){_groqKey=m[1];return _groqKey;}
-  }catch{}
-  return null;
-}
-async function fetchAI(prompt){
-  const key=await getGroqKey();if(!key)throw new Error('Could not load key');
-  const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'llama3-8b-8192',max_tokens:300,messages:[{role:'system',content:'You are a helpful assistant in the HTML Library community chat. Keep replies concise and friendly.'},{role:'user',content:prompt}]})});
-  if(!res.ok)throw new Error('API error '+res.status);
-  const data=await res.json();return data.choices?.[0]?.message?.content||'Sorry, could not respond.';
-}
-
 window.sendChatMsg=async function(){
   if(!CU){showToast('Sign in to chat','error');return;}
   const input=document.getElementById('cw-input');const rawText=input.value.trim();
   if(!rawText||rawText.length>400)return;
-  if(rawText.startsWith('/ai ')){
-    const prompt=rawText.slice(4).trim();if(!prompt)return;
-    input.value='';document.getElementById('cw-ai-hint').classList.remove('show');
-    await set(push(ref(db,'chat')),{text:rawText,senderId:CU.uid,senderName:CU.displayName||CU.email,sentAt:Date.now(),autoDelete:false,isAdmin:isAdmin(CU)});
-    const thinkRef=push(ref(db,'chat'));const thinkKey=thinkRef.key;
-    await set(thinkRef,{text:'🤔 Thinking…',senderId:'ai',senderName:'AI Assistant',sentAt:Date.now(),autoDelete:false,isAI:true});
-    try{const answer=await fetchAI(prompt);await set(ref(db,'chat/'+thinkKey),{text:answer,senderId:'ai',senderName:'AI Assistant',sentAt:Date.now(),autoDelete:false,isAI:true});}
-    catch(err){await set(ref(db,'chat/'+thinkKey),{text:'⚠️ AI error: '+err.message,senderId:'ai',senderName:'AI Assistant',sentAt:Date.now(),autoDelete:false,isAI:true});}
-    return;
-  }
   const autoDelete=document.getElementById('cw-autodel-check').checked;
-  input.value='';document.getElementById('cw-ai-hint').classList.remove('show');
+  input.value='';
   await set(push(ref(db,'chat')),{text:rawText,senderId:CU.uid,senderName:CU.displayName||CU.email,sentAt:Date.now(),autoDelete,isAdmin:isAdmin(CU)});
 };
 window.deleteChatMsg=async function(mid){
