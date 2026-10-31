@@ -135,7 +135,7 @@
       return '<div class="page-row"><div><b>' + esc(page.title || page.path) + '</b><code>' + esc(page.path) + '</code></div><span>' + esc((page.headings || []).slice(0, 2).join(' · ')) + '</span></div>';
     }).join('');
     var actionSettings = site.actions || { allowNavigation: false, confirmNavigation: true };
-    return '<div class="verified-banner"><span>✓</span><div><b>Domain verified</b><p>Last index refresh: ' + esc(site.lastCrawledAt ? new Date(site.lastCrawledAt).toLocaleString() : 'not yet crawled') + ' · ' + esc(site.pageCount || 0) + ' pages discovered</p></div><button class="button subtle" type="button" data-refresh="' + esc(site.id) + '">Refresh index</button></div>' +
+    return '<div class="verified-banner"><span>✓</span><div><b>Domain verified</b><p>Last index refresh: ' + esc(site.lastCrawledAt ? new Date(site.lastCrawledAt).toLocaleString() : 'not yet crawled') + ' · ' + esc(site.pageCount || 0) + ' pages discovered</p></div><div class="verified-actions"><button class="button subtle" type="button" data-ai-test="' + esc(site.id) + '">Test AI</button><button class="button subtle" type="button" data-refresh="' + esc(site.id) + '">Refresh index</button></div></div>' +
       '<div class="field"><label for="groups">Tool groups <span class="label-note">One per line: Name: /path, /another/path</span></label><textarea id="groups" class="groups-input" data-groups placeholder="Library: /Library, /Library/Studio, /Library/Studio/Upload\nAI Playground: /AI-Playground">' + esc(makeGroupText(site.groups)) + '</textarea><p class="hint">Groups help SiloAI understand related tool pages. Listed paths are also checked as crawl seeds on the next refresh; use the exact page path, including any trailing slash. Other public pages are still discovered automatically.</p></div>' +
       '<div class="permissions"><div><b>Let SiloAI navigate visitors</b><p>Only to a page discovered in this site’s index. Answer-only is the default.</p></div><label class="switch"><input type="checkbox" data-allow-nav ' + (actionSettings.allowNavigation ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="permissions nested" data-confirm-wrap><div><b>Ask before each navigation</b><p>Visitors see a confirmation before SiloAI opens the suggested page.</p></div><label class="switch"><input type="checkbox" data-confirm-nav ' + (actionSettings.confirmNavigation !== false ? 'checked' : '') + '><span></span></label></div>' +
@@ -176,6 +176,23 @@
           await loadSites();
           if (latest.verified) openSite(site.id);
         } catch (_) { /* keep the actionable error in the open dialog */ }
+      }
+    });
+    var aiTest = dialogContent.querySelector('[data-ai-test]');
+    if (aiTest) aiTest.addEventListener('click', async function () {
+      var error = $('[data-site-error]', dialogContent);
+      aiTest.disabled = true;
+      aiTest.textContent = 'Testing AI…';
+      error.textContent = '';
+      try {
+        var result = await api('/api/sites/' + site.id + '/ai-test', { method: 'POST', body: {} });
+        toast('AI is responding · ' + (result.fallback ? 'fallback ' : '') + result.model);
+      } catch (failure) {
+        error.textContent = errorText(failure);
+        toast('AI test failed', true);
+      } finally {
+        aiTest.disabled = false;
+        aiTest.textContent = 'Test AI';
       }
     });
     var refresh = dialogContent.querySelector('[data-refresh]');

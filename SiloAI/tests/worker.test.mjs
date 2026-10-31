@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createSign, generateKeyPairSync } from 'node:crypto';
 import worker from '../src/index.mjs';
 import bundled, { SiloLimiter as BundledSiloLimiter } from '../worker.js';
 
@@ -248,6 +249,80 @@ test('generated worker.js exports the same Worker entry and Durable Object class
   const response = await bundled.fetch(new Request('https://siloai.test/health'), { AI: {}, FIREBASE_PROJECT_ID: 'demo' });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).service, 'siloai');
+});
+
+
+test('owner AI self-test is authenticated, rate-limited, and confirms the model that answered', async () => {
+  const oldCache = globalThis.caches;
+  const cacheMap = new Map();
+  globalThis.caches = { default: {
+    async match(request) { return cacheMap.get(request.url)?.clone() || undefined; },
+    async put(request, response) { cacheMap.set(request.url, response.clone()); },
+    async delete(request) { return cacheMap.delete(request.url); },
+  } };
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'dashboard-test-key', alg: 'RS256', use: 'sig' };
+  const b64url = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
+  const header = b64url({ alg: 'RS256', kid: jwk.kid, typ: 'JWT' });
+  const now = Math.floor(Date.now() / 1000);
+  const claims = b64url({ aud: 'demo-firebase', iss: 'https://securetoken.google.com/demo-firebase', sub: site.ownerUid, iat: now, exp: now + 3600 });
+  const unsigned = `${header}.${claims}`;
+  const signer = createSign('RSA-SHA256');
+  signer.update(unsigned);
+  signer.end();
+  const token = `${unsigned}.${signer.sign(privateKey).toString('base64url')}`;
+  let currentRecord = site;
+  globalThis.fetch = async (url) => {
+    if (String(url).startsWith('https://www.googleapis.com/service_accounts/')) return Response.json({ keys: [jwk] }, { headers: { 'cache-control': 'public, max-age=3600' } });
+    if (String(url).startsWith('https://api.github.com/')) return Response.json({ content: encoded(currentRecord), sha: 'test-sha' });
+    throw new Error('Unexpected fetch ' + url);
+  };
+  try {
+    const env = envFor(site, 'READY');
+    let callCount = 0;
+    env.AI.run = async (model, input) => {
+      envFor.lastInput = input;
+      callCount++;
+      if (model === '@cf/google/gemma-4-26b-a4b-it') return { success: false, errors: [{ status: 502, message: 'Temporary provider error.' }] };
+      return { response: 'READY' };
+    };
+    const request = new Request(`https://siloai.test/api/sites/${site.id}/ai-test`, {
+      method: 'POST', headers: { origin: 'https://htmltools.me', authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}',
+    });
+    const response = await worker.fetch(request, env);
+    const payload = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(payload, { ok: true, model: '@cf/meta/llama-3.2-1b-instruct', fallback: true });
+    assert.equal(callCount, 3, 'test primary, retry, then fallback');
+    assert.equal(envFor.lastInput.max_completion_tokens, 32, 'connectivity checks use a small output budget');
+    assert.match(envFor.lastInput.messages[0].content, /owner-only Workers AI connectivity check/);
+    assert.doesNotMatch(JSON.stringify(payload), /READY|owner-uid|private-token/);
+
+    const limitedEnv = {
+      ...env,
+      LIMITER: { idFromName: (name) => ({ name }), get: () => ({ fetch: async () => Response.json({ allowed: false, retryAfter: 20 }, { status: 429 }) }) },
+    };
+    const limited = await worker.fetch(request, limitedEnv);
+    assert.equal(limited.status, 429);
+    assert.equal((await limited.json()).error.code, 'ai_test_rate_limited');
+    assert.equal(callCount, 3, 'rate-limited tests must not invoke inference');
+
+    currentRecord = { ...site, id: '999999999999999999999999', verified: false };
+    const unverifiedEnv = envFor(currentRecord, 'READY');
+    const unverifiedRequest = new Request(`https://siloai.test/api/sites/${currentRecord.id}/ai-test`, {
+      method: 'POST', headers: { origin: 'https://htmltools.me', authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}',
+    });
+    const unverified = await worker.fetch(unverifiedRequest, unverifiedEnv);
+    assert.equal(unverified.status, 409);
+    assert.equal(callCount, 3, 'unverified sites must not invoke inference');
+
+    currentRecord = site;
+    cacheMap.clear();
+    const missingAiEnv = { ...env, AI: undefined };
+    const missingAi = await worker.fetch(request, missingAiEnv);
+    assert.equal(missingAi.status, 503);
+    assert.equal((await missingAi.json()).error.code, 'ai_unavailable');
+  } finally { globalThis.fetch = originalFetch; globalThis.caches = oldCache; }
 });
 
 test('dashboard endpoints reject unsigned requests and bad origins', async () => {
