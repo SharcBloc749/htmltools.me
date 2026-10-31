@@ -111,7 +111,7 @@
     return groups;
   }
   function widgetSnippet(site) {
-    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=6" data-site-id="' + site.id + '"><\/script>';
+    return '<script async src="https://htmltools.me/SiloAI/widget.js" data-site-id="' + site.id + '"><\/script>';
   }
   function openSite(id) {
     var site = siteCache[id] && (siteCache[id].site || siteCache[id]);
@@ -162,7 +162,8 @@
       try {
         var result = await api('/api/sites/' + site.id + '/verify', { method: 'POST', body: {} });
         siteCache[site.id] = result;
-        toast('Domain verified — ' + result.result.pages + ' pages indexed');
+        var skippedLarge = Number(result.result && result.result.skippedLargePages) || 0;
+        toast('Domain verified — ' + result.result.pages + ' pages indexed' + (skippedLarge ? ' · ' + skippedLarge + ' oversized skipped' : ''));
         await loadSites();
         openSite(site.id);
       } catch (failure) {
@@ -185,7 +186,8 @@
       try {
         var result = await api('/api/sites/' + site.id + '/refresh', { method: 'POST', body: {} });
         siteCache[site.id] = result;
-        toast('Index refreshed');
+        var skippedLarge = Number(result.result && result.result.skippedLargePages) || 0;
+        toast(skippedLarge ? 'Index refreshed · skipped ' + skippedLarge + ' oversized page' + (skippedLarge === 1 ? '' : 's') : 'Index refreshed');
         await loadSites();
         openSite(site.id);
       } catch (failure) { error.textContent = errorText(failure); refresh.disabled = false; refresh.textContent = 'Refresh index'; }

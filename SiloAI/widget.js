@@ -1,5 +1,5 @@
 /* SiloAI website assistant embed. Install with:
-   <script async src="https://htmltools.me/SiloAI/widget.js?v=6" data-site-id="YOUR_SITE_ID"></script>
+   <script async src="https://htmltools.me/SiloAI/widget.js" data-site-id="YOUR_SITE_ID"></script>
 */
 (function () {
   'use strict';

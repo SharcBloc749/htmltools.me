@@ -255,7 +255,7 @@ function sameVerifiedHost(left, right) {
 }
 async function readLimited(response, maxBytes) {
   const declared = Number(response.headers.get("content-length") || 0);
-  if (declared > maxBytes) throw new Error("page_too_large");
+  if (declared > maxBytes) throw Object.assign(new Error("The page exceeded the per-response crawl limit."), { code: "page_too_large" });
   if (!response.body) return "";
   const reader = response.body.getReader();
   const chunks = [];
@@ -266,8 +266,9 @@ async function readLimited(response, maxBytes) {
       if (done) break;
       total += value.byteLength;
       if (total > maxBytes) {
-        await reader.cancel();
-        throw new Error("page_too_large");
+        await reader.cancel().catch(() => {
+        });
+        throw Object.assign(new Error("The page exceeded the per-response crawl limit."), { code: "page_too_large" });
       }
       chunks.push(value);
     }
@@ -310,13 +311,19 @@ async function fetchSameHost(url, host, maxBytes, fetchImpl = fetch) {
     if (!response.ok) return null;
     const type = response.headers.get("content-type") || "";
     if (!/(text\/html|application\/xhtml\+xml|application\/xml|text\/xml|text\/plain)/i.test(type)) return null;
-    const body = await readLimited(response, maxBytes);
-    return { url: current.href, body, type };
+    try {
+      const body = await readLimited(response, maxBytes);
+      return { url: current.href, body, type };
+    } catch (failure) {
+      if (failure?.code === "page_too_large") return { url: current.href, body: "", type, tooLarge: true };
+      throw failure;
+    }
   }
   return null;
 }
 async function loadRobotsPolicy(host) {
   const response = await fetchSameHost(hostUrl(host, "/robots.txt"), host, 8e4);
+  if (response?.tooLarge) throw Object.assign(new Error("robots.txt exceeds the 80 KB safety limit, so its crawl rules cannot be checked."), { code: "robots_too_large" });
   if (!response) return { disallow: [], allow: [], sitemaps: [] };
   let active = false;
   const disallow = [];
@@ -424,7 +431,7 @@ async function sitemapPaths(host, robots) {
     if (seenSitemaps.has(sitemapUrl)) continue;
     seenSitemaps.add(sitemapUrl);
     const result = await fetchSameHost(sitemapUrl, host, MAX_SITEMAP_BYTES);
-    if (!result || !/xml/i.test(result.type)) continue;
+    if (!result || result.tooLarge || !/xml/i.test(result.type)) continue;
     if (/<(?:[\w.-]+:)?sitemapindex\b/i.test(result.body)) {
       for (const match of result.body.matchAll(/<(?:[\w.-]+:)?loc\b[^>]*>\s*([^<]+)\s*<\/(?:[\w.-]+:)?loc\s*>/gi)) {
         const child = safeSitemapUrl(decodeEntities(match[1].trim()), host, robots);
@@ -447,7 +454,7 @@ async function sitemapPaths(host, robots) {
 }
 async function verifyDomainFile(host, token, fetchImpl = fetch) {
   const response = await fetchSameHost(hostUrl(host, "/.well-known/siloai-verification.txt"), host, 4096, fetchImpl);
-  return Boolean(response && response.body.trim() === `siloai-verification=${token}`);
+  return Boolean(response && !response.tooLarge && response.body.trim() === `siloai-verification=${token}`);
 }
 async function crawlSite(host, priorPages = [], ownerPaths = []) {
   const robots = await loadRobotsPolicy(host);
@@ -458,6 +465,7 @@ async function crawlSite(host, priorPages = [], ownerPaths = []) {
   const queue = [{ path: "/", depth: 0 }, ...seeds.map((path) => ({ path, depth: 1 })), ...sitemap.map((path) => ({ path, depth: 1 }))];
   const queued = /* @__PURE__ */ new Set();
   const pages = [];
+  const oversizedPaths = /* @__PURE__ */ new Set();
   while (queue.length && pages.length < MAX_PAGES) {
     const batch = [];
     while (queue.length && batch.length < 4 && pages.length + batch.length < MAX_PAGES) {
@@ -470,6 +478,7 @@ async function crawlSite(host, priorPages = [], ownerPaths = []) {
     if (!batch.length) continue;
     const results = await Promise.all(batch.map(async (item) => {
       const result = await fetchSameHost(hostUrl(host, item.path), host, MAX_PAGE_BYTES);
+      if (result?.tooLarge) return { tooLarge: true, path: item.path };
       if (!result || !/html/i.test(result.type)) return null;
       const page = parsePage(result.url, result.body);
       if (item.depth < 3) {
@@ -477,7 +486,13 @@ async function crawlSite(host, priorPages = [], ownerPaths = []) {
       }
       return page;
     }));
-    for (const page of results) if (page && !pages.some((existing) => existing.path === page.path)) pages.push(page);
+    for (const page of results) {
+      if (page?.tooLarge) oversizedPaths.add(page.path);
+      else if (page && !pages.some((existing) => existing.path === page.path)) pages.push(page);
+    }
+  }
+  if (!pages.length && oversizedPaths.size) {
+    throw Object.assign(new Error("All reachable public HTML pages exceeded the 320 KB per-page limit. Reduce page size or exclude oversized routes; SiloAI will continue indexing other pages when they are available."), { code: "all_pages_too_large" });
   }
   if (!pages.length) throw Object.assign(new Error("SiloAI could not read any public HTML pages on this site."), { code: "crawl_empty" });
   const home = pages.find((page) => page.path === "/") || pages[0];
@@ -486,6 +501,8 @@ async function crawlSite(host, priorPages = [], ownerPaths = []) {
     pages,
     profile: { title: profilePage.title, description: profilePage.description || profilePage.headings.slice(0, 3).join(" \xB7 ") || profilePage.text.slice(0, 240) },
     crawledAt: Date.now(),
+    skippedLargePages: oversizedPaths.size,
+    skippedLargePaths: [...oversizedPaths].slice(0, 10),
     changedPages: pages.filter((page) => JSON.stringify(old.get(page.path) || null) !== JSON.stringify(page)).length + [...old.keys()].filter((path) => !pages.some((page) => page.path === path)).length
   };
 }
@@ -685,7 +702,7 @@ async function crawlAndSave(site, env) {
     site.updatedAt = Date.now();
     await writeSite(env, site);
   }
-  return { pages: crawl.pages.length, changedPages: crawl.changedPages, profile: crawl.profile, lastCrawledAt: crawl.crawledAt };
+  return { pages: crawl.pages.length, changedPages: crawl.changedPages, skippedLargePages: crawl.skippedLargePages || 0, skippedLargePaths: crawl.skippedLargePaths || [], profile: crawl.profile, lastCrawledAt: crawl.crawledAt };
 }
 async function createSite(request2, env, user) {
   const body = await readJson(request2, 4e3);
@@ -867,6 +884,16 @@ function parseModelResult(result) {
   const message = result?.choices?.[0]?.message;
   return finalAnswerOnly(result?.response || result?.result?.response || message?.content || "");
 }
+function safeAiFailureDetail(failure, messages, pages) {
+  const candidates = [failure?.message, failure?.cause?.message, ...Array.isArray(failure?.errors) ? failure.errors.map((item) => item?.message) : []];
+  let detail = candidates.find((value) => typeof value === "string" && value.trim()) || "";
+  const sensitiveValues = [
+    ...Array.isArray(messages) ? messages.map((item) => item?.content) : [],
+    ...Array.isArray(pages) ? pages.flatMap((page) => [page?.path, page?.title, page?.description, ...page?.headings || [], String(page?.text || "").slice(0, 1800)]) : []
+  ].filter((value) => typeof value === "string" && value.length >= 3).sort((a, b) => b.length - a.length);
+  for (const content of sensitiveValues) detail = detail.split(content).join("[redacted]");
+  return detail.replace(/\bhttps?:\/\/[^\s<>]+/gi, "[url]").replace(/\b(?:bearer\s+)?[a-z0-9_-]{32,}\b/gi, "[redacted]").replace(/("(?:content|prompt)"\s*:\s*")[\s\S]*?(")/gi, "$1[redacted]$2").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 180);
+}
 function classifyAiFailure(failure) {
   const nestedErrors = [failure?.errors, failure?.cause?.errors].filter(Array.isArray).flat();
   const nestedDetail = nestedErrors.map((item) => `${item?.code || ""} ${item?.message || ""}`).join(" ");
@@ -893,6 +920,15 @@ function classifyAiFailure(failure) {
   }
   if (/5007|3042|no such model|invalid model|model.*not found/.test(normalized)) {
     return { category: "model_unavailable", providerCode, status, message: "The configured Workers AI model is unavailable. Check the AI_MODEL value in the Worker settings." };
+  }
+  if (status === 413 || /413|payload.{0,30}too large|prompt.{0,30}too large|input.{0,30}too large|context.{0,30}(?:length|limit)|too many tokens/.test(normalized)) {
+    return { category: "input_too_large", providerCode, status, message: "The Workers AI request exceeded the model input limit. Reduce indexed page excerpts or conversation history, then retry." };
+  }
+  if (status === 400 || /invalid (?:input|request|parameter)|unsupported (?:input|parameter|option)|chat_template_kwargs/.test(normalized)) {
+    return { category: "invalid_model_request", providerCode, status, message: "Workers AI rejected the model request format. The site owner can inspect the redacted provider message in Worker logs." };
+  }
+  if ([500, 502, 503].includes(status) || /upstream|internal server error|temporarily unavailable/.test(normalized)) {
+    return { category: "provider_unavailable", providerCode, status, message: "Cloudflare Workers AI is temporarily failing this model request. Please retry shortly; the site owner can inspect Worker logs." };
   }
   return { category: "provider_error", providerCode, status, message: "Workers AI returned an error. Please try again shortly; the site owner can inspect the Worker logs for the diagnostic code." };
 }
@@ -1009,9 +1045,15 @@ async function chat(request2, id, env, origin, ctx) {
       category: diagnostic.category,
       providerCode: diagnostic.providerCode || void 0,
       status: diagnostic.status || void 0,
-      errorName: failure?.name || "Error"
+      errorName: failure?.name || "Error",
+      providerMessage: safeAiFailureDetail(failure, messages, pages) || void 0,
+      providerErrorCount: Array.isArray(failure?.errors) ? failure.errors.length : void 0,
+      providerErrorFields: Array.isArray(failure?.errors) && failure.errors[0] ? Object.keys(failure.errors[0]).slice(0, 8) : void 0,
+      failureCauseName: failure?.cause?.name || void 0,
+      promptChars: messages.reduce((total, entry) => total + entry.content.length, 0),
+      retrievedPages: pages.length
     });
-    const status = diagnostic.category === "quota" ? 429 : diagnostic.category === "capacity" ? 503 : 502;
+    const status = diagnostic.category === "quota" ? 429 : ["capacity", "provider_unavailable"].includes(diagnostic.category) ? 503 : 502;
     const reference = diagnostic.providerCode || diagnostic.category;
     return jsonError(status, `workers_ai_${diagnostic.category}`, `${diagnostic.message} (diagnostic: ${reference}).`, origin, true);
   }
