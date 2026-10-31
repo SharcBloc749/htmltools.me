@@ -779,9 +779,11 @@ function parseModelResult(result) {
   return result?.response || result?.result?.response || result?.choices?.[0]?.message?.content || "";
 }
 function classifyAiFailure(failure) {
-  const detail = String(failure?.message || failure || "Unknown Workers AI error");
-  const codeValue = failure?.code ?? failure?.cause?.code;
-  const statusValue = failure?.status ?? failure?.statusCode ?? failure?.cause?.status;
+  const nestedErrors = [failure?.errors, failure?.cause?.errors].filter(Array.isArray).flat();
+  const nestedDetail = nestedErrors.map((item) => `${item?.code || ""} ${item?.message || ""}`).join(" ");
+  const detail = `${failure?.message || failure || ""} ${nestedDetail}`.trim() || "Unknown Workers AI error";
+  const codeValue = failure?.code ?? failure?.cause?.code ?? nestedErrors[0]?.code;
+  const statusValue = failure?.status ?? failure?.statusCode ?? failure?.cause?.status ?? nestedErrors[0]?.status;
   const providerCode = String(codeValue || detail.match(/\b(?:30|50)\d{2}\b/)?.[0] || "");
   const status = Number(statusValue) || 0;
   const normalized = `${providerCode} ${status} ${detail}`.toLowerCase();
@@ -895,6 +897,14 @@ async function chat(request2, id, env, origin, ctx) {
   try {
     const model = env.AI_MODEL || MODEL_DEFAULT;
     const result = await env.AI.run(model, { messages, max_tokens: 320, temperature: 0.35 }, { rejectIfBusy: true });
+    if (result?.success === false || Array.isArray(result?.errors) && result.errors.length) {
+      const first = result.errors?.[0] || {};
+      throw Object.assign(new Error(first.message || "Workers AI returned an error response."), {
+        code: first.code,
+        status: first.status || result.status,
+        errors: result.errors
+      });
+    }
     const modelText = parseModelResult(result);
     if (!modelText) throw new Error("The model returned an empty response.");
     if (allowNavigation) {
@@ -911,7 +921,9 @@ async function chat(request2, id, env, origin, ctx) {
       status: diagnostic.status || void 0,
       errorName: failure?.name || "Error"
     });
-    return jsonError(502, `workers_ai_${diagnostic.category}`, diagnostic.message, origin, true);
+    const status = diagnostic.category === "quota" ? 429 : diagnostic.category === "capacity" ? 503 : 502;
+    const reference = diagnostic.providerCode || diagnostic.category;
+    return jsonError(status, `workers_ai_${diagnostic.category}`, `${diagnostic.message} (diagnostic: ${reference}).`, origin, true);
   }
   await startStaleRefresh(site, env, ctx);
   return withCors(json({ reply, sources, action, confirmAction: site.actions?.confirmNavigation !== false, profileVersion: site.updatedAt }), origin, true);

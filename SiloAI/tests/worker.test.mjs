@@ -87,10 +87,7 @@ test('Workers AI failures return a specific safe diagnostic and never log messag
   console.error = (...args) => logs.push(args);
   try {
     await withGithubSite(async (env) => {
-      env.AI.run = async () => {
-        const failure = Object.assign(new Error('Model agreement is required (5016)'), { code: 5016, status: 403 });
-        throw failure;
-      };
+      env.AI.run = async () => ({ success: false, errors: [{ code: 5016, status: 403, message: 'Model agreement is required.' }] });
       const request = new Request(`https://siloai.test/chat/${site.id}`, {
         method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.12' },
         body: JSON.stringify({ message: 'private test phrase', pagePath: '/', history: [] }),
