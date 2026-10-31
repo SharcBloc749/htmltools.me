@@ -6,14 +6,14 @@ import { readFile } from 'node:fs/promises';
 const text = async (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('SiloAI dashboard, widget, source Worker, and generated Worker are present', async () => {
-  for (const path of ['../index.html', '../app.js', '../style.css', '../widget.js', '../worker.js', '../brandmark.svg', '../brandmark-v2.png', '../src/index.mjs', '../wrangler.toml']) {
+  for (const path of ['../index.html', '../app.js', '../style.css', '../widget.js', '../worker.js', '../brandmark.svg', '../brandmark-v2.png', '../brandmark-mono.png', '../src/index.mjs', '../wrangler.toml']) {
     assert.ok((await text(path)).length > 0, `${path} should exist and not be empty`);
   }
   const widget = await text('../widget.js');
   const app = await text('../app.js');
-  assert.match(app, /widget\.js\?v=3/);
-  assert.match(widget, /SiloAI\/brandmark-v2\.png/);
-  assert.match(widget, /widget\.js\?v=3/);
+  assert.match(app, /widget\.js\?v=4/);
+  assert.match(widget, /SiloAI\/brandmark-mono\.png/);
+  assert.match(widget, /widget\.js\?v=4/);
   assert.match(widget, /\.silo-fab img\{display:block;width:100%;height:100%/);
   assert.match(widget, /transform:scale\(1\.24\)/);
   const wrangler = await text('../wrangler.toml');
