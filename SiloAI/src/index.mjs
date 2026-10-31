@@ -7,6 +7,7 @@ import { SiloLimiter } from './limiter.mjs';
 export { SiloLimiter } from './limiter.mjs';
 
 const MODEL_DEFAULT = '@cf/google/gemma-4-26b-a4b-it';
+const FALLBACK_MODEL_DEFAULT = '@cf/meta/llama-3.2-1b-instruct';
 const APP_ORIGINS_DEFAULT = ['https://htmltools.me', 'https://www.htmltools.me'];
 const cleanString = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const randomToken = () => {
@@ -305,8 +306,83 @@ function parseModelResult(result) {
   return finalAnswerOnly(result?.response || result?.result?.response || message?.content || '');
 }
 
+
+async function runWorkersAi(env, model, messages, thinking, maxTokens) {
+  const input = {
+    messages,
+    max_completion_tokens: maxTokens,
+    temperature: 0.35,
+    ...(thinking === null ? {} : { chat_template_kwargs: { enable_thinking: thinking } }),
+  };
+  const result = await env.AI.run(model, input);
+  if (result?.success === false || (Array.isArray(result?.errors) && result.errors.length)) {
+    const first = result.errors?.[0] || result.error || {};
+    const errorMessage = typeof first === 'string' ? first : first.message || first.error || result.message;
+    const providerErrors = Array.isArray(result.errors) ? result.errors : (result.error ? [result.error] : []);
+    throw Object.assign(new Error(errorMessage || 'Workers AI returned an error response.'), {
+      code: first?.code ?? result.code,
+      status: first?.status || result.status,
+      errors: providerErrors,
+      resultFields: Object.keys(result).slice(0, 12),
+    });
+  }
+  return parseModelResult(result);
+}
+
+function mayRetryAiFailure(failure) {
+  return ['provider_error', 'provider_unavailable', 'capacity'].includes(classifyAiFailure(failure).category);
+}
+
+
+function combineAiFailures(primaryFailure, fallbackFailure) {
+  const combined = new Error(fallbackFailure?.message || 'The fallback Workers AI model also failed.', { cause: primaryFailure });
+  Object.assign(combined, {
+    code: fallbackFailure?.code ?? primaryFailure?.code,
+    status: fallbackFailure?.status ?? primaryFailure?.status,
+    errors: fallbackFailure?.errors,
+    resultFields: fallbackFailure?.resultFields,
+    fallbackFailureName: fallbackFailure?.name || typeof fallbackFailure,
+  });
+  return combined;
+}
+
+async function generateWithRecovery(env, primaryModel, messages) {
+  const fallbackModel = env.AI_FALLBACK_MODEL || FALLBACK_MODEL_DEFAULT;
+  let primaryText = '';
+  let primaryFailure = null;
+  try { primaryText = await runWorkersAi(env, primaryModel, messages, true, 640); }
+  catch (failure) { primaryFailure = failure; }
+  if (primaryText) return { text: primaryText, model: primaryModel, fallback: false };
+
+  if (primaryFailure && ['quota', 'input_too_large'].includes(classifyAiFailure(primaryFailure).category)) throw primaryFailure;
+
+  let retryFailure = null;
+  if (!primaryFailure || mayRetryAiFailure(primaryFailure)) {
+    const reason = primaryFailure ? classifyAiFailure(primaryFailure).category : 'empty_response';
+    console.warn('[SiloAI] Retrying Workers AI without thinking mode', { model: primaryModel, reason });
+    try {
+      const retryText = await runWorkersAi(env, primaryModel, messages, false, 512);
+      if (retryText) return { text: retryText, model: primaryModel, fallback: false };
+      retryFailure = new Error('The configured model returned an empty response after retry.');
+    } catch (failure) { retryFailure = failure; }
+  }
+
+  const cause = retryFailure || primaryFailure || new Error('The configured model returned an empty response.');
+  const category = classifyAiFailure(cause).category;
+  if (['quota', 'input_too_large'].includes(category) || fallbackModel === primaryModel) throw cause;
+
+  console.warn('[SiloAI] Trying fallback Workers AI model', { primaryModel, fallbackModel, reason: category });
+  try {
+    const fallbackText = await runWorkersAi(env, fallbackModel, messages, null, 512);
+    if (!fallbackText) throw new Error('The fallback model returned an empty response.');
+    return { text: fallbackText, model: fallbackModel, fallback: true };
+  } catch (failure) {
+    throw combineAiFailures(cause, failure);
+  }
+}
+
 function safeAiFailureDetail(failure, messages, pages) {
-  const candidates = [failure?.message, failure?.cause?.message, ...(Array.isArray(failure?.errors) ? failure.errors.map((item) => item?.message) : [])];
+  const candidates = [...(Array.isArray(failure?.errors) ? failure.errors.map((item) => item?.message) : []), failure?.cause?.message, failure?.message];
   let detail = candidates.find((value) => typeof value === 'string' && value.trim()) || '';
   const sensitiveValues = [
     ...(Array.isArray(messages) ? messages.map((item) => item?.content) : []),
@@ -445,19 +521,12 @@ async function chat(request, id, env, origin, ctx) {
   const messages = [{ role: 'system', content: system }, ...history, { role: 'user', content: message }];
   let reply;
   let action = null;
+  let usedFallbackModel = false;
   try {
     const model = env.AI_MODEL || MODEL_DEFAULT;
-    const result = await env.AI.run(model, { messages, max_completion_tokens: 640, temperature: 0.35, chat_template_kwargs: { enable_thinking: true } }, { rejectIfBusy: true });
-    if (result?.success === false || (Array.isArray(result?.errors) && result.errors.length)) {
-      const first = result.errors?.[0] || {};
-      throw Object.assign(new Error(first.message || 'Workers AI returned an error response.'), {
-        code: first.code,
-        status: first.status || result.status,
-        errors: result.errors,
-      });
-    }
-    const modelText = parseModelResult(result);
-    if (!modelText) throw new Error('The model returned an empty response.');
+    const generated = await generateWithRecovery(env, model, messages);
+    const modelText = generated.text;
+    usedFallbackModel = generated.fallback;
     if (allowNavigation) {
       const parsed = parseActionJson(modelText);
       reply = cleanString(parsed?.reply, 2_400) || modelText.slice(0, 2_400);
@@ -467,14 +536,16 @@ async function chat(request, id, env, origin, ctx) {
     const diagnostic = classifyAiFailure(failure);
     console.error('[SiloAI] Workers AI inference failed', {
       model: env.AI_MODEL || MODEL_DEFAULT,
+      fallbackModel: env.AI_FALLBACK_MODEL || FALLBACK_MODEL_DEFAULT,
       category: diagnostic.category,
       providerCode: diagnostic.providerCode || undefined,
       status: diagnostic.status || undefined,
       errorName: failure?.name || 'Error',
       providerMessage: safeAiFailureDetail(failure, messages, pages) || undefined,
-      providerErrorCount: Array.isArray(failure?.errors) ? failure.errors.length : undefined,
-      providerErrorFields: Array.isArray(failure?.errors) && failure.errors[0] ? Object.keys(failure.errors[0]).slice(0, 8) : undefined,
+      providerErrorCount: (Array.isArray(failure?.errors) ? failure.errors.length : 0) || (Array.isArray(failure?.cause?.errors) ? failure.cause.errors.length : undefined),
+      providerErrorFields: (Array.isArray(failure?.errors) && failure.errors[0] ? Object.keys(failure.errors[0]).slice(0, 8) : undefined) || (Array.isArray(failure?.cause?.errors) && failure.cause.errors[0] ? Object.keys(failure.cause.errors[0]).slice(0, 8) : undefined),
       failureCauseName: failure?.cause?.name || undefined,
+      resultFields: failure?.resultFields || undefined,
       promptChars: messages.reduce((total, entry) => total + entry.content.length, 0),
       retrievedPages: pages.length,
     });
@@ -483,7 +554,7 @@ async function chat(request, id, env, origin, ctx) {
     return jsonError(status, `workers_ai_${diagnostic.category}`, `${diagnostic.message} (diagnostic: ${reference}).`, origin, true);
   }
   await startStaleRefresh(site, env, ctx);
-  return withCors(json({ reply, sources, action, confirmAction: site.actions?.confirmNavigation !== false, profileVersion: site.updatedAt }), origin, true);
+  return withCors(json({ reply, sources, action, confirmAction: site.actions?.confirmNavigation !== false, profileVersion: site.updatedAt, modelFallback: usedFallbackModel }), origin, true);
 }
 
 export default {
@@ -491,7 +562,7 @@ export default {
     const url = new URL(request.url);
     const origin = request.headers.get('origin') || '';
     if (url.pathname === '/health' && request.method === 'GET') {
-      return json({ ok: true, service: 'siloai', ai: Boolean(env.AI), model: env.AI_MODEL || MODEL_DEFAULT, storage: Boolean(env.GITHUB_TOKEN && env.GITHUB_REPO), auth: Boolean(env.FIREBASE_PROJECT_ID), limits: Boolean(env.LIMITER) });
+      return json({ ok: true, service: 'siloai', ai: Boolean(env.AI), model: env.AI_MODEL || MODEL_DEFAULT, fallbackModel: env.AI_FALLBACK_MODEL || FALLBACK_MODEL_DEFAULT, storage: Boolean(env.GITHUB_TOKEN && env.GITHUB_REPO), auth: Boolean(env.FIREBASE_PROJECT_ID), limits: Boolean(env.LIMITER) });
     }
     if (url.pathname.startsWith('/api/')) return ownerApi(request, url, env, origin);
     const chatMatch = /^\/chat\/([a-f0-9]{24})$/.exec(url.pathname);
