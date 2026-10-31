@@ -92,7 +92,7 @@ test('Workers AI failures return a specific safe diagnostic and never log messag
   console.error = (...args) => logs.push(args);
   try {
     await withGithubSite(async (env) => {
-      env.AI.run = async () => ({ success: false, errors: [{ code: 5016, status: 403, message: 'Model agreement is required.' }] });
+      env.AI.run = async () => ({ success: false, errors: [{ code: 5016, status: 403, message: 'Model agreement is required for request \"private test phrase\"; context \"The Library lets you browse books and open the Studio.\".' }] });
       const request = new Request(`https://siloai.test/chat/${site.id}`, {
         method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.12' },
         body: JSON.stringify({ message: 'private test phrase', pagePath: '/', history: [] }),
@@ -105,8 +105,27 @@ test('Workers AI failures return a specific safe diagnostic and never log messag
     }, site, 'unused');
     assert.equal(logs.length, 1);
     assert.match(JSON.stringify(logs), /5016/);
+    assert.match(JSON.stringify(logs), /Model agreement is required/);
+    assert.match(JSON.stringify(logs), /\[redacted\]/);
     assert.doesNotMatch(JSON.stringify(logs), /private test phrase/);
+    assert.doesNotMatch(JSON.stringify(logs), /The Library lets you browse books/);
   } finally { console.error = originalError; }
+});
+
+
+test('oversized provider prompts get a specific, actionable diagnostic', async () => {
+  await withGithubSite(async (env) => {
+    env.AI.run = async () => ({ success: false, errors: [{ status: 413, message: 'Prompt input is too large for this model.' }] });
+    const request = new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.18' },
+      body: JSON.stringify({ message: 'hello', pagePath: '/', history: [] }),
+    });
+    const response = await worker.fetch(request, env, { waitUntil() {} });
+    const payload = await response.json();
+    assert.equal(response.status, 502);
+    assert.equal(payload.error.code, 'workers_ai_input_too_large');
+    assert.match(payload.error.message, /Reduce indexed page excerpts/);
+  }, site, 'unused');
 });
 
 test('navigation actions are restricted to indexed internal pages and confirmation defaults on', async () => {

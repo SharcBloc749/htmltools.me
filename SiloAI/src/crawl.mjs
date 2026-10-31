@@ -52,7 +52,7 @@ function sameVerifiedHost(left, right) {
 
 async function readLimited(response, maxBytes) {
   const declared = Number(response.headers.get('content-length') || 0);
-  if (declared > maxBytes) throw new Error('page_too_large');
+  if (declared > maxBytes) throw Object.assign(new Error('The page exceeded the per-response crawl limit.'), { code: 'page_too_large' });
   if (!response.body) return '';
   const reader = response.body.getReader();
   const chunks = [];
@@ -62,7 +62,7 @@ async function readLimited(response, maxBytes) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.byteLength;
-      if (total > maxBytes) { await reader.cancel(); throw new Error('page_too_large'); }
+      if (total > maxBytes) { await reader.cancel().catch(() => {}); throw Object.assign(new Error('The page exceeded the per-response crawl limit.'), { code: 'page_too_large' }); }
       chunks.push(value);
     }
   } finally { try { reader.releaseLock(); } catch { /* ignored */ } }
@@ -95,14 +95,20 @@ async function fetchSameHost(url, host, maxBytes, fetchImpl = fetch) {
     if (!response.ok) return null;
     const type = response.headers.get('content-type') || '';
     if (!/(text\/html|application\/xhtml\+xml|application\/xml|text\/xml|text\/plain)/i.test(type)) return null;
-    const body = await readLimited(response, maxBytes);
-    return { url: current.href, body, type };
+    try {
+      const body = await readLimited(response, maxBytes);
+      return { url: current.href, body, type };
+    } catch (failure) {
+      if (failure?.code === 'page_too_large') return { url: current.href, body: '', type, tooLarge: true };
+      throw failure;
+    }
   }
   return null;
 }
 
 async function loadRobotsPolicy(host) {
   const response = await fetchSameHost(hostUrl(host, '/robots.txt'), host, 80_000);
+  if (response?.tooLarge) throw Object.assign(new Error('robots.txt exceeds the 80 KB safety limit, so its crawl rules cannot be checked.'), { code: 'robots_too_large' });
   if (!response) return { disallow: [], allow: [], sitemaps: [] };
   let active = false;
   const disallow = [];
@@ -220,7 +226,7 @@ async function sitemapPaths(host, robots) {
     if (seenSitemaps.has(sitemapUrl)) continue;
     seenSitemaps.add(sitemapUrl);
     const result = await fetchSameHost(sitemapUrl, host, MAX_SITEMAP_BYTES);
-    if (!result || !/xml/i.test(result.type)) continue;
+    if (!result || result.tooLarge || !/xml/i.test(result.type)) continue;
     if (/<(?:[\w.-]+:)?sitemapindex\b/i.test(result.body)) {
       for (const match of result.body.matchAll(/<(?:[\w.-]+:)?loc\b[^>]*>\s*([^<]+)\s*<\/(?:[\w.-]+:)?loc\s*>/gi)) {
         const child = safeSitemapUrl(decodeEntities(match[1].trim()), host, robots);
@@ -243,7 +249,7 @@ async function sitemapPaths(host, robots) {
 
 export async function verifyDomainFile(host, token, fetchImpl = fetch) {
   const response = await fetchSameHost(hostUrl(host, '/.well-known/siloai-verification.txt'), host, 4_096, fetchImpl);
-  return Boolean(response && response.body.trim() === `siloai-verification=${token}`);
+  return Boolean(response && !response.tooLarge && response.body.trim() === `siloai-verification=${token}`);
 }
 
 export async function crawlSite(host, priorPages = [], ownerPaths = []) {
@@ -255,6 +261,7 @@ export async function crawlSite(host, priorPages = [], ownerPaths = []) {
   const queue = [{ path: '/', depth: 0 }, ...seeds.map((path) => ({ path, depth: 1 })), ...sitemap.map((path) => ({ path, depth: 1 }))];
   const queued = new Set();
   const pages = [];
+  const oversizedPaths = new Set();
   while (queue.length && pages.length < MAX_PAGES) {
     const batch = [];
     while (queue.length && batch.length < 4 && pages.length + batch.length < MAX_PAGES) {
@@ -267,12 +274,19 @@ export async function crawlSite(host, priorPages = [], ownerPaths = []) {
     if (!batch.length) continue;
     const results = await Promise.all(batch.map(async (item) => {
       const result = await fetchSameHost(hostUrl(host, item.path), host, MAX_PAGE_BYTES);
+      if (result?.tooLarge) return { tooLarge: true, path: item.path };
       if (!result || !/html/i.test(result.type)) return null;
       const page = parsePage(result.url, result.body);
       if (item.depth < 3) for (const path of page.links) if (!queued.has(path)) queue.push({ path, depth: item.depth + 1 });
       return page;
     }));
-    for (const page of results) if (page && !pages.some((existing) => existing.path === page.path)) pages.push(page);
+    for (const page of results) {
+      if (page?.tooLarge) oversizedPaths.add(page.path);
+      else if (page && !pages.some((existing) => existing.path === page.path)) pages.push(page);
+    }
+  }
+  if (!pages.length && oversizedPaths.size) {
+    throw Object.assign(new Error('All reachable public HTML pages exceeded the 320 KB per-page limit. Reduce page size or exclude oversized routes; SiloAI will continue indexing other pages when they are available.'), { code: 'all_pages_too_large' });
   }
   if (!pages.length) throw Object.assign(new Error('SiloAI could not read any public HTML pages on this site.'), { code: 'crawl_empty' });
   const home = pages.find((page) => page.path === '/') || pages[0];
@@ -281,6 +295,8 @@ export async function crawlSite(host, priorPages = [], ownerPaths = []) {
     pages,
     profile: { title: profilePage.title, description: profilePage.description || profilePage.headings.slice(0, 3).join(' · ') || profilePage.text.slice(0, 240) },
     crawledAt: Date.now(),
+    skippedLargePages: oversizedPaths.size,
+    skippedLargePaths: [...oversizedPaths].slice(0, 10),
     changedPages: pages.filter((page) => JSON.stringify(old.get(page.path) || null) !== JSON.stringify(page)).length + [...old.keys()].filter((path) => !pages.some((page) => page.path === path)).length,
   };
 }

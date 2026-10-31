@@ -81,6 +81,25 @@ test('crawler expands sitemap indexes and robots sitemap directives while using 
   } finally { restoreFetch(); }
 });
 
+
+test('an oversized page is skipped without stopping the rest of the crawl', async () => {
+  const routes = new Map([
+    ['https://example.com/robots.txt', new Response('User-agent: *\nAllow: /', { headers: { 'content-type': 'text/plain' } })],
+    ['https://example.com/sitemap.xml', new Response('<urlset><url><loc>https://example.com/large</loc></url><url><loc>https://example.com/small</loc></url></urlset>', { headers: { 'content-type': 'application/xml' } })],
+    ['https://example.com/', htmlResponse('<title>Home</title><h1>Home</h1>')],
+    ['https://example.com/large', new Response('<title>Huge</title>', { headers: { 'content-type': 'text/html', 'content-length': '320001' } })],
+    ['https://example.com/small', htmlResponse('<title>Small page</title><h1>Small page</h1><p>This should still be indexed.</p>')],
+  ]);
+  setFetch(async (url) => routes.get(String(url)) || new Response('not found', { status: 404, headers: { 'content-type': 'text/plain' } }));
+  try {
+    const result = await crawlSite('example.com');
+    assert.ok(result.pages.some((page) => page.path === '/small'));
+    assert.equal(result.pages.some((page) => page.path === '/large'), false);
+    assert.equal(result.skippedLargePages, 1);
+    assert.deepEqual(result.skippedLargePaths, ['/large']);
+  } finally { restoreFetch(); }
+});
+
 test('robots.txt disallow blocks crawling and verification requires an exact token file', async () => {
   setFetch(async (url) => {
     if (String(url).endsWith('/robots.txt')) return new Response('User-agent: *\nDisallow: /', { headers: { 'content-type': 'text/plain' } });

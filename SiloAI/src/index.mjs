@@ -130,7 +130,7 @@ async function crawlAndSave(site, env) {
     site.updatedAt = Date.now();
     await writeSite(env, site);
   }
-  return { pages: crawl.pages.length, changedPages: crawl.changedPages, profile: crawl.profile, lastCrawledAt: crawl.crawledAt };
+  return { pages: crawl.pages.length, changedPages: crawl.changedPages, skippedLargePages: crawl.skippedLargePages || 0, skippedLargePaths: crawl.skippedLargePaths || [], profile: crawl.profile, lastCrawledAt: crawl.crawledAt };
 }
 
 async function createSite(request, env, user) {
@@ -305,6 +305,21 @@ function parseModelResult(result) {
   return finalAnswerOnly(result?.response || result?.result?.response || message?.content || '');
 }
 
+function safeAiFailureDetail(failure, messages, pages) {
+  const candidates = [failure?.message, failure?.cause?.message, ...(Array.isArray(failure?.errors) ? failure.errors.map((item) => item?.message) : [])];
+  let detail = candidates.find((value) => typeof value === 'string' && value.trim()) || '';
+  const sensitiveValues = [
+    ...(Array.isArray(messages) ? messages.map((item) => item?.content) : []),
+    ...(Array.isArray(pages) ? pages.flatMap((page) => [page?.path, page?.title, page?.description, ...(page?.headings || []), String(page?.text || '').slice(0, 1_800)]) : []),
+  ].filter((value) => typeof value === 'string' && value.length >= 3).sort((a, b) => b.length - a.length);
+  for (const content of sensitiveValues) detail = detail.split(content).join('[redacted]');
+  return detail
+    .replace(/\bhttps?:\/\/[^\s<>]+/gi, '[url]')
+    .replace(/\b(?:bearer\s+)?[a-z0-9_-]{32,}\b/gi, '[redacted]')
+    .replace(/("(?:content|prompt)"\s*:\s*")[\s\S]*?(")/gi, '$1[redacted]$2')
+    .replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, 180);
+}
+
 function classifyAiFailure(failure) {
   const nestedErrors = [failure?.errors, failure?.cause?.errors]
     .filter(Array.isArray).flat();
@@ -333,6 +348,15 @@ function classifyAiFailure(failure) {
   }
   if (/5007|3042|no such model|invalid model|model.*not found/.test(normalized)) {
     return { category: 'model_unavailable', providerCode, status, message: 'The configured Workers AI model is unavailable. Check the AI_MODEL value in the Worker settings.' };
+  }
+  if (status === 413 || /413|payload.{0,30}too large|prompt.{0,30}too large|input.{0,30}too large|context.{0,30}(?:length|limit)|too many tokens/.test(normalized)) {
+    return { category: 'input_too_large', providerCode, status, message: 'The Workers AI request exceeded the model input limit. Reduce indexed page excerpts or conversation history, then retry.' };
+  }
+  if (status === 400 || /invalid (?:input|request|parameter)|unsupported (?:input|parameter|option)|chat_template_kwargs/.test(normalized)) {
+    return { category: 'invalid_model_request', providerCode, status, message: 'Workers AI rejected the model request format. The site owner can inspect the redacted provider message in Worker logs.' };
+  }
+  if ([500, 502, 503].includes(status) || /upstream|internal server error|temporarily unavailable/.test(normalized)) {
+    return { category: 'provider_unavailable', providerCode, status, message: 'Cloudflare Workers AI is temporarily failing this model request. Please retry shortly; the site owner can inspect Worker logs.' };
   }
   return { category: 'provider_error', providerCode, status, message: 'Workers AI returned an error. Please try again shortly; the site owner can inspect the Worker logs for the diagnostic code.' };
 }
@@ -447,8 +471,14 @@ async function chat(request, id, env, origin, ctx) {
       providerCode: diagnostic.providerCode || undefined,
       status: diagnostic.status || undefined,
       errorName: failure?.name || 'Error',
+      providerMessage: safeAiFailureDetail(failure, messages, pages) || undefined,
+      providerErrorCount: Array.isArray(failure?.errors) ? failure.errors.length : undefined,
+      providerErrorFields: Array.isArray(failure?.errors) && failure.errors[0] ? Object.keys(failure.errors[0]).slice(0, 8) : undefined,
+      failureCauseName: failure?.cause?.name || undefined,
+      promptChars: messages.reduce((total, entry) => total + entry.content.length, 0),
+      retrievedPages: pages.length,
     });
-    const status = diagnostic.category === 'quota' ? 429 : diagnostic.category === 'capacity' ? 503 : 502;
+    const status = diagnostic.category === 'quota' ? 429 : ['capacity', 'provider_unavailable'].includes(diagnostic.category) ? 503 : 502;
     const reference = diagnostic.providerCode || diagnostic.category;
     return jsonError(status, `workers_ai_${diagnostic.category}`, `${diagnostic.message} (diagnostic: ${reference}).`, origin, true);
   }

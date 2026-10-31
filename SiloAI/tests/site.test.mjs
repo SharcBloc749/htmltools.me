@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 const text = async (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('SiloAI dashboard, widget, source Worker, and generated Worker are present', async () => {
-  for (const path of ['../index.html', '../app.js', '../style.css', '../widget.js', '../worker.js', '../brandmark.svg', '../brandmark-v2.png', '../brandmark-mono.png', '../src/index.mjs', '../wrangler.toml']) {
+  for (const path of ['../index.html', '../app.js', '../style.css', '../widget.js', '../worker.js', '../brandmark.svg', '../brandmark-v2.png', '../brandmark-mono.png', '../src/index.mjs', '../wrangler.toml', '../../_headers']) {
     assert.ok((await text(path)).length > 0, `${path} should exist and not be empty`);
   }
   const widget = await text('../widget.js');
@@ -15,9 +15,14 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.match(styles, /--bg:#080808/);
   assert.match(styles, /--text:#f5f5f5/);
   assert.doesNotMatch(styles, /#(?:9681ed|b3a3ff|9b85f0|7863be)/i, 'the dashboard palette should stay grayscale');
-  assert.match(app, /widget\.js\?v=6/);
+  assert.ok(app.includes('widget.js" data-site-id='));
+  assert.doesNotMatch(app, /widget\.js\?v=/, 'dashboard snippets should keep a stable versionless URL');
+  const headers = await text('../../_headers');
+  assert.match(headers, /\/SiloAI\/widget\.js[\s\S]*Cache-Control: public, max-age=0, must-revalidate/);
+  assert.match(headers, /CDN-Cache-Control: no-cache/);
   assert.match(widget, /SiloAI\/brandmark-mono\.png/);
-  assert.match(widget, /widget\.js\?v=6/);
+  assert.ok(widget.includes('widget.js" data-site-id='));
+  assert.doesNotMatch(widget, /widget\.js\?v=/, 'the install example should not require version edits');
   assert.match(widget, /\.silo-fab img\{display:block;width:100%;height:100%/);
   assert.match(widget, /border-radius:14px/);
   assert.match(widget, /transform:none/);
