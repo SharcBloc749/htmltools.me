@@ -5,9 +5,12 @@ import { readFile } from 'node:fs/promises';
 const text = async (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('SiloAI dashboard, widget, source Worker, and generated Worker are present', async () => {
-  for (const path of ['../index.html', '../app.js', '../style.css', '../widget.js', '../worker.js', '../src/index.mjs', '../wrangler.toml']) {
+  for (const path of ['../index.html', '../app.js', '../style.css', '../widget.js', '../worker.js', '../brandmark.svg', '../src/index.mjs', '../wrangler.toml']) {
     assert.ok((await text(path)).length > 0, `${path} should exist and not be empty`);
   }
+  const widget = await text('../widget.js');
+  assert.match(widget, /SiloAI\/brandmark\.svg/);
+  assert.match(widget, /\.silo-fab img\{display:block;width:100%;height:100%/);
   const wrangler = await text('../wrangler.toml');
   assert.match(wrangler, /name\s*=\s*"siloai"/);
   assert.match(wrangler, /binding\s*=\s*"AI"/);

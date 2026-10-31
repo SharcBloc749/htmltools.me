@@ -292,6 +292,35 @@ function parseModelResult(result) {
   return result?.response || result?.result?.response || result?.choices?.[0]?.message?.content || '';
 }
 
+function classifyAiFailure(failure) {
+  const detail = String(failure?.message || failure || 'Unknown Workers AI error');
+  const codeValue = failure?.code ?? failure?.cause?.code;
+  const statusValue = failure?.status ?? failure?.statusCode ?? failure?.cause?.status;
+  const providerCode = String(codeValue || detail.match(/\b(?:30|50)\d{2}\b/)?.[0] || '');
+  const status = Number(statusValue) || 0;
+  const normalized = `${providerCode} ${status} ${detail}`.toLowerCase();
+
+  if (/5016|model agreement|terms of (?:service|use)|accept.*agreement/.test(normalized)) {
+    return { category: 'model_agreement', providerCode, status, message: 'Cloudflare requires acceptance of this model’s terms. In Workers AI, open the selected model and accept its terms, then try again.' };
+  }
+  if (/5018|3041|account.*(?:not allowed|not authorized)|access denied/.test(normalized)) {
+    return { category: 'model_access', providerCode, status, message: 'This Cloudflare account is not authorized to use the selected model. Check the model’s access requirements in Workers AI.' };
+  }
+  if (/5035|requires? (?:a )?paid plan|paid plan required/.test(normalized)) {
+    return { category: 'plan_required', providerCode, status, message: 'The selected Workers AI model requires a plan that this account does not currently have.' };
+  }
+  if (/3036|daily free allocation|quota|usage limit/.test(normalized)) {
+    return { category: 'quota', providerCode, status, message: 'The Workers AI account has reached its current usage allocation. Please try again after it resets.' };
+  }
+  if (/3040|capacity|busy|429/.test(normalized)) {
+    return { category: 'capacity', providerCode, status, message: 'Cloudflare Workers AI is temporarily at capacity. Please try again shortly.' };
+  }
+  if (/5007|3042|no such model|invalid model|model.*not found/.test(normalized)) {
+    return { category: 'model_unavailable', providerCode, status, message: 'The configured Workers AI model is unavailable. Check the AI_MODEL value in the Worker settings.' };
+  }
+  return { category: 'provider_error', providerCode, status, message: 'Workers AI returned an error. Please try again shortly; the site owner can inspect the Worker logs for the diagnostic code.' };
+}
+
 function parseActionJson(text) {
   try { return JSON.parse(text); } catch { /* try a JSON object embedded in a code fence */ }
   const match = /\{[\s\S]*\}/.exec(text);
@@ -376,7 +405,8 @@ async function chat(request, id, env, origin, ctx) {
   let reply;
   let action = null;
   try {
-    const result = await env.AI.run(env.AI_MODEL || MODEL_DEFAULT, { messages, max_tokens: 320, temperature: 0.35 });
+    const model = env.AI_MODEL || MODEL_DEFAULT;
+    const result = await env.AI.run(model, { messages, max_tokens: 320, temperature: 0.35 }, { rejectIfBusy: true });
     const modelText = parseModelResult(result);
     if (!modelText) throw new Error('The model returned an empty response.');
     if (allowNavigation) {
@@ -385,7 +415,15 @@ async function chat(request, id, env, origin, ctx) {
       action = validateAction(parsed?.action, site);
     } else reply = cleanString(modelText, 2_400);
   } catch (failure) {
-    return jsonError(502, 'model_error', 'SiloAI could not reach its model. Please try again shortly.', origin, true);
+    const diagnostic = classifyAiFailure(failure);
+    console.error('[SiloAI] Workers AI inference failed', {
+      model: env.AI_MODEL || MODEL_DEFAULT,
+      category: diagnostic.category,
+      providerCode: diagnostic.providerCode || undefined,
+      status: diagnostic.status || undefined,
+      errorName: failure?.name || 'Error',
+    });
+    return jsonError(502, `workers_ai_${diagnostic.category}`, diagnostic.message, origin, true);
   }
   await startStaleRefresh(site, env, ctx);
   return withCors(json({ reply, sources, action, confirmAction: site.actions?.confirmNavigation !== false, profileVersion: site.updatedAt }), origin, true);
