@@ -4,12 +4,23 @@ This package targets **htmltools2** (data) and verifies sessions from **htmltool
 
 ## What changed
 
-- `/Admin/Library/` accepts only the verified owner. The browser receives a short-lived data-project custom token with a server-minted `libraryOwner` claim; legacy `siteConfig/adminEmails` allowlists are ignored and cannot be written by clients.
+- `/Admin/Library/` accepts only the verified `matthewbozhe@gmail.com` account. The browser receives a short-lived data-project custom token with a server-minted `libraryOwner` claim after the backend verifies the signed legacy-project ID token and its verified email. No owner UID environment variable is required; legacy `siteConfig/adminEmails` allowlists do not grant owner access.
 - Likes, views, playtime and ratings are written by callable Cloud Functions using the Admin SDK. RTDB rules deny direct client counter writes, including writes by an owner browser session.
 - `/Library/` chat no longer contains the `/ai` command or browser-side Groq key fetch.
 - Owner-only **Engagement** panel: enter total views, likes and hours, preview a bounded random split across every published book, then **Share**. The sum of per-book additions equals the entered totals exactly. Existing counters are preserved. Each preview can be applied once; retries are idempotent per book.
 
 ## Deployment (operator required)
+
+For this fix, Cloud Functions need a redeploy; no owner UID or `.env` setting is required. Deploy the static Pages frontend too so users get the clearer error message:
+
+```sh
+cd firebase/library
+npm ci
+cd server && npm ci && cd ..
+npx firebase-tools deploy --only functions --project htmltools2
+```
+
+Use a Firebase CLI account with deploy access to `htmltools2`. The commands below describe a first-time deployment where functions and rules are deployed together.
 
 1. Install dependencies:
    ```sh
@@ -17,21 +28,16 @@ This package targets **htmltools2** (data) and verifies sessions from **htmltool
    npm ci
    cd server && npm ci && cd ..
    ```
-2. Configure the owner UID **server-side**. With trusted ADC for the legacy Auth project:
-   ```sh
-   node set-owner.mjs
-   ```
-   Copy the printed `LIBRARY_OWNER_UID=...` into `firebase/library/server/.env` (the Functions source directory; see `firebase/library/.env.example` for the variable format). Never put this value or service-account keys in HTML/Git. If it is missing, regular users can still establish Library sessions, but `/Admin/Library/` fails closed with a clear setup message and owner-only callables are denied (rather than making every Library session fail with `internal`).
-3. Validate rules with the official emulator (Java 21+):
+2. Validate rules with the official emulator (Java 21+):
    ```sh
    npx firebase-tools emulators:exec --project demo-htmltools-library --only database "npm run test:rules"
    ```
-4. Back up the current `htmltools2` RTDB rules/data. Deploy functions and rules together:
+3. Back up the current `htmltools2` RTDB rules/data. Deploy functions and rules together:
    ```sh
    npm run deploy
    ```
-   The static frontend must be deployed in the same window. Old clients that write counters directly will be denied.
-5. Sign out/in as `matthewbozhe@gmail.com`, open `/Admin/Library/`, and verify non-owner accounts are denied. Test like/unlike from `/Library/` and the player, then preview/Share a small engagement total and confirm exact sums in `bookStats`.
+   No `LIBRARY_OWNER_UID` or other owner-specific environment setting is needed. The static frontend must be deployed in the same window. Old clients that write counters directly will be denied.
+4. Sign out/in as the verified `matthewbozhe@gmail.com` account, open `/Admin/Library/`, and verify non-owner accounts are denied. Test like/unlike from `/Library/` and the player, then preview/Share a small engagement total and confirm exact sums in `bookStats`.
 
 ## Callable CORS / invoker (fixes `createLibrarySession` preflight failures)
 
@@ -44,7 +50,7 @@ cors: ['https://htmltools.me', 'https://www.htmltools.me'],
 invoker: 'public'
 ```
 
-`invoker: 'public'` is **not** anonymous data access. Every handler still verifies a Firebase ID token, the `librarySession` claim, and (for owner controls) `LIBRARY_OWNER_UID`.
+`invoker: 'public'` is **not** anonymous data access. Every handler still verifies a Firebase ID token and the `librarySession` claim; owner controls additionally require a server-minted `libraryOwner` claim, issued only for the exact verified owner email.
 
 Redeploy, then verify/repair IAM if the service already existed as private:
 

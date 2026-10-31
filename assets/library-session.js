@@ -9,15 +9,17 @@ export function createLibraryBridge(oldApp, newApp) {
   const dataAuth = getAuth(newApp);
   let pending = null;
   let owner = false;
-  let ownerConfigured = true;
   function explain(error) {
     const code = error?.code || '';
     const details = String(error?.message || '');
     if (String(code).includes('appCheck') || /app.?check/i.test(details)) {
       return new Error('Firebase App Check rejected this site. Configure a valid App Check key for htmltools.me or disable App Check enforcement until it is registered.');
     }
-    if (['functions/internal', 'functions/unavailable', 'internal', 'unavailable'].includes(code)) {
-      return new Error('The Library backend is unreachable or could not complete this request. Check that firebase/library functions are deployed and the Cloud Run services allow public invocation (see firebase/library/README.md).');
+    if (['functions/internal', 'internal'].includes(code)) {
+      return new Error('The Library backend returned an internal error. Deploy the current firebase/library Cloud Functions to htmltools2 (no owner UID is required); if it continues, check the function logs.');
+    }
+    if (['functions/unavailable', 'unavailable'].includes(code)) {
+      return new Error('The Library backend is unavailable. Check that firebase/library functions are deployed and the Cloud Run services allow public invocation (see firebase/library/README.md).');
     }
     return error;
   }
@@ -30,8 +32,7 @@ export function createLibraryBridge(oldApp, newApp) {
       if (!data?.customToken) throw new Error('Library session was not issued.');
       const credential = await signInWithCustomToken(dataAuth, data.customToken);
       owner = data.owner === true;
-      ownerConfigured = data.ownerConfigured !== false;
-      return { owner, ownerConfigured, user: credential.user };
+      return { owner, user: credential.user };
     } catch (error) {
       throw explain(error);
     }
@@ -39,7 +40,6 @@ export function createLibraryBridge(oldApp, newApp) {
   return {
     dataAuth,
     get owner() { return owner; },
-    get ownerConfigured() { return ownerConfigured; },
     ready() { if (!pending) pending = connect().finally(() => { pending = null; }); return pending; },
     async call(name, payload) {
       try { return await httpsCallable(newFunctions, name)(payload); }

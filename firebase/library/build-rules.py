@@ -1,8 +1,8 @@
 """Generate deny-by-default RTDB rules for the htmltools2 Library project.
 
 The libraryOwner claim is minted only by createLibrarySession after verifying
-the old-project ID token, verified email and configured owner UID. Browser
-allowlists and email comparisons are never authorization.
+the old-project ID token and exact verified owner email. Browser-side
+allowlists or email comparisons are never authorization.
 """
 import json
 from pathlib import Path

@@ -42,16 +42,19 @@ test('callable functions declare production CORS and public Cloud Run invoker',(
 });
 test('bridge surfaces actionable backend/App Check errors for sessions and calls',()=>{
   const s=read('assets/library-session.js');
-  assert.ok(s.includes('Library backend is unreachable'));
+  assert.ok(s.includes('Library backend returned an internal error'));
+  assert.ok(s.includes('no owner UID is required'));
   assert.ok(s.includes('App Check rejected this site'));
   assert.ok(s.includes("catch (error) {\n      throw explain(error);"));
-  assert.ok(s.includes('ownerConfigured'));
+  assert.ok(s.includes("getFunctions(newApp, 'us-central1')"));
 });
-test('missing owner configuration fails closed without breaking regular Library sessions',()=>{
+test('owner access and Library sessions work without a UID configuration',()=>{
   const backend=read('firebase/library/server/index.js');
   const admin=read('Admin/Library/index.html');
-  assert.ok(backend.includes("defineString('LIBRARY_OWNER_UID', { default: '' })"));
-  assert.ok(backend.includes("if (!configured) throw new HttpsError('failed-precondition'"));
-  assert.ok(backend.includes('ownerConfigured: !!configured'));
-  assert.ok(admin.includes('Owner access is not configured on the Library backend'));
+  assert.ok(backend.includes("const OWNER_EMAIL = 'matthewbozhe@gmail.com'"));
+  assert.ok(backend.includes('token.email_verified === true'));
+  assert.ok(backend.includes('token.email.toLowerCase() === OWNER_EMAIL'));
+  assert.ok(backend.includes('libraryOwner: true'));
+  assert.ok(!backend.includes('LIBRARY_OWNER_UID'));
+  assert.ok(admin.includes('verified owner account'));
 });
