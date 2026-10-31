@@ -80,6 +80,18 @@ rules['art_museum_likes']={'$id':{'$uid':{'.read':own,'.write':own+" && root.chi
 for collection, detail, field in [('slidesai_index','slidesai_library','ownerUid'),('art_museum_index','art_museum','publisherUid')]:
     rules[collection]['$id']['.validate'] = f"newData.parent().parent().child('{detail}').child($id).child('{field}').val() === newData.child('{field}').val() && newData.child('created').isNumber()"
 rules['conversation_index']['$uid']['$kind']['$id']['.validate'] = "$kind.matches(/^(playground|image_ai|image_gen|research)$/) && newData.child('updated').isNumber()"
+# SiloAI dashboard references are owner-private, small, and contain no crawl payloads.
+rules['siloai_users'] = {'$uid': {
+    '.read': own,
+    '.write': own,
+    'sites': {'$siteId': {
+        '.validate': "$siteId.matches(/^[a-f0-9]{24}$/) && newData.hasChildren(['domain','createdAt'])",
+        'domain': string(253),
+        'createdAt': number(),
+        '$other': {'.validate': False}
+    }},
+    '$other': {'.validate': False}
+}}
 # Presence writes may not exceed 5 Hz per UID. Client sends at most 4 Hz.
 rules['art_presence']['$room']['$uid']['.write'] += " && (!data.exists() || !newData.exists() || newData.child('ts').val() >= data.child('ts').val() + 200)"
 # Chat cooldown is checked against old state and must be advanced atomically.
