@@ -424,6 +424,26 @@ test('chat sends current-route identity and refuses to mislabel homepage context
   }, site, 'The route is not indexed yet, so I can’t confirm its contents.');
 });
 
+test('chat uses a bounded current-page excerpt and explicitly labeled opt-in editor text', async () => {
+  await withGithubSite(async (env) => {
+    const pageExcerpt = 'P'.repeat(2_600);
+    const editorText = 'E'.repeat(3_200);
+    const request = new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.16' },
+      body: JSON.stringify({ message: 'What is this page about?', pagePath: '/another-route', pageTitle: 'Current route', pageExcerpt, editorText, history: [] }),
+    });
+    const response = await worker.fetch(request, env, { waitUntil() {} });
+    assert.equal(response.status, 200);
+    const system = envFor.lastInput.messages[0].content;
+    assert.match(system, /VISIBLE CURRENT-PAGE EXCERPT/);
+    assert.ok(system.includes('P'.repeat(2_500)), 'the visible excerpt is capped at 2,500 characters');
+    assert.ok(!system.includes('P'.repeat(2_501)), 'the visible excerpt is not forwarded beyond its cap');
+    assert.match(system, /VISITOR-SELECTED EDITOR TEXT \(the visitor explicitly opted in to share this content/);
+    assert.ok(system.includes('E'.repeat(3_000)), 'opt-in editor text is capped at 3,000 characters');
+    assert.ok(!system.includes('E'.repeat(3_001)), 'editor text is not forwarded beyond its cap');
+  }, site, 'The visible page contains content.');
+});
+
 test('chat returns only Gemma final answer text when thinking markers are included', async () => {
   await withGithubSite(async (env) => {
     env.AI.run = async () => ({ response: '<|channel>thought\nprivate chain of thought must not reach visitors\n<|channel>final\nThe indexed page explains the tool.' });
