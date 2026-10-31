@@ -4,7 +4,7 @@ This package targets **htmltools2** (data) and verifies sessions from **htmltool
 
 ## What changed
 
-- `/Admin/Library/` accepts only the verified `matthewbozhe@gmail.com` account. The browser receives a short-lived data-project custom token with a server-minted `libraryOwner` claim after the backend verifies the signed legacy-project ID token and its verified email. No owner UID environment variable is required; legacy `siteConfig/adminEmails` allowlists do not grant owner access.
+- `/Admin/Library/` accepts only the authenticated `matthewbozhe@gmail.com` account: the UI gate checks the signed-in email directly (Firebase Auth has already verified the password), so a backend outage can no longer lock the owner out of the panel. Privileged engagement actions and privileged RTDB reads still require the server-minted session: the browser receives a short-lived data-project custom token with a `libraryOwner` claim after the backend verifies the signed legacy-project ID token and its verified email. No owner UID environment variable is required; legacy `siteConfig/adminEmails` allowlists do not grant owner access.
 - Likes, views, playtime and ratings are written by callable Cloud Functions using the Admin SDK. RTDB rules deny direct client counter writes, including writes by an owner browser session.
 - `/Library/` chat no longer contains the `/ai` command or browser-side Groq key fetch.
 - Owner-only **Engagement** panel: enter total views, likes and hours, preview a bounded random split across every published book, then **Share**. The sum of per-book additions equals the entered totals exactly. Existing counters are preserved. Each preview can be applied once; retries are idempotent per book.

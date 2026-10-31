@@ -616,7 +616,7 @@ window.clearAllDrafts=function(){if(!confirm('Delete all drafts?'))return;localS
 // AUTH
 onAuthStateChanged(auth,async u=>{
   CU=u;
-  try{await libraryBridge.ready();}catch(e){console.warn('[Studio] secure data session unavailable',e);if(u)showToast('Secure Library session unavailable. Publishing and settings are paused.','err');}
+  try{await libraryBridge.ready();}catch(e){console.warn('[Studio] secure data session unavailable',e);if(u&&!window._secureWarned){window._secureWarned=true;showToast('Secure Library session unavailable. Publishing and settings are paused.','err');}}
   if(u){
     document.getElementById('signin-gate').classList.remove('show');
     document.getElementById('app-shell').style.display='flex';
@@ -879,6 +879,11 @@ window.openPChat=function(id,title){
     const atBot=c.scrollHeight-c.scrollTop-c.clientHeight<60;
     c.innerHTML=entries.map(([,m])=>{const own=CU&&m.senderId===CU.uid;return`<div class="pmsg${own?' own':''}"><div class="pmsg-av">${(m.senderName||'?').charAt(0).toUpperCase()}</div><div><div class="pmsg-sender">${esc(m.senderName||'?')}</div><div class="pmsg-bubble">${esc(m.text||'')}</div></div></div>`;}).join('');
     if(atBot)c.scrollTop=c.scrollHeight;
+  },err=>{
+    // Without a cancel callback, a denied listen re-throws uncaught errors forever.
+    console.warn('[Studio] project chat unavailable',err&&(err.code||err.message)||err);
+    const c=document.getElementById('pchat-msgs');
+    if(c)c.innerHTML='<div style="text-align:center;color:var(--tx-3);font-size:.75rem;padding:1rem">Project chat is unavailable right now.</div>';
   });
 };
 window.sendPChat=async function(){

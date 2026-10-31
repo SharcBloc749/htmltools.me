@@ -773,13 +773,25 @@
 						  });
 						};
 
-						function showToast(msg, type = '') {
-						  const t = document.getElementById('toast');
-						  t.textContent = msg;
-						  t.className = 'show' + (type ? ' ' + type : '');
-						  clearTimeout(window._tt);
-						  window._tt = setTimeout(() => { t.className = ''; }, 3200);
-						}
+					function showToast(msg, type = '') {
+					  const t = document.getElementById('toast');
+					  t.textContent = msg;
+					  t.className = 'show' + (type ? ' ' + type : '');
+					  clearTimeout(window._tt);
+					  window._tt = setTimeout(() => { t.className = ''; }, 3200);
+					}
+
+					// Admin actions await RTDB writes directly; a denied write otherwise dies
+					// as an invisible unhandled rejection. Surface rule denials, rate-limited.
+					let _permToastAt = 0;
+					window.addEventListener('unhandledrejection', e => {
+					  const m = String((e && e.reason && e.reason.message) || (e && e.reason) || '');
+					  if (!/permission[_ ]denied/i.test(m)) return;
+					  e.preventDefault();
+					  if (Date.now() - _permToastAt < 5000) return;
+					  _permToastAt = Date.now();
+					  showToast('✖ Permission denied by the htmltools-main database rules.', 'error');
+					});
 
 						const esc = s => s ? String(s)
 						  .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -929,26 +941,35 @@
 						});
 
 						// ─── onAuthStateChanged ──────────────────────────────────────────────────────
-						onAuthStateChanged(auth, async user => {
-						  currentUser = user;
-						  if (!user) {
-						    document.getElementById('gate').style.display          = 'flex';
-						    document.getElementById('app').style.display           = 'none';
-						    document.getElementById('no-permission').style.display = 'none';
-						    document.getElementById('gate-btn').textContent        = 'SIGN IN →';
-						    return;
-						  }
-						  document.getElementById('gate').style.display = 'none';
+					onAuthStateChanged(auth, async user => {
+					  currentUser = user;
+					  if (!user) {
+					    document.getElementById('gate').style.display          = 'flex';
+					    document.getElementById('app').style.display           = 'none';
+					    document.getElementById('no-permission').style.display = 'none';
+					    document.getElementById('gate-btn').textContent        = 'SIGN IN →';
+					    return;
+					  }
+					  document.getElementById('gate').style.display = 'none';
 
-						  const adminSnap = await get(ref(db, 'siteConfig/adminEmails'));
-						  extraAdmins = adminSnap.val() || {};
+					  // The owner's access is decided by the signed-in email ALONE
+					  // (isOwner -> isAdmin). This database read previously ran
+					  // BEFORE the admin check with no error handling, so a
+					  // PERMISSION_DENIED/offline failure threw the whole callback
+					  // and locked even the owner out on a blank page.
+					  try {
+					    const adminSnap = await get(ref(db, 'siteConfig/adminEmails'));
+					    extraAdmins = adminSnap.val() || {};
+					  } catch (e) {
+					    console.warn('[Admin] siteConfig/adminEmails read failed — continuing with the email-based check.', e);
+					  }
 
-						  if (!isAdmin(user)) {
-						    document.getElementById('no-permission').style.display = 'flex';
-						    document.getElementById('noperm-email-label').textContent = 'Signed in as: ' + user.email;
-						    document.getElementById('app').style.display = 'none';
-						    return;
-						  }
+					  if (!isAdmin(user)) {
+					    document.getElementById('no-permission').style.display = 'flex';
+					    document.getElementById('noperm-email-label').textContent = 'Signed in as: ' + user.email;
+					    document.getElementById('app').style.display = 'none';
+					    return;
+					  }
 
 						  document.getElementById('no-permission').style.display = 'none';
 						  document.getElementById('app').style.display           = 'flex';
@@ -960,14 +981,27 @@
 						  renderSidebarSites();
 						});
 
-						// ─── Firebase Listeners ──────────────────────────────────────────────────────
-						function initListeners() {
-						  onValue(ref(db, 'users'), snap => {
-						    allUsers = snap.val() || {};
-						    updateOnlineCount();
-						    if (currentPanel === 'overview')  renderOverview();
-						    if (currentPanel === 'analytics') renderAnalytics();
-						  });
+					// ─── Firebase Listeners ──────────────────────────────────────────────────────
+					// Every listener carries a cancel callback. Without one, a denied or
+					// dropped listener crashes the SDK event queue with an uncaught
+					// `permission_denied` exception — and since the client re-registers
+					// listeners on every reconnect, that error repeats forever in the
+					// console. Errors now surface once as a console warning + toast.
+					let _blockedToastShown = false;
+					const listen = (r, cb) => onValue(r, cb, err => {
+					  console.warn('[Admin] listener error:', err && (err.code || err.message) || err);
+					  if (!_blockedToastShown) {
+					    _blockedToastShown = true;
+					    showToast('Some live data was blocked by the database rules — check the htmltools-main RTDB rules.', 'error');
+					  }
+					});
+					function initListeners() {
+					  listen(ref(db, 'users'), snap => {
+					    allUsers = snap.val() || {};
+					    updateOnlineCount();
+					    if (currentPanel === 'overview')  renderOverview();
+					    if (currentPanel === 'analytics') renderAnalytics();
+					  });
 						  // NOTE: this used to be `onValue(ref(db,'books'))`, which downloaded the WHOLE
 						  // books node (tens of MB of legacy base64 images/HTML) on every admin visit.
 						  // Book metadata now comes from the GitHub index (same source the public
@@ -986,46 +1020,46 @@
 						      }
 						    } catch (e) { console.warn('[Admin] GitHub index unavailable', e); }
 						  })();
-						  onValue(ref(db, 'bookStats'), snap => {
-						    const stats = snap.val() || {};
-						    Object.entries(allBooks).forEach(([id, b]) => {
-						      const st = stats[id];
-						      if (!st || typeof st !== 'object') return;
-						      ['likes','views','playtimeSeconds','ratingAvg','ratingCount'].forEach(k => {
-						        if (st[k] !== undefined) b[k] = st[k];
-						      });
-						    });
-						    renderBookPanels();
-						  });
-						  onValue(ref(db, 'sites'), snap => {
-						    allSites = {};
-						    snap.forEach(c => { allSites[c.key] = { ...c.val(), id: c.key }; });
-						    renderOverview();
-						    renderSidebarSites();
-						  });
-						  onValue(ref(db, 'bannedUsers'),             snap => { bannedCreate  = snap.val() || {}; });
-						  onValue(ref(db, 'siteConfig/matthewBanned'),snap => { bannedMatthew = snap.val() || {}; });
-						  onValue(ref(db, 'siteConfig/aiBanned'),     snap => { bannedAi      = snap.val() || {}; });
-						  onValue(ref(db, 'siteConfig/adminEmails'),  snap => {
-						    extraAdmins = snap.val() || {};
-						    if (currentPanel === 'permissions') renderPermissions();
-						    if (currentUser && !isAdmin(currentUser)) {
-						      document.getElementById('app').style.display           = 'none';
-						      document.getElementById('no-permission').style.display = 'flex';
-						    }
-						  });
-						  onValue(ref(db, 'activityLog'), snap => {
-						    const d = snap.val() || {};
-						    allActivity = Object.entries(d)
-						      .map(([id, a]) => ({ ...a, id }))
-						      .sort((a, b) => (b.ts||0) - (a.ts||0))
-						      .slice(0, 500);
-						    renderActivityLog();
-						    if (currentPanel === 'overview') renderOverview();
-						    if (currentPanel === 'audit')    renderAuditLog();
-						  });
-						  renderOverview();
-						}
+					  listen(ref(db, 'bookStats'), snap => {
+					    const stats = snap.val() || {};
+					    Object.entries(allBooks).forEach(([id, b]) => {
+					      const st = stats[id];
+					      if (!st || typeof st !== 'object') return;
+					      ['likes','views','playtimeSeconds','ratingAvg','ratingCount'].forEach(k => {
+					        if (st[k] !== undefined) b[k] = st[k];
+					      });
+					    });
+					    renderBookPanels();
+					  });
+					  listen(ref(db, 'sites'), snap => {
+					    allSites = {};
+					    snap.forEach(c => { allSites[c.key] = { ...c.val(), id: c.key }; });
+					    renderOverview();
+					    renderSidebarSites();
+					  });
+					  listen(ref(db, 'bannedUsers'),             snap => { bannedCreate  = snap.val() || {}; });
+					  listen(ref(db, 'siteConfig/matthewBanned'),snap => { bannedMatthew = snap.val() || {}; });
+					  listen(ref(db, 'siteConfig/aiBanned'),     snap => { bannedAi      = snap.val() || {}; });
+					  listen(ref(db, 'siteConfig/adminEmails'),  snap => {
+					    extraAdmins = snap.val() || {};
+					    if (currentPanel === 'permissions') renderPermissions();
+					    if (currentUser && !isAdmin(currentUser)) {
+					      document.getElementById('app').style.display           = 'none';
+					      document.getElementById('no-permission').style.display = 'flex';
+					    }
+					  });
+					  listen(ref(db, 'activityLog'), snap => {
+					    const d = snap.val() || {};
+					    allActivity = Object.entries(d)
+					      .map(([id, a]) => ({ ...a, id }))
+					      .sort((a, b) => (b.ts||0) - (a.ts||0))
+					      .slice(0, 500);
+					    renderActivityLog();
+					    if (currentPanel === 'overview') renderOverview();
+					    if (currentPanel === 'audit')    renderAuditLog();
+					  });
+					  renderOverview();
+					}
 
 						function updateOnlineCount() {
 						  const count = Object.keys(allUsers).length;
@@ -1264,13 +1298,13 @@
 						}
 
 						// ─── Mod Chat ─────────────────────────────────────────────────────────────────
-						function mcInit() {
-						  onValue(ref(db,'modChat'), snap => {
-						    allMCMessages = snap.val() || {};
-						    renderMCMessages();
-						    mcCleanExpired();
-						  });
-						}
+					function mcInit() {
+					  listen(ref(db,'modChat'), snap => {
+					    allMCMessages = snap.val() || {};
+					    renderMCMessages();
+					    mcCleanExpired();
+					  });
+					}
 						function mcCleanExpired() {
 						  const now = Date.now();
 						  Object.entries(allMCMessages).forEach(([id,msg]) => {

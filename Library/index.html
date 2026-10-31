@@ -608,12 +608,25 @@ let authMode='login',_authSubmitting=false;
 let _ratingBookId=null,_selectedStar=0;
 let _lbMode='rated';
 let _booksLoaded=false;
+let _lastGamesSig='';
+let _secureSession=false,_secureWarned=false;
 
 // ── HELPERS ──────────────────────────────────────────────────
 const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
 const timeAgo=ts=>{if(!ts)return'?';const d=Date.now()-ts;if(d<60e3)return'just now';if(d<3600e3)return~~(d/60e3)+'m ago';if(d<864e5)return~~(d/3600e3)+'h ago';if(d<2592e6)return~~(d/864e5)+'d ago';return~~(d/2592e6)+'mo ago';};
 const fmtTime=s=>{if(!s||s<1)return'0s';if(s<60)return s+'s';const m=~~(s/60);if(m<60)return m+'m';const h=~~(m/60);return m%60?`${h}h ${m%60}m`:`${h}h`;};
 window.showToast=(msg,type='')=>{const t=document.getElementById('toast');t.textContent=msg;t.className='show '+(type||'');clearTimeout(window._toastTimer);window._toastTimer=setTimeout(()=>{t.className='';},3000);};
+
+// Listeners MUST carry a cancel callback. Without one, a denied listen throws an
+// uncaught `permission_denied` exception through the SDK event queue — and it is
+// re-raised on every reconnect, which is the flood of red errors visitors kept
+// seeing. Denied reads now log a single warning and leave the feature quiet.
+const _warnedListeners=new Set();
+const listen=(q,label,cb)=>onValue(q,cb,err=>{
+  if(_warnedListeners.has(label))return;
+  _warnedListeners.add(label);
+  console.warn('[Library] listener "'+label+'" unavailable:',err&&(err.code||err.message)||err);
+});
 window.openOverlay=id=>document.getElementById(id).classList.add('open');
 window.closeOverlay=id=>document.getElementById(id).classList.remove('open');
 
@@ -657,6 +670,7 @@ try{
     });
     if(Object.keys(allBooks).length){
       _booksLoaded=true;
+      _lastGamesSig=JSON.stringify(raw);
       // FIX: renderBooks is assigned later in this module (window.renderBooks=...),
       // so calling it directly here threw a silent ReferenceError and the cached
       // library never painted. Defer one tick so it runs after the module finishes
@@ -730,6 +744,10 @@ function maybeMergeStats(minIntervalMs=STATS_POLL_MS){
   mergeStatsFromFirebase();
 }
 
+// Payload signature: lets the 30s/visibility poll skip a full re-render when the
+// index is unchanged. Previously EVERY successful poll replaced the whole grid's
+// innerHTML, replaying the card-in animation on every card — the visible "flash"
+// that kept popping up even when nothing had changed.
 async function fetchGitHubLibrary(isBackground=false){
   try{
     const headers={};
@@ -744,11 +762,15 @@ async function fetchGitHubLibrary(isBackground=false){
     }
     if(!res.ok) throw new Error(await res.text());
     const fresh=await res.json();
+    const freshSig=JSON.stringify(fresh.games||{});
 
     const freshBooks={};
     Object.entries(fresh.games||{}).forEach(([id,b])=>{
       if(b?.title) freshBooks[id]={...b,_origId:id};
     });
+
+    // Unchanged payload on a background poll → nothing to do, no grid flicker.
+    if(isBackground&&_booksLoaded&&freshSig===_lastGamesSig){maybeMergeStats();return;}
 
     // Handle deletions: remove IDs that are cached but not in fresh
     const removedIds=Object.keys(allBooks).filter(id=>!freshBooks[id]);
@@ -763,6 +785,7 @@ async function fetchGitHubLibrary(isBackground=false){
 
     allBooks=freshBooks;
     _booksLoaded=true;
+    _lastGamesSig=freshSig;
 
     // FIX: RENDER IMMEDIATELY. The full book grid must never wait on localStorage
     // writes or the heavy Firebase stats download.
@@ -799,7 +822,7 @@ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ fetchG
 // ── FIREBASE LISTENERS (remaining, lightweight) ─────────────
 
 // Comment counts — prefer dedicated node, fall back to counting comments
-onValue(ref(db,'commentCounts'),snap=>{
+listen(ref(db,'commentCounts'),'commentCounts',snap=>{
   const data=snap.val()||{};
   Object.entries(data).forEach(([id,cnt])=>{commentCountCache[id]=cnt||0;});
   if(_booksLoaded){renderBooks();renderPins();}
@@ -809,32 +832,43 @@ onValue(ref(db,'commentCounts'),snap=>{
 // for a number that `commentCounts` already provides. Comments for a single game
 // are still fetched on demand when you open its comment modal.
 
-onValue(ref(db,'bannedUsers'),snap=>{bannedUsers=snap.val()||{};if(CU&&!isOwner(CU))checkBanFromCache();});
-onValue(ref(db,'siteConfig/announcement'),snap=>{
+listen(ref(db,'bannedUsers'),'bannedUsers',snap=>{bannedUsers=snap.val()||{};if(CU&&!isOwner(CU))checkBanFromCache();});
+listen(ref(db,'siteConfig/announcement'),'announcement',snap=>{
   const data=snap.val();const banner=document.getElementById('announce-banner');const span=document.getElementById('announce-text');
   if(data){let msg='',poster=null;if(typeof data==='string')msg=data;else if(typeof data==='object'){msg=data.text||'';poster=data.postedBy||null;}
     if(msg){banner.classList.add('show');span.innerHTML=poster?`<strong style="color:var(--yellow-hi)">${esc(poster)}:</strong> ${esc(msg)}`:esc(msg);}
   }else banner.classList.remove('show');
 });
-onValue(ref(db,'siteConfig/loginDisabled'),snap=>{loginDisabled=!!snap.val();});
-onValue(ref(db,'siteConfig/signupDisabled'),snap=>{signupDisabled=!!snap.val();});
-onValue(ref(db,'siteConfig/pinnedBooks'),snap=>{pinnedBooks=snap.val()||{};if(_booksLoaded){renderPins();renderBooks();}});
-onValue(ref(db,'siteConfig/adminEmails'),snap=>{extraAdmins=snap.val()||{};if(CU)document.getElementById('admin-badge').style.display=(isAdmin(CU)&&!isOwner(CU))?'inline-flex':'none';});
+listen(ref(db,'siteConfig/loginDisabled'),'loginDisabled',snap=>{loginDisabled=!!snap.val();});
+listen(ref(db,'siteConfig/signupDisabled'),'signupDisabled',snap=>{signupDisabled=!!snap.val();});
+listen(ref(db,'siteConfig/pinnedBooks'),'pinnedBooks',snap=>{pinnedBooks=snap.val()||{};if(_booksLoaded){renderPins();renderBooks();}});
+// NOTE: adminEmails is owner-claim-only per the deployed rules. For every other
+// visitor this listen was denied and (without a cancel callback) kept re-throwing
+// uncaught errors on every reconnect. Owner-only UI is already covered by isOwner.
+listen(ref(db,'siteConfig/adminEmails'),'adminEmails',snap=>{extraAdmins=snap.val()||{};if(CU)document.getElementById('admin-badge').style.display=(isAdmin(CU)&&!isOwner(CU))?'inline-flex':'none';});
 document.getElementById('announce-dismiss').onclick=()=>document.getElementById('announce-banner').classList.remove('show');
 
 // Chat
 const chatQ=query(ref(db,'chat'),orderByKey(),limitToLast(60));
-onValue(chatQ,snap=>{
+listen(chatQ,'chat',snap=>{
   const data=snap.val()||{};
   const prevCount=Object.keys(chatMessages).length;
   chatMessages=data;
   if(chatOpen){renderChatMsgs();}
-  else{const nc=Object.keys(data).length;if(nc>prevCount){chatUnread+=(nc-prevCount);const b=document.getElementById('chat-fab-badge');b.textContent=chatUnread>9?'9+':String(chatUnread);b.classList.add('show');}}
+  else{const nc=Object.keys(data).length;if(nc>prevCount){
+    // When opening the page with 60 messages already present, don't show a bogus
+    // "60 unread" burst — only count genuinely new arrivals.
+    if(prevCount>0)chatUnread+=(nc-prevCount);
+    const b=document.getElementById('chat-fab-badge');
+    if(chatUnread>0){b.textContent=chatUnread>9?'9+':String(chatUnread);b.classList.add('show');}
+  }}
   Object.entries(data).forEach(([mid,msg])=>{
-    if(msg?.autoDelete&&!msg.deleted&&msg.sentAt){
+    // Only the secure session may prune expired auto-delete messages; the public
+    // (unauthenticated) cleanup writes were always denied and spammed errors.
+    if(msg?.autoDelete&&!msg.deleted&&msg.sentAt&&_secureSession){
       const rem=30000-(Date.now()-msg.sentAt);
-      if(rem<=0)remove(ref(db,'chat/'+mid));
-      else if(!_countdownTimers[mid]){_countdownTimers[mid]=setTimeout(()=>{remove(ref(db,'chat/'+mid));delete _countdownTimers[mid];},rem);}
+      if(rem<=0)remove(ref(db,'chat/'+mid)).catch(()=>{});
+      else if(!_countdownTimers[mid]){_countdownTimers[mid]=setTimeout(()=>{remove(ref(db,'chat/'+mid)).catch(()=>{});delete _countdownTimers[mid];},rem);}
     }
   });
 });
@@ -842,7 +876,15 @@ onValue(chatQ,snap=>{
 // ── AUTH ──────────────────────────────────────────────────────
 onAuthStateChanged(auth,async u=>{
   CU=u;
-  try{await libraryBridge.ready();}catch(e){console.warn('[Library] secure data session unavailable',e);if(u)showToast('Secure Library session unavailable. Likes and playtime are paused.','error');}
+  _secureSession=false;
+  try{
+    await libraryBridge.ready();
+    _secureSession = u ? !!libraryBridge.dataAuth.currentUser : false;
+  }catch(e){
+    console.warn('[Library] secure data session unavailable',e);
+    // Show the warning toast once per page load, not on every auth event.
+    if(u&&!_secureWarned){_secureWarned=true;showToast('Secure Library session unavailable. Likes and playtime are paused.','error');}
+  }
   const ud=document.getElementById('user-display');
   const ab=document.getElementById('auth-btn');
   if(u){
@@ -856,11 +898,16 @@ onAuthStateChanged(auth,async u=>{
     document.getElementById('admin-badge').style.display=(isAdmin(u)&&!isOwner(u))?'inline-flex':'none';
     document.getElementById('cw-input-area').style.display='';
     document.getElementById('cw-login-notice').style.display='none';
-    loadSaved();listenNotifs(u.uid);
+    loadSaved();
+    // Private feeds require the secure data session (they read/write with the
+    // data-project auth). Subscribing without it caused permission_denied spam.
+    if(_secureSession)listenNotifs(u.uid);else renderNotifs();
     if(!isOwner(u))checkBanStatus();
-    onValue(ref(db,'forceSignout/'+u.uid),async snap=>{if(snap.exists()&&snap.val()&&!isOwner(u)){await remove(ref(db,'forceSignout/'+u.uid));await fbSignOut(auth);}});
-    // Upsert user record (non-blocking)
-    get(ref(db,'users/'+u.uid)).then(s=>{const ex=s.val()||{};set(ref(db,'users/'+u.uid),{...ex,displayName:u.displayName||'',email:u.email,uid:u.uid,lastSignIn:Date.now(),joinedAt:ex.joinedAt||Date.now()});});
+    if(_secureSession){
+      listen(ref(db,'forceSignout/'+u.uid),'forceSignout',async snap=>{if(snap.exists()&&snap.val()&&!isOwner(u)){try{await remove(ref(db,'forceSignout/'+u.uid));}catch{}await fbSignOut(auth);}});
+      // Upsert user record (non-blocking; needs the data session by rule)
+      get(ref(db,'users/'+u.uid)).then(s=>{const ex=s.val()||{};set(ref(db,'users/'+u.uid),{...ex,displayName:u.displayName||'',email:u.email,uid:u.uid,lastSignIn:Date.now(),joinedAt:ex.joinedAt||Date.now()}).catch(()=>{});}).catch(()=>{});
+    }
   }else{
     ud.style.display='none';ab.style.display='inline-flex';
     ['notif-bell','saved-btn','settings-btn'].forEach(id=>document.getElementById(id).style.display='none');
@@ -1080,26 +1127,35 @@ window.submitComment=async function(){
   const btn=document.getElementById('comment-post-btn');btn.disabled=true;btn.textContent='…';
   input.value='';
   const book=allBooks[commentingBookId];
-  await set(push(ref(db,'comments/'+commentingBookId)),{text,authorId:CU.uid,authorName:CU.displayName||CU.email,createdAt:Date.now()});
-  const curCnt=(commentCountCache[commentingBookId]||0)+1;
-  commentCountCache[commentingBookId]=curCnt;
-  await set(ref(db,'commentCounts/'+commentingBookId),curCnt);
-  if(book?.ownerId&&book.ownerId!==CU.uid){
-    set(push(ref(db,'notifications/'+book.ownerId)),{type:'comment',fromName:CU.displayName||CU.email,fromUid:CU.uid,bookTitle:book.title,bookId:commentingBookId,commentText:text,createdAt:Date.now(),read:false});
-  }
-  btn.disabled=false;btn.textContent='Post';
-  showToast('Comment posted!','success');
-  openComments(commentingBookId);
+  try{
+    await set(push(ref(db,'comments/'+commentingBookId)),{text,authorId:CU.uid,authorName:CU.displayName||CU.email,createdAt:Date.now()});
+    const curCnt=(commentCountCache[commentingBookId]||0)+1;
+    commentCountCache[commentingBookId]=curCnt;
+    await set(ref(db,'commentCounts/'+commentingBookId),curCnt);
+    if(book?.ownerId&&book.ownerId!==CU.uid){
+      set(push(ref(db,'notifications/'+book.ownerId)),{type:'comment',fromName:CU.displayName||CU.email,fromUid:CU.uid,bookTitle:book.title,bookId:commentingBookId,commentText:text,createdAt:Date.now(),read:false}).catch(()=>{});
+    }
+    showToast('Comment posted!','success');
+    openComments(commentingBookId);
+  }catch(e){
+    console.warn('[Library] comment failed',e);
+    showToast('Could not post comment. Please try again.','error');
+  }finally{btn.disabled=false;btn.textContent='Post';}
 };
 
 window.deleteComment=async function(bookId,cid){
   if(!CU||!confirm('Delete this comment?'))return;
-  await remove(ref(db,'comments/'+bookId+'/'+cid));
-  const newCnt=Math.max(0,(commentCountCache[bookId]||1)-1);
-  commentCountCache[bookId]=newCnt;
-  await set(ref(db,'commentCounts/'+bookId),newCnt);
-  showToast('Deleted','success');
-  openComments(bookId);
+  try{
+    await remove(ref(db,'comments/'+bookId+'/'+cid));
+    const newCnt=Math.max(0,(commentCountCache[bookId]||1)-1);
+    commentCountCache[bookId]=newCnt;
+    await set(ref(db,'commentCounts/'+bookId),newCnt);
+    showToast('Deleted','success');
+    openComments(bookId);
+  }catch(e){
+    console.warn('[Library] delete comment failed',e);
+    showToast('Could not delete comment.','error');
+  }
 };
 
 // ── RATINGS ───────────────────────────────────────────────────
@@ -1329,7 +1385,7 @@ function checkBanFromCache(){if(!CU||isOwner(CU))return;if(bannedUsers[CU.uid])d
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────
 function listenNotifs(uid){
-  onValue(ref(db,'notifications/'+uid),snap=>{
+  listen(ref(db,'notifications/'+uid),'notifications',snap=>{
     const data=snap.val()||{};
     myNotifs=Object.entries(data).map(([nid,n])=>({...n,nid})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
     const unread=myNotifs.filter(n=>!n.read).length;
@@ -1352,12 +1408,12 @@ function notifMsg(n){
 window.toggleNotifPanel=async function(){
   const panel=document.getElementById('notif-panel');
   const isOpen=panel.classList.toggle('open');
-  if(isOpen&&CU){
+  if(isOpen&&CU&&_secureSession){
     const unread=myNotifs.filter(n=>!n.read);
-    for(const n of unread)update(ref(db,'notifications/'+CU.uid+'/'+n.nid),{read:true});
+    for(const n of unread)update(ref(db,'notifications/'+CU.uid+'/'+n.nid),{read:true}).catch(()=>{});
   }
 };
-window.clearAllNotifs=async function(){if(!CU)return;await remove(ref(db,'notifications/'+CU.uid));showToast('Cleared','success');};
+window.clearAllNotifs=async function(){if(!CU)return;await remove(ref(db,'notifications/'+CU.uid)).catch(()=>{});showToast('Cleared','success');};
 // Close notif panel on outside click
 document.addEventListener('click',e=>{
   const panel=document.getElementById('notif-panel');
@@ -1404,13 +1460,16 @@ window.sendChatMsg=async function(){
   if(!rawText||rawText.length>400)return;
   const autoDelete=document.getElementById('cw-autodel-check').checked;
   input.value='';
-  await set(push(ref(db,'chat')),{text:rawText,senderId:CU.uid,senderName:CU.displayName||CU.email,sentAt:Date.now(),autoDelete,isAdmin:isAdmin(CU)});
+  await set(push(ref(db,'chat')),{text:rawText,senderId:CU.uid,senderName:CU.displayName||CU.email,sentAt:Date.now(),autoDelete,isAdmin:isAdmin(CU)}).catch(e=>{
+    console.warn('[Library] chat send failed',e);
+    showToast('Chat message could not be sent.','error');
+  });
 };
 window.deleteChatMsg=async function(mid){
   if(!CU)return;const msg=chatMessages[mid];if(!msg)return;
   if(msg.senderId!==CU.uid&&!isAdmin(CU)){showToast('Cannot delete','error');return;}
   if(!confirm('Delete this message?'))return;
-  await remove(ref(db,'chat/'+mid));
+  await remove(ref(db,'chat/'+mid)).catch(()=>{});
 };
 document.getElementById('cw-autodel-check').addEventListener('change',function(){document.getElementById('cw-autodel-label').classList.toggle('on',this.checked);});
 

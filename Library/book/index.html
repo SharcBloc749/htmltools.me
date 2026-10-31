@@ -349,6 +349,7 @@ let barHideTimer=null;
 let countdownTimers={};
 let chatUnsub=null;
 let pendingChatMode=null; // lazy chat: mode to subscribe to on first chat open
+let _secureSession=false; // true when the bridge minted a data-project session
 
 // ── Helpers ───────────────────────────────────────────────────
 const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';
@@ -483,9 +484,9 @@ async function boot(){
   document.getElementById('like-btn').style.display='flex';
   updateLikeBtn();
 
-  // Owner played achievement
+  // Owner played achievement (best-effort — denied writes must not surface errors)
   if(currentUser&&currentUser.email&&currentUser.email.toLowerCase()===OWNER_EMAIL.toLowerCase()){
-    update(ref(db,'books/'+bookId),{ownerPlayed:true});
+    update(ref(db,'books/'+bookId),{ownerPlayed:true}).catch(()=>{});
   }
 }
 
@@ -554,7 +555,8 @@ function showNotFound(){
 // ── Auth ──────────────────────────────────────────────────────
 onAuthStateChanged(auth,async user=>{
   currentUser=user;
-  try{await libraryBridge.ready();}catch(e){console.warn('[Library] secure data session unavailable',e);}
+  _secureSession=false;
+  try{await libraryBridge.ready();_secureSession=!!libraryBridge.dataAuth.currentUser;}catch(e){console.warn('[Library] secure data session unavailable',e);}
   if(bookData){
     updateLikeBtn();
     const rateBtn=document.getElementById('rate-btn');
@@ -655,6 +657,8 @@ function initChat(mode){
   const basePath=chatMode==='book'?'bookChat/'+bookId:'chat';
   const chatRef=ref(db,basePath);
   const q=query(chatRef,orderByKey(),limitToLast(20)); // was 40 — halves every sync payload
+  // Cancel callback is mandatory: a denied listen without one re-throws an
+  // uncaught permission_denied error on every SDK reconnect (the red flood).
   chatUnsub=onValue(q,snap=>{
     const data=snap.val()||{};
     if(chatOpen){
@@ -666,16 +670,19 @@ function initChat(mode){
       const prev=Object.keys(chatMessages).length;
       const nc=Object.keys(data).length;
       chatMessages=data;
-      if(nc>prev){chatUnread+=(nc-prev);updateBadge();}
+      if(nc>prev&&prev>0){chatUnread+=(nc-prev);updateBadge();}
     }
-    // Handle auto-deletes
+    // Handle auto-deletes (cleanup writes need the secure data session; the
+    // anonymous removes used to fail and spam errors)
     Object.entries(data).forEach(([mid,msg])=>{
-      if(msg&&msg.autoDelete&&!msg.deleted&&msg.sentAt){
+      if(msg&&msg.autoDelete&&!msg.deleted&&msg.sentAt&&_secureSession){
         const rem=30000-(Date.now()-msg.sentAt);
-        if(rem<=0){remove(ref(db,basePath+'/'+mid));}
-        else if(!countdownTimers[mid]){countdownTimers[mid]=setTimeout(()=>{remove(ref(db,basePath+'/'+mid));delete countdownTimers[msg.id||mid];delete countdownTimers[mid];},rem);}
+        if(rem<=0){remove(ref(db,basePath+'/'+mid)).catch(()=>{});}
+        else if(!countdownTimers[mid]){countdownTimers[mid]=setTimeout(()=>{remove(ref(db,basePath+'/'+mid)).catch(()=>{});delete countdownTimers[msg.id||mid];delete countdownTimers[mid];},rem);}
       }
     });
+  },err=>{
+    console.warn('[Library] chat listener unavailable:'+basePath,err&&(err.code||err.message)||err);
   });
 }
 window.switchChatMode=function(mode){

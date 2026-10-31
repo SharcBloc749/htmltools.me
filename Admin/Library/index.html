@@ -240,9 +240,9 @@
 				</button>
 				<div class="lg-err" id="lg-err"></div>
 				<div class="lg-notice">
-					Only
-					<span>verified admin users</span>
-					can access this panel.
+					Sign in as
+					<span>matthewbozhe@gmail.com</span>
+					(owner account) to open this panel — the signed-in email is checked directly.
 				</div>
 			</div>
 		</div>
@@ -971,7 +971,7 @@
 
 		<script type="module">
 			import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-			import{getDatabase,ref,push,set,get,onValue,update,remove}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+			import{getDatabase,ref,push,set,get,onValue,update,remove,query,orderByKey,limitToLast}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 			import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 			import{createLibraryBridge}from"/assets/library-session.js";
 			import{initializeLibraryAppCheck}from"/assets/library-app-check.js";
@@ -1007,6 +1007,18 @@
 			window.toast=function(msg,type='s'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;clearTimeout(window._tt);window._tt=setTimeout(()=>{t.className='';},3000);};
 			window.closeModal=function(id){document.getElementById(id).classList.remove('open');};
 
+			// Admin actions await RTDB writes directly; a denied write otherwise dies
+			// as an invisible unhandled rejection. Surface rule denials once per spell.
+			let _permToastAt=0;
+			window.addEventListener('unhandledrejection',e=>{
+				const m=String(e?.reason?.message||e?.reason||'');
+				if(!/permission[_ ]denied/i.test(m))return;
+				e.preventDefault();
+				if(Date.now()-_permToastAt<5000)return;
+				_permToastAt=Date.now();
+				toast('✖ Permission denied by the database rules — the secure owner session may be offline. Sign out/in and try again.','e');
+			});
+
 			// ── MERGE BOOKS ────────────────────────────────────────────────────────
 			function mergeBooks(){
 				allBooks={};
@@ -1027,11 +1039,19 @@
 			}
 
 			// ── IS OWNER / ADMIN ───────────────────────────────────────────────────
-			function isOwner(u){return libraryBridge.owner&&u&&u.uid===auth.currentUser?.uid;}
+			// UI access is decided by the signed-in owner email (the account password
+			// is still verified by Firebase Auth). Previously the UI also required the
+			// server-minted `libraryOwner` claim (libraryBridge.owner) just to OPEN the
+			// panel — so a Cloud Function outage, a CORS problem or an unverified-email
+			// flag locked the owner out of their own panel entirely. The secure bridge
+			// is still established afterwards and remains mandatory for the privileged
+			// server actions that check libraryBridge.owner (see the Engagement tools).
+			function isOwner(u){return !!(u&&u.email&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase()&&u.uid===auth.currentUser?.uid);}
 			function isAdminUser(u){
-				// Server-minted owner claim only. Legacy email allowlists are ignored.
+				// Legacy email allowlists do not grant owner access.
 				return isOwner(u);
 			}
+			function hasSecureOwnerSession(){return libraryBridge.owner===true;}
 
 			// ── AUTH ───────────────────────────────────────────────────────────────
 			window.doLogin=async function(){
@@ -1053,6 +1073,7 @@
 			window.doSignOut=async function(){await libraryBridge.signOutData();await fbSignOut(auth);};
 
 			let adminListenersStarted=false;
+			let secureSessionWarned=false;
 			onAuthStateChanged(auth,async user=>{
 				currentUser=user;
 				const err=document.getElementById('lg-err');
@@ -1064,26 +1085,47 @@
 					return;
 				}
 				btn.disabled=true;btn.textContent='VERIFYING ACCESS…';
-				try{
-					await libraryBridge.ready();
-					if(!libraryBridge.owner){
-						await libraryBridge.signOutData();await fbSignOut(auth);
-						err.textContent='Access denied. This panel is restricted to the verified owner account.';
-						err.style.display='block';btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';
-						return;
-					}
-					err.style.display='none';
-					document.getElementById('login-screen').classList.add('hide');
-					document.getElementById('topbar-email').textContent=user.email;
-					document.getElementById('topbar-role').textContent='👑 OWNER';
-					document.getElementById('access-nav').style.display='flex';
-					document.getElementById('admins-nav').style.display='none';
-					if(!adminListenersStarted){adminListenersStarted=true;startListeners();}
-				}catch(e){
-					await libraryBridge.signOutData();
-					err.textContent=e?.message||'Could not verify owner access.';
+
+				// Direct owner-email check on the authenticated account: signing in as
+				// matthewbozhe@gmail.com is enough to use the panel. No database read
+				// or backend call may block this gate.
+				if(!isOwner(user)){
+					await libraryBridge.signOutData();await fbSignOut(auth);
+					err.textContent='Access denied. This panel is restricted to the verified owner account.';
 					err.style.display='block';btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';
+					return;
 				}
+
+				err.style.display='none';
+				document.getElementById('login-screen').classList.add('hide');
+				document.getElementById('topbar-email').textContent=user.email;
+				document.getElementById('topbar-role').textContent='👑 OWNER';
+				document.getElementById('access-nav').style.display='flex';
+				document.getElementById('admins-nav').style.display='none';
+
+				// Establish the server-minted secure session BEFORE subscribing:
+				// privileged listeners (users/comments/activity…) need the claim, and a
+				// listen denied at subscribe time is cancelled permanently. A bridge
+				// failure used to sign the owner straight back out; now the panel stays
+				// open, listeners still start, and the owner is warned once instead.
+				libraryBridge.ready().then(()=>{
+					if(!libraryBridge.owner){
+						console.warn('[Admin/Library] secure session without owner claim (unverified email? backend not redeployed?)');
+						if(!secureSessionWarned){
+							secureSessionWarned=true;
+							toast('⚠ Secure owner session not minted (verify this account\'s email / redeploy the Library functions). Engagement tools are offline.','e');
+						}
+					}
+				}).catch(e=>{
+					console.warn('[Admin/Library] secure data session unavailable',e);
+					if(!secureSessionWarned){
+						secureSessionWarned=true;
+						toast('⚠ Secure data session unavailable — live data and engagement tools may be limited.','e');
+					}
+				}).finally(()=>{
+					if(!adminListenersStarted){adminListenersStarted=true;startListeners();}
+					renderAdmins();refreshActive();
+				});
 			});
 
 			// ── LISTENERS ──────────────────────────────────────────────────────────
@@ -1094,34 +1136,41 @@
 					const idx=await res.json();allBooksOld={};allBooksNew=idx.games||{};mergeBooks();refreshActive();
 				}catch(e){toast('Could not load the published catalog','e');}
 			}
+			// Every listener carries a cancel callback: without one, a denied listen
+			// throws an uncaught exception through the SDK event queue and repeats on
+			// every reconnect, flooding the console and the page with errors. Denied
+			// feeds now log one warning and leave their panel empty-but-usable.
+			const listen=(pathOrQuery,label,cb)=>onValue(pathOrQuery,cb,err=>{
+				console.warn('[Admin/Library] listener "'+label+'" error:',err&&(err.code||err.message)||err);
+			});
 			function startListeners(){
 				// Use the same lightweight published catalog as the public Library.
 				// Never download the heavy legacy `books` node for admin navigation.
 				loadAdminCatalog();
-				onValue(ref(newDb,'bookStats'),snap=>{const stats=snap.val()||{};Object.values(allBooks).forEach(b=>{const s=stats[b._origId];if(!s)return;['likes','views','playtimeSeconds'].forEach(k=>{if(s[k]!=null)b[k]=s[k];});});refreshActive();});
-				onValue(ref(newDb,'siteConfig/deletedOldBooks'),snap=>{deletedOldBooks=snap.val()||{};mergeBooks();refreshActive();});
-				onValue(ref(newDb,'users'),snap=>{allUsers=snap.val()||{};refreshActive();});
-				onValue(ref(newDb,'comments'),snap=>{allComments=snap.val()||{};refreshActive();});
-				onValue(ref(newDb,'bannedUsers'),snap=>{bannedUsers=snap.val()||{};refreshActive();});
-				onValue(ref(newDb,'siteConfig/adminEmails'),snap=>{extraAdmins=snap.val()||{};if(currentTab==='admins')renderAdmins();});
-				onValue(ref(newDb,'siteConfig/maintenance'),snap=>{
+				listen(ref(newDb,'bookStats'),'bookStats',snap=>{const stats=snap.val()||{};Object.values(allBooks).forEach(b=>{const s=stats[b._origId];if(!s)return;['likes','views','playtimeSeconds'].forEach(k=>{if(s[k]!=null)b[k]=s[k];});});refreshActive();});
+				listen(ref(newDb,'siteConfig/deletedOldBooks'),'deletedOldBooks',snap=>{deletedOldBooks=snap.val()||{};mergeBooks();refreshActive();});
+				listen(ref(newDb,'users'),'users',snap=>{allUsers=snap.val()||{};refreshActive();});
+				listen(ref(newDb,'comments'),'comments',snap=>{allComments=snap.val()||{};refreshActive();});
+				listen(ref(newDb,'bannedUsers'),'bannedUsers',snap=>{bannedUsers=snap.val()||{};refreshActive();});
+				listen(ref(newDb,'siteConfig/adminEmails'),'adminEmails',snap=>{extraAdmins=snap.val()||{};if(currentTab==='admins')renderAdmins();});
+				listen(ref(newDb,'siteConfig/maintenance'),'maintenance',snap=>{
 					maintenanceMode=snap.val()||false;
 					const s=document.getElementById('maintenance-status-box');
 					if(s){s.textContent=`Status: ${maintenanceMode?'🔧 ON — uploads disabled':'✅ OFF — normal'}`;s.style.color=maintenanceMode?'var(--accent4)':'var(--accent)';}
 					const ms=document.getElementById('maint-status-access');
 					if(ms){ms.textContent=maintenanceMode?'🔧 Uploads disabled':'✅ Uploads enabled';ms.style.color=maintenanceMode?'var(--accent4)':'var(--accent)';}
 				});
-				onValue(ref(newDb,'siteConfig/loginDisabled'),snap=>{
+				listen(ref(newDb,'siteConfig/loginDisabled'),'loginDisabled',snap=>{
 					loginDisabled=snap.val()||false;
 					const s=document.getElementById('login-status');
 					if(s){s.textContent=loginDisabled?'🔒 Login disabled':'✅ Users can sign in';s.style.color=loginDisabled?'var(--accent2)':'var(--accent)';}
 				});
-				onValue(ref(newDb,'siteConfig/signupDisabled'),snap=>{
+				listen(ref(newDb,'siteConfig/signupDisabled'),'signupDisabled',snap=>{
 					signupDisabled=snap.val()||false;
 					const s=document.getElementById('signup-status');
 					if(s){s.textContent=signupDisabled?'🔒 Registrations closed':'✅ New accounts allowed';s.style.color=signupDisabled?'var(--accent2)':'var(--accent)';}
 				});
-				onValue(ref(newDb,'siteConfig/announcement'),snap=>{
+				listen(ref(newDb,'siteConfig/announcement'),'announcement',snap=>{
 					const raw=snap.val();
 					const ta=document.getElementById('announce-text');
 					const preview=document.getElementById('announce-preview');
@@ -1134,17 +1183,19 @@
 					if(previewText)previewText.textContent=displayMsg;
 					if(preview){if(inputMsg)preview.classList.add('show');else preview.classList.remove('show');}
 				});
-				onValue(ref(newDb,'recentlyDeleted'),snap=>{
+				listen(ref(newDb,'recentlyDeleted'),'recentlyDeleted',snap=>{
 					const data=snap.val()||{};
 					recentlyDeleted=Object.entries(data).map(([id,b])=>({...b,_id:id})).filter(b=>(Date.now()-(b.deletedAt||0))<30*24*3600*1000).sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
 					if(currentTab==='deleted')renderDeleted();
 				});
-				onValue(ref(newDb,'activityLog'),snap=>{
+				listen(ref(newDb,'activityLog'),'activityLog',snap=>{
 					const data=snap.val()||{};
 					allActivity=Object.entries(data).map(([id,a])=>({...a,id})).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,300);
 					if(currentTab==='activity')renderActivity();
 				});
-				onValue(ref(newDb,'chat'),snap=>{
+				// The deployed rules only allow chat reads as an ordered, bounded query —
+				// a plain whole-node listener was always denied and kept erroring.
+				listen(query(ref(newDb,'chat'),orderByKey(),limitToLast(60)),'chat',snap=>{
 					allChat=snap.val()||{};
 					const msgs=Object.values(allChat).filter(m=>m);
 					const count=msgs.length;
@@ -1179,6 +1230,9 @@
 			}
 			window.previewEngagement=async function(){
 				if(!isOwner(currentUser)){toast('Owner only','e');return;}
+				// These callables mint/verify the server-side libraryOwner claim, so the
+				// bridge session must be up — a plain UI email check is not enough here.
+				if(!libraryBridge.owner){toast('Secure owner session unavailable — sign out/in, verify the account email, or redeploy the Library functions.','e');return;}
 				const btn=document.getElementById('eng-preview-btn');btn.disabled=true;
 				try{
 					const {data}=await libraryBridge.call('previewLibraryEngagement',engagementTotals());
@@ -1190,6 +1244,7 @@
 			};
 			window.shareEngagement=async function(){
 				if(!isOwner(currentUser)||!engagementPreview){toast('Generate a preview first','e');return;}
+				if(!libraryBridge.owner){toast('Secure owner session unavailable — sign out/in, verify the account email, or redeploy the Library functions.','e');return;}
 				if(!confirm(`Share ${engagementPreview.totals.views} views, ${engagementPreview.totals.likes} likes and ${engagementPreview.totals.hours} hours across ${engagementPreview.bookCount} books?`))return;
 				const btn=document.getElementById('eng-share-btn');btn.disabled=true;
 				try{
