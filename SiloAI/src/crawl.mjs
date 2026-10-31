@@ -71,7 +71,7 @@ async function readLimited(response, maxBytes) {
 
 async function fetchSameHost(url, host, maxBytes, fetchImpl = fetch) {
   let current = new URL(url);
-  if (current.protocol !== 'https:' || !sameVerifiedHost(current.hostname, host)) return null;
+  if (current.protocol !== 'https:' || current.port || !sameVerifiedHost(current.hostname, host)) return null;
   for (let redirects = 0; redirects <= 3; redirects++) {
     let response;
     try {
@@ -85,7 +85,7 @@ async function fetchSameHost(url, host, maxBytes, fetchImpl = fetch) {
       const location = response.headers.get('location');
       if (!location) return null;
       const next = new URL(location, current);
-      if (next.protocol !== 'https:' || !sameVerifiedHost(next.hostname, host)) return null;
+      if (next.protocol !== 'https:' || next.port || !sameVerifiedHost(next.hostname, host)) return null;
       current = next;
       continue;
     }
@@ -123,26 +123,59 @@ function robotsAllows(policy, path) {
 }
 
 function parsePage(url, html) {
+  const pageUrl = new URL(url);
   const title = decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(html)?.[1] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
   const descriptionTag = /<meta\b[^>]*(?:name|property)\s*=\s*["'](?:description|og:description)["'][^>]*>/i.exec(html)?.[0] || '';
   const description = decodeEntities(attr(descriptionTag, 'content')).replace(/\s+/g, ' ').trim().slice(0, 320);
   const headingText = [...html.matchAll(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]\s*>/gi)]
     .slice(0, 16).map((match) => plainText(match[1]).slice(0, 140)).filter(Boolean);
-  const links = [];
-  for (const match of html.matchAll(/<a\b[^>]*>/gi)) {
-    const href = attr(match[0], 'href');
-    if (!href || /^(?:#|mailto:|tel:|javascript:|data:)/i.test(href)) continue;
+  const linkPaths = new Set();
+  const addInternalPath = (href) => {
+    if (!href || /^(?:#|mailto:|tel:|javascript:|data:)/i.test(href)) return;
     try {
-      const target = new URL(href, url);
-      if (target.protocol !== 'https:' || target.hostname !== new URL(url).hostname) continue;
+      const target = new URL(href, pageUrl);
+      if (target.protocol !== 'https:' || target.port || target.hostname !== pageUrl.hostname) return;
       target.hash = '';
       target.search = '';
       const path = target.pathname.replace(/\/{2,}/g, '/');
-      if (isCrawlablePath(path)) links.push(path);
-    } catch { /* ignore malformed link */ }
+      if (isCrawlablePath(path)) linkPaths.add(path);
+    } catch { /* ignore malformed links and redirect targets */ }
+  };
+  for (const match of html.matchAll(/<a\b[^>]*>/gi)) addInternalPath(attr(match[0], 'href'));
+
+  // Treat declared redirects as crawl hints without executing any site script.
+  for (const match of html.matchAll(/<meta\b[^>]*>/gi)) {
+    if (attr(match[0], 'http-equiv').toLowerCase() !== 'refresh') continue;
+    const content = attr(match[0], 'content');
+    const target = /(?:^|;)\s*url\s*=\s*["']?([^"';\s]+)["']?/i.exec(content)?.[1];
+    if (target) addInternalPath(target);
+  }
+  for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+    for (const redirect of script[1].matchAll(/(?:window\s*\.\s*)?location(?:\s*\.\s*href)?\s*(?:=\s*|\.replace\s*\(\s*|\.assign\s*\(\s*)(["'])(.*?)\1/gi)) {
+      addInternalPath(redirect[2]);
+    }
   }
   const text = plainText(html).slice(0, MAX_TEXT_CHARS);
-  return { url, path: new URL(url).pathname, title: title || new URL(url).pathname || 'Home', description, headings: headingText, links: [...new Set(links)].slice(0, 80), text };
+  return { url: pageUrl.href, path: pageUrl.pathname, title: title || pageUrl.pathname || 'Home', description, headings: headingText, links: [...linkPaths].slice(0, 80), text };
+}
+
+function ownerSeedPaths(paths) {
+  const seeds = [];
+  for (const raw of (Array.isArray(paths) ? paths : []).slice(0, MAX_PAGES * 2)) {
+    if (typeof raw !== 'string') continue;
+    let candidate = raw.trim();
+    if (candidate.endsWith('/**')) candidate = candidate.slice(0, -3) || '/';
+    const path = normalizePath(candidate);
+    if (path && isCrawlablePath(path)) seeds.push(path);
+  }
+  return [...new Set(seeds)].slice(0, MAX_PAGES - 1);
+}
+
+function isRedirectPlaceholder(page) {
+  const title = String(page?.title || '').trim();
+  const text = String(page?.text || '').trim();
+  return /^(?:redirect(?:ing)?(?:\.\.\.)?|please wait|loading\.\.\.)$/i.test(title)
+    || (text.length < 500 && /redirecting\.\.\.|if you are not redirected|redirecting to/i.test(text));
 }
 
 async function sitemapPaths(host) {
@@ -152,7 +185,7 @@ async function sitemapPaths(host) {
   for (const match of result.body.matchAll(/<loc\b[^>]*>\s*([^<]+)\s*<\/loc>/gi)) {
     try {
       const target = new URL(decodeEntities(match[1].trim()));
-      if (target.protocol === 'https:' && sameVerifiedHost(target.hostname, host) && isCrawlablePath(target.pathname)) paths.push(target.pathname);
+      if (target.protocol === 'https:' && !target.port && sameVerifiedHost(target.hostname, host) && isCrawlablePath(target.pathname)) paths.push(target.pathname);
     } catch { /* malformed sitemap entry */ }
     if (paths.length >= 100) break;
   }
@@ -164,12 +197,13 @@ export async function verifyDomainFile(host, token, fetchImpl = fetch) {
   return Boolean(response && response.body.trim() === `siloai-verification=${token}`);
 }
 
-export async function crawlSite(host, priorPages = []) {
+export async function crawlSite(host, priorPages = [], ownerPaths = []) {
   const robots = await loadRobotsPolicy(host);
   if (!robotsAllows(robots, '/')) throw Object.assign(new Error('The site robots.txt disallows SiloAI from crawling its homepage.'), { code: 'robots_disallow' });
   const sitemap = robotsAllows(robots, '/sitemap.xml') ? await sitemapPaths(host) : [];
   const old = new Map((priorPages || []).map((page) => [page.path, page]));
-  const queue = [{ path: '/', depth: 0 }, ...sitemap.map((path) => ({ path, depth: 1 }))];
+  const seeds = ownerSeedPaths(ownerPaths);
+  const queue = [{ path: '/', depth: 0 }, ...seeds.map((path) => ({ path, depth: 1 })), ...sitemap.map((path) => ({ path, depth: 1 }))];
   const queued = new Set();
   const pages = [];
   while (queue.length && pages.length < MAX_PAGES) {
@@ -193,20 +227,23 @@ export async function crawlSite(host, priorPages = []) {
   }
   if (!pages.length) throw Object.assign(new Error('SiloAI could not read any public HTML pages on this site.'), { code: 'crawl_empty' });
   const home = pages.find((page) => page.path === '/') || pages[0];
+  const profilePage = home && !isRedirectPlaceholder(home) ? home : pages.find((page) => !isRedirectPlaceholder(page)) || home;
   return {
     pages,
-    profile: { title: home.title, description: home.description || home.headings.slice(0, 3).join(' · ') || home.text.slice(0, 240) },
+    profile: { title: profilePage.title, description: profilePage.description || profilePage.headings.slice(0, 3).join(' · ') || profilePage.text.slice(0, 240) },
     crawledAt: Date.now(),
     changedPages: pages.filter((page) => JSON.stringify(old.get(page.path) || null) !== JSON.stringify(page)).length + [...old.keys()].filter((path) => !pages.some((page) => page.path === path)).length,
   };
 }
 
-export function relevantPages(site, query, currentPath = '/') {
+export function relevantPages(site, query, currentPath = '/', currentTitle = '') {
   const terms = String(query).toLowerCase().match(/[a-z0-9]{2,}/g) || [];
   const current = normalizePath(currentPath) || '/';
-  return [...(site.pages || [])].map((page) => {
+  return [...(site.pages || [])].filter((page) => !isRedirectPlaceholder(page)).map((page) => {
     const haystack = `${page.path} ${page.title} ${page.description} ${(page.headings || []).join(' ')} ${page.text}`.toLowerCase();
-    let score = page.path === current ? 5 : (current.startsWith(page.path.replace(/\/$/, '') + '/') ? 2 : 0);
+    let score = page.path === current ? 100 : (current.startsWith(page.path.replace(/\/$/, '') + '/') ? 18 : 0);
+    const titleTerms = String(currentTitle).toLowerCase().match(/[a-z0-9]{3,}/g) || [];
+    for (const term of titleTerms) if (haystack.includes(term)) score += 14;
     for (const term of terms) {
       let index = haystack.indexOf(term);
       let hits = 0;

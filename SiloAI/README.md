@@ -7,15 +7,15 @@ SiloAI is a standalone site assistant. The dashboard is served at `/SiloAI/`; it
 - Firebase email/password and Google sign-in for website owners.
 - Private Firebase RTDB entries at `siloai_users/{uid}/sites/{siteId}` that only contain each owner’s domain reference and creation time. Rules stay private to the matching UID.
 - One-time domain verification at `/.well-known/siloai-verification.txt`.
-- Same-host HTTPS crawler that reads robots.txt, optionally reads sitemap.xml, follows internal links, skips common private-looking paths and non-HTML assets, and caps a crawl at 30 pages/320 KB per response/7,000 extracted characters per page.
+- Same-host HTTPS crawler that reads robots.txt, optionally reads sitemap.xml, follows internal links and declared same-host meta/JavaScript redirect targets (without executing scripts), skips common private-looking paths and non-HTML assets, and caps a crawl at 30 pages/320 KB per response/7,000 extracted characters per page.
 - Site-specific settings and public-page excerpts stored as JSON in the private GitHub repository under `SiloAI/sites/{sha256-domain-prefix}.json`. The GitHub token remains a Worker secret and is never sent to browsers. Last-check timestamps live in the Durable Object, so unchanged crawls do not create a GitHub commit.
-- Owner-defined groups of related page paths.
+- Owner-defined groups of related page paths, also used as extra crawl seeds on the next refresh.
 - A small embeddable widget, retrieval of a few relevant page excerpts, citations, Worker-side caching, and daily stale refresh on active sites.
 - Navigation assistance disabled by default. If the owner enables it, the model can suggest a route only when that exact route is in the index. The visitor confirmation is on by default.
 - Per-IP and per-site request ceilings enforced by a Durable Object. The Worker returns a clear 503 if the limiter is missing instead of serving unmetered chat.
 - Generated single-file `worker.js`, tests, and a Wrangler deploy configuration.
 
-The initial crawler extracts text from server-delivered HTML. It does not execute a website’s JavaScript, authenticate into private areas, submit forms, or click arbitrary controls. Owners can organize discovered routes, but they cannot make inaccessible/private content visible by adding a path group.
+The crawler extracts text from server-delivered HTML. It does not execute a website’s JavaScript, authenticate into private areas, submit forms, or click arbitrary controls. It recognizes same-host redirect hints in meta refresh tags and common `location` assignments/calls, then safely fetches those public targets. Owners can add exact tool-group paths as seeds (for example `/HTML-Runner/`); a typo or route mismatch will still miss the page, and a group cannot make inaccessible/private content visible.
 
 ## Development and validation
 
@@ -71,7 +71,7 @@ npm run test:rules:offline
 1. Open `https://htmltools.me/SiloAI/`, sign in, and add `https://htmltools.eu.cc`.
 2. Publish a UTF-8 text file at `https://htmltools.eu.cc/.well-known/siloai-verification.txt` containing exactly the value shown by the dashboard, for example `siloai-verification=<generated-value>` (without angle brackets). Do not reuse the example; copy the generated value.
 3. Press **Verify & crawl**. The first request checks the file, then reads up to 30 public HTML pages. A page rejected by robots.txt or a site that renders its content only in JavaScript may not be indexed.
-4. Add tool groupings such as `Library: /Library, /Library/Studio, /Library/Studio/Upload`, if those paths belong to that site. Grouping helps explanations; it does not limit automatic discovery.
+4. Add tool groupings such as `HTML Runner: /HTML-Runner/, /HTML-Runner/Advanced`, using each route exactly as it appears in the address bar. These paths are included as crawl seeds on the next manual refresh; other public pages remain discoverable automatically.
 5. Keep answer-only as the default. The widget’s generated install snippet uses the verified site ID. Paste it before the site’s closing `</body>` tag.
 6. Test in a fresh browser and check the browser console/network panel. Confirm `/chat/{siteId}` calls originate from `https://htmltools.eu.cc` and that the Worker returns page citations.
 
@@ -81,12 +81,12 @@ If chat returns `502`, the Worker now logs a compact diagnostic (`category`, mod
 
 ## Bandwidth and usage controls
 
-- The widget never downloads the full crawl index into each visitor’s browser. It sends the current path, recent short turns, and the new question; the Worker retrieves a small set of relevant passages.
+- The widget never downloads the full crawl index into each visitor’s browser. It sends the current path and document title, recent short turns, and the new question; the Worker prioritizes an exact indexed route and retrieves a small set of relevant passages. When the route has no excerpt, the assistant is instructed to say that page content is not indexed rather than present the homepage as that page.
 - The Worker caches private GitHub site JSON for five minutes in its isolate/Cloudflare Cache API. GitHub is not fetched for every message when that cache is warm.
 - A crawl starts on initial verification and can refresh once a site is stale (24 hours) when its widget is used. Unvisited sites are not continually crawled.
 - Initial crawl caps: 30 HTML pages, 320 KB per fetched page, 7,000 text characters saved per page, at most four concurrent page fetches, no external-host crawling, no common account/admin/API routes, and robots.txt checks.
 - Crawl starts are capped at 12/day per site and 100/day across the service; manual refreshes also have a 15-minute per-site cooldown. At the hard per-crawl response limits, page payloads are bounded to about 960 MB/day across all 100 allowed crawls, plus small robots/sitemap and protocol overhead. This is far below 100 GB/day under the configured crawler limits.
-- Chat caps are 12 requests/minute and 80/day per IP, 60/minute and 1,000/day per site, plus 120/minute and 500/day service-wide. The default model is the lower-cost Workers AI Llama 3.2 3B model with a 320-token output ceiling. Responses use bounded context and output. CDN caches, bounded responses, and rate limits reduce transfer; total traffic can still vary with widget loads and visitor counts.
+- Chat caps are 12 requests/minute and 80/day per IP, 60/minute and 1,000/day per site, plus 120/minute and 500/day service-wide. The default model is Cloudflare Workers AI Gemma 4 26B A4B (`@cf/google/gemma-4-26b-a4b-it`) with thinking enabled and a 640-token completion ceiling. The Worker returns only the final answer, not recognized thinking/analysis sections. This larger reasoning model is slower and typically costs more than the previous Llama 3.2 3B model, especially if it generates long reasoning. Responses use bounded context and output. CDN caches, bounded responses, and rate limits reduce transfer; total traffic can still vary with widget loads and visitor counts.
 - Site page text is not sent to visitors in bulk. Chat sends model input to Cloudflare Workers AI; that is separate from website bandwidth and still incurs model usage.
 
 ## Storage and privacy

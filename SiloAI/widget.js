@@ -1,5 +1,5 @@
 /* SiloAI website assistant embed. Install with:
-   <script async src="https://htmltools.me/SiloAI/widget.js?v=2" data-site-id="YOUR_SITE_ID"></script>
+   <script async src="https://htmltools.me/SiloAI/widget.js?v=3" data-site-id="YOUR_SITE_ID"></script>
 */
 (function () {
   'use strict';
@@ -39,6 +39,19 @@
   var busy = false;
 
   function save() { try { sessionStorage.setItem(storageKey, JSON.stringify(history.slice(-4))); } catch (_) {} }
+  function currentPageContext() {
+    var pageUrl;
+    var pageTitle = document.title || '';
+    try { pageUrl = new URL(window.location.href); } catch (_) { pageUrl = new URL('/', location.origin); }
+    try {
+      var topUrl = new URL(window.top.location.href);
+      if (topUrl.protocol === 'https:' && (location.origin === 'null' || topUrl.origin === location.origin)) {
+        pageUrl = topUrl;
+        pageTitle = window.top.document.title || pageTitle;
+      }
+    } catch (_) { /* cross-origin frame: use the widget's own document context */ }
+    return { pagePath: pageUrl.pathname, pageTitle: pageTitle.slice(0, 180) };
+  }
   function bubble(role, text, isError) {
     var el = document.createElement('div');
     el.className = 'silo-msg ' + (role === 'user' ? 'silo-user' : 'silo-assistant') + (isError ? ' silo-error' : '');
@@ -98,10 +111,11 @@
     var pending = bubble('assistant', 'SiloAI is thinking…');
     pending.className += ' silo-typing';
     try {
+      var pageContext = currentPageContext();
       var response = await fetch(api + '/chat/' + siteId, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: text, history: history.slice(0, -1), pagePath: location.pathname }),
+        body: JSON.stringify({ message: text, history: history.slice(0, -1), pagePath: pageContext.pagePath, pageTitle: pageContext.pageTitle }),
         credentials: 'omit',
       });
       var payload = await response.json().catch(function () { return {}; });
