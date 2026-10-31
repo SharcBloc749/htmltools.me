@@ -51,7 +51,7 @@ npm run test:rules:offline
    ```
 
    Do not paste tokens or service-account keys into chat or Git.
-3. **Deploy static files** so `/SiloAI/`, `/SiloAI/widget.js`, `/SiloAI/style.css`, `/SiloAI/app.js`, and `/SiloAI.png` are live on `https://htmltools.me`. No Tools directory or sitemap entry is included.
+3. **Deploy static files** so `/SiloAI/`, `/SiloAI/widget.js`, `/SiloAI/brandmark.svg`, `/SiloAI/style.css`, `/SiloAI/app.js`, and `/SiloAI.png` are live on `https://htmltools.me`. No Tools directory or sitemap entry is included.
 4. **Deploy the Worker** from this directory. Its Wrangler name is `siloai`, its AI binding is `AI`, and its Durable Object binding/migration is `LIMITER` / `SiloLimiter`:
 
    ```sh
@@ -74,6 +74,10 @@ npm run test:rules:offline
 4. Add tool groupings such as `Library: /Library, /Library/Studio, /Library/Studio/Upload`, if those paths belong to that site. Grouping helps explanations; it does not limit automatic discovery.
 5. Keep answer-only as the default. The widget’s generated install snippet uses the verified site ID. Paste it before the site’s closing `</body>` tag.
 6. Test in a fresh browser and check the browser console/network panel. Confirm `/chat/{siteId}` calls originate from `https://htmltools.eu.cc` and that the Worker returns page citations.
+
+## Workers AI troubleshooting
+
+If chat returns `502`, the Worker now logs a compact diagnostic (`category`, model ID, provider error code/status) without logging the visitor’s message or indexed page text. It also returns a specific safe hint when Cloudflare reports a model-agreement, account-access, plan, quota, capacity, or model-ID problem. In Cloudflare, open **Workers & Pages → siloai → Logs** and inspect the newest `[SiloAI] Workers AI inference failed` entry. The model binding can be present while inference still fails; `/health` only confirms that the binding exists. Retry after a capacity error, check the model agreement/access on the Cloudflare AI model page when indicated, and verify the configured `AI_MODEL` if the diagnostic says the model is unavailable.
 
 ## Bandwidth and usage controls
 
