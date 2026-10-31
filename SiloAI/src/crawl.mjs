@@ -1,6 +1,9 @@
 import { normalizePath } from './util.mjs';
 
 const MAX_PAGES = 30;
+const MAX_SITEMAP_FILES = 8;
+const MAX_SITEMAP_URLS = 500;
+const MAX_SITEMAP_BYTES = 200_000;
 const MAX_PAGE_BYTES = 320_000;
 const MAX_TEXT_CHARS = 7_000;
 const PRIVATE_PATH = /\/(?:admin|dashboard|login|logout|account|auth|api|private|checkout|cart)(?:\/|$)/i;
@@ -100,12 +103,15 @@ async function fetchSameHost(url, host, maxBytes, fetchImpl = fetch) {
 
 async function loadRobotsPolicy(host) {
   const response = await fetchSameHost(hostUrl(host, '/robots.txt'), host, 80_000);
-  if (!response) return { disallow: [], allow: [] };
+  if (!response) return { disallow: [], allow: [], sitemaps: [] };
   let active = false;
   const disallow = [];
   const allow = [];
+  const sitemaps = [];
   for (const raw of response.body.split(/\r?\n/)) {
     const line = raw.replace(/#.*/, '').trim();
+    const sitemapMatch = /^sitemap\s*:\s*(.+)$/i.exec(line);
+    if (sitemapMatch) { sitemaps.push(sitemapMatch[1].trim()); continue; }
     const match = /^(user-agent|disallow|allow)\s*:\s*(.*)$/i.exec(line);
     if (!match) continue;
     const key = match[1].toLowerCase();
@@ -113,7 +119,7 @@ async function loadRobotsPolicy(host) {
     if (key === 'user-agent') active = value === '*' || /siloai/i.test(value);
     else if (active && value) (key === 'allow' ? allow : disallow).push(value);
   }
-  return { disallow, allow };
+  return { disallow, allow, sitemaps };
 }
 
 function robotsAllows(policy, path) {
@@ -122,13 +128,29 @@ function robotsAllows(policy, path) {
   return !blocked || Boolean(permitted && permitted.length >= blocked.length);
 }
 
+function cleanTitle(value) {
+  return decodeEntities(String(value || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, 180);
+}
+
+function isPlaceholderTitle(value) {
+  return /^(?:redirect(?:ing)?(?:\.\.\.)?|please wait|loading(?:\.\.\.)?|untitled)$/i.test(String(value || '').trim());
+}
+
 function parsePage(url, html) {
   const pageUrl = new URL(url);
-  const title = decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(html)?.[1] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
-  const descriptionTag = /<meta\b[^>]*(?:name|property)\s*=\s*["'](?:description|og:description)["'][^>]*>/i.exec(html)?.[0] || '';
+  const metaTags = [...html.matchAll(/<meta\b[^>]*>/gi)].map((match) => match[0]);
+  const descriptionTag = metaTags.find((tag) => /^(?:description|og:description)$/i.test(attr(tag, 'name') || attr(tag, 'property'))) || '';
   const description = decodeEntities(attr(descriptionTag, 'content')).replace(/\s+/g, ' ').trim().slice(0, 320);
   const headingText = [...html.matchAll(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]\s*>/gi)]
     .slice(0, 16).map((match) => plainText(match[1]).slice(0, 140)).filter(Boolean);
+  const rawTitle = cleanTitle(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(html)?.[1] || '');
+  const metaTitleTag = metaTags.find((tag) => /^(?:og:title|twitter:title|title)$/i.test(attr(tag, 'property') || attr(tag, 'name'))) || '';
+  const metaTitle = cleanTitle(attr(metaTitleTag, 'content'));
+  const fallbackHeading = headingText.find((value) => !isPlaceholderTitle(value)) || headingText[0] || '';
+  const title = [rawTitle, metaTitle, fallbackHeading].find((value) => value && !isPlaceholderTitle(value))
+    || rawTitle || metaTitle || fallbackHeading || pageUrl.pathname || 'Home';
+  const redirectPlaceholder = Boolean(rawTitle && isPlaceholderTitle(rawTitle)
+    && ![metaTitle, fallbackHeading].some((value) => value && !isPlaceholderTitle(value)));
   const linkPaths = new Set();
   const addInternalPath = (href) => {
     if (!href || /^(?:#|mailto:|tel:|javascript:|data:)/i.test(href)) return;
@@ -156,7 +178,7 @@ function parsePage(url, html) {
     }
   }
   const text = plainText(html).slice(0, MAX_TEXT_CHARS);
-  return { url: pageUrl.href, path: pageUrl.pathname, title: title || pageUrl.pathname || 'Home', description, headings: headingText, links: [...linkPaths].slice(0, 80), text };
+  return { url: pageUrl.href, path: pageUrl.pathname, title, description, headings: headingText, links: [...linkPaths].slice(0, 80), text, redirectPlaceholder };
 }
 
 function ownerSeedPaths(paths) {
@@ -174,22 +196,49 @@ function ownerSeedPaths(paths) {
 function isRedirectPlaceholder(page) {
   const title = String(page?.title || '').trim();
   const text = String(page?.text || '').trim();
-  return /^(?:redirect(?:ing)?(?:\.\.\.)?|please wait|loading\.\.\.)$/i.test(title)
+  return page?.redirectPlaceholder === true
+    || /^(?:redirect(?:ing)?(?:\.\.\.)?|please wait|loading(?:\.\.\.)?|untitled)$/i.test(title)
     || (text.length < 500 && /redirecting\.\.\.|if you are not redirected|redirecting to/i.test(text));
 }
 
-async function sitemapPaths(host) {
-  const result = await fetchSameHost(hostUrl(host, '/sitemap.xml'), host, 200_000);
-  if (!result) return [];
-  const paths = [];
-  for (const match of result.body.matchAll(/<loc\b[^>]*>\s*([^<]+)\s*<\/loc>/gi)) {
-    try {
-      const target = new URL(decodeEntities(match[1].trim()));
-      if (target.protocol === 'https:' && !target.port && sameVerifiedHost(target.hostname, host) && isCrawlablePath(target.pathname)) paths.push(target.pathname);
-    } catch { /* malformed sitemap entry */ }
-    if (paths.length >= 100) break;
+function safeSitemapUrl(value, host, robots) {
+  try {
+    const target = new URL(value, `https://${host}/`);
+    if (target.protocol !== 'https:' || target.port || !sameVerifiedHost(target.hostname, host) || !robotsAllows(robots, target.pathname)) return null;
+    target.hash = '';
+    return target.href;
+  } catch { return null; }
+}
+
+async function sitemapPaths(host, robots) {
+  const sitemapQueue = [hostUrl(host, '/sitemap.xml').href, ...(robots.sitemaps || [])]
+    .map((value) => safeSitemapUrl(value, host, robots)).filter(Boolean);
+  const seenSitemaps = new Set();
+  const pagePaths = new Set();
+  while (sitemapQueue.length && seenSitemaps.size < MAX_SITEMAP_FILES && pagePaths.size < MAX_SITEMAP_URLS) {
+    const sitemapUrl = sitemapQueue.shift();
+    if (seenSitemaps.has(sitemapUrl)) continue;
+    seenSitemaps.add(sitemapUrl);
+    const result = await fetchSameHost(sitemapUrl, host, MAX_SITEMAP_BYTES);
+    if (!result || !/xml/i.test(result.type)) continue;
+    if (/<(?:[\w.-]+:)?sitemapindex\b/i.test(result.body)) {
+      for (const match of result.body.matchAll(/<(?:[\w.-]+:)?loc\b[^>]*>\s*([^<]+)\s*<\/(?:[\w.-]+:)?loc\s*>/gi)) {
+        const child = safeSitemapUrl(decodeEntities(match[1].trim()), host, robots);
+        if (child && !seenSitemaps.has(child) && !sitemapQueue.includes(child)) sitemapQueue.push(child);
+      }
+      continue;
+    }
+    for (const match of result.body.matchAll(/<(?:[\w.-]+:)?loc\b[^>]*>\s*([^<]+)\s*<\/(?:[\w.-]+:)?loc\s*>/gi)) {
+      try {
+        const target = new URL(decodeEntities(match[1].trim()));
+        if (target.protocol === 'https:' && !target.port && sameVerifiedHost(target.hostname, host) && isCrawlablePath(target.pathname) && robotsAllows(robots, target.pathname)) {
+          pagePaths.add(target.pathname);
+        }
+      } catch { /* malformed sitemap entry */ }
+      if (pagePaths.size >= MAX_SITEMAP_URLS) break;
+    }
   }
-  return [...new Set(paths)];
+  return [...pagePaths];
 }
 
 export async function verifyDomainFile(host, token, fetchImpl = fetch) {
@@ -200,7 +249,7 @@ export async function verifyDomainFile(host, token, fetchImpl = fetch) {
 export async function crawlSite(host, priorPages = [], ownerPaths = []) {
   const robots = await loadRobotsPolicy(host);
   if (!robotsAllows(robots, '/')) throw Object.assign(new Error('The site robots.txt disallows SiloAI from crawling its homepage.'), { code: 'robots_disallow' });
-  const sitemap = robotsAllows(robots, '/sitemap.xml') ? await sitemapPaths(host) : [];
+  const sitemap = await sitemapPaths(host, robots);
   const old = new Map((priorPages || []).map((page) => [page.path, page]));
   const seeds = ownerSeedPaths(ownerPaths);
   const queue = [{ path: '/', depth: 0 }, ...seeds.map((path) => ({ path, depth: 1 })), ...sitemap.map((path) => ({ path, depth: 1 }))];

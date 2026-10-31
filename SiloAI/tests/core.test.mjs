@@ -55,6 +55,32 @@ test('crawler follows same-host links and sitemap entries, extracts text, and sk
   } finally { restoreFetch(); }
 });
 
+
+test('crawler expands sitemap indexes and robots sitemap directives while using metadata titles', async () => {
+  const routes = new Map([
+    ['https://example.com/robots.txt', new Response('User-agent: *\nAllow: /\nSitemap: https://example.com/maps/index.xml', { headers: { 'content-type': 'text/plain' } })],
+    ['https://example.com/sitemap.xml', new Response('not found', { status: 404, headers: { 'content-type': 'text/plain' } })],
+    ['https://example.com/maps/index.xml', new Response('<sitemapindex><sitemap><loc>https://example.com/maps/one.xml</loc></sitemap><sitemap><loc>https://example.com/maps/two.xml</loc></sitemap></sitemapindex>', { headers: { 'content-type': 'application/xml' } })],
+    ['https://example.com/maps/one.xml', new Response('<urlset><url><loc>https://example.com/Main/</loc></url><url><loc>https://example.com/HTML-Runner/</loc></url></urlset>', { headers: { 'content-type': 'application/xml' } })],
+    ['https://example.com/maps/two.xml', new Response('<urlset><url><loc>https://example.com/meta-title</loc></url><url><loc>https://example.com/heading-title</loc></url></urlset>', { headers: { 'content-type': 'application/xml' } })],
+    ['https://example.com/', htmlResponse('<title>Home</title><h1>Site home</h1>')],
+    ['https://example.com/Main/', htmlResponse('<title>Main tools</title><h1>Main tools</h1>')],
+    ['https://example.com/HTML-Runner/', htmlResponse('<title>Redirecting...</title><meta property="og:title" content="HTML Runner"><h1>Run HTML online</h1><p>Use the online runner.</p>')],
+    ['https://example.com/meta-title', htmlResponse('<title>Loading...</title><meta name="title" content="Meta title fallback"><p>Page copy.</p>')],
+    ['https://example.com/heading-title', htmlResponse('<h1>Heading title fallback</h1><p>Page copy.</p>')],
+  ]);
+  setFetch(async (url) => routes.get(String(url)) || new Response('not found', { status: 404, headers: { 'content-type': 'text/plain' } }));
+  try {
+    const result = await crawlSite('example.com');
+    const byPath = new Map(result.pages.map((page) => [page.path, page]));
+    assert.ok(byPath.has('/Main/'));
+    assert.ok(byPath.has('/HTML-Runner/'));
+    assert.equal(byPath.get('/HTML-Runner/').title, 'HTML Runner');
+    assert.equal(byPath.get('/meta-title').title, 'Meta title fallback');
+    assert.equal(byPath.get('/heading-title').title, 'Heading title fallback');
+  } finally { restoreFetch(); }
+});
+
 test('robots.txt disallow blocks crawling and verification requires an exact token file', async () => {
   setFetch(async (url) => {
     if (String(url).endsWith('/robots.txt')) return new Response('User-agent: *\nDisallow: /', { headers: { 'content-type': 'text/plain' } });
@@ -103,22 +129,23 @@ class MemoryStorage {
 
 test('Durable Object limiter enforces per-IP and per-site short and daily caps', async () => {
   const limiter = new SiloLimiter({ storage: new MemoryStorage() });
-  let response;
-  for (let i = 0; i < 12; i++) response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'ip:client-a' }) }));
-  assert.equal(response.status, 200);
-  response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'ip:client-a' }) }));
-  assert.equal(response.status, 429);
-  for (let i = 0; i < 60; i++) response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'site' }) }));
-  assert.equal(response.status, 200);
-  response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'site' }) }));
-  assert.equal(response.status, 429);
-  for (let i = 0; i < 100; i++) response = await limiter.fetch(new Request('https://limiter/crawl-check', { method: 'POST', body: JSON.stringify({ bucket: 'crawl-global' }) }));
-  assert.equal(response.status, 200);
-  response = await limiter.fetch(new Request('https://limiter/crawl-check', { method: 'POST', body: JSON.stringify({ bucket: 'crawl-global' }) }));
-  assert.equal(response.status, 429);
   const originalNow = Date.now;
   const start = originalNow();
+  let response;
   try {
+    Date.now = () => start;
+    for (let i = 0; i < 12; i++) response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'ip:client-a' }) }));
+    assert.equal(response.status, 200);
+    response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'ip:client-a' }) }));
+    assert.equal(response.status, 429);
+    for (let i = 0; i < 60; i++) response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'site' }) }));
+    assert.equal(response.status, 200);
+    response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'site' }) }));
+    assert.equal(response.status, 429);
+    for (let i = 0; i < 100; i++) response = await limiter.fetch(new Request('https://limiter/crawl-check', { method: 'POST', body: JSON.stringify({ bucket: 'crawl-global' }) }));
+    assert.equal(response.status, 200);
+    response = await limiter.fetch(new Request('https://limiter/crawl-check', { method: 'POST', body: JSON.stringify({ bucket: 'crawl-global' }) }));
+    assert.equal(response.status, 429);
     for (let i = 0; i < 500; i++) {
       Date.now = () => start + Math.floor(i / 100) * 60_000;
       response = await limiter.fetch(new Request('https://limiter/check', { method: 'POST', body: JSON.stringify({ bucket: 'global' }) }));

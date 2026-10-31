@@ -60,7 +60,7 @@ test('health reports configured core bindings without exposing secret values', a
   });
   const payload = await response.json();
   assert.equal(response.status, 200);
-  assert.deepEqual(payload, { ok: true, service: 'siloai', ai: true, storage: true, auth: true, limits: true });
+  assert.deepEqual(payload, { ok: true, service: 'siloai', ai: true, model: '@cf/google/gemma-4-26b-a4b-it', storage: true, auth: true, limits: true });
   assert.doesNotMatch(JSON.stringify(payload), /secret-not-returned/);
 });
 

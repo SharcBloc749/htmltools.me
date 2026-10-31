@@ -461,7 +461,7 @@ export default {
     const url = new URL(request.url);
     const origin = request.headers.get('origin') || '';
     if (url.pathname === '/health' && request.method === 'GET') {
-      return json({ ok: true, service: 'siloai', ai: Boolean(env.AI), storage: Boolean(env.GITHUB_TOKEN && env.GITHUB_REPO), auth: Boolean(env.FIREBASE_PROJECT_ID), limits: Boolean(env.LIMITER) });
+      return json({ ok: true, service: 'siloai', ai: Boolean(env.AI), model: env.AI_MODEL || MODEL_DEFAULT, storage: Boolean(env.GITHUB_TOKEN && env.GITHUB_REPO), auth: Boolean(env.FIREBASE_PROJECT_ID), limits: Boolean(env.LIMITER) });
     }
     if (url.pathname.startsWith('/api/')) return ownerApi(request, url, env, origin);
     const chatMatch = /^\/chat\/([a-f0-9]{24})$/.exec(url.pathname);
