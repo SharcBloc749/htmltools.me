@@ -19,6 +19,17 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.doesNotMatch(app, /widget\.js\?v=/, 'dashboard snippets should keep a stable versionless URL');
   assert.match(app, /data-ai-test/);
   assert.match(app, /\/ai-test/);
+  assert.match(app, /data-allow-actions/);
+  assert.match(widget, /data-resize-launcher/);
+  assert.match(widget, /data-resize-panel/);
+  assert.match(widget, /data-voice/);
+  assert.match(widget, /data-image-file/);
+  assert.match(widget, /localStorage/);
+  assert.match(widget, /siloai\.conversations/);
+  assert.match(widget, /SpeechRecognition/);
+  assert.match(widget, /silo-panel-resize/);
+  assert.match(app, /Allow page interactions/);
+  assert.match(widget, /siloai-control-id/);
   assert.match(styles, /\.verified-actions/);
   const headers = await text('../../_headers');
   assert.match(headers, /\/SiloAI\/widget\.js[\s\S]*Cache-Control: public, max-age=0, must-revalidate/);
