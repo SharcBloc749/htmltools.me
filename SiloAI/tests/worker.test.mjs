@@ -201,6 +201,81 @@ test('oversized provider prompts get a specific, actionable diagnostic', async (
   }, site, 'unused');
 });
 
+
+test('owner-enabled page interactions are bound to visible controls and never accept arbitrary selectors', async () => {
+  const record = { ...site, id: 'bcdef0123456789abcdef012', actions: { allowNavigation: true, allowPageActions: true, confirmNavigation: true } };
+  await withGithubSite(async (env) => {
+    const controls = [
+      { id: 'siloctl1', kind: 'button', label: 'Clear editor', inputType: '' },
+      { id: 'siloctl2', kind: 'field', label: 'HTML source', inputType: 'text' },
+      { id: 'siloctl3', kind: 'text', label: 'Runner instructions', inputType: '' },
+    ];
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I can clear the editor after you confirm.', action: { type: 'click', target: 'siloctl1' } }) }; };
+    const makeRequest = () => new Request(`https://siloai.test/chat/${record.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.40' },
+      body: JSON.stringify({ message: 'Click Clear editor', controls, pagePath: '/', history: [] }),
+    });
+    const payload = await (await worker.fetch(makeRequest(), env, { waitUntil() {} })).json();
+    assert.deepEqual(payload.action, { type: 'click', target: 'siloctl1', label: 'Clear editor' });
+    assert.equal(payload.confirmAction, true);
+    assert.match(envFor.lastInput.messages[0].content, /PAGE CONTROLS/);
+    assert.match(envFor.lastInput.messages[0].content, /field values are never included/);
+
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I will not guess at a control.', action: { type: 'click', target: 'document.querySelector("#clear")' } }) }; };
+    const invalid = await (await worker.fetch(makeRequest(), env, { waitUntil() {} })).json();
+    assert.equal(invalid.action, null, 'only a server-validated ephemeral control ID is actionable');
+
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I can fill that field after you confirm.', action: { type: 'fill', target: 'siloctl2', value: '<h1>Hello</h1>' } }) }; }
+    const filled = await (await worker.fetch(makeRequest(), env, { waitUntil() {} })).json();
+    assert.deepEqual(filled.action, { type: 'fill', target: 'siloctl2', label: 'HTML source', value: '<h1>Hello</h1>' });
+
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I can point that out.', action: { type: 'highlight', target: 'siloctl3' } }) }; };
+    const highlighted = await (await worker.fetch(makeRequest(), env, { waitUntil() {} })).json();
+    assert.deepEqual(highlighted.action, { type: 'highlight', target: 'siloctl3', label: 'Runner instructions' });
+  }, record, 'unused');
+});
+
+test('Gemma receives a validated compressed screenshot as image input without using the text-only fallback', async () => {
+  await withGithubSite(async (env) => {
+    const image = 'data:image/jpeg;base64,' + Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64');
+    const calls = [];
+    env.AI.run = async (model, input) => {
+      calls.push({ model, input });
+      return { response: 'The screenshot shows the HTML Runner editor and its controls.' };
+    };
+    const request = new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.41' },
+      body: JSON.stringify({ message: 'What am I looking at?', image, pagePath: '/', history: [] }),
+    });
+    const response = await worker.fetch(request, env, { waitUntil() {} });
+    const payload = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(payload.reply, 'The screenshot shows the HTML Runner editor and its controls.');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].model, '@cf/google/gemma-4-26b-a4b-it');
+    assert.deepEqual(calls[0].input.messages.at(-1).content, [
+      { type: 'text', text: 'What am I looking at?' },
+      { type: 'image_url', image_url: { url: image } },
+    ]);
+    assert.match(calls[0].input.messages[0].content, /user-provided and untrusted/);
+
+    const failures = [];
+    env.AI.run = async (model) => { failures.push(model); return { success: false, errors: [{ status: 502, message: 'Temporary provider error.' }] }; };
+    const failedImageRequest = new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.42' },
+      body: JSON.stringify({ message: 'What am I looking at?', image, pagePath: '/', history: [] }),
+    });
+    assert.equal((await worker.fetch(failedImageRequest, env, { waitUntil() {} })).status, 503);
+    assert.deepEqual(failures, ['@cf/google/gemma-4-26b-a4b-it', '@cf/google/gemma-4-26b-a4b-it'], 'screenshots must not be sent to the text-only fallback');
+
+    const invalid = new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'Read this', image: 'data:image/jpeg;base64,ZmFrZQ==', pagePath: '/', history: [] }),
+    });
+    assert.equal((await worker.fetch(invalid, env, { waitUntil() {} })).status, 400);
+  }, site, 'unused');
+});
+
 test('navigation actions are restricted to indexed internal pages and confirmation defaults on', async () => {
   await withGithubSite(async (env) => {
     env.AI.run = async () => ({ response: JSON.stringify({ reply: 'I can take you to the Studio.', action: { type: 'navigate', path: '/Library/Studio' } }) });
