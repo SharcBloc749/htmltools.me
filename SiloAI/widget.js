@@ -1,10 +1,14 @@
 /* SiloAI website assistant embed. Install with:
-   <script async src="https://htmltools.me/SiloAI/widget.js" data-site-id="YOUR_SITE_ID"></script>
+   <script async src="https://htmltools.me/SiloAI/widget.js?v=4" data-site-id="YOUR_SITE_ID"></script>
 */
 (function () {
   'use strict';
-  if (window.__siloaiLoaded) return;
+  var BUILD_VERSION = '4';
+  if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
+  var previousWidget = document.getElementById('siloai-widget-host');
+  if (previousWidget) previousWidget.remove();
   window.__siloaiLoaded = true;
+  window.__siloaiLoadedVersion = BUILD_VERSION;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
   if (!/^[a-f0-9]{24}$/.test(siteId || '')) return;
@@ -26,7 +30,7 @@
   function loadConversations() {
     try {
       var saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
-      conversations = Array.isArray(saved.conversations) ? saved.conversations.slice(0, 8).map(function (item) {
+      conversations = Array.isArray(saved.conversations) ? saved.conversations.slice(0, 20).map(function (item) {
         var messages = Array.isArray(item.messages) ? item.messages.slice(-40).filter(function (entry) {
           return entry && (entry.role === 'user' || entry.role === 'assistant') && typeof entry.content === 'string';
         }).map(function (entry) {
@@ -55,15 +59,15 @@
   var shadow = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
   shadow.innerHTML = [
     '<style>',
-    ':host{all:initial}*{box-sizing:border-box}button,textarea,input{font:inherit}.silo-fab{position:absolute;inset:0;width:100%;height:100%;padding:0;overflow:hidden;border-radius:14px;border:1px solid #999;background:#090909;box-shadow:0 14px 38px #0008;cursor:grab;display:grid;place-items:center;touch-action:none}.silo-fab:active{cursor:grabbing}.silo-fab img{display:block;width:100%;height:100%;border-radius:12px;object-fit:cover;transform:none}.silo-launcher-resize{position:absolute;right:-7px;bottom:-7px;width:22px;height:22px;border:1px solid #aaa;border-radius:7px;background:#191919;color:#eee;font-size:13px;line-height:1;cursor:nwse-resize;touch-action:none;z-index:2}.silo-panel{position:fixed;width:min(390px,calc(100vw - 24px));height:min(580px,calc(100dvh - 110px));min-width:min(280px,calc(100vw - 16px));min-height:min(340px,calc(100dvh - 16px));max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);background:#0b0b0b;color:#f4f4f4;border:1px solid #333;border-radius:19px;box-shadow:0 24px 80px #000b;display:flex;flex-direction:column;overflow:hidden;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}.silo-panel[hidden]{display:none}.silo-head{height:62px;min-height:62px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid #272727;background:#111}.silo-head img{width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid #777;background:#090909}.silo-brand{font-weight:650;letter-spacing:.02em}.silo-status{font-size:11px;color:#a6a6a6}.silo-grow{flex:1}.silo-icon{width:32px;height:32px;flex:none;border-radius:9px;color:#ddd;background:transparent;border:0;cursor:pointer;font-size:18px}.silo-icon:hover,.silo-icon[aria-expanded=true]{background:#232323}.silo-messages{overflow:auto;flex:1;min-height:0;padding:15px 13px 22px;display:flex;flex-direction:column;gap:11px}.silo-welcome{padding:16px 14px;border:1px solid #313131;border-radius:14px;background:linear-gradient(140deg,#151515,#111);color:#c6c6c6}.silo-welcome b{display:block;color:#f4f4f4;font-size:16px;margin-bottom:5px}.silo-msg{max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px 12px;border-radius:13px}.silo-user{align-self:flex-end;background:#262626;color:#f3f3f3;border:1px solid #3c3c3c}.silo-assistant{align-self:flex-start;background:#141414;border:1px solid #272727;color:#e4e4e4}.silo-error{color:#eee}.silo-sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}.silo-source{display:inline-flex;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #353535;background:#181818;color:#bdbdbd;border-radius:999px;padding:5px 9px;font-size:11px;text-decoration:none}.silo-action{margin-top:8px;border:1px solid #bdbdbd;background:#e5e5e5;color:#111;border-radius:9px;padding:7px 10px;cursor:pointer;font-weight:600;font-size:12px}.silo-action:hover{background:#fff}.silo-preview-image{display:block;max-width:min(230px,100%);max-height:180px;object-fit:contain;border:1px solid #555;border-radius:8px;margin-top:8px}.silo-compose{position:relative;flex:none;padding:9px 10px 10px;border-top:1px solid #272727;background:#111}.silo-row{display:flex;align-items:flex-end;gap:6px;background:#0c0c0c;border:1px solid #343434;border-radius:13px;padding:6px}.silo-row:focus-within{border-color:#858585}.silo-input{resize:none;min-height:38px;max-height:100px;flex:1;min-width:0;border:0;outline:0;background:transparent;color:#f4f4f4;padding:8px 5px;font-size:14px;line-height:1.4}.silo-input::placeholder{color:#888}.silo-send,.silo-tool{width:35px;height:35px;flex:none;border:0;border-radius:9px;background:#242424;color:#e8e8e8;cursor:pointer;font-size:16px}.silo-tool{width:auto;min-width:35px;padding:0 6px;font-size:10px;font-weight:650}.silo-send{background:#e5e5e5;color:#111111;font-size:18px}.silo-send:disabled,.silo-tool:disabled{opacity:.45;cursor:default}.silo-tool[hidden]{display:none}.silo-toolbar{display:flex;gap:6px;margin-top:5px}.silo-attachment{display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:6px;border:1px solid #333;border-radius:9px;color:#ccc;font-size:11px}.silo-attachment[hidden]{display:none}.silo-attachment img{width:40px;height:32px;object-fit:cover;border-radius:4px}.silo-attachment button{margin-left:auto;border:0;background:transparent;color:#ddd;font-size:17px;cursor:pointer}.silo-foot{font-size:10px;color:#888;margin:6px 3px 0;line-height:1.4}.silo-typing{color:#b1b1b1;font-size:12px}.silo-panel[data-busy=true] .silo-send{opacity:.5}.silo-menu{position:absolute;top:67px;right:10px;z-index:4;width:min(260px,calc(100% - 20px));max-height:min(300px,50%);overflow:auto;background:#171717;border:1px solid #444;border-radius:11px;padding:6px;box-shadow:0 12px 40px #000b}.silo-menu[hidden]{display:none}.silo-menu button{display:block;width:100%;padding:9px 10px;text-align:left;border:0;border-radius:7px;background:transparent;color:#eee;cursor:pointer;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.silo-menu button:hover,.silo-menu button[aria-current=true]{background:#2b2b2b}.silo-menu small{display:block;color:#999;font-size:10px;margin-top:2px}.silo-panel-resize{position:absolute;right:0;bottom:0;width:22px;height:22px;border:0;background:linear-gradient(135deg,transparent 47%,#777 49%,#777 54%,transparent 56%,transparent 65%,#999 67%,#999 72%,transparent 74%);cursor:nwse-resize;touch-action:none}.silo-panel-resize:focus-visible,.silo-launcher-resize:focus-visible{outline:2px solid #eee;outline-offset:2px}.silo-hidden-file{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;clip-path:inset(50%);border:0}.silo-mic-status{color:#bbb;font-size:10px;margin:4px 3px}.silo-mic-status:empty{display:none}.silo-user-image{display:block;max-width:220px;max-height:160px;object-fit:contain;border-radius:8px;margin-top:7px}.silo-history-empty{color:#aaa;padding:10px;font-size:12px}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}',
+    ':host{all:initial}*{box-sizing:border-box}button,textarea,input{font:inherit}.silo-fab{position:absolute;inset:0;width:100%;height:100%;padding:0;overflow:hidden;border-radius:14px;border:1px solid #999;background:#090909;box-shadow:0 14px 38px #0008;cursor:grab;display:grid;place-items:center;touch-action:none}.silo-fab:active{cursor:grabbing}.silo-fab img{display:block;width:100%;height:100%;border-radius:12px;object-fit:cover;transform:none}.silo-launcher-resize{position:absolute;right:-7px;bottom:-7px;width:22px;height:22px;border:1px solid #aaa;border-radius:7px;background:#191919;color:#eee;font-size:13px;line-height:1;cursor:nwse-resize;touch-action:none;z-index:2}.silo-panel{position:fixed;width:min(390px,calc(100vw - 24px));height:min(580px,calc(100dvh - 110px));min-width:min(280px,calc(100vw - 16px));min-height:min(340px,calc(100dvh - 16px));max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);background:#0b0b0b;color:#f4f4f4;border:1px solid #333;border-radius:19px;box-shadow:0 24px 80px #000b;display:flex;flex-direction:column;overflow:hidden;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}.silo-panel[hidden]{display:none}.silo-head{height:62px;min-height:62px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid #272727;background:#111}.silo-head img{width:36px;height:36px;border-radius:8px;object-fit:cover;border:1px solid #777;background:#090909}.silo-brand{font-weight:650;letter-spacing:.02em}.silo-status{font-size:10px;line-height:1.15;color:#a6a6a6;overflow-wrap:anywhere}.silo-head>div:nth-child(2){min-width:0}.silo-grow{flex:1}.silo-icon{width:32px;height:32px;flex:none;border-radius:9px;color:#ddd;background:transparent;border:0;cursor:pointer;font-size:18px}.silo-icon:hover,.silo-icon[aria-expanded=true]{background:#232323}.silo-messages{overflow:auto;flex:1;min-height:0;padding:15px 13px 22px;display:flex;flex-direction:column;gap:11px}.silo-welcome{padding:16px 14px;border:1px solid #313131;border-radius:14px;background:linear-gradient(140deg,#151515,#111);color:#c6c6c6}.silo-welcome b{display:block;color:#f4f4f4;font-size:16px;margin-bottom:5px}.silo-msg{max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px 12px;border-radius:13px}.silo-user{align-self:flex-end;background:#262626;color:#f3f3f3;border:1px solid #3c3c3c}.silo-assistant{align-self:flex-start;background:#141414;border:1px solid #272727;color:#e4e4e4}.silo-error{color:#eee}.silo-sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}.silo-source{display:inline-flex;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #353535;background:#181818;color:#bdbdbd;border-radius:999px;padding:5px 9px;font-size:11px;text-decoration:none}.silo-action{margin-top:8px;border:1px solid #bdbdbd;background:#e5e5e5;color:#111;border-radius:9px;padding:7px 10px;cursor:pointer;font-weight:600;font-size:12px}.silo-action:hover{background:#fff}.silo-preview-image{display:block;max-width:min(230px,100%);max-height:180px;object-fit:contain;border:1px solid #555;border-radius:8px;margin-top:8px}.silo-compose{position:relative;flex:none;padding:9px 10px 10px;border-top:1px solid #272727;background:#111}.silo-row{display:flex;align-items:flex-end;gap:6px;background:#0c0c0c;border:1px solid #343434;border-radius:13px;padding:6px}.silo-row:focus-within{border-color:#858585}.silo-input{resize:none;min-height:38px;max-height:100px;flex:1;min-width:0;border:0;outline:0;background:transparent;color:#f4f4f4;padding:8px 5px;font-size:14px;line-height:1.4}.silo-input::placeholder{color:#888}.silo-send,.silo-tool{width:35px;height:35px;flex:none;border:0;border-radius:9px;background:#242424;color:#e8e8e8;cursor:pointer;font-size:16px}.silo-tool{width:auto;min-width:35px;padding:0 6px;font-size:10px;font-weight:650}.silo-send{background:#e5e5e5;color:#111111;font-size:18px}.silo-send:disabled,.silo-tool:disabled{opacity:.45;cursor:default}.silo-tool[hidden]{display:none}.silo-toolbar{display:flex;gap:6px;margin-top:5px}.silo-attachment{display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:6px;border:1px solid #333;border-radius:9px;color:#ccc;font-size:11px}.silo-attachment[hidden]{display:none}.silo-attachment img{width:40px;height:32px;object-fit:cover;border-radius:4px}.silo-attachment button{margin-left:auto;border:0;background:transparent;color:#ddd;font-size:17px;cursor:pointer}.silo-foot{font-size:10px;color:#888;margin:6px 3px 0;line-height:1.4}.silo-foot a{display:block;color:#ddd;text-decoration:underline;text-underline-offset:2px;margin-bottom:5px}.silo-context-toggle{display:flex;align-items:center;gap:6px;margin:5px 3px;color:#bbb;font-size:10px}.silo-context-toggle input{accent-color:#ddd}.silo-typing{color:#b1b1b1;font-size:12px}.silo-panel[data-busy=true] .silo-send{opacity:.5}.silo-menu{position:absolute;top:67px;right:10px;z-index:4;width:min(260px,calc(100% - 20px));max-height:min(300px,50%);overflow:auto;background:#171717;border:1px solid #444;border-radius:11px;padding:6px;box-shadow:0 12px 40px #000b}.silo-menu[hidden]{display:none}.silo-menu button{display:block;width:100%;padding:9px 10px;text-align:left;border:0;border-radius:7px;background:transparent;color:#eee;cursor:pointer;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.silo-menu button:hover,.silo-menu button[aria-current=true]{background:#2b2b2b}.silo-menu small{display:block;color:#999;font-size:10px;margin-top:2px}.silo-panel-resize{position:absolute;right:0;bottom:0;width:22px;height:22px;border:0;background:linear-gradient(135deg,transparent 47%,#777 49%,#777 54%,transparent 56%,transparent 65%,#999 67%,#999 72%,transparent 74%);cursor:nwse-resize;touch-action:none}.silo-panel-resize:focus-visible,.silo-launcher-resize:focus-visible{outline:2px solid #eee;outline-offset:2px}.silo-hidden-file{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;clip-path:inset(50%);border:0}.silo-mic-status{color:#bbb;font-size:10px;margin:4px 3px}.silo-mic-status:empty{display:none}.silo-user-image{display:block;max-width:220px;max-height:160px;object-fit:contain;border-radius:8px;margin-top:7px}.silo-history-empty{color:#aaa;padding:10px;font-size:12px}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}',
     '</style>',
     '<button class="silo-fab" type="button" aria-label="Open SiloAI" title="Drag to move; click to open" aria-expanded="false"><img src="https://htmltools.me/SiloAI/brandmark-mono.png?v=3" alt=""></button>',
     '<button class="silo-launcher-resize" type="button" data-resize-launcher aria-label="Resize SiloAI button" title="Drag to resize the SiloAI button">◢</button>',
     '<section class="silo-panel" role="dialog" aria-label="Chat with SiloAI" aria-modal="false" hidden>',
-    '  <header class="silo-head"><img src="https://htmltools.me/SiloAI/brandmark-mono.png?v=3" alt=""><div><div class="silo-brand">SiloAI</div><div class="silo-status">Website assistant</div></div><span class="silo-grow"></span><button class="silo-icon" type="button" data-history aria-label="Previous conversations" title="Previous conversations">▤</button><button class="silo-icon" type="button" data-new aria-label="New conversation" title="New conversation">＋</button><button class="silo-icon" type="button" data-close aria-label="Close SiloAI">×</button></header>',
+    '  <header class="silo-head"><img src="https://htmltools.me/SiloAI/brandmark-mono.png?v=3" alt=""><div><div class="silo-brand">SiloAI</div><div class="silo-status">Website Assistant - Powered by HTMLTools.me</div></div><span class="silo-grow"></span><button class="silo-icon" type="button" data-history aria-label="Previous conversations" title="Previous conversations">▤</button><button class="silo-icon" type="button" data-new aria-label="New conversation" title="New conversation">＋</button><button class="silo-icon" type="button" data-close aria-label="Close SiloAI">×</button></header>',
     '  <div class="silo-menu" data-conversation-menu hidden></div>',
     '  <div class="silo-messages" aria-live="polite"></div>',
-    '  <form class="silo-compose"><div class="silo-attachment" data-attachment hidden><img data-attachment-image alt="Screenshot preview"><span>Screenshot attached</span><button type="button" data-remove-image aria-label="Remove screenshot">×</button></div><div class="silo-row"><textarea class="silo-input" rows="1" maxlength="1200" aria-label="Message SiloAI" placeholder="Ask about this website…"></textarea><button class="silo-tool" type="button" data-attach aria-label="Attach screenshot" title="Attach screenshot">Image</button><button class="silo-tool" type="button" data-voice aria-label="Dictate with your voice" title="Dictate with your voice" hidden>Mic</button><button class="silo-send" type="submit" aria-label="Send message">↑</button></div><input class="silo-hidden-file" data-image-file type="file" accept="image/png,image/jpeg,image/webp"><div class="silo-mic-status" data-mic-status aria-live="polite"></div><div class="silo-foot">Visible page labels/text are shared only for interaction requests; field values are never read. Screenshots you attach are sent to Cloudflare AI. Page clicks and text fills require your confirmation. Submit/reset controls are excluded.</div></form>',
+    '  <form class="silo-compose"><div class="silo-attachment" data-attachment hidden><img data-attachment-image alt="Screenshot preview"><span>Screenshot attached</span><button type="button" data-remove-image aria-label="Remove screenshot">×</button></div><div class="silo-row"><textarea class="silo-input" rows="1" maxlength="1200" aria-label="Message SiloAI" placeholder="Ask about this website…"></textarea><button class="silo-tool" type="button" data-attach aria-label="Attach screenshot" title="Attach screenshot">Image</button><button class="silo-tool" type="button" data-voice aria-label="Dictate with your voice" title="Dictate with your voice" hidden>Mic</button><button class="silo-send" type="submit" aria-label="Send message">↑</button></div><input class="silo-hidden-file" data-image-file type="file" accept="image/png,image/jpeg,image/webp"><label class="silo-context-toggle"><input data-include-editor type="checkbox"><span>Include current editor text (up to 3 KB)</span></label><div class="silo-mic-status" data-mic-status aria-live="polite"></div><div class="silo-foot"><a href="https://htmltools.me/SiloAI/" target="_blank" rel="noopener noreferrer">Set up SiloAI on your site for free at htmltools.me/SiloAI!</a><span>Up to 2.5 KB of visible page text is sent to SiloAI for page-specific answers. Editor text is sent only when checked. Attached screenshots go to Cloudflare AI.</span></div></form>',
     '  <button class="silo-panel-resize" type="button" data-resize-panel aria-label="Resize chat window" title="Drag to resize chat window"></button>',
     '</section>',
   ].join('');
@@ -79,14 +83,15 @@
   var attachment = shadow.querySelector('[data-attachment]');
   var micButton = shadow.querySelector('[data-voice]');
   var micStatus = shadow.querySelector('[data-mic-status]');
+  var includeEditor = shadow.querySelector('[data-include-editor]');
 
   function saveConversations() {
     var active = activeConversation();
     if (active) { active.messages = history.slice(-40); active.updatedAt = Date.now(); }
-    conversations = conversations.sort(function (a, b) { return b.updatedAt - a.updatedAt; }).slice(0, 8);
+    conversations = conversations.sort(function (a, b) { return b.updatedAt - a.updatedAt; }).slice(0, 20);
     try { localStorage.setItem(storageKey, JSON.stringify({ activeId: activeId, conversations: conversations })); }
     catch (_) {
-      conversations = conversations.slice(0, 4).map(function (thread) {
+      conversations = conversations.slice(0, 20).map(function (thread) {
         thread.messages = thread.messages.map(function (entry) { return Object.assign({}, entry, { imageData: '' }); });
         return thread;
       });
@@ -101,7 +106,7 @@
     menu.hidden = true;
     var thread = { id: id(), title: 'New conversation', updatedAt: Date.now(), messages: [] };
     conversations.unshift(thread);
-    conversations = conversations.slice(0, 8);
+    conversations = conversations.slice(0, 20);
     activeId = thread.id;
     history = thread.messages;
     if (!preserveAttachment) { selectedImage = ''; updateAttachmentPreview(); }
@@ -130,18 +135,49 @@
     if (selectedImage) { img.src = selectedImage; attachment.hidden = false; }
     else { img.removeAttribute('src'); attachment.hidden = true; }
   }
+  function currentPageDocument() {
+    try { if (window.top.document && window.top.location.origin === location.origin) return window.top.document; } catch (_) { /* cross-origin frame */ }
+    return document;
+  }
   function currentPageContext() {
-    var pageUrl;
-    var pageTitle = document.title || '';
-    try { pageUrl = new URL(window.location.href); } catch (_) { pageUrl = new URL('/', location.origin); }
-    try {
-      var topUrl = new URL(window.top.location.href);
-      if (topUrl.protocol === 'https:' && (location.origin === 'null' || topUrl.origin === location.origin)) {
-        pageUrl = topUrl;
-        pageTitle = window.top.document.title || pageTitle;
-      }
-    } catch (_) { /* cross-origin frame: use this document */ }
-    return { pagePath: pageUrl.pathname, pageTitle: pageTitle.slice(0, 180) };
+    var doc = currentPageDocument(); var view = doc.defaultView || window; var pageUrl;
+    try { pageUrl = new URL(view.location.href); } catch (_) { pageUrl = new URL('/', location.origin); }
+    return { pagePath: pageUrl.pathname, pageTitle: String(doc.title || document.title || '').slice(0, 180) };
+  }
+  function visiblePageExcerpt() {
+    var doc = currentPageDocument(); var root = doc.querySelector('main,[role=main],article') || doc.body;
+    if (!root) return '';
+    var walker = doc.createTreeWalker(root, 4); var pieces = []; var total = 0; var visited = 0;
+    var excluded = 'script,style,noscript,template,nav,footer,button,input,textarea,select,option,[contenteditable=true],[hidden],[aria-hidden=true]';
+    while (walker.nextNode() && total < 2_500 && visited++ < 1_500) {
+      var node = walker.currentNode; var el = node.parentElement;
+      if (!el || host.contains(el) || el.closest(excluded)) continue;
+      var style = (doc.defaultView || window).getComputedStyle(el); var rect = el.getBoundingClientRect();
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0 || rect.width < 1 || rect.height < 1) continue;
+      var text = String(node.nodeValue || '').replace(/\s+/g, ' ').trim();
+      if (!text) continue;
+      var remaining = 2_500 - total; text = text.slice(0, remaining);
+      pieces.push(text); total += text.length + 1;
+    }
+    return pieces.join(' ').replace(/\s{2,}/g, ' ').trim().slice(0, 2_500);
+  }
+  function currentEditorText() {
+    var doc = currentPageDocument();
+    var selector = 'textarea,.CodeMirror-code,.cm-content,.monaco-editor .view-lines,[contenteditable=true],[role=textbox]';
+    var candidates = Array.prototype.slice.call(doc.querySelectorAll(selector));
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      if (host.contains(el) || el.disabled || el.readOnly) continue;
+      var identity = [el.id, el.className, el.name, el.getAttribute('aria-label'), el.getAttribute('placeholder')].join(' ');
+      var knownEditor = el.matches('.CodeMirror-code,.cm-content,.monaco-editor .view-lines') || /code|html|javascript|editor|source|script|markup|stylesheet|json|xml/i.test(identity);
+      if (!knownEditor) continue;
+      var rect = el.getBoundingClientRect(); var style = (doc.defaultView || window).getComputedStyle(el);
+      if (rect.width < 2 || rect.height < 2 || style.display === 'none' || style.visibility === 'hidden') continue;
+      var value = el.matches('textarea') ? el.value : (el.innerText || el.textContent || '');
+      value = String(value || '').trim();
+      if (value) return value.slice(0, 3_000);
+    }
+    return '';
   }
   function bubble(role, text, isError) {
     var el = document.createElement('div');
@@ -202,7 +238,7 @@
     shadow.querySelector('[data-attach]').disabled = value;
     shadow.querySelector('[data-new]').disabled = value;
     shadow.querySelector('[data-history]').disabled = value;
-    micButton.disabled = value;
+    micButton.disabled = value; includeEditor.disabled = value;
   }
   function pageControls() {
     var doc = document;
@@ -308,11 +344,13 @@
     var pending = bubble('assistant', 'SiloAI is thinking…'); pending.className += ' silo-typing';
     try {
       var pageContext = currentPageContext();
+      var pageExcerpt = visiblePageExcerpt();
+      var editorText = includeEditor.checked ? currentEditorText() : '';
       var controls = needsPageControls(userText) ? pageControls() : [];
       var modelHistory = history.slice(0, -1).slice(-4).map(function (entry) { return { role: entry.role, content: entry.content }; });
       var response = await fetch(api + '/chat/' + siteId, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: userText, image: imageForRequest || undefined, controls: controls, history: modelHistory, pagePath: pageContext.pagePath, pageTitle: pageContext.pageTitle }),
+        body: JSON.stringify({ message: userText, image: imageForRequest || undefined, controls: controls, history: modelHistory, pagePath: pageContext.pagePath, pageTitle: pageContext.pageTitle, pageExcerpt: pageExcerpt, editorText: editorText || undefined }),
         credentials: 'omit',
       });
       var payload = await response.json().catch(function () { return {}; });

@@ -15,8 +15,8 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.match(styles, /--bg:#080808/);
   assert.match(styles, /--text:#f5f5f5/);
   assert.doesNotMatch(styles, /#(?:9681ed|b3a3ff|9b85f0|7863be)/i, 'the dashboard palette should stay grayscale');
-  assert.ok(app.includes('widget.js" data-site-id='));
-  assert.doesNotMatch(app, /widget\.js\?v=/, 'dashboard snippets should keep a stable versionless URL');
+  assert.ok(app.includes('widget.js?v=4" data-site-id='));
+  assert.match(widget, /widget\.js\?v=4/);
   assert.match(app, /data-ai-test/);
   assert.match(app, /\/ai-test/);
   assert.match(app, /data-allow-actions/);
@@ -35,8 +35,13 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.match(headers, /\/SiloAI\/widget\.js[\s\S]*Cache-Control: public, max-age=0, must-revalidate/);
   assert.match(headers, /CDN-Cache-Control: no-cache/);
   assert.match(widget, /SiloAI\/brandmark-mono\.png/);
-  assert.ok(widget.includes('widget.js" data-site-id='));
-  assert.doesNotMatch(widget, /widget\.js\?v=/, 'the install example should not require version edits');
+  assert.ok(widget.includes('widget.js?v=4" data-site-id='));
+  assert.match(widget, /Website Assistant - Powered by HTMLTools\.me/);
+  assert.match(widget, /Set up SiloAI on your site for free at htmltools\.me\/SiloAI!/);
+  assert.match(widget, /Include current editor text/);
+  assert.match(widget, /pageExcerpt: pageExcerpt/);
+  assert.match(widget, /includeEditor\.checked \? currentEditorText\(\) : ''/);
+  assert.match(widget, /widget\.js\?v=4/);
   assert.match(widget, /\.silo-fab img\{display:block;width:100%;height:100%/);
   assert.match(widget, /border-radius:14px/);
   assert.match(widget, /transform:none/);
