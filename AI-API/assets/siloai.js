@@ -25,11 +25,11 @@
   host.className = 'siloai-root';
   host.innerHTML = [
     '<button class="siloai-fab" type="button" aria-label="Open SiloAI" aria-expanded="false" aria-controls="siloai-panel">',
-    '  <img src="/SiloAI.png?v=2" alt="" width="26" height="26">',
+    '  <img src="/SiloAI.png?v=3" alt="" width="26" height="26">',
     '</button>',
     '<section class="siloai-panel hidden" id="siloai-panel" aria-label="SiloAI assistant">',
     '  <header class="siloai-head">',
-    '    <img class="siloai-avatar" src="/SiloAI.png?v=2" alt="" width="30" height="30">',
+    '    <img class="siloai-avatar" src="/SiloAI.png?v=3" alt="" width="30" height="30">',
     '    <div class="siloai-id">',
     '      <span class="siloai-name">SiloAI</span>',
     '      <span class="siloai-state" data-silo-state>API assistant</span>',

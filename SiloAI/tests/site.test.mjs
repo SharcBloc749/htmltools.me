@@ -11,11 +11,19 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   }
   const widget = await text('../widget.js');
   const app = await text('../app.js');
-  assert.match(app, /widget\.js\?v=4/);
+  const styles = await text('../style.css');
+  assert.match(styles, /--bg:#080808/);
+  assert.match(styles, /--text:#f5f5f5/);
+  assert.doesNotMatch(styles, /#(?:9681ed|b3a3ff|9b85f0|7863be)/i, 'the dashboard palette should stay grayscale');
+  assert.match(app, /widget\.js\?v=5/);
   assert.match(widget, /SiloAI\/brandmark-mono\.png/);
-  assert.match(widget, /widget\.js\?v=4/);
+  assert.match(widget, /widget\.js\?v=5/);
   assert.match(widget, /\.silo-fab img\{display:block;width:100%;height:100%/);
-  assert.match(widget, /transform:scale\(1\.24\)/);
+  assert.match(widget, /border-radius:14px/);
+  assert.match(widget, /transform:none/);
+  assert.match(widget, /background:#e5e5e5;color:#111111/);
+  assert.doesNotMatch(widget, /#(?:7560ba|7862bd|8c99ff|9681ed)/i, 'the widget palette should stay grayscale');
+  assert.deepEqual(await readFile(new URL('../brandmark-mono.png', import.meta.url)), await readFile(new URL('../../logo3.png', import.meta.url)), 'the SiloAI mark should match the actual HTMLTools logo');
   const wrangler = await text('../wrangler.toml');
   assert.match(wrangler, /name\s*=\s*"siloai"/);
   assert.match(wrangler, /binding\s*=\s*"AI"/);
