@@ -50,7 +50,8 @@ test('crawler follows same-host links and sitemap entries, extracts text, and sk
     assert.doesNotMatch(home.text, /secretPrompt/);
     assert.ok(!home.links.some((link) => link.includes('elsewhere')));
     const matches = relevantPages({ pages: result.pages }, 'generate a book with AI', '/Library');
-    assert.equal(matches[0].path, '/Library/Studio/Upload');
+    assert.equal(matches[0].path, '/Library', 'the exact current route is given priority');
+    assert.ok(matches.some((page) => page.path === '/Library/Studio/Upload'), 'query-relevant pages remain in the retrieved context');
   } finally { restoreFetch(); }
 });
 

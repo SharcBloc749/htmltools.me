@@ -111,7 +111,7 @@
     return groups;
   }
   function widgetSnippet(site) {
-    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=2" data-site-id="' + site.id + '"><\/script>';
+    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=3" data-site-id="' + site.id + '"><\/script>';
   }
   function openSite(id) {
     var site = siteCache[id] && (siteCache[id].site || siteCache[id]);
@@ -136,7 +136,7 @@
     }).join('');
     var actionSettings = site.actions || { allowNavigation: false, confirmNavigation: true };
     return '<div class="verified-banner"><span>✓</span><div><b>Domain verified</b><p>Last index refresh: ' + esc(site.lastCrawledAt ? new Date(site.lastCrawledAt).toLocaleString() : 'not yet crawled') + ' · ' + esc(site.pageCount || 0) + ' pages discovered</p></div><button class="button subtle" type="button" data-refresh="' + esc(site.id) + '">Refresh index</button></div>' +
-      '<div class="field"><label for="groups">Tool groups <span class="label-note">One per line: Name: /path, /another/path</span></label><textarea id="groups" class="groups-input" data-groups placeholder="Library: /Library, /Library/Studio, /Library/Studio/Upload\nAI Playground: /AI-Playground">' + esc(makeGroupText(site.groups)) + '</textarea><p class="hint">Groups help SiloAI understand that related pages are steps in one tool. New pages are discovered automatically; add paths here only to organize them.</p></div>' +
+      '<div class="field"><label for="groups">Tool groups <span class="label-note">One per line: Name: /path, /another/path</span></label><textarea id="groups" class="groups-input" data-groups placeholder="Library: /Library, /Library/Studio, /Library/Studio/Upload\nAI Playground: /AI-Playground">' + esc(makeGroupText(site.groups)) + '</textarea><p class="hint">Groups help SiloAI understand related tool pages. Listed paths are also checked as crawl seeds on the next refresh; use the exact page path, including any trailing slash. Other public pages are still discovered automatically.</p></div>' +
       '<div class="permissions"><div><b>Let SiloAI navigate visitors</b><p>Only to a page discovered in this site’s index. Answer-only is the default.</p></div><label class="switch"><input type="checkbox" data-allow-nav ' + (actionSettings.allowNavigation ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="permissions nested" data-confirm-wrap><div><b>Ask before each navigation</b><p>Visitors see a confirmation before SiloAI opens the suggested page.</p></div><label class="switch"><input type="checkbox" data-confirm-nav ' + (actionSettings.confirmNavigation !== false ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="dialog-actions"><button class="button primary" type="button" data-save="' + esc(site.id) + '">Save settings</button><button class="button subtle" type="button" data-copy="' + esc(widgetSnippet(site)) + '">Copy widget code</button></div>' +
