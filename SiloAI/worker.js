@@ -770,6 +770,38 @@ async function verifySite(site, env) {
   await writeSite(env, site);
   return crawlAndSave(site, env);
 }
+async function testAiBinding(site, user, env, origin) {
+  if (!site.verified) return jsonError(409, "site_not_verified", "Verify the website before testing its assistant.", origin, true);
+  if (!env.AI?.run) return jsonError(503, "ai_unavailable", "The Workers AI binding is not available in this deployment.", origin, true);
+  if (!env.LIMITER) return jsonError(503, "limits_unavailable", "The AI test is disabled because request limits are not configured.", origin, true);
+  const stub = env.LIMITER.get(env.LIMITER.idFromName(site.id));
+  const rate = await stub.fetch("https://limiter.internal/check", { method: "POST", body: JSON.stringify({ bucket: `ip:ai-test:${user.uid}` }) });
+  if (!rate.ok) {
+    const limit = await rate.json().catch(() => ({}));
+    return jsonError(429, "ai_test_rate_limited", `AI test limit reached. Try again in about ${limit.retryAfter || 60} seconds.`, origin, true);
+  }
+  const messages = [
+    { role: "system", content: "This is an owner-only Workers AI connectivity check. Reply with exactly READY and nothing else." },
+    { role: "user", content: "Connection test." }
+  ];
+  try {
+    const result = await generateWithRecovery(env, env.AI_MODEL || MODEL_DEFAULT, messages, 32);
+    return withCors(json({ ok: true, model: result.model, fallback: result.fallback }), origin, true);
+  } catch (failure) {
+    const diagnostic = classifyAiFailure(failure);
+    console.error("[SiloAI] Owner AI self-test failed", {
+      model: env.AI_MODEL || MODEL_DEFAULT,
+      fallbackModel: env.AI_FALLBACK_MODEL || FALLBACK_MODEL_DEFAULT,
+      category: diagnostic.category,
+      providerCode: diagnostic.providerCode || void 0,
+      status: diagnostic.status || void 0,
+      providerMessage: safeAiFailureDetail(failure, messages, []) || void 0,
+      providerErrorFields: (Array.isArray(failure?.errors) && failure.errors[0] ? Object.keys(failure.errors[0]).slice(0, 8) : void 0) || (Array.isArray(failure?.cause?.errors) && failure.cause.errors[0] ? Object.keys(failure.cause.errors[0]).slice(0, 8) : void 0)
+    });
+    const status = diagnostic.category === "quota" ? 429 : ["capacity", "provider_unavailable"].includes(diagnostic.category) ? 503 : 502;
+    return jsonError(status, `workers_ai_${diagnostic.category}`, diagnostic.message, origin, true);
+  }
+}
 async function ownerApi(request2, url, env, origin) {
   const originAllowed = appOriginAllowed(origin, env);
   if (!originAllowed) return jsonError(403, "origin_not_allowed", "Dashboard requests must come from the SiloAI website.", origin, false);
@@ -787,13 +819,14 @@ async function ownerApi(request2, url, env, origin) {
       return jsonError(502, errorValue.code || "storage_error", errorValue.message || "Could not create the site.", origin, true);
     }
   }
-  const match = /^\/api\/sites\/([a-f0-9]{24})(?:\/(verify|refresh))?$/.exec(url.pathname);
+  const match = /^\/api\/sites\/([a-f0-9]{24})(?:\/(verify|refresh|ai-test))?$/.exec(url.pathname);
   if (!match) return jsonError(404, "not_found", "Unknown SiloAI dashboard endpoint.", origin, true);
   const [, id, operation] = match;
   try {
     const site = await getOwnerSite(id, env, user);
     if (!site) return jsonError(404, "site_not_found", "This site is not connected to your account.", origin, true);
     if (request2.method === "GET" && !operation) return withCors(json(ownerSafeSite(site)), origin, true);
+    if (request2.method === "POST" && operation === "ai-test") return testAiBinding(site, user, env, origin);
     if (request2.method === "POST" && operation === "verify") {
       if (site.verified && site.lastCrawledAt && Date.now() - site.lastCrawledAt < 15 * 60 * 1e3) {
         return jsonError(429, "crawl_cooldown", "This site was crawled recently. Please wait 15 minutes before starting another crawl.", origin, true);
@@ -920,12 +953,12 @@ function combineAiFailures(primaryFailure, fallbackFailure) {
   });
   return combined;
 }
-async function generateWithRecovery(env, primaryModel, messages) {
+async function generateWithRecovery(env, primaryModel, messages, maxTokens = 640) {
   const fallbackModel = env.AI_FALLBACK_MODEL || FALLBACK_MODEL_DEFAULT;
   let primaryText = "";
   let primaryFailure = null;
   try {
-    primaryText = await runWorkersAi(env, primaryModel, messages, true, 640);
+    primaryText = await runWorkersAi(env, primaryModel, messages, true, maxTokens);
   } catch (failure) {
     primaryFailure = failure;
   }
@@ -936,7 +969,7 @@ async function generateWithRecovery(env, primaryModel, messages) {
     const reason = primaryFailure ? classifyAiFailure(primaryFailure).category : "empty_response";
     console.warn("[SiloAI] Retrying Workers AI without thinking mode", { model: primaryModel, reason });
     try {
-      const retryText = await runWorkersAi(env, primaryModel, messages, false, 512);
+      const retryText = await runWorkersAi(env, primaryModel, messages, false, Math.min(512, maxTokens));
       if (retryText) return { text: retryText, model: primaryModel, fallback: false };
       retryFailure = new Error("The configured model returned an empty response after retry.");
     } catch (failure) {
@@ -948,7 +981,7 @@ async function generateWithRecovery(env, primaryModel, messages) {
   if (["quota", "input_too_large"].includes(category) || fallbackModel === primaryModel) throw cause;
   console.warn("[SiloAI] Trying fallback Workers AI model", { primaryModel, fallbackModel, reason: category });
   try {
-    const fallbackText = await runWorkersAi(env, fallbackModel, messages, null, 512);
+    const fallbackText = await runWorkersAi(env, fallbackModel, messages, null, Math.min(512, maxTokens));
     if (!fallbackText) throw new Error("The fallback model returned an empty response.");
     return { text: fallbackText, model: fallbackModel, fallback: true };
   } catch (failure) {

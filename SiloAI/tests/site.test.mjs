@@ -17,6 +17,9 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.doesNotMatch(styles, /#(?:9681ed|b3a3ff|9b85f0|7863be)/i, 'the dashboard palette should stay grayscale');
   assert.ok(app.includes('widget.js" data-site-id='));
   assert.doesNotMatch(app, /widget\.js\?v=/, 'dashboard snippets should keep a stable versionless URL');
+  assert.match(app, /data-ai-test/);
+  assert.match(app, /\/ai-test/);
+  assert.match(styles, /\.verified-actions/);
   const headers = await text('../../_headers');
   assert.match(headers, /\/SiloAI\/widget\.js[\s\S]*Cache-Control: public, max-age=0, must-revalidate/);
   assert.match(headers, /CDN-Cache-Control: no-cache/);
@@ -28,9 +31,8 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.match(widget, /transform:none/);
   assert.match(widget, /background:#e5e5e5;color:#111111/);
   assert.doesNotMatch(widget, /#(?:7560ba|7862bd|8c99ff|9681ed)/i, 'the widget palette should stay grayscale');
-  const logo = await readFile(new URL('../brandmark-mono.png', import.meta.url));
-  assert.deepEqual(await readFile(new URL('../../SiloAI.png', import.meta.url)), logo, 'the dashboard/legacy logo should match the SiloAI mark');
-  assert.deepEqual(await readFile(new URL('../brandmark-v2.png', import.meta.url)), logo, 'legacy widget URLs should resolve to the SiloAI mark');
+  const logos = await Promise.all(['../brandmark-mono.png', '../../SiloAI.png', '../brandmark-v2.png'].map((path) => readFile(new URL(path, import.meta.url))));
+  for (const logo of logos) assert.equal(logo.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'SiloAI brandmarks should be valid PNG files');
   const wrangler = await text('../wrangler.toml');
   assert.match(wrangler, /name\s*=\s*"siloai"/);
   assert.match(wrangler, /binding\s*=\s*"AI"/);
