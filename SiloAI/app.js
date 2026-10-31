@@ -93,7 +93,7 @@
     var pages = site.pageCount == null ? (site.pages || []).length : site.pageCount;
     var detail = response.error ? '<p class="card-warning">' + esc(response.error) + '</p>' : '';
     return '<article class="site-card panel" data-site-card="' + esc(site.id) + '">' +
-      '<div class="site-card-main"><span class="site-icon"><img src="/SiloAI.png?v=2" alt=""></span><div class="site-title"><div class="domain-line"><h3>' + esc(title) + '</h3><span class="status ' + (verified ? 'verified' : 'pending') + '"><i></i>' + (verified ? 'Verified' : 'Needs verification') + '</span></div><a href="https://' + esc(site.domain) + '" target="_blank" rel="noopener">' + esc(site.domain) + ' ↗</a></div><span class="page-count">' + pages + '<small> indexed pages</small></span><button class="button subtle" type="button" data-open="' + esc(site.id) + '">Manage <span>→</span></button></div>' + detail + '</article>';
+      '<div class="site-card-main"><span class="site-icon"><img src="/SiloAI.png?v=3" alt=""></span><div class="site-title"><div class="domain-line"><h3>' + esc(title) + '</h3><span class="status ' + (verified ? 'verified' : 'pending') + '"><i></i>' + (verified ? 'Verified' : 'Needs verification') + '</span></div><a href="https://' + esc(site.domain) + '" target="_blank" rel="noopener">' + esc(site.domain) + ' ↗</a></div><span class="page-count">' + pages + '<small> indexed pages</small></span><button class="button subtle" type="button" data-open="' + esc(site.id) + '">Manage <span>→</span></button></div>' + detail + '</article>';
   }
 
   function makeGroupText(groups) {
@@ -111,7 +111,7 @@
     return groups;
   }
   function widgetSnippet(site) {
-    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=4" data-site-id="' + site.id + '"><\/script>';
+    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=5" data-site-id="' + site.id + '"><\/script>';
   }
   function openSite(id) {
     var site = siteCache[id] && (siteCache[id].site || siteCache[id]);
