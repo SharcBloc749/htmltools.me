@@ -21,7 +21,7 @@ This package targets **htmltools2** (data) and verifies sessions from **htmltool
    ```sh
    node set-owner.mjs
    ```
-   Copy the printed `LIBRARY_OWNER_UID=...` into `firebase/library/.env` (see `.env.example`). Never put this value or service-account keys in HTML/Git. If it is missing, regular users can still establish Library sessions, but `/Admin/Library/` fails closed with a clear setup message and owner-only callables are denied (rather than making every Library session fail with `internal`).
+   Copy the printed `LIBRARY_OWNER_UID=...` into `firebase/library/server/.env` (the Functions source directory; see `firebase/library/.env.example` for the variable format). Never put this value or service-account keys in HTML/Git. If it is missing, regular users can still establish Library sessions, but `/Admin/Library/` fails closed with a clear setup message and owner-only callables are denied (rather than making every Library session fail with `internal`).
 3. Validate rules with the official emulator (Java 21+):
    ```sh
    npx firebase-tools emulators:exec --project demo-htmltools-library --only database "npm run test:rules"
