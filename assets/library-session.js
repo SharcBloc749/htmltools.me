@@ -9,32 +9,41 @@ export function createLibraryBridge(oldApp, newApp) {
   const dataAuth = getAuth(newApp);
   let pending = null;
   let owner = false;
+  let ownerConfigured = true;
+  function explain(error) {
+    const code = error?.code || '';
+    const details = String(error?.message || '');
+    if (String(code).includes('appCheck') || /app.?check/i.test(details)) {
+      return new Error('Firebase App Check rejected this site. Configure a valid App Check key for htmltools.me or disable App Check enforcement until it is registered.');
+    }
+    if (['functions/internal', 'functions/unavailable', 'internal', 'unavailable'].includes(code)) {
+      return new Error('The Library backend is unreachable or could not complete this request. Check that firebase/library functions are deployed and the Cloud Run services allow public invocation (see firebase/library/README.md).');
+    }
+    return error;
+  }
   async function connect() {
     const user = oldApp && getAuth(oldApp).currentUser;
     if (!user) { owner = false; await signOut(dataAuth).catch(() => {}); return { owner: false, user: null }; }
-    const idToken = await user.getIdToken();
-    const { data } = await httpsCallable(newFunctions, 'createLibrarySession')({ idToken });
-    if (!data?.customToken) throw new Error('Library session was not issued.');
-    const credential = await signInWithCustomToken(dataAuth, data.customToken);
-    owner = data.owner === true;
-    return { owner, user: credential.user };
+    try {
+      const idToken = await user.getIdToken();
+      const { data } = await httpsCallable(newFunctions, 'createLibrarySession')({ idToken });
+      if (!data?.customToken) throw new Error('Library session was not issued.');
+      const credential = await signInWithCustomToken(dataAuth, data.customToken);
+      owner = data.owner === true;
+      ownerConfigured = data.ownerConfigured !== false;
+      return { owner, ownerConfigured, user: credential.user };
+    } catch (error) {
+      throw explain(error);
+    }
   }
   return {
     dataAuth,
     get owner() { return owner; },
+    get ownerConfigured() { return ownerConfigured; },
     ready() { if (!pending) pending = connect().finally(() => { pending = null; }); return pending; },
     async call(name, payload) {
       try { return await httpsCallable(newFunctions, name)(payload); }
-      catch (error) {
-        const code = error?.code || '';
-        if (code === 'functions/internal' || code === 'functions/unavailable' || code === 'internal' || code === 'unavailable') {
-          throw new Error('The Library backend is unreachable. Deploy firebase/library functions and ensure the Cloud Run services allow public invocation (see firebase/library/README.md).');
-        }
-        if (String(code).includes('appCheck')) {
-          throw new Error('Firebase App Check rejected this site. Configure a valid App Check key for htmltools.me or disable App Check enforcement until it is registered.');
-        }
-        throw error;
-      }
+      catch (error) { throw explain(error); }
     },
     async signOutData() { owner = false; await signOut(dataAuth).catch(() => {}); }
   };

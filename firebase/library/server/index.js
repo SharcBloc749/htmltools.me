@@ -9,7 +9,10 @@ import { parseTotals, catalogIds, newPreview, publicPreview, applyToEngagement, 
 if (!getApps().length) initializeApp({ databaseURL: 'https://htmltools2-default-rtdb.firebaseio.com' });
 const oldAuthApp = getApps().find(app => app.name === 'library-auth') || initializeApp({ projectId: 'htmltools-library' }, 'library-auth');
 const db = getDatabase();
-const ownerUid = defineString('LIBRARY_OWNER_UID');
+// Keep ordinary Library sessions available when owner setup has not yet been
+// configured. An unset owner UID must never turn every session request into an
+// opaque INTERNAL error; owner-only controls fail closed in requireOwner().
+const ownerUid = defineString('LIBRARY_OWNER_UID', { default: '' });
 const catalogUrl = defineString('LIBRARY_CATALOG_URL', { default: 'https://black-field-f5e8.bozhetarnikmatthew.workers.dev/github/index.json' });
 const OWNER_EMAIL = 'matthewbozhe@gmail.com';
 let catalogCache = { ids: null, expires: 0 };
@@ -59,8 +62,9 @@ async function verifiedNew(request) {
   return token;
 }
 function requireOwner(token) {
-  const configured = ownerUid.value();
-  if (!configured || token.uid !== configured || token.libraryOwner !== true) throw new HttpsError('permission-denied', 'Only the verified Library owner can use this control.');
+  const configured = ownerUid.value().trim();
+  if (!configured) throw new HttpsError('failed-precondition', 'Owner access is not configured. Set LIBRARY_OWNER_UID on the Library backend.');
+  if (token.uid !== configured || token.libraryOwner !== true) throw new HttpsError('permission-denied', 'Only the verified Library owner can use this control.');
 }
 async function requireActive(token) {
   const banned = await db.ref(`bannedUsers/${token.uid}`).get();
@@ -86,10 +90,10 @@ async function fetchCatalog(force = false) {
 export const createLibrarySession = onCall(opts, async request => {
   try {
     const token = await verifiedOld(request);
-    const configured = ownerUid.value();
+    const configured = ownerUid.value().trim();
     const isOwner = !!configured && token.uid === configured && token.email_verified === true && typeof token.email === 'string' && token.email.toLowerCase() === OWNER_EMAIL;
     const customToken = await getAuth().createCustomToken(token.uid, { librarySession: true, ...(isOwner ? { libraryOwner: true } : {}) });
-    return { customToken, owner: isOwner };
+    return { customToken, owner: isOwner, ownerConfigured: !!configured };
   } catch (error) { throw fail(error); }
 });
 

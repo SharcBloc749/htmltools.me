@@ -40,8 +40,18 @@ test('callable functions declare production CORS and public Cloud Run invoker',(
   assert.ok(s.includes('verifyIdToken'));
   assert.ok(s.includes('librarySession'));
 });
-test('bridge surfaces actionable backend/App Check errors',()=>{
+test('bridge surfaces actionable backend/App Check errors for sessions and calls',()=>{
   const s=read('assets/library-session.js');
   assert.ok(s.includes('Library backend is unreachable'));
   assert.ok(s.includes('App Check rejected this site'));
+  assert.ok(s.includes("catch (error) {\n      throw explain(error);"));
+  assert.ok(s.includes('ownerConfigured'));
+});
+test('missing owner configuration fails closed without breaking regular Library sessions',()=>{
+  const backend=read('firebase/library/server/index.js');
+  const admin=read('Admin/Library/index.html');
+  assert.ok(backend.includes("defineString('LIBRARY_OWNER_UID', { default: '' })"));
+  assert.ok(backend.includes("if (!configured) throw new HttpsError('failed-precondition'"));
+  assert.ok(backend.includes('ownerConfigured: !!configured'));
+  assert.ok(admin.includes('Owner access is not configured on the Library backend'));
 });
