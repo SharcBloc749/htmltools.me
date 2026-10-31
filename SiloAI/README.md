@@ -42,7 +42,7 @@ npm run test:rules:offline
 
 ## Required before the first live test
 
-1. **Set the GitHub repository slug.** `wrangler.toml` deliberately leaves `GITHUB_REPO` blank until the exact owner is known. A GitHub Contents token needs both owner and repository name. The sandbox could not confirm which account owns `HTMLTools-Database`. Set `GITHUB_REPO` to the exact `owner/HTMLTools-Database` slug. The already configured secret name must be `GITHUB_TOKEN`, with Contents read/write permission on that private repo.
+1. **GitHub repository binding.** `wrangler.toml` targets `SharcBloc749/HTMLTools.me-Database`. The Worker secret name must be `GITHUB_TOKEN`, and the fine-grained token must have Contents read/write permission only on that private repository.
 2. **Deploy the RTDB rules change** to `general-database-4cb1c`. The change adds only the private `siloai_users` branch and preserves the other generated rules. First run the offline test above. To deploy with Firebase CLI access:
 
    ```sh
