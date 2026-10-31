@@ -51,7 +51,7 @@ npm run test:rules:offline
    ```
 
    Do not paste tokens or service-account keys into chat or Git.
-3. **Deploy static files** so `/SiloAI/`, `/SiloAI/widget.js`, `/SiloAI/brandmark-v2.png`, `/SiloAI/style.css`, `/SiloAI/app.js`, and `/SiloAI.png` are live on `https://htmltools.me`. No Tools directory or sitemap entry is included.
+3. **Deploy static files** so `/SiloAI/`, `/SiloAI/widget.js`, `/SiloAI/brandmark-mono.png`, `/SiloAI/brandmark-v2.png`, `/SiloAI/style.css`, `/SiloAI/app.js`, and `/SiloAI.png` are live on `https://htmltools.me`. No Tools directory or sitemap entry is included.
 4. **Deploy the Worker** from this directory. Its Wrangler name is `siloai`, its AI binding is `AI`, and its Durable Object binding/migration is `LIMITER` / `SiloLimiter`:
 
    ```sh
