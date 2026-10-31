@@ -68,3 +68,14 @@ test('views are unique per UID; likes cannot be written on behalf of another use
   const after=yes(db('bob').update('/',{'art_museum_index/piece/views':1,'art_museum_views/piece/bob':true}));
   no(after.update('/',{'art_museum_index/piece/views':2,'art_museum_views/piece/bob':true}));
 });
+
+test('SiloAI dashboard references are private to each Firebase owner and schema-bounded',()=>{
+  const path='/siloai_users/alice/sites/0123456789abcdef01234567';
+  yes(db().write(path,{domain:'example.com',createdAt:now}));
+  no(db(null).read(path));
+  no(db('bob').read(path));
+  no(db('bob').write(path,{domain:'example.com',createdAt:now}));
+  no(db().write('/siloai_users/alice/sites/not-a-site-id',{domain:'example.com',createdAt:now}));
+  no(db().write('/siloai_users/alice/sites/0123456789abcdef01234567',{domain:'example.com',createdAt:now,ownerUid:'bob'}));
+  no(db().write('/siloai_users/alice/profile',{admin:true}));
+});
