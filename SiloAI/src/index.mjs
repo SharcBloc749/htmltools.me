@@ -167,6 +167,7 @@ async function createSite(request, env, user) {
 }
 
 function ownerSafeSite(site) {
+  const index = mergedIndex(site);
   return {
     id: site.id,
     domain: site.domain,
@@ -174,8 +175,18 @@ function ownerSafeSite(site) {
     verificationToken: site.verificationToken,
     verificationPath: site.verificationPath,
     profile: site.profile || { title: site.domain, description: '' },
-    pageCount: (site.pages || []).length,
-    pages: (site.pages || []).map(({ path, title, description, headings, links }) => ({ path, title, description, headings, links })),
+    pageCount: index.length,
+    pages: index.map(({ path, title, description, headings, links, text, manual, addedAt }) => ({
+      path, title, description,
+      headings: headings || [],
+      links: (links || []).slice(0, 20),
+      manual: Boolean(manual),
+      // Only a hand-written entry carries owner text worth showing back in the form.
+      text: manual ? String(text || '').slice(0, 3_000) : undefined,
+      addedAt: manual ? addedAt : undefined,
+    })),
+    hiddenPaths: cleanPathList(site.hiddenPaths),
+    manualCount: Array.isArray(site.manualPages) ? site.manualPages.length : 0,
     groups: site.groups || [],
     actions: site.actions || { navigationMode: 'on', pageActionsMode: 'on', confirmNavigation: true },
     lastCrawledAt: site.lastCrawledAt || 0,
@@ -183,6 +194,51 @@ function ownerSafeSite(site) {
     createdAt: site.createdAt,
     updatedAt: site.updatedAt,
   };
+}
+
+const MAX_MANUAL_PAGES = 40;
+const MAX_HIDDEN_PATHS = 200;
+
+/** Paths the owner removed from the index, normalised and de-duplicated. */
+function cleanPathList(value) {
+  const seen = new Set();
+  const out = [];
+  for (const item of Array.isArray(value) ? value.slice(0, MAX_HIDDEN_PATHS) : []) {
+    const path = typeof item === 'string' ? normalizePath(item.trim()) : null;
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+    out.push(path);
+  }
+  return out;
+}
+
+/** A page the owner typed in by hand: a route the crawler cannot reach, or a fix. */
+function sanitizeManualPage(value) {
+  const path = typeof value?.path === 'string' ? normalizePath(value.path.trim()) : null;
+  if (!path) return null;
+  const title = cleanString(value?.title, 120) || path;
+  const description = cleanString(value?.description, 240);
+  const text = cleanString(value?.text, 3_000);
+  return { path, title, description, text, headings: [], links: [], manual: true, addedAt: Date.now() };
+}
+
+/**
+ * The index the assistant actually reads: every crawled page the owner has not
+ * removed, plus the pages the owner added by hand (which win on a path clash).
+ * Crawls keep writing to `site.pages`, so an owner's edits survive every refresh.
+ */
+function mergedIndex(site) {
+  const hidden = new Set(cleanPathList(site?.hiddenPaths));
+  const merged = new Map();
+  for (const page of Array.isArray(site?.pages) ? site.pages : []) {
+    if (!page?.path || hidden.has(page.path)) continue;
+    merged.set(page.path, page);
+  }
+  for (const page of Array.isArray(site?.manualPages) ? site.manualPages : []) {
+    if (!page?.path || hidden.has(page.path)) continue;
+    merged.set(page.path, { ...page, headings: page.headings || [], links: page.links || [], manual: true });
+  }
+  return [...merged.values()];
 }
 
 async function getOwnerSite(id, env, user) {
@@ -272,7 +328,7 @@ async function ownerApi(request, url, env, origin) {
     try { return withCors(await createSite(request, env, user), origin, true); }
     catch (errorValue) { return jsonError(502, errorValue.code || 'storage_error', errorValue.message || 'Could not create the site.', origin, true); }
   }
-  const match = /^\/api\/sites\/([a-f0-9]{24})(?:\/(verify|refresh|ai-test))?$/.exec(url.pathname);
+  const match = /^\/api\/sites\/([a-f0-9]{24})(?:\/(verify|refresh|ai-test|pages))?$/.exec(url.pathname);
   if (!match) return jsonError(404, 'not_found', 'Unknown SiloAI dashboard endpoint.', origin, true);
   const [, id, operation] = match;
   try {
@@ -312,6 +368,39 @@ async function ownerApi(request, url, env, origin) {
         const result = await crawlAndSave(site, env);
         return withCors(json({ ok: true, result, site: ownerSafeSite(site) }), origin, true);
       } finally { await lockSite(env, id, 'unlock').catch(() => {}); }
+    }
+    if (request.method === 'POST' && operation === 'pages') {
+      const body = await readJson(request, 12_000);
+      if (!body.ok) return withCors(body.response, origin, true);
+      const action = String(body.value.action || '');
+      const path = typeof body.value.path === 'string' ? normalizePath(body.value.path.trim()) : null;
+      if (!path) return jsonError(400, 'invalid_path', 'Enter a path on this site that starts with /, for example /Library/Studio.', origin, true);
+      const hidden = new Set(cleanPathList(site.hiddenPaths));
+      const manual = Array.isArray(site.manualPages) ? [...site.manualPages] : [];
+      if (action === 'add') {
+        if (!site.verified) return jsonError(409, 'site_not_verified', 'Verify this domain before editing its index.', origin, true);
+        const entry = sanitizeManualPage({ ...body.value, path });
+        if (!entry) return jsonError(400, 'invalid_page', 'That page could not be saved. Check the path and try again.', origin, true);
+        const replacing = manual.some((page) => page.path === path);
+        if (!replacing && manual.length >= MAX_MANUAL_PAGES) {
+          return jsonError(400, 'too_many_pages', `An index can hold up to ${MAX_MANUAL_PAGES} hand-added pages. Remove one before adding another.`, origin, true);
+        }
+        site.manualPages = [...manual.filter((page) => page.path !== path), entry];
+        hidden.delete(path);
+        site.hiddenPaths = [...hidden];
+      } else if (action === 'remove') {
+        site.manualPages = manual.filter((page) => page.path !== path);
+        hidden.add(path);
+        site.hiddenPaths = [...hidden].slice(0, MAX_HIDDEN_PATHS);
+      } else if (action === 'restore') {
+        hidden.delete(path);
+        site.hiddenPaths = [...hidden];
+      } else {
+        return jsonError(400, 'invalid_action', 'Send action "add", "remove" or "restore".', origin, true);
+      }
+      site.updatedAt = Date.now();
+      await writeSite(env, site);
+      return withCors(json({ ok: true, site: ownerSafeSite(site) }), origin, true);
     }
     if (request.method === 'PUT' && !operation) {
       const body = await readJson(request, 12_000);
@@ -1003,8 +1092,10 @@ async function chat(request, id, env, origin, ctx) {
   const controls = sanitizePageControls(body.value.controls);
   const unreachableFrames = (Array.isArray(body.value.unreachableFrames) ? body.value.unreachableFrames : [])
     .map((name) => cleanString(name, 60)).filter(Boolean).slice(0, 3);
-  const pages = relevantPages(site, `${history.map((entry) => entry.content).join(' ')} ${message}`, pagePath, pageTitle);
-  const context = scoreContext(site, pages, pagePath, pageTitle, browserExcerpt);
+  // Hand-added pages count, removed pages do not: everything below reads this view.
+  const indexedSite = { ...site, pages: mergedIndex(site) };
+  const pages = relevantPages(indexedSite, `${history.map((entry) => entry.content).join(' ')} ${message}`, pagePath, pageTitle);
+  const context = scoreContext(indexedSite, pages, pagePath, pageTitle, browserExcerpt);
   const allowNavigation = navigationEnabled(site);
   const allowPageActions = pageActionsEnabled(site);
   const actionsEnabled = allowNavigation || allowPageActions;
@@ -1098,18 +1189,18 @@ async function chat(request, id, env, origin, ctx) {
     if (actionsEnabled) {
       const parsed = parseActionJson(modelText);
       reply = tidyReply(cleanString(parsed?.reply, 2_400) || extractReplyText(modelText));
-      action = validateAction(parsed?.action, site, controls, message);
+      action = validateAction(parsed?.action, indexedSite, controls, message);
       // Only explain a rejection when nothing can be offered, and never contradict
       // the reply with a generic "page control" sentence for navigation requests.
       if (parsed?.action && !action) {
-        reply = tidyReply(`${reply} ${actionFallbackNote(parsed.action, site)}`);
+        reply = tidyReply(`${reply} ${actionFallbackNote(parsed.action, indexedSite)}`);
         rejectedAction = true;
       }
       // The model sometimes answers with prose and forgets its action object. Match
       // the instruction against PAGE CONTROLS ourselves so the visitor still gets a
       // real, confirmable control instead of "you can click it yourself".
       if (!action && !parsed?.action && allowPageActions) {
-        const inferred = validateAction(inferAction(message, controls), site, controls, message);
+        const inferred = validateAction(inferAction(message, controls), indexedSite, controls, message);
         if (inferred) {
           action = inferred;
           if (!reply || REFUSAL_REPLY.test(reply)) reply = tidyReply(describeInferredAction(inferred));

@@ -517,6 +517,7 @@ function relevantPages(site, query, currentPath = "/", currentTitle = "") {
   return [...site.pages || []].filter((page) => !isRedirectPlaceholder(page)).map((page) => {
     const haystack = `${page.path} ${page.title} ${page.description} ${(page.headings || []).join(" ")} ${page.text}`.toLowerCase();
     let score = page.path === current ? 100 : current.startsWith(page.path.replace(/\/$/, "") + "/") ? 18 : 0;
+    if (page.manual) score += 12;
     const titleTerms = String(currentTitle).toLowerCase().match(/[a-z0-9]{3,}/g) || [];
     for (const term of titleTerms) if (haystack.includes(term)) score += 14;
     for (const term of terms) {
@@ -742,6 +743,7 @@ async function createSite(request2, env, user) {
   return json({ site: ownerSafeSite(site), verificationFile: `siloai-verification=${site.verificationToken}` }, isNewClaim ? 201 : 200);
 }
 function ownerSafeSite(site) {
+  const index = mergedIndex(site);
   return {
     id: site.id,
     domain: site.domain,
@@ -749,8 +751,20 @@ function ownerSafeSite(site) {
     verificationToken: site.verificationToken,
     verificationPath: site.verificationPath,
     profile: site.profile || { title: site.domain, description: "" },
-    pageCount: (site.pages || []).length,
-    pages: (site.pages || []).map(({ path, title, description, headings, links }) => ({ path, title, description, headings, links })),
+    pageCount: index.length,
+    pages: index.map(({ path, title, description, headings, links, text, manual, addedAt }) => ({
+      path,
+      title,
+      description,
+      headings: headings || [],
+      links: (links || []).slice(0, 20),
+      manual: Boolean(manual),
+      // Only a hand-written entry carries owner text worth showing back in the form.
+      text: manual ? String(text || "").slice(0, 3e3) : void 0,
+      addedAt: manual ? addedAt : void 0
+    })),
+    hiddenPaths: cleanPathList(site.hiddenPaths),
+    manualCount: Array.isArray(site.manualPages) ? site.manualPages.length : 0,
     groups: site.groups || [],
     actions: site.actions || { navigationMode: "on", pageActionsMode: "on", confirmNavigation: true },
     lastCrawledAt: site.lastCrawledAt || 0,
@@ -758,6 +772,40 @@ function ownerSafeSite(site) {
     createdAt: site.createdAt,
     updatedAt: site.updatedAt
   };
+}
+var MAX_MANUAL_PAGES = 40;
+var MAX_HIDDEN_PATHS = 200;
+function cleanPathList(value) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const item of Array.isArray(value) ? value.slice(0, MAX_HIDDEN_PATHS) : []) {
+    const path = typeof item === "string" ? normalizePath(item.trim()) : null;
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+    out.push(path);
+  }
+  return out;
+}
+function sanitizeManualPage(value) {
+  const path = typeof value?.path === "string" ? normalizePath(value.path.trim()) : null;
+  if (!path) return null;
+  const title = cleanString(value?.title, 120) || path;
+  const description = cleanString(value?.description, 240);
+  const text = cleanString(value?.text, 3e3);
+  return { path, title, description, text, headings: [], links: [], manual: true, addedAt: Date.now() };
+}
+function mergedIndex(site) {
+  const hidden = new Set(cleanPathList(site?.hiddenPaths));
+  const merged = /* @__PURE__ */ new Map();
+  for (const page of Array.isArray(site?.pages) ? site.pages : []) {
+    if (!page?.path || hidden.has(page.path)) continue;
+    merged.set(page.path, page);
+  }
+  for (const page of Array.isArray(site?.manualPages) ? site.manualPages : []) {
+    if (!page?.path || hidden.has(page.path)) continue;
+    merged.set(page.path, { ...page, headings: page.headings || [], links: page.links || [], manual: true });
+  }
+  return [...merged.values()];
 }
 async function getOwnerSite(id, env, user) {
   const site = await readSite(env, id);
@@ -847,7 +895,7 @@ async function ownerApi(request2, url, env, origin) {
       return jsonError(502, errorValue.code || "storage_error", errorValue.message || "Could not create the site.", origin, true);
     }
   }
-  const match = /^\/api\/sites\/([a-f0-9]{24})(?:\/(verify|refresh|ai-test))?$/.exec(url.pathname);
+  const match = /^\/api\/sites\/([a-f0-9]{24})(?:\/(verify|refresh|ai-test|pages))?$/.exec(url.pathname);
   if (!match) return jsonError(404, "not_found", "Unknown SiloAI dashboard endpoint.", origin, true);
   const [, id, operation] = match;
   try {
@@ -894,6 +942,39 @@ async function ownerApi(request2, url, env, origin) {
         await lockSite(env, id, "unlock").catch(() => {
         });
       }
+    }
+    if (request2.method === "POST" && operation === "pages") {
+      const body = await readJson(request2, 12e3);
+      if (!body.ok) return withCors(body.response, origin, true);
+      const action = String(body.value.action || "");
+      const path = typeof body.value.path === "string" ? normalizePath(body.value.path.trim()) : null;
+      if (!path) return jsonError(400, "invalid_path", "Enter a path on this site that starts with /, for example /Library/Studio.", origin, true);
+      const hidden = new Set(cleanPathList(site.hiddenPaths));
+      const manual = Array.isArray(site.manualPages) ? [...site.manualPages] : [];
+      if (action === "add") {
+        if (!site.verified) return jsonError(409, "site_not_verified", "Verify this domain before editing its index.", origin, true);
+        const entry = sanitizeManualPage({ ...body.value, path });
+        if (!entry) return jsonError(400, "invalid_page", "That page could not be saved. Check the path and try again.", origin, true);
+        const replacing = manual.some((page) => page.path === path);
+        if (!replacing && manual.length >= MAX_MANUAL_PAGES) {
+          return jsonError(400, "too_many_pages", `An index can hold up to ${MAX_MANUAL_PAGES} hand-added pages. Remove one before adding another.`, origin, true);
+        }
+        site.manualPages = [...manual.filter((page) => page.path !== path), entry];
+        hidden.delete(path);
+        site.hiddenPaths = [...hidden];
+      } else if (action === "remove") {
+        site.manualPages = manual.filter((page) => page.path !== path);
+        hidden.add(path);
+        site.hiddenPaths = [...hidden].slice(0, MAX_HIDDEN_PATHS);
+      } else if (action === "restore") {
+        hidden.delete(path);
+        site.hiddenPaths = [...hidden];
+      } else {
+        return jsonError(400, "invalid_action", 'Send action "add", "remove" or "restore".', origin, true);
+      }
+      site.updatedAt = Date.now();
+      await writeSite(env, site);
+      return withCors(json({ ok: true, site: ownerSafeSite(site) }), origin, true);
     }
     if (request2.method === "PUT" && !operation) {
       const body = await readJson(request2, 12e3);
@@ -1504,8 +1585,9 @@ async function chat(request2, id, env, origin, ctx) {
   const history = (Array.isArray(body.value.history) ? body.value.history : []).slice(-4).map((entry) => ({ role: entry?.role === "assistant" ? "assistant" : "user", content: cleanString(entry?.content, 1e3) })).filter((entry) => entry.content);
   const controls = sanitizePageControls(body.value.controls);
   const unreachableFrames = (Array.isArray(body.value.unreachableFrames) ? body.value.unreachableFrames : []).map((name) => cleanString(name, 60)).filter(Boolean).slice(0, 3);
-  const pages = relevantPages(site, `${history.map((entry) => entry.content).join(" ")} ${message}`, pagePath, pageTitle);
-  const context = scoreContext(site, pages, pagePath, pageTitle, browserExcerpt);
+  const indexedSite = { ...site, pages: mergedIndex(site) };
+  const pages = relevantPages(indexedSite, `${history.map((entry) => entry.content).join(" ")} ${message}`, pagePath, pageTitle);
+  const context = scoreContext(indexedSite, pages, pagePath, pageTitle, browserExcerpt);
   const allowNavigation = navigationEnabled(site);
   const allowPageActions = pageActionsEnabled(site);
   const actionsEnabled = allowNavigation || allowPageActions;
@@ -1590,13 +1672,13 @@ Your last answer was cut off before it finished. Answer again in at most 60 word
     if (actionsEnabled) {
       const parsed = parseActionJson(modelText);
       reply = tidyReply(cleanString(parsed?.reply, 2400) || extractReplyText(modelText));
-      action = validateAction(parsed?.action, site, controls, message);
+      action = validateAction(parsed?.action, indexedSite, controls, message);
       if (parsed?.action && !action) {
-        reply = tidyReply(`${reply} ${actionFallbackNote(parsed.action, site)}`);
+        reply = tidyReply(`${reply} ${actionFallbackNote(parsed.action, indexedSite)}`);
         rejectedAction = true;
       }
       if (!action && !parsed?.action && allowPageActions) {
-        const inferred = validateAction(inferAction(message, controls), site, controls, message);
+        const inferred = validateAction(inferAction(message, controls), indexedSite, controls, message);
         if (inferred) {
           action = inferred;
           if (!reply || REFUSAL_REPLY.test(reply)) reply = tidyReply(describeInferredAction(inferred));

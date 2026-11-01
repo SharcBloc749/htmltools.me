@@ -37,6 +37,43 @@ function envFor(record, output) {
   };
 }
 
+const OWNER_KEYS = (() => {
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'index-test-key', alg: 'RS256', use: 'sig' };
+  return { privateKey, jwk };
+})();
+function ownerToken(uid = site.ownerUid) {
+  const b64url = (value) => Buffer.from(typeof value === 'string' ? value : JSON.stringify(value)).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = `${b64url({ alg: 'RS256', kid: OWNER_KEYS.jwk.kid, typ: 'JWT' })}.${b64url({ aud: 'demo-firebase', iss: 'https://securetoken.google.com/demo-firebase', sub: uid, iat: now, exp: now + 3600 })}`;
+  const signer = createSign('RSA-SHA256');
+  signer.update(unsigned);
+  signer.end();
+  return `${unsigned}.${signer.sign(OWNER_KEYS.privateKey).toString('base64url')}`;
+}
+function ownerHeaders(ip = '203.0.113.9', token = ownerToken()) {
+  return { origin: 'https://htmltools.me', 'content-type': 'application/json', 'cf-connecting-ip': ip, authorization: `Bearer ${token}` };
+}
+/** Signed-in owner harness: Firebase token verification plus the GitHub record store. */
+async function withOwnerSite(callback, record, output) {
+  const oldCache = globalThis.caches;
+  const cacheMap = new Map();
+  globalThis.caches = { default: {
+    async match(request) { return cacheMap.get(request.url)?.clone() || undefined; },
+    async put(request, response) { cacheMap.set(request.url, response.clone()); },
+    async delete(request) { return cacheMap.delete(request.url); },
+  } };
+  globalThis.fetch = async (url) => {
+    if (String(url).startsWith('https://www.googleapis.com/service_accounts/')) {
+      return Response.json({ keys: [OWNER_KEYS.jwk] }, { headers: { 'cache-control': 'public, max-age=3600' } });
+    }
+    if (String(url).startsWith('https://api.github.com/')) return Response.json({ content: encoded(record), sha: 'test-sha' });
+    throw new Error('Unexpected fetch ' + url);
+  };
+  try { return await callback(envFor(record, output)); }
+  finally { globalThis.fetch = originalFetch; globalThis.caches = oldCache; }
+}
+
 async function withGithubSite(callback, record, output) {
   const oldCache = globalThis.caches;
   const cacheMap = new Map();
@@ -818,4 +855,117 @@ test('page chips appear only for pages the reply actually names', async () => {
     assert.equal(navigated.action?.type, 'navigate');
     assert.deepEqual(navigated.sources, [], 'a destination card replaces the chip list');
   }, site, 'unused');
+});
+
+/* ---- owner-managed index -------------------------------------------------- */
+
+test('an owner can add a page the crawler cannot reach, and the assistant reads it', async () => {
+  const record = { ...site, id: 'cdef0123456789abcdef0a10', hiddenPaths: [], manualPages: [] };
+  await withOwnerSite(async (env) => {
+    const added = await (await worker.fetch(new Request(`https://siloai.test/api/sites/${record.id}/pages`, {
+      method: 'POST', headers: ownerHeaders('203.0.113.101'),
+      body: JSON.stringify({ action: 'add', path: '/booking', title: 'Booking desk', text: 'Book a slot with the studio between 9 and 5.' }),
+    }), env, { waitUntil() {} })).json();
+    const entry = added.site.pages.find((page) => page.path === '/booking');
+    assert.ok(entry, 'the new page is in the index');
+    assert.equal(entry.manual, true);
+    assert.equal(entry.title, 'Booking desk');
+    assert.equal(added.site.pageCount, site.pages.length + 1);
+
+    const reloaded = await (await worker.fetch(new Request(`https://siloai.test/api/sites/${record.id}`, { headers: ownerHeaders('203.0.113.101') }), env, { waitUntil() {} })).json();
+    assert.ok(reloaded.pages.some((page) => page.path === '/booking'), 'the page survives a reload');
+
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'The **Booking desk** page handles that.' }) }; };
+    const chat = await (await worker.fetch(new Request(`https://siloai.test/chat/${record.id}`, {
+      method: 'POST', headers: { ...ownerHeaders('203.0.113.102'), origin: 'https://htmltools.eu.cc' },
+      body: JSON.stringify({ message: 'how do I book a slot?', pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} })).json();
+    assert.match(envFor.lastInput.messages[0].content, /Booking desk/, 'the hand-written page reaches the model');
+    assert.match(envFor.lastInput.messages[0].content, /between 9 and 5/);
+    assert.ok(chat.sources.some((source) => source.path === '/booking'), 'a named page keeps its chip');
+  }, record, 'unused');
+});
+
+test('removing a page hides it from retrieval and navigation until it is restored', async () => {
+  const record = { ...site, id: 'cdef0123456789abcdef0a20', hiddenPaths: [], manualPages: [] };
+  await withOwnerSite(async (env) => {
+    const removed = await (await worker.fetch(new Request(`https://siloai.test/api/sites/${record.id}/pages`, {
+      method: 'POST', headers: ownerHeaders('203.0.113.111'),
+      body: JSON.stringify({ action: 'remove', path: '/Library/Studio/Upload' }),
+    }), env, { waitUntil() {} })).json();
+    assert.deepEqual(removed.site.hiddenPaths, ['/Library/Studio/Upload']);
+    assert.ok(!removed.site.pages.some((page) => page.path === '/Library/Studio/Upload'), 'it leaves the index');
+    assert.equal(removed.site.pageCount, site.pages.length - 1);
+
+    env.AI.run = async (model, input) => {
+      envFor.lastInput = input;
+      return { response: JSON.stringify({ reply: 'I could not find that page.', action: { type: 'navigate', path: '/Library/Studio/Upload' } }) };
+    };
+    const chat = await (await worker.fetch(new Request(`https://siloai.test/chat/${record.id}`, {
+      method: 'POST', headers: { ...ownerHeaders('203.0.113.112'), origin: 'https://htmltools.eu.cc' },
+      body: JSON.stringify({ message: 'take me to the upload page', pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} })).json();
+    assert.doesNotMatch(envFor.lastInput.messages[0].content, /AI Book Upload/, 'the removed page is never retrieved');
+    assert.equal(chat.action, null, 'SiloAI will not navigate to a page the owner removed');
+
+    const restored = await (await worker.fetch(new Request(`https://siloai.test/api/sites/${record.id}/pages`, {
+      method: 'POST', headers: ownerHeaders('203.0.113.113'),
+      body: JSON.stringify({ action: 'restore', path: '/Library/Studio/Upload' }),
+    }), env, { waitUntil() {} })).json();
+    assert.deepEqual(restored.site.hiddenPaths, []);
+    assert.ok(restored.site.pages.some((page) => page.path === '/Library/Studio/Upload'), 'restoring brings the crawled copy back');
+  }, record, 'unused');
+});
+
+test('a hand-added page replaces the crawled copy of the same path', async () => {
+  const record = { ...site, id: 'cdef0123456789abcdef0a30', hiddenPaths: [], manualPages: [] };
+  await withOwnerSite(async (env) => {
+    const added = await (await worker.fetch(new Request(`https://siloai.test/api/sites/${record.id}/pages`, {
+      method: 'POST', headers: ownerHeaders('203.0.113.121'),
+      body: JSON.stringify({ action: 'add', path: '/Library', title: 'Library (renamed)', text: 'Owner wording wins.' }),
+    }), env, { waitUntil() {} })).json();
+    const matches = added.site.pages.filter((page) => page.path === '/Library');
+    assert.equal(matches.length, 1, 'the index never lists the path twice');
+    assert.equal(matches[0].title, 'Library (renamed)');
+    assert.equal(matches[0].manual, true);
+    assert.equal(added.site.pageCount, site.pages.length);
+  }, record, 'unused');
+});
+
+test('index edits are validated, capped and owner-only', async () => {
+  const record = { ...site, id: 'cdef0123456789abcdef0a40', hiddenPaths: [], manualPages: [] };
+  await withOwnerSite(async (env) => {
+    const post = async (body, ip = '203.0.113.131') => worker.fetch(new Request(`https://siloai.test/api/sites/${record.id}/pages`, {
+      method: 'POST', headers: ownerHeaders(ip), body: JSON.stringify(body),
+    }), env, { waitUntil() {} });
+
+    const badPath = await post({ action: 'add', path: 'library/studio' });
+    assert.equal(badPath.status, 400);
+    assert.equal((await badPath.json()).error.code, 'invalid_path');
+
+    const badAction = await post({ action: 'rewrite', path: '/Library' });
+    assert.equal(badAction.status, 400);
+    assert.equal((await badAction.json()).error.code, 'invalid_action');
+
+    const otherOwner = await worker.fetch(new Request(`https://siloai.test/api/sites/${record.id}/pages`, {
+      method: 'POST', headers: { ...ownerHeaders('203.0.113.132'), authorization: 'Bearer nope' }, body: JSON.stringify({ action: 'remove', path: '/Library' }),
+    }), env, { waitUntil() {} });
+    assert.equal(otherOwner.status, 401, 'the endpoint requires a signed-in owner');
+
+  }, record, 'unused');
+});
+
+test('a hand-added page list is capped so the index cannot grow without limit', async () => {
+  const crowded = {
+    ...site,
+    id: 'cdef0123456789abcdef0a50',
+    manualPages: Array.from({ length: 40 }, (unused, index) => ({ path: `/p${index}`, title: `P${index}` })),
+  };
+  await withOwnerSite(async (env) => {
+    const response = await worker.fetch(new Request(`https://siloai.test/api/sites/${crowded.id}/pages`, {
+      method: 'POST', headers: ownerHeaders('203.0.113.133'), body: JSON.stringify({ action: 'add', path: '/one-more' }),
+    }), env, { waitUntil() {} });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error.code, 'too_many_pages');
+  }, crowded, 'unused');
 });

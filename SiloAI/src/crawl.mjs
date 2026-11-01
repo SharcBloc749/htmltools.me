@@ -319,6 +319,9 @@ export function relevantPages(site, query, currentPath = '/', currentTitle = '')
   return [...(site.pages || [])].filter((page) => !isRedirectPlaceholder(page)).map((page) => {
     const haystack = `${page.path} ${page.title} ${page.description} ${(page.headings || []).join(' ')} ${page.text}`.toLowerCase();
     let score = page.path === current ? 100 : (current.startsWith(page.path.replace(/\/$/, '') + '/') ? 18 : 0);
+    // A page the owner added by hand is curated on purpose: a match on it beats a
+    // incidental word on a crawled page, so hand-listed routes are actually reachable.
+    if (page.manual) score += 12;
     const titleTerms = String(currentTitle).toLowerCase().match(/[a-z0-9]{3,}/g) || [];
     for (const term of titleTerms) if (haystack.includes(term)) score += 14;
     for (const term of terms) {
