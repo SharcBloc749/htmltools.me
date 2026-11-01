@@ -38,12 +38,12 @@ function makeStorage(initial = {}, { failWrites = false, failCount = 0 } = {}) {
   };
 }
 
-function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sources: [] }), storage = makeStorage(), speech = false, imageData = () => 'data:image/jpeg;base64,/9j/2Q==', scriptSiteId = siteId } = {}) {
+function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sources: [] }), storage = makeStorage(), speech = false, imageData = () => 'data:image/jpeg;base64,/9j/2Q==', scriptSiteId = siteId, markup = pageMarkup, url = 'https://example.test/tools/editor' } = {}) {
   const requests = [];
   const errors = [];
   let imageIndex = 0;
-  const dom = new JSDOM(`<!doctype html><html lang="en"><head><title>Current route</title></head><body>${pageMarkup}</body></html>`, {
-    url: 'https://example.test/tools/editor',
+  const dom = new JSDOM(`<!doctype html><html lang="en"><head><title>Current route</title></head><body>${markup}</body></html>`, {
+    url,
     runScripts: 'outside-only',
     pretendToBeVisual: true,
   });
@@ -92,11 +92,15 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
   }
   window.addEventListener('error', (event) => errors.push(event.error || event.message));
   // Same-origin frame content, like an HTML Runner preview pane.
-  const frameDoc = window.document.querySelector('#runner-frame').contentDocument;
-  if (frameDoc.defaultView) installLayoutStubs(frameDoc.defaultView);
-  frameDoc.body.innerHTML = '<div class="toolbar"><button id="frame-run">Run</button><button id="frame-clear" type="button">Clear</button></div>';
+  const frameHost = window.document.querySelector('#runner-frame');
+  if (frameHost) {
+    const frameDoc = frameHost.contentDocument;
+    if (frameDoc.defaultView) installLayoutStubs(frameDoc.defaultView);
+    frameDoc.body.innerHTML = '<div class="toolbar"><button id="frame-run">Run</button><button id="frame-clear" type="button">Clear</button></div>';
+  }
   // Open shadow root content, like a custom element toolbar.
-  window.document.querySelector('#shadow-host').attachShadow({ mode: 'open' }).innerHTML = '<button id="shadow-apply" type="button">Apply changes</button>';
+  const shadowHost = window.document.querySelector('#shadow-host');
+  if (shadowHost) shadowHost.attachShadow({ mode: 'open' }).innerHTML = '<button id="shadow-apply" type="button">Apply changes</button>';
   const script = window.document.createElement('script');
   script.setAttribute('data-site-id', scriptSiteId);
   Object.defineProperty(window.document, 'currentScript', { configurable: true, value: script });
@@ -668,11 +672,11 @@ test('replies render light markdown, never echo a JSON wrapper, and show the wid
   });
   const { dom, window, errors } = makeWidget({ responseFor });
   const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-  assert.equal(window.SiloAI.version, '10');
+  assert.equal(window.SiloAI.version, '10.1');
   const version = shadow.querySelector('[data-version]');
   assert.ok(version, 'the running version is visible without opening the console');
-  assert.equal(version.textContent.trim(), 'v10');
-  assert.match(version.getAttribute('title'), /SiloAI widget v10/);
+  assert.equal(version.textContent.trim(), 'v10.1');
+  assert.match(version.getAttribute('title'), /SiloAI widget v10\.1/);
 
   submit(window, shadow, 'How do I save?'); await flush();
   const reply = lastReply(shadow);
@@ -690,4 +694,158 @@ test('replies render light markdown, never echo a JSON wrapper, and show the wid
   assert.deepEqual(errors, []);
   rawJson.dom.window.close();
   dom.window.close();
+});
+
+/* ---- finding and clicking repeated controls ------------------------------- */
+
+const gamesMarkup = `
+  <header><button id="menu">Menu</button><a href="/games/">Games</a><a href="/Library/">Library</a></header>
+  <main>
+    <article class="card"><h3>Happy Bird</h3><p>Classic game</p><button class="play" id="play-bird">▶ Play</button><button class="pin" id="pin-bird">Pin</button></article>
+    <article class="card"><h3>Pacman</h3><p>Classic game</p><button class="play" id="play-pacman">▶ Play</button><button class="pin" id="pin-pacman">Pin</button></article>
+    <article class="card"><h3>Tetris</h3><p>Classic game</p><button class="play" id="play-tetris">▶ Play</button><button class="pin" id="pin-tetris">Pin</button></article>
+  </main>`;
+
+/* A model that answers with prose only — the failure the visitor keeps hitting. */
+function refusalWidget(options = {}) {
+  const widget = makeWidget({
+    markup: gamesMarkup,
+    url: 'https://example.test/games/',
+    responseFor: () => ({
+      reply: "I can't play games for you, but you can click the **Play** button next to a game yourself.",
+      action: null,
+      sources: [],
+      pageActions: true,
+      navigation: true,
+      confirmAction: true,
+    }),
+    ...options,
+  });
+  const played = [];
+  for (const button of widget.window.document.querySelectorAll('.play')) {
+    button.addEventListener('click', () => played.push(button.id));
+  }
+  const shadow = widget.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  return { ...widget, shadow, played };
+}
+
+test('the card a repeated button belongs to reaches the model', async () => {
+  const { shadow, requests, dom } = refusalWidget();
+  submit(dom.window, shadow, 'Play a random game please, just any');
+  await flush();
+  const plays = requests[0].body.controls.filter((control) => control.label === 'Play');
+  assert.equal(plays.length, 3, 'every Play button on the gallery is described');
+  assert.deepEqual(plays.map((control) => control.context), ['Happy Bird', 'Pacman', 'Tetris'], 'each is tied to its card');
+  dom.window.close();
+});
+
+test('a reply that only describes the button still offers a real, working click', async () => {
+  const { dom, shadow, played } = refusalWidget();
+  submit(dom.window, shadow, 'Play a random game please, just any');
+  await flush();
+  const reply = lastReply(shadow);
+  assert.doesNotMatch(reply.textContent, /can't play games for you/, 'the refusal is replaced');
+  const button = reply.querySelector('.silo-action');
+  assert.ok(button, 'a confirmable action is offered');
+  assert.match(button.textContent, /Click “Play — Happy Bird”/);
+  assert.equal(played.length, 0, 'nothing happens until the visitor presses it');
+  button.click();
+  await flush();
+  assert.deepEqual(played, ['play-bird'], 'pressing it clicks the real page button');
+  assert.equal(button.disabled, true);
+  dom.window.close();
+});
+
+test('a named card wins over the first button with the same label', async () => {
+  const { dom, shadow, played } = refusalWidget();
+  submit(dom.window, shadow, 'play tetris');
+  await flush();
+  const button = lastReply(shadow).querySelector('.silo-action');
+  assert.match(button.textContent, /Play — Tetris/);
+  button.click();
+  await flush();
+  assert.deepEqual(played, ['play-tetris']);
+  dom.window.close();
+});
+
+test('a question about the page is never turned into a click', async () => {
+  const { dom, shadow, played } = refusalWidget();
+  submit(dom.window, shadow, 'what games are there?');
+  await flush();
+  assert.equal(lastReply(shadow).querySelector('.silo-action'), null);
+  submit(dom.window, shadow, 'which button should I click?');
+  await flush();
+  assert.equal(lastReply(shadow).querySelector('.silo-action'), null);
+  assert.deepEqual(played, []);
+  dom.window.close();
+});
+
+test('asking where something is highlights it even without an action from the model', async () => {
+  const { dom, window, shadow } = refusalWidget();
+  submit(window, shadow, 'where is the pacman play button?');
+  await flush();
+  const ring = window.document.querySelector('[data-siloai-highlight]');
+  assert.ok(ring, 'the ring is drawn on the page');
+  assert.equal(lastReply(shadow).querySelector('.silo-action').textContent, 'Highlight again');
+  dom.window.close();
+});
+
+test('a model that already returned an action keeps full control', async () => {
+  const widget = makeWidget({ markup: gamesMarkup, url: 'https://example.test/games/', responseFor: () => ({
+    reply: 'Starting Pacman.', action: { type: 'click', target: 'siloctl6', label: 'Play' }, sources: [], pageActions: true, confirmAction: true,
+  }) });
+  const shadow = widget.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  const played = [];
+  for (const button of widget.window.document.querySelectorAll('.play')) button.addEventListener('click', () => played.push(button.id));
+  submit(widget.window, shadow, 'play a game');
+  await flush();
+  const button = lastReply(shadow).querySelector('.silo-action');
+  assert.equal(button.textContent, 'Click “Play — Tetris”', 'the model target is named by its card, not a bare label');
+  button.click();
+  await flush();
+  assert.equal(played.length, 1, 'the model-chosen control is the one clicked');
+  widget.dom.window.close();
+});
+
+test('a rejected model action is not second-guessed by the widget', async () => {
+  const widget = makeWidget({ markup: gamesMarkup, url: 'https://example.test/games/', responseFor: () => ({
+    reply: 'That control is not on the page any more, so nothing was changed.',
+    action: null, actionRejected: true, sources: [], pageActions: true, confirmAction: true,
+  }) });
+  const shadow = widget.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  submit(widget.window, shadow, 'play a game');
+  await flush();
+  assert.equal(lastReply(shadow).querySelector('.silo-action'), null);
+  widget.dom.window.close();
+});
+
+test('a bare imperative and a where-question both reach the right control on the page', async () => {
+  const implicit = refusalWidget();
+  submit(implicit.dom.window, implicit.shadow, 'pin tetris');
+  await flush();
+  assert.match(lastReply(implicit.shadow).querySelector('.silo-action').textContent, /Pin — Tetris/);
+  implicit.dom.window.close();
+
+  const pointing = refusalWidget();
+  submit(pointing.dom.window, pointing.shadow, 'where is the pacman play button?');
+  await flush();
+  assert.ok(pointing.window.document.querySelector('[data-siloai-highlight]'), 'the ring is drawn instead of pressing anything');
+  pointing.dom.window.close();
+});
+
+test('a sandboxed preview frame is reported instead of being silently ignored', async () => {
+  const widget = makeWidget({ markup: `${pageMarkup}<iframe id="sandboxed" title="Live preview" src="about:blank"></iframe>`, url: 'https://example.test/advanced' });
+  const frame = widget.window.document.querySelector('#sandboxed');
+  // A sandboxed or cross-origin frame reports no readable document.
+  Object.defineProperty(frame, 'contentDocument', { configurable: true, get: () => null });
+  const shadow = widget.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  submit(widget.window, shadow, 'click play in the preview');
+  await flush();
+  assert.deepEqual(widget.requests[0].body.unreachableFrames, ['Live preview'], 'the model is told which frames are out of reach');
+
+  widget.window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ reply: 'Nothing found.', action: null, pageActions: true }) });
+  submit(widget.window, shadow, 'what can I click?');
+  await flush();
+  assert.match(shadow.querySelector('[data-status-text]').textContent, /cannot reach inside 1 embedded preview frame/);
+  widget.dom.window.close();
 });
