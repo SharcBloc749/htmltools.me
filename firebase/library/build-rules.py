@@ -9,7 +9,9 @@ from pathlib import Path
 
 AUTH = "auth != null"
 OWNER = "auth != null && auth.token.libraryOwner === true"
-SESSION = "auth != null && auth.token.librarySession === true"
+# The Library signs in directly against this data project, so "session" simply
+# means "signed in" — no Cloud Function custom-token bridge is required.
+SESSION = "auth != null"
 
 def string(limit=200): return {".validate": f"newData.isString() && newData.val().length <= {limit}"}
 def number(): return {".validate": "newData.isNumber() && newData.val() >= 0"}
