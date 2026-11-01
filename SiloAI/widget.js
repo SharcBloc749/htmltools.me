@@ -7,7 +7,7 @@
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '10';
+  var BUILD_VERSION = '11';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
@@ -556,11 +556,18 @@
     if (!Array.isArray(sources) || !sources.length) return;
     var wrap = document.createElement('div');
     wrap.className = 'silo-sources';
-    sources.forEach(function (source) {
+    var seen = {};
+    var here = (location.pathname || '/').replace(/\/+$/, '') || '/';
+    sources.slice(0, 3).forEach(function (source) {
       if (!source || typeof source.path !== 'string' || !source.path.startsWith('/') || source.path.startsWith('//')) return;
       var destination;
       try { destination = new URL(source.path, location.origin); } catch (_) { return; }
       if (destination.origin !== location.origin) return;
+      var key = (destination.pathname || '/').replace(/\/+$/, '') || '/';
+      // The current page is not a source: the visitor is already looking at it.
+      if (key === here) return;
+      if (seen[key]) return;
+      seen[key] = true;
       var link = document.createElement('a');
       link.className = 'silo-source';
       link.href = destination.href;
@@ -1110,6 +1117,46 @@
         var again = resolveTarget(action);
         if (again && typeof again.scrollIntoView === 'function') again.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, true);
+      return;
+    }
+    if (action.type === 'hover') {
+      var hoverOnce = function (quiet) {
+        var hoverTarget = resolveTarget(action);
+        if (!hoverTarget) { setStatus('That element is no longer on the page.', 'warn'); return; }
+        var view = (hoverTarget.ownerDocument && hoverTarget.ownerDocument.defaultView) || window;
+        ['pointerover', 'mouseover', 'mouseenter'].forEach(function (name) {
+          try {
+            hoverTarget.dispatchEvent(new view.MouseEvent(name, { bubbles: name !== 'mouseenter', cancelable: true, composed: true, view: view }));
+          } catch (_) { /* older browsers */ }
+        });
+        if (!quiet) setStatus('Hovered “' + label + '” to reveal what it shows.');
+      };
+      hoverOnce(true);
+      actionButton(parent, 'Hover again', function () { hoverOnce(false); }, true);
+      return;
+    }
+    if (action.type === 'press' && typeof action.key === 'string') {
+      var keyName = shortText(action.key).slice(0, 24);
+      actionButton(parent, 'Press ' + keyName + ' on “' + label + '”', function (event) {
+        var target = resolveTarget(action);
+        if (!target) { setStatus('That control is no longer on the page.', 'warn'); return; }
+        var doc = target.ownerDocument || document;
+        var view = doc.defaultView || window;
+        var blockSubmit = function (submitEvent) { submitEvent.preventDefault(); submitEvent.stopImmediatePropagation(); };
+        doc.addEventListener('submit', blockSubmit, true);
+        try {
+          var init = { key: keyName, bubbles: true, cancelable: true, composed: true };
+          var Keyboard = view.KeyboardEvent || window.KeyboardEvent;
+          target.dispatchEvent(new Keyboard('keydown', init));
+          target.dispatchEvent(new Keyboard('keypress', init));
+          target.dispatchEvent(new Keyboard('keyup', init));
+        } finally {
+          doc.removeEventListener('submit', blockSubmit, true);
+        }
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = 'Pressed ' + keyName + ' ✓';
+        setStatus('Sent ' + keyName + ' to “' + label + '”. I did not submit the form.');
+      });
       return;
     }
     if (action.type === 'find') {
