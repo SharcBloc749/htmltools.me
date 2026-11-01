@@ -7,7 +7,7 @@
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '10';
+  var BUILD_VERSION = '10.1';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
@@ -354,6 +354,30 @@
     }
     return docs;
   }
+  /* Frames we cannot reach into: sandboxed previews and other origins. Their
+     buttons are invisible to us, so the assistant must know they exist rather
+     than claiming the page has no controls at all. */
+  function blockedFrames() {
+    var found = [];
+    var docs = pageDocuments();
+    for (var docIndex = 0; docIndex < docs.length; docIndex++) {
+      var doc = docs[docIndex].doc;
+      var frames;
+      try { frames = doc.querySelectorAll('iframe,frame'); } catch (_) { continue; }
+      for (var index = 0; index < frames.length && index < 10; index++) {
+        var frame = frames[index];
+        if (ownNodes(frame)) continue;
+        var child = null;
+        try { child = frame.contentDocument; } catch (_) { child = null; }
+        if (child && child.body) continue;
+        var rect = frame.getBoundingClientRect();
+        if (rect.width < 16 || rect.height < 16) continue;
+        var name = shortText(frame.getAttribute('title') || frame.getAttribute('aria-label') || frame.getAttribute('name') || '').slice(0, 60);
+        if (name && found.indexOf(name) === -1) found.push(name);
+      }
+    }
+    return found.slice(0, 3);
+  }
   /* Controls inside open shadow roots are invisible to querySelectorAll. */
   function controlCandidates(doc) {
     var list = Array.prototype.slice.call(doc.querySelectorAll(CONTROL_SELECTOR));
@@ -629,8 +653,10 @@
       var names = items.slice(0, 4).map(function (item) { return '“' + item.label + '”'; }).join(', ') + (items.length > 4 ? ', …' : '');
       parts.push(items.length + ' ' + pair[1] + (items.length === 1 ? '' : 's') + ' (' + names + ')');
     });
-    if (!parts.length) return 'I could not read any controls on this page. If it is inside a cross-origin frame, the site owner needs to embed me in that frame instead.';
-    return 'On this page I can see ' + parts.join(', ') + '.';
+    var blocked = blockedFrames();
+    var blockedNote = blocked.length ? ' I cannot reach inside ' + blocked.length + ' embedded preview frame' + (blocked.length === 1 ? '' : 's') + ' on this page — sandboxed or cross-origin frames hide their buttons from me.' : '';
+    if (!parts.length) return 'I could not read any controls on this page.' + blockedNote;
+    return 'On this page I can see ' + parts.join(', ') + '.' + blockedNote;
   }
   function submitComposer() {
     if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return; }
@@ -701,6 +727,35 @@
       return editable ? 'Editable text area' : 'Text field';
     }
     return cleanLabel(accessibleName(el) || (kind === 'button' ? el.value || '' : ''));
+  }
+  /* A gallery of identical "Play" buttons is useless to the assistant unless each
+     one is tied to its card. Return the nearest short heading so the model (and the
+     matcher below) can tell "Play - Happy Bird" from "Play - Pacman". */
+  var CARD_SELECTOR = 'article,li,section,figure,tr,[role=listitem],[role=article],[class*=card],[class*=tile],[class*=item],[class*=product],[class*=post],[class*=result]';
+  function nearbyHeading(el, ownLabel) {
+    var node = el;
+    for (var depth = 0; node && depth < 5; depth++) {
+      var parent = node.parentElement;
+      if (!parent || !parent.tagName || parent.tagName === 'BODY' || parent.tagName === 'HTML') break;
+      node = parent;
+      // Only card-like containers carry a meaningful name; a page-level heading
+      // would label every button on the page with the site's own title.
+      var card = false;
+      try { card = node.matches(CARD_SELECTOR); } catch (_) { card = false; }
+      if (!card) continue;
+      var heading = null;
+      try { heading = node.querySelector('h1,h2,h3,h4,h5,h6,[role=heading]'); } catch (_) { heading = null; }
+      if (!heading || ownNodes(heading)) continue;
+      var text = shortText(heading.textContent || '');
+      if (text && text !== ownLabel && text.length <= 60) return text;
+    }
+    return '';
+  }
+  function displayLabel(label, context) {
+    var base = shortText(label);
+    var extra = shortText(context);
+    if (!extra || extra === base || base.indexOf(extra) !== -1) return base;
+    return (base + ' — ' + extra).slice(0, 96);
   }
   function isSensitiveField(el) {
     var inputType = (el.getAttribute('type') || 'text').toLowerCase();
@@ -800,6 +855,10 @@
         if (kind === 'field' && /password|secret|token|one-time|otp|credit.?card|card.?number|security.?code|\bssn\b/i.test(label)) continue;
         var inViewport = isInViewport(el, view);
         var entry = { el: el, kind: kind, label: label, inputType: inputType, clickable: clickable, inViewport: inViewport, docIndex: docIndex, order: index };
+        if (kind === 'button' || kind === 'link') {
+          var context = nearbyHeading(el, label);
+          if (context) entry.context = context;
+        }
         Object.keys(extra).forEach(function (key) { entry[key] = extra[key]; });
         buckets[kind].push(entry);
       }
@@ -812,8 +871,12 @@
         || a.order - b.order;
     };
     ['button', 'link', 'field', 'check', 'select', 'text'].forEach(function (name) { buckets[name].sort(byScreen); });
-    var ordered = buckets.button.slice(0, 16)
-      .concat(buckets.link.slice(0, 10), buckets.field.slice(0, 10), buckets.check.slice(0, 8), buckets.select.slice(0, 6), buckets.text.slice(0, 14));
+    var ordered = buckets.button.slice(0, 24)
+      .concat(buckets.link.slice(0, 8), buckets.field.slice(0, 8), buckets.check.slice(0, 6), buckets.select.slice(0, 4), buckets.text.slice(0, 10));
+    // A card name is only worth sending when a label alone is ambiguous: on a games
+    // grid every "Play" needs its card, while a unique "Save draft" does not.
+    var labelCounts = {};
+    ordered.forEach(function (entry) { labelCounts[entry.label] = (labelCounts[entry.label] || 0) + 1; });
     return ordered.map(function (entry, position) {
       var controlId = 'siloctl' + (position + 1);
       targetIndex.set(controlId, entry);
@@ -823,6 +886,7 @@
       if (entry.kind === 'link') { item.href = entry.href; item.external = entry.external === true; }
       if (entry.kind === 'check') item.state = entry.state;
       if (entry.kind === 'select') item.options = entry.options;
+      if (entry.context && labelCounts[entry.label] > 1) item.context = shortText(entry.context).slice(0, 60);
       if (entry.tag) item.tag = entry.tag;
       return item;
     });
@@ -1056,10 +1120,127 @@
     return true;
   }
 
+  /* ---- deterministic request matching ----------------------------------
+     The model is asked to answer with an action, but a cautious model sometimes
+     just describes the button instead ("you can click Play yourself"). When the
+     visitor clearly asked for something to happen and no action comes back, match
+     the sentence against the controls we already collected, so the visitor still
+     gets a real, confirmable button instead of a shrug. */
+  var ACTION_STOPWORDS = {};
+  ('a an the please just some any random another for me to of and or it my i you your would could can shall should will now here there is are be ' +
+    'do does did with at from by as if then so very really this that these those on in about into over under also again once get got want wants ' +
+    'need needs like new one two try trying maybe perhaps kind sort something anything everything thing things page site screen button buttons ' +
+    'what which how where when who why thing up down out off').split(' ').forEach(function (word) { ACTION_STOPWORDS[word] = true; });
+  var CLICK_WORDS = ['click', 'press', 'tap', 'hit', 'play', 'start', 'launch', 'open', 'run', 'activate', 'begin', 'resume', 'trigger'];
+  var POINT_WORDS = ['highlight', 'point', 'locate', 'find', 'show', 'identify', 'spot', 'circle', 'mark', 'indicate'];
+  var TOGGLE_WORDS = ['tick', 'untick', 'check', 'uncheck', 'toggle', 'enable', 'disable'];
+  var REFUSAL_REPLY = /\b(?:i (?:can(?:no|')t|cannot|am unable|'m unable|am not able|'m not able|don'?t have the ability|do not have the ability)|not able to|unable to|as an ai|you (?:can|could|should|need to|have to|will need to) (?:click|press|tap|select)|(?:click|press|tap) (?:on )?it yourself)\b/i;
+
+  function contentWords(text) {
+    var seen = {};
+    return String(text || '').toLowerCase().replace(/[^a-z0-9\s'-]+/g, ' ').split(/[\s'-]+/)
+      .filter(function (word) {
+        if (!word || word.length < 2 || ACTION_STOPWORDS[word] || seen[word]) return false;
+        seen[word] = true;
+        return true;
+      });
+  }
+  function scoreControl(item, entry, objectWords, verbWords, intent) {
+    var labelWords = contentWords(item.label);
+    var contextWords = contentWords(item.context || '');
+    var score = 0;
+    objectWords.forEach(function (word) {
+      if (labelWords.indexOf(word) !== -1) score += 6;
+      else if (labelWords.some(function (other) { return other.length > 3 && word.length > 3 && (other.indexOf(word) === 0 || word.indexOf(other) === 0); })) score += 4;
+      else if (contextWords.indexOf(word) !== -1) score += 5;
+    });
+    labelWords.forEach(function (word) { if (verbWords.indexOf(word) !== -1) score += 4; });
+    if (intent === 'click' && (item.kind === 'button' || item.kind === 'check')) score += 2;
+    if (intent === 'toggle' && item.kind === 'check') score += 2;
+    if (intent === 'point' && item.kind === 'button') score += 1;
+    // Links are listed as clickable:false on purpose (they leave the page), so they
+    // are not penalised here — a matched link becomes an openLink card instead.
+    if (item.clickable === false && intent === 'click' && item.kind !== 'link') score -= 5;
+    if (entry && entry.inViewport) score += 1;
+    return score;
+  }
+  /* Returns an action shaped exactly like the Worker's, or null when the sentence
+     is not an instruction or nothing on the page plausibly matches it. */
+  function inferAction(text, controls) {
+    var lower = String(text || '').toLowerCase();
+    var words = contentWords(lower);
+    if (!words.length) return null;
+    var verbWords = words.filter(function (word) {
+      return CLICK_WORDS.indexOf(word) !== -1 || POINT_WORDS.indexOf(word) !== -1 || TOGGLE_WORDS.indexOf(word) !== -1;
+    });
+    // "Where is the menu?" starts with a pointing word that is otherwise a stopword.
+    var leadsWithPoint = /^\s*(where|which one|which of)\b/.test(lower);
+    if (!verbWords.length && !leadsWithPoint) {
+      // A bare imperative such as "pin tetris": a control's own label plus the name
+      // of the card it sits in, with no verb to lean on.
+      var implicit = implicitControl(controls, words);
+      return implicit ? actionForControl(implicit, 'click') : null;
+    }
+    var wantsClick = verbWords.some(function (word) { return CLICK_WORDS.indexOf(word) !== -1; });
+    var wantsToggle = verbWords.some(function (word) { return TOGGLE_WORDS.indexOf(word) !== -1; });
+    // "Where is the Play button?" points at something; it does not ask us to press it.
+    var wantsPoint = verbWords.some(function (word) { return POINT_WORDS.indexOf(word) !== -1; }) || /^\s*(where|which one|which of)\b/.test(lower);
+    var objectWords = words.filter(function (word) { return verbWords.indexOf(word) === -1; });
+    // "What should I click?" asks for advice; it is not an instruction to click.
+    if (wantsClick && !objectWords.length && /^\s*(what|which|how|can|could|should|do|does|is|are|will|why|who)\b/.test(lower)) return null;
+    var intent = wantsPoint || leadsWithPoint ? 'point' : wantsClick ? 'click' : 'toggle';
+    var best = null;
+    var bestScore = 0;
+    (controls || []).forEach(function (item) {
+      if (intent === 'click' && item.kind !== 'button' && item.kind !== 'link' && item.kind !== 'check') return;
+      if (intent === 'toggle' && item.kind !== 'check') return;
+      if (intent === 'point' && item.kind === 'field') return;
+      var entry = targetIndex.get(item.id);
+      var score = scoreControl(item, entry, objectWords, verbWords, intent);
+      if (score > bestScore) { bestScore = score; best = item; }
+    });
+    if (!best || bestScore < 4) return null;
+    return actionForControl(best, intent);
+  }
+  function actionForControl(item, intent) {
+    var label = displayLabel(item.label, item.context);
+    if (intent === 'click' && item.kind === 'check') {
+      return { type: 'toggle', target: item.id, label: label, value: item.state === 'checked' ? 'unchecked' : 'checked' };
+    }
+    if (intent === 'click' && item.kind === 'link') {
+      if (!item.href) return null;
+      return { type: 'openLink', target: item.id, label: label, href: item.href, external: item.external === true, newTab: item.external === true };
+    }
+    if (intent === 'click') return { type: 'click', target: item.id, label: label };
+    if (intent === 'toggle') return { type: 'toggle', target: item.id, label: label, value: item.state === 'checked' ? 'unchecked' : 'checked' };
+    return { type: 'highlight', target: item.id, label: label };
+  }
+  function implicitControl(controls, words) {
+    var found = null;
+    (controls || []).forEach(function (item) {
+      if (found || (item.kind !== 'button' && item.kind !== 'link')) return;
+      var labelWords = contentWords(item.label);
+      if (!labelWords.length) return;
+      var labelHit = labelWords.every(function (word) { return words.indexOf(word) !== -1; });
+      var contextHit = contentWords(item.context || '').some(function (word) { return words.indexOf(word) !== -1; });
+      if (labelHit && contextHit) found = item;
+    });
+    return found;
+  }
+  function describeInferredAction(action) {
+    var label = shortText(action && action.label) || 'it';
+    if (!action) return '';
+    if (action.type === 'click') return 'Here is the **' + label + '** button on this page. Press the button below and I’ll click it for you.';
+    if (action.type === 'openLink') return 'Here is the **' + label + '** link. Press the button below to open it.';
+    if (action.type === 'toggle') return 'Here is **' + label + '**. Press the button below to switch it.';
+    return 'Here is **' + label + '**. I’ve highlighted it on the page.';
+  }
   function applyAction(parent, action, confirmAction) {
     if (!action || typeof action.type !== 'string') return;
     var known = action.target ? targetIndex.get(action.target) : null;
     var label = shortText(action.label) || (known && known.label) || 'that element';
+    // "Play" alone is ambiguous on a gallery; name the card it belongs to.
+    if (known && known.context && label.indexOf(known.context) === -1) label = displayLabel(known.label, known.context);
 
     /* ---- navigation ------------------------------------------------------ */
     if (action.type === 'navigate' && typeof action.path === 'string') {
@@ -1286,23 +1467,35 @@
       var pageExcerpt = visiblePageExcerpt();
       var controls = collectPageTargets();
       var modelHistory = history.slice(0, -1).slice(-4).map(function (entry) { return { role: entry.role, content: entry.content }; });
+      var unreachable = blockedFrames();
       var response = await fetch(api + '/chat/' + siteId, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: userText, image: imageForRequest || undefined, controls: controls, history: modelHistory, pagePath: pageContext.pagePath, pageTitle: pageContext.pageTitle, pageExcerpt: pageExcerpt }),
+        body: JSON.stringify({ message: userText, image: imageForRequest || undefined, controls: controls, history: modelHistory, pagePath: pageContext.pagePath, pageTitle: pageContext.pageTitle, pageExcerpt: pageExcerpt, unreachableFrames: unreachable.length ? unreachable : undefined }),
         credentials: 'omit',
       });
       var payload = await response.json().catch(function () { return {}; });
       if (!response.ok) throw new Error(payload.error && payload.error.message || 'SiloAI could not answer. Please try again.');
       pending.remove();
       var replyText = tidyReplyText(payload.reply);
+      // The Worker normally decides the action. If it sent none — an over-cautious
+      // model, or a Worker build older than this widget — match the request against
+      // the controls here so the visitor still gets a button instead of a paragraph.
+      var chosenAction = payload.action;
+      if (!chosenAction && payload.pageActions !== false && payload.actionRejected !== true) {
+        var guess = inferAction(userText, controls);
+        if (guess) {
+          chosenAction = guess;
+          if (!replyText || REFUSAL_REPLY.test(replyText)) replyText = describeInferredAction(guess);
+        }
+      }
       if (!replyText) replyText = 'I could not find an answer that time — please ask again.';
       var assistantEntry = { role: 'assistant', content: replyText, sources: Array.isArray(payload.sources) ? payload.sources.slice(0, 3) : [] };
       history.push(assistantEntry);
       saveConversations();
       var reply = bubble('assistant', replyText);
       addSources(reply, payload.sources);
-      applyAction(reply, payload.action, payload.confirmAction);
-      if (!payload.action && /\b(highlight|click|press|tap|point|fill|type|change|edit|rewrite|button)\b/i.test(userText)) {
+      applyAction(reply, chosenAction, payload.confirmAction);
+      if (!chosenAction && /\b(highlight|click|press|tap|point|fill|type|change|edit|rewrite|button)\b/i.test(userText)) {
         setStatus(describeVisibleControls());
       }
       log.scrollTop = log.scrollHeight;

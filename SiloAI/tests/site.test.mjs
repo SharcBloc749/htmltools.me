@@ -43,6 +43,9 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.match(widget, /type === 'edit'/);
   assert.match(app, /Allow page interactions/);
   assert.match(widget, /collectPageTargets/);
+  assert.match(widget, /function inferAction/, 'the widget can match a request to a control without the model');
+  assert.match(widget, /nearbyHeading/, 'repeated labels carry the card they belong to');
+  assert.match(widget, /blockedFrames/, 'unreachable preview frames are reported instead of ignored');
   assert.match(styles, /\.verified-actions/);
   const headers = await text('../../_headers');
   assert.match(headers, /\/SiloAI\/widget\.js[\s\S]*Cache-Control: public, max-age=0, must-revalidate/);

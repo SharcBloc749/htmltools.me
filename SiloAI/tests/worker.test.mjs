@@ -682,3 +682,118 @@ test('verification accepts a pasted page URL, with or without the protocol', asy
     globalThis.caches = oldCache;
   }
 });
+
+const GAMES_CONTROLS = [
+  { id: 'siloctl1', kind: 'button', label: 'Menu', inputType: '', clickable: true },
+  { id: 'siloctl2', kind: 'button', label: 'Play', inputType: '', clickable: true, context: 'Happy Bird' },
+  { id: 'siloctl3', kind: 'button', label: 'Pin', inputType: '', clickable: true, context: 'Happy Bird' },
+  { id: 'siloctl4', kind: 'button', label: 'Play', inputType: '', clickable: true, context: 'Pacman' },
+  { id: 'siloctl5', kind: 'button', label: 'Pin', inputType: '', clickable: true, context: 'Pacman' },
+];
+
+test('a model that only describes the button still produces a real click the visitor can confirm', async () => {
+  await withGithubSite(async (env) => {
+    env.AI.run = async (model, input) => {
+      envFor.lastInput = input;
+      return { response: "I can't play games for you, but you can click the **Play** button next to a game yourself." };
+    };
+    const response = await worker.fetch(new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.61' },
+      body: JSON.stringify({ message: 'Play a random game please, just any', controls: GAMES_CONTROLS, pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} });
+    const payload = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(payload.action?.type, 'click', 'the instruction becomes a clickable confirmation');
+    assert.equal(payload.action.target, 'siloctl2');
+    assert.doesNotMatch(payload.reply, /\b(can't|cannot|yourself)\b/i, 'the refusal is replaced by the description of the real control');
+    assert.match(payload.reply, /\*\*Play/);
+  }, site, 'unused');
+});
+
+test('the card context tells repeated Play buttons apart', async () => {
+  await withGithubSite(async (env) => {
+    env.AI.run = async () => ({ response: 'You can start Pacman from the games grid.' });
+    const payload = await (await worker.fetch(new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.62' },
+      body: JSON.stringify({ message: 'play pacman', controls: GAMES_CONTROLS, pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} })).json();
+    assert.equal(payload.action?.target, 'siloctl4', 'the Pacman card wins over the first Play on the page');
+  }, site, 'unused');
+});
+
+test('a question that is not an instruction never becomes a click', async () => {
+  await withGithubSite(async (env) => {
+    env.AI.run = async () => ({ response: "I can't play games for you, but here are the games on this page." });
+    const payload = await (await worker.fetch(new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.63' },
+      body: JSON.stringify({ message: 'what games are there?', controls: GAMES_CONTROLS, pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} })).json();
+    assert.equal(payload.action, null);
+  }, site, 'unused');
+});
+
+test('the prompt tells the model to act instead of describing the button', async () => {
+  await withGithubSite(async (env) => {
+    env.AI.run = async (model, input) => {
+      envFor.lastInput = input;
+      return { response: JSON.stringify({ reply: 'Starting Happy Bird.', action: { type: 'click', target: 'siloctl2' } }) };
+    };
+    await worker.fetch(new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.64' },
+      body: JSON.stringify({ message: 'play a game', controls: GAMES_CONTROLS, pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} });
+    const prompt = envFor.lastInput.messages[0].content;
+    assert.match(prompt, /you MUST return that action/);
+    assert.match(prompt, /never tell the visitor to click the control themselves/);
+    assert.match(prompt, /"context":"Happy Bird"/, 'the card context reaches the model');
+  }, site, 'unused');
+});
+
+test('a bare imperative and a where-question both resolve to the right control', async () => {
+  await withGithubSite(async (env) => {
+    const controls = [
+      ...GAMES_CONTROLS,
+      { id: 'siloctl6', kind: 'link', label: 'Library', inputType: '', clickable: false, href: '/Library', external: false },
+    ];
+    env.AI.run = async () => ({ response: 'That is on the games page.' });
+    const ask = async (message, ip) => (await (await worker.fetch(new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': ip },
+      body: JSON.stringify({ message, controls, pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} })).json());
+
+    assert.equal((await ask('pin pacman', '203.0.113.71')).action?.target, 'siloctl5', '"pin pacman" is an instruction with no verb');
+    const where = await ask('where is the menu', '203.0.113.72');
+    assert.deepEqual(where.action, { type: 'highlight', target: 'siloctl1', label: 'Menu' }, '"where is" points instead of pressing');
+    const link = await ask('open the library', '203.0.113.73');
+    assert.equal(link.action?.type, 'openLink', 'a link becomes a destination card, never a click');
+    assert.equal(link.action?.target, 'siloctl6');
+  }, site, 'unused');
+});
+
+test('a named card beats an earlier control that shares the label', async () => {
+  await withGithubSite(async (env) => {
+    env.AI.run = async () => ({ response: 'Starting Tetris.' });
+    const controls = [...GAMES_CONTROLS, { id: 'siloctl7', kind: 'button', label: 'Play', inputType: '', clickable: true, context: 'Tetris' }];
+    const payload = await (await worker.fetch(new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.74' },
+      body: JSON.stringify({ message: 'play tetris', controls, pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} })).json();
+    assert.equal(payload.action?.target, 'siloctl7');
+  }, site, 'unused');
+});
+
+test('the model is told which frames it cannot reach into', async () => {
+  await withGithubSite(async (env) => {
+    env.AI.run = async (model, input) => {
+      envFor.lastInput = input;
+      return { response: JSON.stringify({ reply: 'That preview is isolated, but the Run button is above it.' }) };
+    };
+    const payload = await (await worker.fetch(new Request(`https://siloai.test/chat/${site.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.81' },
+      body: JSON.stringify({ message: 'play the game in the preview', controls: [{ id: 'siloctl1', kind: 'button', label: 'Run', inputType: '', clickable: true }], unreachableFrames: ['Live preview'], pagePath: '/', history: [] }),
+    }), env, { waitUntil() {} })).json();
+    assert.equal(payload.action, null, 'an instruction aimed at an unreachable frame is not turned into a random click');
+    assert.match(envFor.lastInput.messages[0].content, /"Live preview"/);
+    assert.match(envFor.lastInput.messages[0].content, /never claim the whole page has no buttons/);
+  }, site, 'unused');
+});
