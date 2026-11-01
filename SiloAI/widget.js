@@ -1,9 +1,9 @@
 /* SiloAI website assistant embed. Install with:
-   <script async src="https://htmltools.me/SiloAI/widget.js?v=8" data-site-id="YOUR_SITE_ID"></script>
+   <script async src="https://htmltools.me/SiloAI/widget.js?v=9" data-site-id="YOUR_SITE_ID"></script>
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '8';
+  var BUILD_VERSION = '9';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
@@ -487,13 +487,21 @@
   }
   function describeVisibleControls() {
     var controls = collectPageTargets();
-    var buttons = controls.filter(function (item) { return item.kind === 'button'; });
-    var fields = controls.filter(function (item) { return item.kind === 'field'; });
-    var texts = controls.filter(function (item) { return item.kind === 'text'; });
+    var groups = [
+      ['button', 'button'],
+      ['link', 'link'],
+      ['field', 'field'],
+      ['check', 'checkbox'],
+      ['select', 'dropdown'],
+      ['text', 'text block'],
+    ];
     var parts = [];
-    if (buttons.length) parts.push(buttons.length + ' button' + (buttons.length === 1 ? '' : 's') + ' (' + buttons.slice(0, 4).map(function (item) { return '“' + item.label + '”'; }).join(', ') + (buttons.length > 4 ? ', …' : '') + ')');
-    if (fields.length) parts.push(fields.length + ' field' + (fields.length === 1 ? '' : 's'));
-    if (texts.length) parts.push(texts.length + ' text block' + (texts.length === 1 ? '' : 's'));
+    groups.forEach(function (pair) {
+      var items = controls.filter(function (item) { return item.kind === pair[0]; });
+      if (!items.length) return;
+      var names = items.slice(0, 4).map(function (item) { return '“' + item.label + '”'; }).join(', ') + (items.length > 4 ? ', …' : '');
+      parts.push(items.length + ' ' + pair[1] + (items.length === 1 ? '' : 's') + ' (' + names + ')');
+    });
     if (!parts.length) return 'I could not read any controls on this page. If it is inside a cross-origin frame, the site owner needs to embed me in that frame instead.';
     return 'On this page I can see ' + parts.join(', ') + '.';
   }
@@ -514,7 +522,7 @@
   }
 
   var TEXT_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,pre,code,blockquote,[role=heading]';
-  var BUTTON_SELECTOR = 'button,[role=button],summary,a.btn,a.button,a[role=button]';
+  var BUTTON_SELECTOR = 'button,[role=button],summary,a[href],a.btn,a.button,a[role=button],[role=tab],[role=menuitem],[role=switch],[role=checkbox],[role=radio]';
   var CONTROL_SELECTOR = BUTTON_SELECTOR + ',input,textarea,select,[contenteditable=true],[contenteditable=""],' + TEXT_SELECTOR;
   function shortText(value) { return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 100); }
   var LABEL_EDGE;
@@ -554,13 +562,15 @@
   }
   function controlLabelFor(el, kind) {
     var editable = el.matches('[contenteditable=true],[contenteditable=""]');
-    if (kind === 'field') {
+    if (kind === 'field' || kind === 'check' || kind === 'select') {
       var explicit = attrText(el, 'aria-label') || attrText(el, 'placeholder') || attrText(el, 'title') || labelledByText(el);
       if (explicit) return explicit;
       if (el.labels && el.labels.length) {
         var labelled = shortText(Array.prototype.map.call(el.labels, function (label) { return label.innerText || label.textContent || ''; }).join(' '));
         if (labelled) return labelled;
       }
+      if (kind === 'check') return 'Checkbox';
+      if (kind === 'select') return 'Dropdown';
       return editable ? 'Editable text area' : 'Text field';
     }
     return cleanLabel(accessibleName(el) || (kind === 'button' ? el.value || '' : ''));
@@ -571,9 +581,32 @@
     var identity = [el.autocomplete, el.name, el.id].join(' ');
     return /password|secret|token|one-time|otp|cc-|credit.?card|ssn/i.test(identity);
   }
+  function linkHref(el) {
+    var raw = el.getAttribute('href') || '';
+    if (!raw || raw === '#') return '';
+    try {
+      var url = new URL(raw, location.href);
+      if (!/^https?:$/.test(url.protocol)) return '';
+      var internal = url.origin === location.origin;
+      return { href: internal ? url.pathname + url.search : url.href.slice(0, 400), external: !internal, internal: internal };
+    } catch (_) { return ''; }
+  }
+  function isChecked(el) {
+    if (el.matches('input')) return Boolean(el.checked);
+    var aria = el.getAttribute('aria-checked');
+    if (aria === 'true') return true;
+    if (aria === 'false') return false;
+    return el.getAttribute('aria-pressed') === 'true';
+  }
+  function selectOptions(el) {
+    if (!el.options) return [];
+    return Array.prototype.slice.call(el.options, 0, 12).map(function (option) {
+      return shortText(option.textContent || option.value || '');
+    }).filter(Boolean);
+  }
   function collectPageTargets() {
     targetIndex.clear();
-    var buckets = { button: [], field: [], text: [] };
+    var buckets = { button: [], link: [], check: [], select: [], field: [], text: [] };
     var documents = pageDocuments();
     for (var docIndex = 0; docIndex < documents.length; docIndex++) {
       var doc = documents[docIndex].doc;
@@ -585,7 +618,32 @@
         var el = candidates[index];
         if (!el.isConnected || ownNodes(el)) continue;
         var kind; var inputType = ''; var clickable = true;
-        if (el.matches(BUTTON_SELECTOR)) {
+        var extra = {};
+        var inputKind = (el.getAttribute('type') || '').toLowerCase();
+        if (el.matches('input,textarea,select')) {
+          if (el.tagName === 'SELECT') { kind = 'select'; extra.options = selectOptions(el); }
+          else if (el.matches('input[type=checkbox],input[type=radio],[role=checkbox],[role=radio],[role=switch]')) {
+            kind = 'check'; extra.state = isChecked(el) ? 'checked' : 'unchecked';
+          } else if (el.tagName === 'INPUT' && ['button', 'submit', 'reset', 'image'].includes(inputKind)) {
+            kind = 'button';
+            clickable = inputKind === 'button';
+            inputType = 'button';
+          } else if (el.tagName === 'INPUT' && !['text', 'search', 'email', 'url', 'tel', 'number'].includes(inputKind)) {
+            continue;
+          } else {
+            kind = 'field'; inputType = inputKind || (el.tagName === 'TEXTAREA' ? 'textarea' : 'text');
+          }
+          if (kind !== 'check' && isSensitiveField(el)) continue;
+        } else if (el.matches('a[href]') && !el.matches('[role=button],button')) {
+          var link = linkHref(el);
+          if (!link) continue;
+          kind = 'link';
+          extra.href = link.href;
+          extra.external = link.external;
+          // Links are never clicked in place: leaving the page always goes through
+          // the destination card (or openLink) so the visitor decides to go.
+          clickable = false;
+        } else if (el.matches(BUTTON_SELECTOR)) {
           kind = 'button';
           // Everything visible is reported so it can be highlighted. Only controls
           // that would submit/reset a form or leave the page are highlight-only.
@@ -593,26 +651,16 @@
           // behaving like a normal button, so the attribute is what counts.
           var declared = explicitButtonType(el);
           if (el.tagName === 'BUTTON' && (declared === 'submit' || declared === 'reset')) clickable = false;
-          if (el.tagName === 'A') {
-            var href = el.getAttribute('href') || '';
-            clickable = !href || href.charAt(0) === '#';
+          if (el.matches('[role=checkbox],[role=radio],[role=switch]')) {
+            kind = 'check'; extra.state = isChecked(el) ? 'checked' : 'unchecked';
           }
+          extra.tag = el.tagName.toLowerCase();
         } else if (el.matches('[contenteditable=true],[contenteditable=""]')) {
           kind = 'field'; inputType = 'contenteditable';
         } else if (el.matches(TEXT_SELECTOR)) {
           kind = 'text';
-        } else {
-          inputType = (el.getAttribute('type') || 'text').toLowerCase();
-          if (el.tagName === 'INPUT' && ['button', 'submit', 'reset'].includes(inputType)) {
-            kind = 'button';
-            clickable = inputType === 'button';
-            inputType = 'button';
-          } else {
-            if (!(el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || ['text', 'search', 'email', 'url', 'tel', 'number'].includes(inputType))) continue;
-            if (isSensitiveField(el)) continue;
-            kind = 'field';
-          }
-        }
+          extra.tag = el.tagName.toLowerCase();
+        } else continue;
         if (kind === 'text') {
           var parentText = el.parentElement && el.parentElement.closest(TEXT_SELECTOR);
           if (parentText && !ownNodes(parentText) && isVisibleOnPage(parentText, doc, 2, memo)) continue;
@@ -624,7 +672,9 @@
         if (!label) continue;
         if (kind === 'field' && /password|secret|token|one-time|otp|credit.?card|card.?number|security.?code|\bssn\b/i.test(label)) continue;
         var inViewport = isInViewport(el, view);
-        buckets[kind].push({ el: el, kind: kind, label: label, inputType: inputType, clickable: clickable, inViewport: inViewport, docIndex: docIndex, order: index });
+        var entry = { el: el, kind: kind, label: label, inputType: inputType, clickable: clickable, inViewport: inViewport, docIndex: docIndex, order: index };
+        Object.keys(extra).forEach(function (key) { entry[key] = extra[key]; });
+        buckets[kind].push(entry);
       }
     }
     // Prefer what the visitor can actually see right now.
@@ -634,13 +684,19 @@
         || a.docIndex - b.docIndex
         || a.order - b.order;
     };
-    buckets.button.sort(byScreen); buckets.field.sort(byScreen); buckets.text.sort(byScreen);
-    var ordered = buckets.button.slice(0, 18).concat(buckets.field.slice(0, 10), buckets.text.slice(0, 14));
+    ['button', 'link', 'field', 'check', 'select', 'text'].forEach(function (name) { buckets[name].sort(byScreen); });
+    var ordered = buckets.button.slice(0, 16)
+      .concat(buckets.link.slice(0, 10), buckets.field.slice(0, 10), buckets.check.slice(0, 8), buckets.select.slice(0, 6), buckets.text.slice(0, 14));
     return ordered.map(function (entry, position) {
       var controlId = 'siloctl' + (position + 1);
       targetIndex.set(controlId, entry);
-      var item = { id: controlId, kind: entry.kind, label: entry.label, inputType: entry.inputType };
-      if (entry.kind === 'button') item.clickable = entry.clickable !== false;
+      var item = { id: controlId, kind: entry.kind, label: entry.label };
+      if (entry.inputType) item.inputType = entry.inputType;
+      if (entry.kind === 'button' || entry.kind === 'link') item.clickable = entry.clickable !== false;
+      if (entry.kind === 'link') { item.href = entry.href; item.external = entry.external === true; }
+      if (entry.kind === 'check') item.state = entry.state;
+      if (entry.kind === 'select') item.options = entry.options;
+      if (entry.tag) item.tag = entry.tag;
       return item;
     });
   }
@@ -736,16 +792,214 @@
     target.dispatchEvent(new Event('change', { bubbles: true }));
     if (typeof target.focus === 'function') target.focus();
   }
+  function pageViewFor(el) {
+    var doc = el.ownerDocument || document;
+    return doc.defaultView || window;
+  }
+  function scrollPage(position) {
+    var view = window;
+    var top = position === 'bottom' ? document.documentElement.scrollHeight : position === 'top' ? 0 : null;
+    if (top === null) {
+      var step = Math.round((view.innerHeight || 400) * 0.8);
+      view.scrollBy({ top: position === 'up' ? -step : step, behavior: 'smooth' });
+      return 'Scrolled the page ' + position + '.';
+    }
+    view.scrollTo({ top: top, behavior: 'smooth' });
+    return 'Scrolled to the ' + position + ' of the page.';
+  }
+  function copyText(text) {
+    text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 4_000);
+    if (!text) return Promise.reject(new Error('empty'));
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+      document.body.appendChild(area);
+      area.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+      document.body.removeChild(area);
+      if (ok) resolve(); else reject(new Error('copy failed'));
+    });
+  }
+  function selectElementText(el) {
+    if (el.matches('input,textarea')) { el.focus(); el.select(); return true; }
+    var doc = el.ownerDocument || document;
+    var selection = doc.getSelection ? doc.getSelection() : null;
+    if (!selection || !doc.createRange) return false;
+    var range = doc.createRange();
+    range.selectNodeContents(el);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return true;
+  }
+  function setCheckedState(el, desired) {
+    var target = desired === 'checked';
+    if (el.matches('input[type=checkbox],input[type=radio]')) {
+      if (target && el.matches('input[type=radio]')) {
+        var group = el.name ? el.ownerDocument.querySelectorAll('input[type=radio][name="' + String(el.name).replace(/"/g, '') + '"]') : [el];
+        Array.prototype.forEach.call(group, function (radio) { radio.checked = radio === el; });
+      } else el.checked = target;
+    } else {
+      el.setAttribute('aria-checked', String(target));
+      el.setAttribute('aria-pressed', String(target));
+    }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function pickOption(el, value) {
+    if (!el.options) return false;
+    var match = Array.prototype.find.call(el.options, function (option) {
+      return shortText(option.textContent || '') === value || option.value === value;
+    });
+    if (!match) return false;
+    el.value = match.value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+  function clearHighlightsByName(name) {
+    var marks = document.querySelectorAll('[data-siloai-find="' + name + '"]');
+    Array.prototype.forEach.call(marks, function (mark) {
+      var parent = mark.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+      parent.normalize();
+    });
+  }
+  function findOnPage(phrase) {
+    var doc = document;
+    var needle = String(phrase || '').trim().toLowerCase();
+    if (!needle) return 0;
+    clearHighlightsByName('find');
+    var walker = doc.createTreeWalker(doc.body || doc.documentElement, 4);
+    var nodes = [];
+    while (walker.nextNode()) {
+      var node = walker.currentNode;
+      var parent = node.parentElement;
+      if (!parent || ownNodes(parent) || parent.closest('script,style,noscript,textarea,svg,[data-siloai-highlight]')) continue;
+      if (String(node.nodeValue || '').toLowerCase().indexOf(needle) === -1) continue;
+      nodes.push(node);
+      if (nodes.length > 60) break;
+    }
+    var marked = 0;
+    nodes.forEach(function (node) {
+      var text = node.nodeValue;
+      var lower = text.toLowerCase();
+      var fragment = doc.createDocumentFragment();
+      var cursor = 0;
+      var at = lower.indexOf(needle);
+      if (at === -1) return;
+      while (at !== -1) {
+        fragment.appendChild(doc.createTextNode(text.slice(cursor, at)));
+        var mark = doc.createElement('mark');
+        mark.setAttribute('data-siloai-find', 'find');
+        mark.textContent = text.slice(at, at + needle.length);
+        mark.style.cssText = 'background:#f5e663;color:#0b0b0b;border-radius:3px;box-shadow:0 0 0 2px #f5e663;padding:0 1px';
+        fragment.appendChild(mark);
+        marked++;
+        cursor = at + needle.length;
+        at = lower.indexOf(needle, cursor);
+      }
+      fragment.appendChild(doc.createTextNode(text.slice(cursor)));
+      if (node.parentNode) node.parentNode.replaceChild(fragment, node);
+    });
+    if (marked) {
+      var first = doc.querySelector('[data-siloai-find="find"]');
+      if (first && typeof first.scrollIntoView === 'function') first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(function () { clearHighlightsByName('find'); }, 12_000);
+    }
+    return marked;
+  }
+
+  function openDestination(href, newTab) {
+    var url;
+    try { url = new URL(href, location.href); } catch (_) { return false; }
+    if (!/^https?:$/.test(url.protocol)) return false;
+    if (newTab) {
+      var opened = window.open(url.href, '_blank', 'noopener,noreferrer');
+      if (opened) { try { opened.opener = null; } catch (_) { /* ignore */ } }
+      setStatus(newTab && !opened ? 'Your browser blocked the new tab. Use the same-tab button instead.' : 'Opened ' + url.pathname + ' in a new tab.', newTab && !opened ? 'warn' : 'info');
+      return true;
+    }
+    setStatus('Opened ' + (url.pathname || '/') + ' in this tab.', 'info');
+    location.assign(url.href);
+    return true;
+  }
+
   function applyAction(parent, action, confirmAction) {
     if (!action || typeof action.type !== 'string') return;
     var known = action.target ? targetIndex.get(action.target) : null;
     var label = shortText(action.label) || (known && known.label) || 'that element';
+
+    /* ---- navigation ------------------------------------------------------ */
     if (action.type === 'navigate' && typeof action.path === 'string') {
       var destination;
       try { destination = new URL(action.path, location.origin); } catch (_) { return; }
-      if (destination.origin !== location.origin || destination.pathname !== action.path) return;
-      if (confirmAction === false) { location.assign(destination.href); return; }
-      actionButton(parent, 'Go to ' + (action.title || action.path), function () { location.assign(destination.href); });
+      if (!/^https?:$/.test(destination.protocol)) return;
+      var internal = destination.origin === location.origin;
+      var tabChoice = action.newTab === true;
+      var titleText = shortText(action.title) || (internal ? destination.pathname : destination.hostname);
+      if (confirmAction === false) { openDestination(destination.href, tabChoice); return; }
+      var primary = actionButton(parent, (tabChoice ? 'Open “' : 'Go to “') + titleText + '”' + (tabChoice ? ' in a new tab' : ' here'));
+      primary.addEventListener('click', function () {
+        primary.disabled = true;
+        primary.textContent = 'Opening…';
+        openDestination(destination.href, tabChoice);
+      });
+      actionButton(parent, tabChoice ? 'Open in this tab instead' : 'Open in a new tab instead', function (event) {
+        event.currentTarget.disabled = true;
+        openDestination(destination.href, !tabChoice);
+      }, true);
+      return;
+    }
+    var linkHrefValue = typeof action.href === 'string' ? action.href : (known && typeof known.href === 'string' ? known.href : '');
+    if (action.type === 'openLink' && linkHrefValue) {
+      var href = linkHrefValue;
+      var external = action.external === true || (known && known.external === true) || !/^\/(?!\/)/.test(href);
+      var wantedNewTab = action.newTab !== false || external;
+      actionButton(parent, (wantedNewTab ? 'Open “' : 'Go to “') + label + '”' + (wantedNewTab ? ' in a new tab' : ' here'), function (event) {
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = 'Opening…';
+        openDestination(href, wantedNewTab);
+      });
+      actionButton(parent, wantedNewTab ? 'Open in this tab instead' : 'Open in a new tab instead', function (event) {
+        event.currentTarget.disabled = true;
+        openDestination(href, !wantedNewTab);
+      }, true);
+      return;
+    }
+
+    /* ---- instant helpers -------------------------------------------------- */
+    if (action.type === 'scroll') {
+      if (action.position) { setStatus(scrollPage(action.position)); return; }
+      var scrollTarget = resolveTarget(action);
+      if (!scrollTarget) { setStatus('That element is no longer on the page.', 'warn'); return; }
+      if (typeof scrollTarget.scrollIntoView === 'function') scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      setStatus('Scrolled to “' + label + '”.');
+      actionButton(parent, 'Scroll again', function () {
+        var again = resolveTarget(action);
+        if (again && typeof again.scrollIntoView === 'function') again.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, true);
+      return;
+    }
+    if (action.type === 'find') {
+      var hits = findOnPage(action.value);
+      setStatus(hits ? 'Found ' + hits + ' match' + (hits === 1 ? '' : 'es') + ' for “' + shortText(action.value) + '” and highlighted them.' : 'I could not find “' + shortText(action.value) + '” on this page.', hits ? 'info' : 'warn');
+      return;
+    }
+    if (action.type === 'focus') {
+      actionButton(parent, 'Focus “' + label + '”', function (event) {
+        var target = resolveTarget(action);
+        if (!target) { setStatus('That control is no longer on the page.', 'warn'); return; }
+        if (typeof target.focus === 'function') target.focus();
+        highlightElement(target, label);
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = 'Focused ✓';
+        setStatus('Ready to type in “' + label + '”.');
+      });
       return;
     }
     if (action.type === 'highlight') {
@@ -759,20 +1013,23 @@
       actionButton(parent, 'Highlight again', function () { runHighlight(false); }, true);
       return;
     }
+
+    /* ---- confirmed state changes ----------------------------------------- */
     if (action.type === 'click') {
       actionButton(parent, 'Click “' + label + '”', function (event) {
         var target = resolveTarget(action);
-        if (!target || !target.matches('button,[role=button],summary,input[type=button],a.btn,a.button')) { setStatus('That button is no longer on the page, so I didn’t click it.', 'warn'); return; }
+        if (!target) { setStatus('That button is no longer on the page, so I didn’t click it.', 'warn'); return; }
         var current = targetIndex.get(action.target);
         if (current && current.clickable === false) { setStatus('“' + label + '” would submit a form or leave this page, so I can only highlight it.', 'warn'); return; }
+        if (!target.matches('button,[role=button],[role=tab],[role=menuitem],summary,input[type=button],a.btn,a.button')) { setStatus('That element is not a button, so I did not click it.', 'warn'); return; }
         if (target.tagName === 'BUTTON' && ['submit', 'reset'].includes(explicitButtonType(target))) { setStatus('For safety, form submit and reset buttons cannot be clicked.', 'warn'); return; }
-        if (target.tagName === 'A') { var anchorHref = target.getAttribute('href') || ''; if (anchorHref && anchorHref.charAt(0) !== '#') { setStatus('That link would leave this page, so I can only highlight it.', 'warn'); return; } }
         event.currentTarget.disabled = true;
         event.currentTarget.textContent = 'Clicked ✓';
         var doc = target.ownerDocument;
         var blockSubmit = function (submitEvent) { submitEvent.preventDefault(); submitEvent.stopImmediatePropagation(); };
         doc.addEventListener('submit', blockSubmit, true);
         try { target.click(); } finally { doc.removeEventListener('submit', blockSubmit, true); }
+        highlightElement(target, label);
         setStatus('Activated “' + label + '”. Review the page to confirm what it did.');
       });
       return;
@@ -786,6 +1043,17 @@
         event.currentTarget.disabled = true;
         event.currentTarget.textContent = 'Filled ✓';
         setStatus('Filled “' + label + '”. I did not submit anything.');
+      });
+      return;
+    }
+    if (action.type === 'clear') {
+      actionButton(parent, 'Clear “' + label + '”', function (event) {
+        var target = resolveTarget(action);
+        if (!target || !target.matches('textarea,input,[contenteditable=true],[contenteditable=""]')) { setStatus('That field is no longer available.', 'warn'); return; }
+        replaceFieldValue(target, '');
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = 'Cleared ✓';
+        setStatus('Cleared “' + label + '”.');
       });
       return;
     }
@@ -811,6 +1079,53 @@
       });
       return;
     }
+    if (action.type === 'toggle') {
+      var wantChecked = action.value === 'checked';
+      actionButton(parent, (wantChecked ? 'Check ' : 'Uncheck ') + '“' + label + '”', function (event) {
+        var target = resolveTarget(action);
+        if (!target) { setStatus('That control is no longer on the page.', 'warn'); return; }
+        setCheckedState(target, action.value);
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = wantChecked ? 'Checked ✓' : 'Unchecked ✓';
+        setStatus((wantChecked ? 'Checked' : 'Unchecked') + ' “' + label + '”.');
+      });
+      return;
+    }
+    if (action.type === 'select' && typeof action.value === 'string') {
+      actionButton(parent, 'Choose “' + action.value.slice(0, 40) + '”', function (event) {
+        var target = resolveTarget(action);
+        if (!target || !target.matches('select')) { setStatus('That dropdown is no longer on the page.', 'warn'); return; }
+        if (!pickOption(target, action.value)) { setStatus('That option is not in the list any more.', 'warn'); return; }
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = 'Chosen ✓';
+        setStatus('Set “' + label + '” to “' + action.value.slice(0, 40) + '”.');
+      });
+      return;
+    }
+    if (action.type === 'copy') {
+      actionButton(parent, 'Copy “' + label + '”', function (event) {
+        var button = event.currentTarget;
+        var target = resolveTarget(action);
+        if (!target) { setStatus('That element is no longer on the page.', 'warn'); return; }
+        var text = target.matches('input,textarea') ? target.value : (target.innerText || target.textContent || '');
+        copyText(text).then(function () {
+          button.disabled = true;
+          button.textContent = 'Copied ✓';
+          setStatus('Copied the text of “' + label + '” to your clipboard.');
+        }, function () { setStatus('This browser would not let me copy. Select the text and copy it manually.', 'warn'); });
+      });
+      return;
+    }
+    if (action.type === 'selectText') {
+      actionButton(parent, 'Select the text of “' + label + '”', function (event) {
+        var target = resolveTarget(action);
+        if (!target || !selectElementText(target)) { setStatus('I could not select that text, so nothing was changed.', 'warn'); return; }
+        event.currentTarget.disabled = true;
+        event.currentTarget.textContent = 'Selected ✓';
+        setStatus('Selected the text of “' + label + '”. Press Ctrl/Cmd+C to copy it.');
+      });
+      return;
+    }
   }
 
   async function ask(text) {
@@ -832,6 +1147,7 @@
     clearAttachment();
     closeHistoryMenu();
     clearHighlight();
+    clearHighlightsByName('find');
     setStatus('');
     setBusy(true);
     var pending = bubble('assistant', '');

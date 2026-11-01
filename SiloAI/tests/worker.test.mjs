@@ -313,17 +313,93 @@ test('Gemma receives a validated compressed screenshot as image input without us
   }, site, 'unused');
 });
 
-test('navigation actions are restricted to indexed internal pages and confirmation defaults on', async () => {
-  await withGithubSite(async (env) => {
-    env.AI.run = async () => ({ response: JSON.stringify({ reply: 'I can take you to the Studio.', action: { type: 'navigate', path: '/Library/Studio' } }) });
+test('navigation is on by default, confirmed by the visitor, and honours the chosen tab', async () => {
+  const ask = async (env, action, message = 'Take me to the Studio') => {
+    env.AI.run = async () => ({ response: JSON.stringify({ reply: 'I can take you there.', action }) });
     const request = new Request(`https://siloai.test/chat/${site.id}`, {
       method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.11' },
+      body: JSON.stringify({ message, pagePath: '/Library', history: [] }),
+    });
+    return (await worker.fetch(request, env, { waitUntil() {} })).json();
+  };
+  await withGithubSite(async (env) => {
+    const indexed = await ask(env, { type: 'navigate', path: '/Library/Studio' });
+    assert.deepEqual(indexed.action, { type: 'navigate', path: '/Library/Studio', title: 'Book Studio', indexed: true, newTab: false });
+    assert.equal(indexed.confirmAction, true, 'the visitor always confirms a navigation first');
+    assert.equal(indexed.navigation, true);
+
+    const newTab = await ask(env, { type: 'navigate', path: '/Library/Studio', newTab: true });
+    assert.equal(newTab.action.newTab, true, 'the model may decide to open a new tab');
+
+    const unindexed = await ask(env, { type: 'navigate', path: '/HTML-Runner/Advanced' });
+    assert.deepEqual(unindexed.action, { type: 'navigate', path: '/HTML-Runner/Advanced', title: '/HTML-Runner/Advanced', indexed: false, newTab: false }, 'a confident path outside the index is still usable');
+
+    const absolute = await ask(env, { type: 'navigate', path: 'https://htmltools.eu.cc/Library' });
+    assert.equal(absolute.action.path, '/Library', 'same-site absolute URLs are normalised to a path');
+
+    const offSite = await ask(env, { type: 'navigate', path: 'https://evil.example/phish' });
+    assert.equal(offSite.action, null, 'an invented external domain is never navigated to');
+    assert.match(offSite.reply, /could not verify that address/, 'the visitor is told plainly');
+  }, site, 'unused');
+});
+
+test('navigation can be switched off by the owner and then explains itself', async () => {
+  const record = { ...site, id: 'eeef0123456789abcdef0123', actions: { navigationMode: 'off', pageActionsMode: 'on', confirmNavigation: true } };
+  await withGithubSite(async (env) => {
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I can take you to the Studio.', action: { type: 'navigate', path: '/Library/Studio' } }) }; };
+    const request = new Request(`https://siloai.test/chat/${record.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.12' },
       body: JSON.stringify({ message: 'Take me to the Studio', pagePath: '/Library', history: [] }),
     });
     const payload = await (await worker.fetch(request, env, { waitUntil() {} })).json();
-    assert.deepEqual(payload.action, { type: 'navigate', path: '/Library/Studio', title: 'Book Studio' });
-    assert.equal(payload.confirmAction, true);
-  }, site, 'unused');
+    assert.equal(payload.action, null);
+    assert.equal(payload.navigation, false);
+    assert.match(payload.reply, /Page navigation is turned off/);
+    assert.match(envFor.lastInput.messages[0].content, /Page navigation is switched off for this site/);
+  }, record, 'unused');
+});
+
+test('the wider action vocabulary is validated against the collected controls', async () => {
+  const record = { ...site, id: 'ffef0123456789abcdef0123', actions: { navigationMode: 'on', pageActionsMode: 'on', confirmNavigation: true } };
+  const controls = [
+    { id: 'siloctl1', kind: 'button', label: 'Run', clickable: true },
+    { id: 'siloctl2', kind: 'field', label: 'File name', inputType: 'text' },
+    { id: 'siloctl3', kind: 'text', label: 'Runner instructions' },
+    { id: 'siloctl4', kind: 'check', label: 'Minify output', state: 'unchecked' },
+    { id: 'siloctl5', kind: 'select', label: 'Preview width', options: ['responsive', '480px'] },
+    { id: 'siloctl6', kind: 'link', label: 'Advanced runner', href: '/HTML-Runner/Advanced', external: false, clickable: true },
+    { id: 'siloctl7', kind: 'button', label: 'Submit order', clickable: false },
+  ];
+  await withGithubSite(async (env) => {
+    env.AI.run = async () => ({ response: 'unused' });
+    const ask = async (action) => {
+      env.AI.run = async () => ({ response: JSON.stringify({ reply: 'Sure.', action }) });
+      const request = new Request(`https://siloai.test/chat/${record.id}`, {
+        method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.13' },
+        body: JSON.stringify({ message: 'do that', pagePath: '/', history: [], controls }),
+      });
+      return (await worker.fetch(request, env, { waitUntil() {} })).json();
+    };
+
+    assert.deepEqual((await ask({ type: 'scroll', position: 'bottom' })).action, { type: 'scroll', position: 'bottom' });
+    assert.deepEqual((await ask({ type: 'scroll', target: 'siloctl3' })).action, { type: 'scroll', target: 'siloctl3', label: 'Runner instructions' });
+    assert.deepEqual((await ask({ type: 'find', value: 'runner' })).action, { type: 'find', value: 'runner' });
+    assert.deepEqual((await ask({ type: 'toggle', target: 'siloctl4' })).action, { type: 'toggle', target: 'siloctl4', label: 'Minify output', value: 'checked' });
+    assert.deepEqual((await ask({ type: 'select', target: 'siloctl5', value: '480px' })).action, { type: 'select', target: 'siloctl5', label: 'Preview width', value: '480px' });
+    assert.deepEqual((await ask({ type: 'clear', target: 'siloctl2' })).action, { type: 'clear', target: 'siloctl2', label: 'File name' });
+    assert.deepEqual((await ask({ type: 'focus', target: 'siloctl2' })).action, { type: 'focus', target: 'siloctl2', label: 'File name' });
+    assert.deepEqual((await ask({ type: 'copy', target: 'siloctl3' })).action, { type: 'copy', target: 'siloctl3', label: 'Runner instructions' });
+    assert.deepEqual((await ask({ type: 'selectText', target: 'siloctl3' })).action, { type: 'selectText', target: 'siloctl3', label: 'Runner instructions' });
+    assert.deepEqual((await ask({ type: 'openLink', target: 'siloctl6' })).action, { type: 'openLink', target: 'siloctl6', href: '/HTML-Runner/Advanced', label: 'Advanced runner', external: false, newTab: true });
+
+    assert.equal((await ask({ type: 'select', target: 'siloctl5', value: 'nonsense' })).action, null, 'only listed options can be selected');
+    assert.equal((await ask({ type: 'toggle', target: 'siloctl2' })).action, null, 'toggling needs a checkable control');
+    assert.equal((await ask({ type: 'click', target: 'siloctl7' })).action, null, 'a submit button is never clicked');
+    assert.equal((await ask({ type: 'edit', target: 'siloctl2', value: 'x' })).action, null, 'editing needs a text block');
+    assert.equal((await ask({ type: 'find', value: 'a' })).action, null, 'a search phrase needs at least two characters');
+    assert.equal((await ask({ type: 'evaluate', target: 'siloctl1' })).action, null, 'unknown action types are rejected');
+    assert.match((await ask({ type: 'click', target: 'siloctl9' })).reply, /could not safely match that to an element/);
+  }, record, 'unused');
 });
 
 test('chat rejects unverified origins and unknown paths without invoking the model', async () => {
