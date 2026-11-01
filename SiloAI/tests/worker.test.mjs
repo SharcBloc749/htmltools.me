@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSign, generateKeyPairSync } from 'node:crypto';
+import { createHash, createSign, generateKeyPairSync } from 'node:crypto';
 import worker from '../src/index.mjs';
 import bundled, { SiloLimiter as BundledSiloLimiter } from '../worker.js';
 
@@ -718,4 +718,41 @@ test('page chips appear only when the answer points somewhere or the visitor ask
     assert.equal(navigating.action.type, 'navigate');
     assert.deepEqual(navigating.sources, [], 'the destination card replaces the chip list');
   }, site, 'unused');
+});
+
+test('the widget can resolve its own site id from the page origin', async () => {
+  await withGithubSite(async (env) => {
+    const askConfig = async (origin) => {
+      const response = await worker.fetch(new Request(`https://siloai.test/config?origin=${encodeURIComponent(origin)}`, {
+        headers: { origin: origin.startsWith('http') ? origin : 'https://htmltools.eu.cc' },
+      }), env, { waitUntil() {} });
+      return { status: response.status, payload: await response.json(), cors: response.headers.get('access-control-allow-origin') };
+    };
+
+    const own = await askConfig('https://htmltools.eu.cc');
+    assert.equal(own.status, 200);
+    assert.equal(own.payload.siteId, site.id);
+    assert.equal(own.cors, 'https://htmltools.eu.cc', 'the caller may read the answer');
+
+    const withWww = await askConfig('https://www.htmltools.eu.cc');
+    assert.equal(withWww.payload.siteId, site.id, 'www and apex resolve to the same site');
+
+    const unrelated = await askConfig('https://not-this-site.example');
+    assert.equal(unrelated.status, 404);
+    assert.equal(unrelated.payload.error.code, 'site_not_connected');
+
+    const nonsense = await askConfig('not a url');
+    assert.equal(nonsense.status, 400);
+  }, site, 'unused');
+});
+
+test('an unverified site is never handed out by the resolver', async () => {
+  const domain = 'pending.example';
+  const pendingId = createHash('sha256').update(domain).digest('hex').slice(0, 24);
+  const pending = { ...site, id: pendingId, domain, verified: false, pages: [] };
+  await withGithubSite(async (env) => {
+    const response = await worker.fetch(new Request(`https://siloai.test/config?origin=${encodeURIComponent(`https://${domain}`)}`), env, { waitUntil() {} });
+    assert.equal(response.status, 404, 'an unverified domain cannot borrow the widget');
+    assert.equal((await response.json()).error.code, 'site_not_connected');
+  }, pending, 'unused');
 });
