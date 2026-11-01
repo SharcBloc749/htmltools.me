@@ -111,7 +111,7 @@
     return groups;
   }
   function widgetSnippet(site) {
-    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=4" data-site-id="' + site.id + '"><\/script>';
+    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=5" data-site-id="' + site.id + '"><\/script>';
   }
   function openSite(id) {
     var site = siteCache[id] && (siteCache[id].site || siteCache[id]);
@@ -138,7 +138,7 @@
     return '<div class="verified-banner"><span>✓</span><div><b>Domain verified</b><p>Last index refresh: ' + esc(site.lastCrawledAt ? new Date(site.lastCrawledAt).toLocaleString() : 'not yet crawled') + ' · ' + esc(site.pageCount || 0) + ' pages discovered</p></div><div class="verified-actions"><button class="button subtle" type="button" data-ai-test="' + esc(site.id) + '">Test AI</button><button class="button subtle" type="button" data-refresh="' + esc(site.id) + '">Refresh index</button></div></div>' +
       '<div class="field"><label for="groups">Tool groups <span class="label-note">One per line: Name: /path, /another/path</span></label><textarea id="groups" class="groups-input" data-groups placeholder="Library: /Library, /Library/Studio, /Library/Studio/Upload\nAI Playground: /AI-Playground">' + esc(makeGroupText(site.groups)) + '</textarea><p class="hint">Groups help SiloAI understand related tool pages. Listed paths are also checked as crawl seeds on the next refresh; use the exact page path, including any trailing slash. Other public pages are still discovered automatically.</p></div>' +
       '<div class="permissions"><div><b>Let SiloAI navigate visitors</b><p>Only to a page discovered in this site’s index. Answer-only is the default.</p></div><label class="switch"><input type="checkbox" data-allow-nav ' + (actionSettings.allowNavigation ? 'checked' : '') + '><span></span></label></div>' +
-      '<div class="permissions"><div><b>Allow page interactions</b><p>Highlight visible text/controls, click non-submit buttons, or fill safe text fields. Visitors confirm each action; submit/reset buttons are excluded.</p></div><label class="switch"><input type="checkbox" data-allow-actions ' + (actionSettings.allowPageActions ? 'checked' : '') + '><span></span></label></div>' +
+      '<div class="permissions"><div><b>Allow page interactions</b><p>Highlight visible text/controls, click non-submit buttons, or fill safe text fields and editable text regions. Visitors confirm each change; submit/reset buttons are excluded.</p></div><label class="switch"><input type="checkbox" data-allow-actions ' + (actionSettings.allowPageActions ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="permissions nested" data-confirm-wrap><div><b>Ask before each navigation</b><p>Visitors see a confirmation before SiloAI opens the suggested page.</p></div><label class="switch"><input type="checkbox" data-confirm-nav ' + (actionSettings.confirmNavigation !== false ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="dialog-actions"><button class="button primary" type="button" data-save="' + esc(site.id) + '">Save settings</button><button class="button subtle" type="button" data-copy="' + esc(widgetSnippet(site)) + '">Copy widget code</button></div>' +
       '<div class="field"><label>Install the widget on this domain</label><pre class="snippet">' + esc(widgetSnippet(site)) + '</pre><p class="hint">Paste this snippet before <code>&lt;/body&gt;</code>. The widget is silent unless a visitor opens it.</p></div>' +
