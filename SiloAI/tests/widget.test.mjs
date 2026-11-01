@@ -660,3 +660,34 @@ test('the wider action vocabulary reaches the page: scrolling, finding, focusing
   assert.deepEqual(errors, []);
   dom.window.close();
 });
+
+test('replies render light markdown, never echo a JSON wrapper, and show the widget version in the corner', async () => {
+  const responseFor = () => ({
+    reply: '**Save draft** saves your work.\n\n- Press `Run` first\n- Then **Copy code**\n\n{"reply":"this should never appear","action":{',
+    sources: [],
+  });
+  const { dom, window, errors } = makeWidget({ responseFor });
+  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
+  assert.equal(window.SiloAI.version, '10');
+  const version = shadow.querySelector('[data-version]');
+  assert.ok(version, 'the running version is visible without opening the console');
+  assert.equal(version.textContent.trim(), 'v10');
+  assert.match(version.getAttribute('title'), /SiloAI widget v10/);
+
+  submit(window, shadow, 'How do I save?'); await flush();
+  const reply = lastReply(shadow);
+  assert.equal(reply.querySelector('strong')?.textContent, 'Save draft', 'bold text is rendered instead of showing asterisks');
+  assert.equal(reply.querySelectorAll('li').length, 2, 'bullet lines become a real list');
+  assert.equal(reply.querySelector('code')?.textContent, 'Run', 'inline code keeps its styling');
+  assert.doesNotMatch(reply.textContent, /\*\*|\{"reply"/, 'no raw markdown or JSON scaffolding reaches the visitor');
+  assert.doesNotMatch(reply.textContent, /this should never appear/, 'a leaked JSON fragment is dropped, not shown');
+  assert.match(reply.textContent, /Save draft saves your work/, 'the conversational part survives');
+
+  const rawJson = makeWidget({ responseFor: () => ({ reply: '{"reply":"Only this sentence.","action":null}', sources: [] }) });
+  const rawShadow = rawJson.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  submit(rawJson.window, rawShadow, 'Say hi'); await flush();
+  assert.equal(lastReply(rawShadow).textContent.trim(), 'Only this sentence.', 'a JSON-only reply is unwrapped even if the Worker ever lets one through');
+  assert.deepEqual(errors, []);
+  rawJson.dom.window.close();
+  dom.window.close();
+});

@@ -1,7 +1,7 @@
 import { base64ToText, textToBase64 } from './util.mjs';
 
 const API = 'https://api.github.com';
-const CACHE_TTL = 300;
+const CACHE_TTL = 60;
 const memoryCache = new Map();
 const cacheKey = (siteId) => new Request(`https://siloai-cache.invalid/sites/${siteId}`);
 
