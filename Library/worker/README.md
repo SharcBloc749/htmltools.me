@@ -35,3 +35,30 @@ If the worker is unreachable or erroring, the Library pages automatically fall
 back to Firebase RTDB (`bookStats` mirror + `books/<id>/code`), so uploads and
 playback still work — but likes/stats sync and the shared GitHub catalog need
 this worker healthy.
+
+---
+
+# Studio AI Worker (`aged-heart-d9b9`)
+
+`ai-worker.js` serves `/studio/ai` and `/studio/ai/quota` for the Library
+Studio's AI generate/edit/remix. It verifies the caller's Firebase ID token
+(now against **htmltools2**, legacy `htmltools-library` tokens still accepted).
+
+Deploy: `npx wrangler deploy -c ai-wrangler.toml` from this directory.
+
+## Secrets (set with `wrangler secret put <NAME>` — never commit values, never paste them in chat)
+
+| Secret | Required | What to put |
+|---|---|---|
+| `GEMINI_API_KEY` | for Gemini models | Google AI Studio API key (ai.google.dev) |
+| `GEMINI_PERSONAL_API_KEY` | for personal Gemini route | Another Google AI Studio key |
+| `GEMINI_PERSONAL_MODEL` | optional | e.g. `gemini-2.5-flash` |
+| `AWS_ACCESS_KEY_ID` | for Claude via Bedrock | AWS access key with Bedrock model access |
+| `AWS_SECRET_ACCESS_KEY` | for Claude via Bedrock | matching AWS secret key |
+| `AWS_REGION` | optional | defaults to `us-east-2` |
+| `EXTENSION_AUTH_TOKEN` | for the browser-extension route | any long random string you invent |
+| `FIREBASE_PROJECT_ID` | optional | defaults to `htmltools2` now |
+
+Plus one **KV binding** `AI_QUOTA` (see `ai-wrangler.toml` — set the real
+namespace id there; quota tracking needs it, without it the worker answers
+503 for quota endpoints).
