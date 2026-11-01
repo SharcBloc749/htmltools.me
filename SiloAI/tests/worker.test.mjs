@@ -203,7 +203,7 @@ test('oversized provider prompts get a specific, actionable diagnostic', async (
 
 
 test('owner-enabled page interactions are bound to visible controls and never accept arbitrary selectors', async () => {
-  const record = { ...site, id: 'bcdef0123456789abcdef012', actions: { allowNavigation: true, allowPageActions: true, confirmNavigation: true } };
+  const record = { ...site, id: 'bcdef0123456789abcdef012', actions: { allowNavigation: true, pageActionsMode: 'on', confirmNavigation: true } };
   await withGithubSite(async (env) => {
     const controls = [
       { id: 'siloctl1', kind: 'button', label: 'Clear editor', inputType: '' },
@@ -219,7 +219,8 @@ test('owner-enabled page interactions are bound to visible controls and never ac
     assert.deepEqual(payload.action, { type: 'click', target: 'siloctl1', label: 'Clear editor' });
     assert.equal(payload.confirmAction, true);
     assert.match(envFor.lastInput.messages[0].content, /PAGE CONTROLS/);
-    assert.match(envFor.lastInput.messages[0].content, /field values are never included/);
+    assert.match(envFor.lastInput.messages[0].content, /form values are never included/);
+    assert.match(envFor.lastInput.messages[0].content, /"type":"edit"/, 'visible page text can be rewritten when the visitor asks');
 
     env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I will not guess at a control.', action: { type: 'click', target: 'document.querySelector("#clear")' } }) }; };
     const invalid = await (await worker.fetch(makeRequest(), env, { waitUntil() {} })).json();
@@ -235,8 +236,22 @@ test('owner-enabled page interactions are bound to visible controls and never ac
   }, record, 'unused');
 });
 
-test('page interactions remain disabled unless the site owner enables them', async () => {
-  const record = { ...site, id: 'cdef0123456789abcdef0123', actions: { allowNavigation: true, allowPageActions: false, confirmNavigation: true } };
+test('page interactions are on by default, including for sites saved before the current toggle existed', async () => {
+  const legacy = { ...site, id: 'cdef0123456789abcdef0999', actions: { allowNavigation: true, allowPageActions: false, confirmNavigation: true } };
+  await withGithubSite(async (env) => {
+    const request = new Request(`https://siloai.test/chat/${legacy.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.43' },
+      body: JSON.stringify({ message: 'Highlight the runner instructions', controls: [{ id: 'siloctl1', kind: 'text', label: 'Runner instructions', inputType: '' }], pagePath: '/', history: [] }),
+    });
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'Ringing it now.', action: { type: 'highlight', target: 'siloctl1' } }) }; };
+    const payload = await (await worker.fetch(request, env, { waitUntil() {} })).json();
+    assert.deepEqual(payload.action, { type: 'highlight', target: 'siloctl1', label: 'Runner instructions' });
+    assert.match(envFor.lastInput.messages[0].content, /Page actions are enabled/);
+  }, legacy, 'unused');
+});
+
+test('page interactions stay off only after the owner saves the explicit opt-out', async () => {
+  const record = { ...site, id: 'cdef0123456789abcdef0123', actions: { allowNavigation: true, pageActionsMode: 'off', confirmNavigation: true } };
   await withGithubSite(async (env) => {
     const request = new Request(`https://siloai.test/chat/${record.id}`, {
       method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.42' },
@@ -246,8 +261,9 @@ test('page interactions remain disabled unless the site owner enables them', asy
     const response = await worker.fetch(request, env, { waitUntil() {} });
     const payload = await response.json();
     assert.equal(response.status, 200);
-    assert.equal(payload.action, null, 'page action is rejected when the owner has not enabled the separate permission');
-    assert.doesNotMatch(envFor.lastInput.messages[0].content, /\nPAGE CONTROLS \(visible labels\/text only/);
+    assert.equal(payload.action, null, 'page action is rejected when the owner has switched interactions off');
+    assert.match(envFor.lastInput.messages[0].content, /Page interactions are switched off/, 'the model is told to describe controls instead of acting');
+    assert.match(envFor.lastInput.messages[0].content, /PAGE CONTROLS \(visible labels and text only/, 'controls are still described so the model can point a visitor at the right button');
   }, record, 'unused');
 });
 
@@ -441,7 +457,7 @@ test('chat sends current-route identity and refuses to mislabel homepage context
   }, site, 'The route is not indexed yet, so I can’t confirm its contents.');
 });
 
-test('chat uses a bounded current-page excerpt and explicitly labeled opt-in editor text', async () => {
+test('chat uses a bounded current-page excerpt and ignores editor text entirely', async () => {
   await withGithubSite(async (env) => {
     const pageExcerpt = 'P'.repeat(2_600);
     const editorText = 'E'.repeat(3_200);
@@ -455,9 +471,7 @@ test('chat uses a bounded current-page excerpt and explicitly labeled opt-in edi
     assert.match(system, /VISIBLE CURRENT-PAGE EXCERPT/);
     assert.ok(system.includes('P'.repeat(2_500)), 'the visible excerpt is capped at 2,500 characters');
     assert.ok(!system.includes('P'.repeat(2_501)), 'the visible excerpt is not forwarded beyond its cap');
-    assert.match(system, /VISITOR-SELECTED EDITOR TEXT \(the visitor explicitly opted in to share this content/);
-    assert.ok(system.includes('E'.repeat(3_000)), 'opt-in editor text is capped at 3,000 characters');
-    assert.ok(!system.includes('E'.repeat(3_001)), 'editor text is not forwarded beyond its cap');
+    assert.ok(!system.includes('E'.repeat(100)), 'editor/code text is never forwarded, even if a client sends it');
   }, site, 'The visible page contains content.');
 });
 

@@ -11,7 +11,7 @@ const pageMarkup = `
     <p id="intro">Visible page information for the visitor.</p>
     <div style="opacity:0"><p>Invisible page text must never be shared.</p></div>
     <button id="save" type="button">Save draft</button>
-    <label for="name">Contact name</label><input id="name" type="text" aria-label="Contact name">
+    <label for="name">Contact name</label><input id="name" type="text">
     <textarea id="html-editor" aria-label="HTML source editor"></textarea>
     <div id="rich-editor" contenteditable="true" aria-label="Rich text editor">Original content</div>
   </main>`;
@@ -45,6 +45,8 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
     return { ok: true, status: 200, json: async () => responseFor(body) };
   };
   window.HTMLElement.prototype.setPointerCapture = function () {};
+  window.HTMLElement.prototype.releasePointerCapture = function () {};
+  window.HTMLElement.prototype.hasPointerCapture = function () { return false; };
   window.HTMLElement.prototype.scrollIntoView = function () {};
   window.HTMLElement.prototype.getBoundingClientRect = function () {
     let ancestor = this;
@@ -71,6 +73,7 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
   if (speech) {
     window.SpeechRecognition = class {
       start() { this.started = true; window.__recognition = this; }
+      stop() { if (this.onend) this.onend(); }
     };
   }
   window.addEventListener('error', (event) => errors.push(event.error || event.message));
@@ -83,7 +86,9 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
 
 async function flush() { await new Promise((resolve) => setTimeout(resolve, 0)); }
 function pointer(window, target, type, x, y, pointerId = 1) {
-  const event = new window.MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: x, clientY: y });
+  // Real pointer events cross shadow boundaries (composed: true); the widget tracks
+  // pointer moves on the window so a fast drag keeps following the pointer.
+  const event = new window.MouseEvent(type, { bubbles: true, cancelable: true, composed: true, button: 0, clientX: x, clientY: y });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
   target.dispatchEvent(event);
 }
@@ -91,6 +96,13 @@ function submit(window, shadow, text) {
   const input = shadow.querySelector('.silo-input');
   input.value = text;
   shadow.querySelector('.silo-compose').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+}
+function lastReply(shadow) {
+  const replies = shadow.querySelectorAll('.silo-assistant');
+  return replies[replies.length - 1];
+}
+function replyAction(shadow, index = 0) {
+  return lastReply(shadow).querySelectorAll('.silo-action')[index];
 }
 
 
@@ -116,12 +128,13 @@ test('widget rejects an invalid embed without blocking a later valid instance an
 });
 
 
-test('current-page context is sent, editor content is opt-in, and transcripts survive a reload', async () => {
+test('current-page context always includes live controls, never reads editor text, and transcripts survive a reload', async () => {
   const storage = makeStorage();
   const first = makeWidget({ storage });
   const { window, requests } = first;
   window.document.querySelector('#html-editor').value = '<h1>Private editor source</h1>';
   const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
+  assert.equal(shadow.querySelector('[data-include-editor]'), null, 'the editor opt-in control is gone');
   submit(window, shadow, 'What is on this page?');
   await flush();
   assert.equal(requests.length, 1);
@@ -129,13 +142,20 @@ test('current-page context is sent, editor content is opt-in, and transcripts su
   assert.match(requests[0].body.pageExcerpt, /Visible page information for the visitor/);
   assert.match(requests[0].body.pageExcerpt, /Save draft/, 'visible button labels are part of the current-page context');
   assert.doesNotMatch(requests[0].body.pageExcerpt, /Private editor source|Invisible page text|Existing field value/);
-  assert.equal(requests[0].body.editorText, undefined, 'editor source must not be read/sent unless opted in');
+  assert.equal(requests[0].body.editorText, undefined, 'editor source is never read or sent');
 
-  shadow.querySelector('[data-include-editor]').checked = true;
+  const controls = requests[0].body.controls;
+  assert.ok(controls.some((control) => control.kind === 'button' && control.label === 'Save draft'), 'page buttons are described for the model');
+  assert.ok(controls.some((control) => control.kind === 'field' && control.label === 'Contact name'), 'page fields are described for the model');
+  assert.ok(controls.some((control) => control.kind === 'text'), 'visible page text blocks can be highlighted');
+  assert.doesNotMatch(JSON.stringify(controls), /Private editor source|Invisible page text/, 'hidden and editor content is never exposed');
+  assert.equal(window.document.querySelector('[data-siloai-control-id]'), null, 'the widget no longer writes marker attributes onto the host page');
+
   submit(window, shadow, 'Explain my HTML editor');
   await flush();
   assert.equal(requests.length, 2);
-  assert.equal(requests[1].body.editorText, '<h1>Private editor source</h1>');
+  assert.equal(requests[1].body.editorText, undefined);
+  assert.ok(requests[1].body.controls.length > 0, 'controls are sent with every message, not only keyword-matched ones');
   const saved = JSON.parse(storage.getItem(`siloai.conversations.${siteId}`));
   assert.equal(saved.conversations.length, 1);
   assert.equal(saved.conversations[0].messages.length, 4);
@@ -176,24 +196,28 @@ test('every saved conversation is browsable, with full message history retained 
 });
 
 
-test('confirmed page actions can highlight, click a button, fill a field, and edit contenteditable text', async () => {
-  const clicked = { count: 0 };
+test('page actions highlight immediately and require confirmation before click, fill, and text edits', async () => {
+  let clicked = 0;
   const responseFor = (body) => {
     const controls = body.controls || [];
+    const byKind = (kind) => controls.filter((control) => control.kind === kind);
     if (/click the save button/i.test(body.message)) {
-      const target = controls.find((control) => control.kind === 'button');
-      return { reply: 'I found the save button.', action: { type: 'click', target: target?.id }, confirmAction: true };
+      return { reply: 'I found the save button.', action: { type: 'click', target: byKind('button')[0]?.id }, confirmAction: true };
     }
     if (/fill the contact name/i.test(body.message)) {
-      const target = controls.find((control) => control.kind === 'field' && control.inputType === 'text');
+      const target = byKind('field').find((control) => control.label === 'Contact name');
       return { reply: 'I can fill that field.', action: { type: 'fill', target: target?.id, value: 'Ada Lovelace' }, confirmAction: true };
     }
     if (/edit the rich text/i.test(body.message)) {
-      const target = controls.find((control) => control.kind === 'field' && control.inputType === 'contenteditable');
+      const target = byKind('field').find((control) => control.inputType === 'contenteditable');
       return { reply: 'I can update the editor.', action: { type: 'fill', target: target?.id, value: 'Updated safe text' }, confirmAction: true };
     }
-    const target = controls.find((control) => control.kind === 'text');
-    return { reply: 'I found the heading.', action: { type: 'highlight', target: target?.id } };
+    if (/change the intro/i.test(body.message)) {
+      const target = byKind('text').find((control) => control.label.startsWith('Visible page information'));
+      return { reply: 'I can rewrite that line.', action: { type: 'edit', target: target?.id, value: 'Rewritten by SiloAI.' }, confirmAction: true };
+    }
+    const target = byKind('text')[0];
+    return { reply: 'I found something to point at.', action: { type: 'highlight', target: target?.id } };
   };
   const { dom, window, requests, errors } = makeWidget({ responseFor });
   const nameField = window.document.querySelector('#name');
@@ -201,62 +225,101 @@ test('confirmed page actions can highlight, click a button, fill a field, and ed
   let dispatchedFormEvents = 0;
   nameField.addEventListener('input', () => { dispatchedFormEvents++; });
   nameField.addEventListener('change', () => { dispatchedFormEvents++; });
-  window.document.querySelector('#save').addEventListener('click', () => { clicked.count++; });
+  window.document.querySelector('#save').addEventListener('click', () => { clicked++; });
   const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
 
   submit(window, shadow, 'Click the save button'); await flush();
   assert.ok(requests[0].body.controls.some((control) => control.label === 'Save draft'));
   assert.doesNotMatch(JSON.stringify(requests[0].body.controls), /Existing field value must remain private/, 'form values are never sent as page-control context');
-  assert.equal(clicked.count, 0, 'page buttons are not activated before the visitor confirms');
-  shadow.querySelector('.silo-action').click();
-  assert.equal(clicked.count, 1, 'a user-confirmed click activates the target button');
+  assert.equal(clicked, 0, 'page buttons are not activated before the visitor confirms');
+  replyAction(shadow).click();
+  assert.equal(clicked, 1, 'a user-confirmed click activates the target button');
 
   submit(window, shadow, 'Fill the contact name'); await flush();
   assert.equal(nameField.value, 'Existing field value must remain private', 'field fills also wait for visitor confirmation');
-  shadow.querySelectorAll('.silo-action')[1].click();
+  replyAction(shadow).click();
   assert.equal(nameField.value, 'Ada Lovelace');
   assert.equal(dispatchedFormEvents, 2, 'confirmed field edits dispatch input and change events for site frameworks');
 
   submit(window, shadow, 'Edit the rich text'); await flush();
-  const richEditorControl = requests[2].body.controls.find((control) => control.inputType === 'contenteditable');
-  assert.equal(richEditorControl.label, 'Rich text editor', 'editable content is not exposed as the control label');
-  shadow.querySelectorAll('.silo-action')[2].click();
+  assert.equal(shadow.querySelectorAll('[data-siloai-highlight]').length, 0, 'no stale highlight overlay is left behind');
+  replyAction(shadow).click();
   assert.equal(window.document.querySelector('#rich-editor').textContent, 'Updated safe text');
 
-  submit(window, shadow, 'Highlight the intro'); await flush();
-  shadow.querySelectorAll('.silo-action')[3].click();
-  const highlightedControl = requests[3].body.controls.find((control) => control.kind === 'text');
-  const highlightedElement = window.document.querySelector(`[data-siloai-control-id="${highlightedControl.id}"]`);
-  assert.equal(highlightedElement.style.outline, '3px solid #f0f0f0');
+  submit(window, shadow, 'Highlight anything here'); await flush();
+  const overlays = window.document.querySelectorAll('[data-siloai-highlight]');
+  assert.equal(overlays.length, 2, 'a ring and its label are drawn on the page without a confirmation click');
+  const ring = overlays[0];
+  assert.equal(ring.style.left, '35px', 'the ring is positioned over the highlighted element');
+  assert.equal(ring.style.top, '95px');
+  assert.equal(ring.style.width, '110px');
+  assert.ok(replyAction(shadow), 'the visitor can highlight it again');
+
+  submit(window, shadow, 'Change the intro text'); await flush();
+  const intro = window.document.querySelector('#intro');
+  assert.equal(intro.textContent, 'Visible page information for the visitor.', 'text edits wait for confirmation');
+  replyAction(shadow).click();
+  assert.equal(intro.textContent, 'Rewritten by SiloAI.');
+  const undo = lastReply(shadow).querySelectorAll('.silo-action.ghost')[0];
+  assert.ok(undo, 'a text change can be undone');
+  undo.click();
+  assert.equal(intro.textContent, 'Visible page information for the visitor.');
   assert.deepEqual(errors, []);
   dom.window.close();
 });
 
 
-test('launcher drag/resize, chat-window resize, screenshot replacement, voice typing, and storage failures are handled', async () => {
+test('the welcome card offers starter prompts and the widget keeps page hotkeys out of its own inputs', async () => {
+  const { dom, window, requests, errors } = makeWidget();
+  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
+  shadow.querySelector('.silo-fab').click();
+  const chips = shadow.querySelectorAll('.silo-chip');
+  assert.equal(chips.length, 3, 'the empty state suggests what the assistant can do');
+  chips[1].click();
+  await flush();
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].body.message, /Highlight/i);
+  assert.equal(shadow.querySelectorAll('.silo-chip').length, 0, 'the welcome card is replaced once the chat starts');
+  assert.ok(requests[0].body.controls.length > 0, 'starter prompts already carry the page control map');
+
+  let pageSaw = 0;
+  window.document.addEventListener('keydown', () => { pageSaw++; });
+  const input = shadow.querySelector('.silo-input');
+  input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 's', bubbles: true, composed: true }));
+  assert.equal(pageSaw, 0, 'typing in the widget never triggers host-page shortcuts');
+  shadow.querySelector('.silo-panel').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, composed: true }));
+  assert.equal(shadow.querySelector('.silo-panel').hidden, true, 'Escape closes the chat window');
+  assert.deepEqual(errors, []);
+  dom.window.close();
+});
+
+test('launcher drag, chat-window drag and resize, screenshot replacement, voice typing, and storage failures are handled', async () => {
   const storage = makeStorage();
   const { dom, window, requests, errors } = makeWidget({ storage, speech: true, imageData: (index) => `data:image/jpeg;base64,/9j/${index + 2}Q==` });
   const host = window.document.querySelector('#siloai-widget-host');
   const shadow = host.shadowRoot;
   const fab = shadow.querySelector('.silo-fab');
+  assert.equal(shadow.querySelector('[data-resize-launcher]'), null, 'the launcher no longer has a resize handle');
   const initial = host.getBoundingClientRect();
   pointer(window, fab, 'pointerdown', initial.left + 15, initial.top + 15);
   pointer(window, fab, 'pointermove', initial.left + 65, initial.top + 55);
   pointer(window, fab, 'pointerup', initial.left + 65, initial.top + 55);
-  await new Promise((resolve) => setTimeout(resolve, 5));
   assert.ok(parseFloat(host.style.left) > initial.left, 'the launcher can be dragged');
+  assert.equal(shadow.querySelector('.silo-panel').hidden, true, 'dragging the launcher does not open the chat window');
 
-  const launcherSize = shadow.querySelector('[data-resize-launcher]');
-  pointer(window, launcherSize, 'pointerdown', 0, 0, 2);
-  pointer(window, launcherSize, 'pointermove', 24, 24, 2);
-  pointer(window, launcherSize, 'pointerup', 24, 24, 2);
-  assert.equal(host.style.width, '88px', 'the launcher has a working resize handle');
-  launcherSize.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
-  assert.equal(host.style.width, '104px', 'launcher resizing also works from the keyboard');
-
+  pointer(window, fab, 'pointerdown', 0, 0, 9);
+  pointer(window, fab, 'pointerup', 0, 0, 9);
   fab.click();
   const panel = shadow.querySelector('.silo-panel');
-  assert.equal(panel.hidden, false);
+  assert.equal(panel.hidden, false, 'a click after a drag still opens the chat window');
+
+  const head = shadow.querySelector('[data-drag-handle]');
+  const beforeDrag = parseFloat(panel.style.left);
+  pointer(window, head, 'pointerdown', 60, 40, 4);
+  pointer(window, head, 'pointermove', 0, 70, 4);
+  pointer(window, head, 'pointerup', 0, 70, 4);
+  assert.equal(parseFloat(panel.style.left), beforeDrag - 60, 'the chat window itself can be dragged by its header');
+
   const panelResize = shadow.querySelector('[data-resize-panel]');
   pointer(window, panelResize, 'pointerdown', 0, 0, 3);
   pointer(window, panelResize, 'pointermove', 80, 45, 3);
@@ -269,9 +332,11 @@ test('launcher drag/resize, chat-window resize, screenshot replacement, voice ty
   const mic = shadow.querySelector('[data-voice]');
   assert.equal(mic.hidden, false);
   mic.click();
+  assert.equal(mic.getAttribute('data-listening'), 'true');
   window.__recognition.onresult({ results: [[{ transcript: 'dictated words' }]] });
   assert.match(shadow.querySelector('.silo-input').value, /dictated words/);
   window.__recognition.onend();
+  assert.equal(mic.getAttribute('data-listening'), 'false');
 
   const fileInput = shadow.querySelector('[data-image-file]');
   const firstFile = new window.File(['first image'], 'first.png', { type: 'image/png' });
@@ -285,6 +350,7 @@ test('launcher drag/resize, chat-window resize, screenshot replacement, voice ty
   await flush();
   assert.equal(shadow.querySelectorAll('[data-attachment-image]').length, 1);
   assert.equal(shadow.querySelector('.silo-attachment').hidden, false);
+  assert.equal(shadow.querySelector('[data-attachment-name]').textContent, 'second.png');
   submit(window, shadow, 'What is in my screenshot?');
   await flush();
   assert.equal(requests.length, 1);
