@@ -1,9 +1,13 @@
 /* SiloAI website assistant embed. Install with:
-   <script async src="https://htmltools.me/SiloAI/widget.js?v=9" data-site-id="YOUR_SITE_ID"></script>
+   <script async src="https://htmltools.me/SiloAI/widget.js" data-site-id="YOUR_SITE_ID"></script>
+
+   No version query string: this file is served with must-revalidate, so every
+   install picks up the newest build on the next page load. The running version is
+   shown in the bottom corner of the chat window and exposed as window.SiloAI.version.
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '9';
+  var BUILD_VERSION = '10';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
@@ -153,9 +157,21 @@
     '.silo-note[data-tone=warn]{border-color:#5a5a5a;color:#e8e8e8}',
     '.silo-dot{width:6px;height:6px;border-radius:50%;background:#9a9a9a;flex:none}',
     '.silo-note[data-tone=warn] .silo-dot{background:#e2e2e2}',
-    '.silo-foot{font-size:10px;color:#838383;margin:7px 3px 0;line-height:1.45}',
-    '.silo-foot a{display:block;color:#dcdcdc;text-decoration:underline;text-underline-offset:2px;margin-bottom:4px}',
+    '.silo-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;font-size:10px;color:#838383;margin:7px 3px 0;line-height:1.45}',
+    '.silo-foot a{display:block;color:#dcdcdc;text-decoration:underline;text-underline-offset:2px}',
     '.silo-foot a:hover{color:#fff}',
+    '.silo-version{flex:none;color:#5d5d5d;font-size:9.5px;letter-spacing:.04em;font-variant-numeric:tabular-nums;user-select:text;-webkit-user-select:text}',
+    '.silo-msg.silo-rich{white-space:normal}',
+    '.silo-rich p{margin:0 0 6px}',
+    '.silo-rich p:last-child,.silo-rich ul:last-child,.silo-rich ol:last-child{margin-bottom:0}',
+    '.silo-rich ul,.silo-rich ol{margin:0 0 6px;padding-left:17px}',
+    '.silo-rich ul{list-style:disc}.silo-rich ol{list-style:decimal}',
+    '.silo-rich li{margin:2px 0}',
+    '.silo-rich strong{color:#fff;font-weight:650}',
+    '.silo-rich em{font-style:italic;color:#dcdcdc}',
+    '.silo-rich code{background:#1d1d1d;border:1px solid #333;border-radius:5px;padding:1px 5px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}',
+    '.silo-rich a{color:#ededed;text-decoration:underline;text-underline-offset:2px}',
+    '.silo-rich a:hover{color:#fff}',
     '.silo-typing{color:#b1b1b1;font-size:12px;display:flex;gap:4px;align-items:center}',
     '.silo-typing i{width:5px;height:5px;border-radius:50%;background:#a8a8a8;animation:silo-bounce 1.1s infinite ease-in-out}',
     '.silo-typing i:nth-child(2){animation-delay:.15s}',
@@ -178,10 +194,10 @@
     '</style>',
     '<button class="silo-fab" type="button" aria-label="Open SiloAI" title="Drag to move; click to open" aria-expanded="false"><img src="https://htmltools.me/SiloAI/brandmark-mono.png?v=3" alt="" draggable="false"></button>',
     '<section class="silo-panel" role="dialog" aria-label="Chat with SiloAI" aria-modal="false" hidden>',
-    '  <header class="silo-head" data-drag-handle><img class="silo-logo" src="https://htmltools.me/SiloAI/brandmark-mono.png?v=3" alt="" draggable="false"><div class="silo-id"><div class="silo-brand">SiloAI</div><div class="silo-status">Website Assistant - Powered by HTMLTools.me</div></div><span class="silo-grow"></span><button class="silo-icon" type="button" data-history aria-label="Previous conversations" title="Previous conversations" aria-expanded="false">' + icons.list + '</button><button class="silo-icon" type="button" data-new aria-label="New conversation" title="New conversation">' + icons.plus + '</button><button class="silo-icon" type="button" data-close aria-label="Close SiloAI" title="Close">' + icons.close + '</button></header>',
+    '  <header class="silo-head" data-drag-handle><img class="silo-logo" src="https://htmltools.me/SiloAI/brandmark-mono.png?v=3" alt="" draggable="false"><div class="silo-id"><div class="silo-brand">SiloAI</div><div class="silo-status">Website assistant by HTMLTools.me</div></div><span class="silo-grow"></span><button class="silo-icon" type="button" data-history aria-label="Previous conversations" title="Previous conversations" aria-expanded="false">' + icons.list + '</button><button class="silo-icon" type="button" data-new aria-label="New conversation" title="New conversation">' + icons.plus + '</button><button class="silo-icon" type="button" data-close aria-label="Close SiloAI" title="Close">' + icons.close + '</button></header>',
     '  <div class="silo-menu" data-conversation-menu hidden></div>',
     '  <div class="silo-messages" aria-live="polite"></div>',
-    '  <form class="silo-compose"><div class="silo-attachment" data-attachment hidden><img data-attachment-image alt="Screenshot preview"><span class="silo-attachment-copy"><b>Screenshot attached</b><span data-attachment-name>Screenshot attached</span></span><button class="silo-attachment-x" type="button" data-remove-image aria-label="Remove screenshot" title="Remove screenshot">×</button></div><div class="silo-row"><textarea class="silo-input" rows="1" maxlength="1200" aria-label="Message SiloAI" placeholder="Ask about this website…"></textarea><button class="silo-tool" type="button" data-attach aria-label="Attach a screenshot" title="Attach a screenshot">' + icons.image + '</button><button class="silo-tool" type="button" data-voice aria-label="Dictate with your voice" title="Dictate with your voice" aria-pressed="false" hidden>' + icons.mic + '</button><button class="silo-send" type="submit" aria-label="Send message" title="Send">' + icons.send + '</button></div><input class="silo-hidden-file" data-image-file type="file" accept="image/png,image/jpeg,image/webp"><div class="silo-note" data-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-status-text></span></div><div class="silo-note" data-storage-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-storage-text></span></div><div class="silo-foot"><a href="https://htmltools.me/SiloAI/" target="_blank" rel="noopener noreferrer">Set up SiloAI on your site for free at htmltools.me/SiloAI!</a></div></form>',
+    '  <form class="silo-compose"><div class="silo-attachment" data-attachment hidden><img data-attachment-image alt="Screenshot preview"><span class="silo-attachment-copy"><b>Screenshot attached</b><span data-attachment-name>Screenshot attached</span></span><button class="silo-attachment-x" type="button" data-remove-image aria-label="Remove screenshot" title="Remove screenshot">×</button></div><div class="silo-row"><textarea class="silo-input" rows="1" maxlength="1200" aria-label="Message SiloAI" placeholder="Ask about this website…"></textarea><button class="silo-tool" type="button" data-attach aria-label="Attach a screenshot" title="Attach a screenshot">' + icons.image + '</button><button class="silo-tool" type="button" data-voice aria-label="Dictate with your voice" title="Dictate with your voice" aria-pressed="false" hidden>' + icons.mic + '</button><button class="silo-send" type="submit" aria-label="Send message" title="Send">' + icons.send + '</button></div><input class="silo-hidden-file" data-image-file type="file" accept="image/png,image/jpeg,image/webp"><div class="silo-note" data-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-status-text></span></div><div class="silo-note" data-storage-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-storage-text></span></div><div class="silo-foot"><a href="https://htmltools.me/SiloAI/" target="_blank" rel="noopener noreferrer">Set up SiloAI on your site for free at htmltools.me/SiloAI!</a><span class="silo-version" data-version title="SiloAI widget v' + BUILD_VERSION + '">v' + BUILD_VERSION + '</span></div></form>',
     '  <button class="silo-panel-resize" type="button" data-resize-panel aria-label="Resize chat window" title="Drag to resize chat window"></button>',
     '</section>',
   ].join('');
@@ -417,10 +433,121 @@
     var combined = (primary + (frameText ? ' ' + frameText : '')).replace(/\s{2,}/g, ' ').trim();
     return combined.slice(0, 2_500);
   }
+  /**
+   * Removes generation scaffolding that can slip into a reply: fenced JSON, a
+   * leading {"reply": fragment, or a trailing ,"action":… that was cut off.
+   */
+  function tidyReplyText(text) {
+    var value = String(text == null ? '' : text).trim();
+    if (!value) return '';
+    value = value.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    var marker = /"reply"\s*:\s*"/.exec(value);
+    if (marker && !/^\s*\{/.test(value)) {
+      // Prose followed by a leaked JSON fragment: keep the prose only.
+      return quietTrim(value.slice(0, marker.index).replace(/[\s,{]+$/, ''));
+    }
+    if (marker) {
+      var out = '';
+      for (var i = marker.index + marker[0].length; i < value.length; i++) {
+        var char = value.charAt(i);
+        if (char === '\\') {
+          var next = value.charAt(i + 1);
+          out += next === 'n' ? '\n' : next === 't' ? '\t' : next;
+          i++;
+          continue;
+        }
+        if (char === '"') break;
+        out += char;
+      }
+      if (out.trim()) return out.trim();
+    }
+    if (/^\s*\{\s*"?reply"?\s*:/i.test(value) || /^\s*\{\s*$/.test(value)) {
+      return quietTrim(value.replace(/^\s*\{\s*"?reply"?\s*:\s*"?/i, '').replace(/"?\s*,\s*"action"[\s\S]*$/i, ''));
+    }
+    return quietTrim(value);
+  }
+  function quietTrim(value) {
+    return String(value || '').replace(/\s+$/, '').replace(/^\s+/, '');
+  }
+  function stripDanglingMarkers(value) {
+    var text = String(value || '').replace(/\r\n/g, '\n');
+    if (((text.match(/\*\*/g) || []).length) % 2 === 1) text = text.replace(/\*\*(?![^]*\*\*)/, '');
+    if (((text.match(/`/g) || []).length) % 2 === 1) text = text.replace(/`(?![^`]*`)/, '');
+    return text;
+  }
+  function inlineFormat(target, text) {
+    var pattern = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*|\[[^\]\n]{1,120}\]\((?:https?:\/\/|\/)[^)\s]{1,300}\))/g;
+    var last = 0;
+    var match;
+    while ((match = pattern.exec(text))) {
+      if (match.index > last) target.appendChild(document.createTextNode(text.slice(last, match.index)));
+      var token = match[0];
+      last = match.index + token.length;
+      if (token.slice(0, 2) === '**') {
+        var strong = document.createElement('strong');
+        strong.textContent = token.slice(2, -2);
+        target.appendChild(strong);
+      } else if (token.charAt(0) === '`') {
+        var code = document.createElement('code');
+        code.textContent = token.slice(1, -1);
+        target.appendChild(code);
+      } else if (token.charAt(0) === '[') {
+        var pair = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
+        var href = '';
+        try { href = new URL(pair[2], location.href).href; } catch (_) { href = ''; }
+        if (href && /^https?:/i.test(href)) {
+          var anchor = document.createElement('a');
+          anchor.href = href;
+          anchor.textContent = pair[1];
+          anchor.target = '_blank';
+          anchor.rel = 'noopener noreferrer';
+          target.appendChild(anchor);
+        } else target.appendChild(document.createTextNode(pair[1] || token));
+      } else {
+        var em = document.createElement('em');
+        em.textContent = token.slice(1, -1);
+        target.appendChild(em);
+      }
+    }
+    if (last < text.length) target.appendChild(document.createTextNode(text.slice(last)));
+  }
+  /** A tiny, safe Markdown renderer: bold, italics, inline code, links, lists, headings. */
+  function renderRichText(target, text) {
+    target.classList.add('silo-rich');
+    target.textContent = '';
+    var value = stripDanglingMarkers(text).trim();
+    if (!value) return;
+    value.split(/\n{2,}/).forEach(function (block) {
+      var list = null;
+      block.split('\n').forEach(function (rawLine) {
+        var line = quietTrim(rawLine);
+        if (!line) { list = null; return; }
+        line = line.replace(/^#{1,6}\s+/, '');
+        var bullet = /^[-*•]\s+(.*)$/.exec(line);
+        var numbered = /^\d+[.)]\s+(.*)$/.exec(line);
+        if (bullet || numbered) {
+          var wantedTag = (bullet ? 'ul' : 'ol');
+          if (!list || list.tagName.toLowerCase() !== wantedTag) {
+            list = document.createElement(wantedTag);
+            target.appendChild(list);
+          }
+          var item = document.createElement('li');
+          inlineFormat(item, (bullet || numbered)[1] || '');
+          list.appendChild(item);
+          return;
+        }
+        list = null;
+        var paragraph = document.createElement('p');
+        inlineFormat(paragraph, line);
+        target.appendChild(paragraph);
+      });
+    });
+  }
   function bubble(role, text, isError) {
     var el = document.createElement('div');
     el.className = 'silo-msg ' + (role === 'user' ? 'silo-user' : 'silo-assistant') + (isError ? ' silo-error' : '');
-    el.textContent = text;
+    if (role === 'user') el.textContent = text;
+    else renderRichText(el, text);
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return el;
@@ -480,7 +607,7 @@
     log.textContent = '';
     if (!history.length) { log.appendChild(welcomeCard()); return; }
     history.forEach(function (entry) {
-      var el = bubble(entry.role, entry.content || '');
+      var el = bubble(entry.role, entry.role === 'assistant' ? tidyReplyText(entry.content) : (entry.content || ''));
       if (entry.imageData) { var img = document.createElement('img'); img.className = 'silo-user-image'; img.src = entry.imageData; img.alt = 'Screenshot you attached'; el.appendChild(img); }
       if (entry.role === 'assistant') addSources(el, entry.sources);
     });
@@ -1167,7 +1294,8 @@
       var payload = await response.json().catch(function () { return {}; });
       if (!response.ok) throw new Error(payload.error && payload.error.message || 'SiloAI could not answer. Please try again.');
       pending.remove();
-      var replyText = payload.reply || 'I could not find an answer that time.';
+      var replyText = tidyReplyText(payload.reply);
+      if (!replyText) replyText = 'I could not find an answer that time — please ask again.';
       var assistantEntry = { role: 'assistant', content: replyText, sources: Array.isArray(payload.sources) ? payload.sources.slice(0, 3) : [] };
       history.push(assistantEntry);
       saveConversations();

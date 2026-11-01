@@ -110,8 +110,12 @@
     });
     return groups;
   }
+  // The embed URL is intentionally unversioned: the widget file is served with
+  // must-revalidate, so every update reaches existing embeds without the owner
+  // editing their site again. The running version is shown in the widget footer.
+  var WIDGET_SRC = 'https://htmltools.me/SiloAI/widget.js';
   function widgetSnippet(site) {
-    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=9" data-site-id="' + site.id + '"><\/script>';
+    return '<script async src="' + WIDGET_SRC + '" data-site-id="' + site.id + '"><\/script>';
   }
   function openSite(id) {
     var site = siteCache[id] && (siteCache[id].site || siteCache[id]);
@@ -123,10 +127,13 @@
   }
   function verifyPanel(site) {
     var body = 'siloai-verification=' + site.verificationToken;
-    return '<div class="verify-banner"><span class="verify-icon">!</span><div><b>Verify this domain</b><p>Publish the file below at the exact path shown. SiloAI will only crawl after the contents match.</p></div></div>' +
-      '<div class="field"><label>File path</label><div class="copy-row"><code>' + esc(site.verificationPath) + '</code><button class="mini-copy" data-copy="' + esc(site.verificationPath) + '">Copy</button></div></div>' +
-      '<div class="field"><label>Exact file contents</label><div class="copy-row"><code>' + esc(body) + '</code><button class="mini-copy" data-copy="' + esc(body) + '">Copy</button></div></div>' +
-      '<div class="notice"><b>For a static site</b><p>For your test site, put a text file named <code>.well-known/siloai-verification.txt</code> in the site’s published root. The path must resolve publicly over HTTPS.</p></div>' +
+    var path = site.verificationPath || '/.well-known/siloai-verification.txt';
+    var suggested = 'https://' + site.domain + path;
+    return '<div class="verify-banner"><span class="verify-icon">!</span><div><b>Verify this domain</b><p>Paste the link to any page on this domain that contains the code below — a plain text file at the path shown works too. SiloAI only crawls after it reads the code.</p></div></div>' +
+      '<div class="field"><label for="verification-url">Page URL that contains the code</label><input id="verification-url" class="field-input" type="text" spellcheck="false" autocomplete="url" data-verification-url value="' + esc(suggested) + '" placeholder="https://' + esc(site.domain) + '/verify.html"><p class="hint">Paste it with or without <code>https://</code>. The page must be on <b>' + esc(site.domain) + '</b>.</p></div>' +
+      '<div class="field"><label>Exact contents on that page</label><div class="copy-row"><code>' + esc(body) + '</code><button class="mini-copy" data-copy="' + esc(body) + '">Copy</button></div></div>' +
+      '<div class="field"><label>Or publish this file path</label><div class="copy-row"><code>' + esc(path) + '</code><button class="mini-copy" data-copy="' + esc(path) + '">Copy</button></div></div>' +
+      '<div class="notice"><b>Either way works</b><p>The code can sit anywhere inside the page’s HTML, including in a comment or a <code>&lt;meta&gt;</code> tag. Keep it exactly as shown — it is unique to your account.</p></div>' +
       '<div class="dialog-actions"><button class="button primary" type="button" data-verify="' + esc(site.id) + '">Verify &amp; crawl <span>→</span></button><span class="muted small">First scan: up to 30 public pages</span></div>' +
       '<p class="dialog-error" role="alert" data-site-error></p>';
   }
@@ -141,7 +148,7 @@
       '<div class="permissions"><div><b>Allow page interactions</b><p>On by default. SiloAI can highlight, click, fill, clear, tick, choose from a dropdown, copy, select text, search the page, and rewrite visible text. Visitors confirm every change; submit/reset buttons are always excluded.</p></div><label class="switch"><input type="checkbox" data-allow-actions ' + (actionSettings.pageActionsMode !== 'off' ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="permissions nested" data-confirm-wrap><div><b>Ask before each navigation</b><p>Recommended. Visitors press a destination button instead of being sent away mid-task. Turn this off to let SiloAI open a page immediately.</p></div><label class="switch"><input type="checkbox" data-confirm-nav ' + (actionSettings.confirmNavigation !== false ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="dialog-actions"><button class="button primary" type="button" data-save="' + esc(site.id) + '">Save settings</button><button class="button subtle" type="button" data-copy="' + esc(widgetSnippet(site)) + '">Copy widget code</button></div>' +
-      '<div class="field"><label>Install the widget on this domain</label><pre class="snippet">' + esc(widgetSnippet(site)) + '</pre><p class="hint">Paste this snippet before <code>&lt;/body&gt;</code>. The widget is silent unless a visitor opens it.</p></div>' +
+      '<div class="field"><label>Install the widget on this domain</label><pre class="snippet">' + esc(widgetSnippet(site)) + '</pre><p class="hint">Paste this snippet before <code>&lt;/body&gt;</code>. The widget is silent unless a visitor opens it, and it keeps itself up to date — you never need to edit this snippet again. The running version is shown in the corner of the chat window.</p></div>' +
       '<div class="pages-head"><div><h3>Discovered pages</h3><p class="hint">SiloAI rechecks active sites after 24 hours. Owners can refresh manually.</p></div><span class="count-pill">' + esc(site.pageCount || 0) + '</span></div>' +
       '<div class="page-list">' + (pages || '<p class="muted">No pages have been indexed yet.</p>') + '</div>' +
       (site.lastCrawlError ? '<p class="dialog-error">' + esc(site.lastCrawlError) + '</p>' : '') +
@@ -161,7 +168,9 @@
       verify.textContent = 'Verifying and scanning…';
       error.textContent = '';
       try {
-        var result = await api('/api/sites/' + site.id + '/verify', { method: 'POST', body: {} });
+        var urlField = dialogContent.querySelector('[data-verification-url]');
+        var verificationUrl = urlField ? urlField.value.trim() : '';
+        var result = await api('/api/sites/' + site.id + '/verify', { method: 'POST', body: { verificationUrl: verificationUrl } });
         siteCache[site.id] = result;
         var skippedLarge = Number(result.result && result.result.skippedLargePages) || 0;
         toast('Domain verified — ' + result.result.pages + ' pages indexed' + (skippedLarge ? ' · ' + skippedLarge + ' oversized skipped' : ''));

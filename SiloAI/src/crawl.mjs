@@ -247,9 +247,21 @@ async function sitemapPaths(host, robots) {
   return [...pagePaths];
 }
 
-export async function verifyDomainFile(host, token, fetchImpl = fetch) {
-  const response = await fetchSameHost(hostUrl(host, '/.well-known/siloai-verification.txt'), host, 4_096, fetchImpl);
-  return Boolean(response && !response.tooLarge && response.body.trim() === `siloai-verification=${token}`);
+/**
+ * Confirms the site owner published the verification token.
+ *
+ * Owners can either drop the `.well-known` text file in place, or paste the URL of
+ * any page on their own domain that contains the exact token somewhere in its body.
+ * The token is a secret per site, so a page holding it is proof of control.
+ */
+export async function verifyDomainFile(host, token, options = {}) {
+  const settings = typeof options === 'function' ? { fetchImpl: options } : (options || {});
+  const fetchImpl = settings.fetchImpl || fetch;
+  const path = typeof settings.path === 'string' && settings.path.startsWith('/') ? settings.path : '/.well-known/siloai-verification.txt';
+  const expected = `siloai-verification=${token}`;
+  const response = await fetchSameHost(hostUrl(host, path), host, 64_000, fetchImpl);
+  if (!response || response.tooLarge || !response.body) return false;
+  return response.body.includes(expected);
 }
 
 export async function crawlSite(host, priorPages = [], ownerPaths = []) {

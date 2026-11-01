@@ -113,6 +113,23 @@ test('robots.txt disallow blocks crawling and verification requires an exact tok
   } finally { restoreFetch(); }
 });
 
+test('verification also works from any page on the domain that contains the token', async () => {
+  setFetch(async (url) => {
+    const target = String(url);
+    if (target === 'https://example.com/verify.html') {
+      return new Response('<html><head><title>Verify</title><meta name="siloai" content="siloai-verification=abc123"></head><body>ok</body></html>', { headers: { 'content-type': 'text/html' } });
+    }
+    if (target === 'https://example.com/empty.html') return new Response('<html><body>nothing here</body></html>', { headers: { 'content-type': 'text/html' } });
+    return new Response('', { status: 404 });
+  });
+  try {
+    assert.equal(await verifyDomainFile('example.com', 'abc123', { path: '/verify.html' }), true, 'a normal page holding the code verifies the domain');
+    assert.equal(await verifyDomainFile('example.com', 'abc123', { path: '/empty.html' }), false);
+    assert.equal(await verifyDomainFile('example.com', 'other-token', { path: '/verify.html' }), false, 'another site’s token never verifies');
+    assert.equal(await verifyDomainFile('example.com', 'abc123', { path: '/.well-known/siloai-verification.txt' }), false, 'missing pages fail closed');
+  } finally { restoreFetch(); }
+});
+
 test('GitHub site JSON writes are versioned and subsequent reads use cache', async () => {
   const files = new Map();
   let calls = 0;
