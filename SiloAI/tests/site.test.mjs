@@ -22,6 +22,11 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.match(app, /data-ai-test/);
   assert.match(app, /\/ai-test/);
   assert.match(app, /data-allow-actions/);
+  assert.match(await text('../../_headers'), /\/SiloAI\/style\.css[\s\S]*must-revalidate/, 'the dashboard stylesheet refreshes like the rest of the app');
+  assert.match(app, /data-add-page/, 'the owner can add an index entry by hand');
+  assert.match(app, /data-remove-page/, 'the owner can remove an index entry');
+  assert.match(app, /data-restore-page/, 'a removed page can be restored');
+  assert.match(app, /\/pages', \{ method: 'POST'/, 'the dashboard talks to the index endpoint');
   assert.doesNotMatch(widget, /data-resize-launcher/, 'the launcher keeps a fixed size and is drag-only');
   assert.match(widget, /data-resize-panel/);
   assert.match(widget, /data-drag-handle/, 'the chat window itself can be dragged');

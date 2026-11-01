@@ -137,10 +137,19 @@
       '<div class="dialog-actions"><button class="button primary" type="button" data-verify="' + esc(site.id) + '">Verify &amp; crawl <span>→</span></button><span class="muted small">First scan: up to 30 public pages</span></div>' +
       '<p class="dialog-error" role="alert" data-site-error></p>';
   }
+  function pageRow(page) {
+    return '<div class="page-row"><div><b>' + esc(page.title || page.path) + (page.manual ? '<span class="page-tag">Added by you</span>' : '') + '</b><code>' + esc(page.path) + '</code></div><span>' + esc((page.headings || []).slice(0, 2).join(' · ')) + '</span><button class="mini-copy" type="button" data-remove-page="' + esc(page.path) + '">Remove</button></div>';
+  }
+  function hiddenRows(site) {
+    var hidden = site.hiddenPaths || [];
+    if (!hidden.length) return '';
+    return '<div class="pages-head"><div><h3>Removed from the index</h3><p class="hint">SiloAI will not cite or navigate to these paths — even after the next crawl. Restore one to bring it back.</p></div><span class="count-pill">' + esc(hidden.length) + '</span></div>' +
+      '<div class="page-list">' + hidden.map(function (path) {
+        return '<div class="page-row"><div><code>' + esc(path) + '</code></div><button class="mini-copy" type="button" data-restore-page="' + esc(path) + '">Restore</button></div>';
+      }).join('') + '</div>';
+  }
   function verifiedPanel(site) {
-    var pages = (site.pages || []).map(function (page) {
-      return '<div class="page-row"><div><b>' + esc(page.title || page.path) + '</b><code>' + esc(page.path) + '</code></div><span>' + esc((page.headings || []).slice(0, 2).join(' · ')) + '</span></div>';
-    }).join('');
+    var pages = (site.pages || []).map(pageRow).join('');
     var actionSettings = site.actions || { navigationMode: 'on', pageActionsMode: 'on', confirmNavigation: true };
     return '<div class="verified-banner"><span>✓</span><div><b>Domain verified</b><p>Last index refresh: ' + esc(site.lastCrawledAt ? new Date(site.lastCrawledAt).toLocaleString() : 'not yet crawled') + ' · ' + esc(site.pageCount || 0) + ' pages discovered</p></div><div class="verified-actions"><button class="button subtle" type="button" data-ai-test="' + esc(site.id) + '">Test AI</button><button class="button subtle" type="button" data-refresh="' + esc(site.id) + '">Refresh index</button></div></div>' +
       '<div class="field"><label for="groups">Tool groups <span class="label-note">One per line: Name: /path, /another/path</span></label><textarea id="groups" class="groups-input" data-groups placeholder="Library: /Library, /Library/Studio, /Library/Studio/Upload\nAI Playground: /AI-Playground">' + esc(makeGroupText(site.groups)) + '</textarea><p class="hint">Groups help SiloAI understand related tool pages. Listed paths are also checked as crawl seeds on the next refresh; use the exact page path, including any trailing slash. Other public pages are still discovered automatically.</p></div>' +
@@ -149,8 +158,15 @@
       '<div class="permissions nested" data-confirm-wrap><div><b>Ask before each navigation</b><p>Recommended. Visitors press a destination button instead of being sent away mid-task. Turn this off to let SiloAI open a page immediately.</p></div><label class="switch"><input type="checkbox" data-confirm-nav ' + (actionSettings.confirmNavigation !== false ? 'checked' : '') + '><span></span></label></div>' +
       '<div class="dialog-actions"><button class="button primary" type="button" data-save="' + esc(site.id) + '">Save settings</button><button class="button subtle" type="button" data-copy="' + esc(widgetSnippet(site)) + '">Copy widget code</button></div>' +
       '<div class="field"><label>Install the widget on this domain</label><pre class="snippet">' + esc(widgetSnippet(site)) + '</pre><p class="hint">Paste this snippet before <code>&lt;/body&gt;</code>. The widget is silent unless a visitor opens it, and it keeps itself up to date — you never need to edit this snippet again. The running version is shown in the corner of the chat window.</p></div>' +
-      '<div class="pages-head"><div><h3>Discovered pages</h3><p class="hint">SiloAI rechecks active sites after 24 hours. Owners can refresh manually.</p></div><span class="count-pill">' + esc(site.pageCount || 0) + '</span></div>' +
+      '<div class="pages-head"><div><h3>Site index</h3><p class="hint">What SiloAI can answer from and navigate to. Remove any page you do not want it to mention, or add one the crawler cannot reach by hand. SiloAI rechecks active sites after 24 hours; a crawl never undoes your edits.</p></div><span class="count-pill">' + esc(site.pageCount || 0) + '</span></div>' +
       '<div class="page-list">' + (pages || '<p class="muted">No pages have been indexed yet.</p>') + '</div>' +
+      '<div class="pages-head"><div><h3>Add a page by hand</h3><p class="hint">Use this for a route the crawler cannot reach, or to correct a title and wording. Hand-added pages survive every refresh and come first in what SiloAI reads.</p></div></div>' +
+      '<div class="field"><label for="page-path">Path</label><input id="page-path" class="field-input" data-page-path placeholder="/Library/Studio/Notes" spellcheck="false"></div>' +
+      '<div class="field"><label for="page-title">Title</label><input id="page-title" class="field-input" data-page-title placeholder="Studio notes"></div>' +
+      '<div class="field"><label for="page-description">Description <span class="label-note">Optional</span></label><input id="page-description" class="field-input" data-page-description placeholder="What a visitor finds on this page"></div>' +
+      '<div class="field"><label for="page-text">Text SiloAI may quote <span class="label-note">Optional, up to 3,000 characters</span></label><textarea id="page-text" class="groups-input" data-page-text placeholder="Describe what the page offers, in the words a visitor would use."></textarea></div>' +
+      '<div class="dialog-actions"><button class="button primary" type="button" data-add-page="' + esc(site.id) + '">Add to index</button><span class="muted small">Up to 40 hand-added pages per site</span></div>' +
+      hiddenRows(site) +
       (site.lastCrawlError ? '<p class="dialog-error">' + esc(site.lastCrawlError) + '</p>' : '') +
       '<p class="dialog-error" role="alert" data-site-error></p>';
   }
@@ -226,6 +242,39 @@
       allow.addEventListener('change', syncConfirm);
       syncConfirm();
     }
+    async function editIndex(body, message) {
+      var error = $('[data-site-error]', dialogContent);
+      error.textContent = '';
+      try {
+        var result = await api('/api/sites/' + site.id + '/pages', { method: 'POST', body: body });
+        siteCache[site.id] = result;
+        toast(message);
+        await loadSites();
+        openSite(site.id);
+      } catch (failure) { error.textContent = errorText(failure); }
+    }
+    var addPage = dialogContent.querySelector('[data-add-page]');
+    if (addPage) addPage.addEventListener('click', async function () {
+      var field = function (name) { return $('[data-page-' + name + ']', dialogContent).value.trim(); };
+      if (!field('path')) { $('[data-site-error]', dialogContent).textContent = 'Enter a path on this site, for example /Library/Studio/Notes.'; return; }
+      addPage.disabled = true;
+      addPage.textContent = 'Adding…';
+      await editIndex({ action: 'add', path: field('path'), title: field('title'), description: field('description'), text: field('text') }, 'Page added to the index');
+      addPage.disabled = false;
+      addPage.textContent = 'Add to index';
+    });
+    dialogContent.querySelectorAll('[data-remove-page]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        button.disabled = true;
+        editIndex({ action: 'remove', path: button.dataset.removePage }, 'Page removed from the index');
+      });
+    });
+    dialogContent.querySelectorAll('[data-restore-page]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        button.disabled = true;
+        editIndex({ action: 'restore', path: button.dataset.restorePage }, 'Page restored');
+      });
+    });
     var save = dialogContent.querySelector('[data-save]');
     if (save) save.addEventListener('click', async function () {
       var error = $('[data-site-error]', dialogContent);
