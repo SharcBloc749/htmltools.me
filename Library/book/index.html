@@ -300,7 +300,7 @@
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getDatabase,ref,get,set,push,update,remove,onValue,query,orderByKey,limitToLast,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getDatabase,ref,get,set,push,update,remove,onValue,query,orderByKey,limitToLast,serverTimestamp,runTransaction}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import{getAuth,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{initializeLibraryAppCheck}from"/assets/library-app-check.js";
 
@@ -438,8 +438,14 @@ async function boot(){
   // Inject into iframe
   document.getElementById('game-frame').srcdoc=code;
 
-  // View counting needs the optional engagement backend; without it we skip
-  // silently instead of throwing. (recordBookView paused — backend not deployed)
+  // Increment the view counter once via a +/-1 transaction on the tiny
+  // bookStats/books mirrors (rules only allow +/-1). No backend needed.
+  try{
+    const r=await runTransaction(ref(db,'bookStats/'+bookId+'/views'),cur=>(cur||0)+1);
+    const v=r.snapshot.val()||0;
+    if(bookData)bookData.views=v;
+    update(ref(db,'books/'+bookId+'/views'),v).catch(()=>{});
+  }catch(e){console.warn('[Library] view not recorded',e);}
 
   // Start playtime timer
   playtimeStart=Date.now();
@@ -590,9 +596,19 @@ window.toggleLike=async function(){
   if(!bookData||likePending)return;
   likePending=true;const btn=document.getElementById('like-btn');if(btn)btn.disabled=true;
   try{
-    // Likes stay paused unless the optional engagement backend is deployed.
-    showToast('Likes are paused — engagement backend not deployed.','error');
-  }finally{likePending=false;if(btn)btn.disabled=false;}
+    // Direct RTDB like toggle: +/-1 transaction + per-user likedBy flag.
+    const liked=!!(bookData.likedBy&&bookData.likedBy[currentUser.uid]);
+    const r=await runTransaction(ref(db,'bookStats/'+bookId+'/likes'),cur=>Math.max(0,(cur||0)+(liked?-1:1)));
+    const newLikes=r.snapshot.val()||0;
+    const paths={'bookStats/'+bookId+'/likes':newLikes,'books/'+bookId+'/likes':newLikes};
+    if(liked)paths['bookStats/'+bookId+'/likedBy/'+currentUser.uid]=null;else paths['bookStats/'+bookId+'/likedBy/'+currentUser.uid]=true;
+    try{await update(ref(db),paths);}catch(e){console.warn('[Library] likes mirror write skipped',e);}
+    bookData.likes=newLikes;
+    bookData.likedBy={...(bookData.likedBy||{})};
+    if(liked)delete bookData.likedBy[currentUser.uid];else bookData.likedBy[currentUser.uid]=true;
+    updateLikeBtn();showToast(liked?'Like removed':'Liked ♥','success');
+  }catch(e){showToast(e?.message||'Could not update like.','error');}
+  finally{likePending=false;if(btn)btn.disabled=false;}
 };
 function updateLikeBtn(){
   const btn=document.getElementById('like-btn');const cnt=document.getElementById('like-count');
