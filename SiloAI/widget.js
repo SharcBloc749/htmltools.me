@@ -1,9 +1,9 @@
 /* SiloAI website assistant embed. Install with:
-   <script async src="https://htmltools.me/SiloAI/widget.js?v=6" data-site-id="YOUR_SITE_ID"></script>
+   <script async src="https://htmltools.me/SiloAI/widget.js?v=7" data-site-id="YOUR_SITE_ID"></script>
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '6';
+  var BUILD_VERSION = '7';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
@@ -302,7 +302,57 @@
   }
   function ownNodes(el) {
     if (!el) return false;
-    return host === el || host.contains(el) || (el.closest && el.closest('#siloai-widget-host') === host);
+    if (host === el || host.contains(el)) return true;
+    if (el.closest && el.closest('#siloai-widget-host') === host) return true;
+    try { if (typeof el.getRootNode === 'function' && el.getRootNode() === shadow) return true; } catch (_) { /* detached */ }
+    var parentHost = el.parentElement ? el.parentElement.closest('#siloai-widget-host') : null;
+    return parentHost === host;
+  }
+  /* Every document we can safely read: the visitor's page plus same-origin
+     frames (tool pages such as HTML Runner keep their controls inside one). */
+  function pageDocuments() {
+    var docs = [];
+    var seen = new Set();
+    var topDoc = currentPageDocument();
+    var queue = [{ doc: topDoc, frame: null }];
+    while (queue.length && docs.length < 6) {
+      var item = queue.shift();
+      if (!item.doc || seen.has(item.doc)) continue;
+      seen.add(item.doc);
+      if (ownNodes(item.doc.body)) continue;
+      docs.push(item);
+      var frames;
+      try { frames = item.doc.querySelectorAll('iframe,frame'); } catch (_) { continue; }
+      for (var index = 0; index < frames.length && index < 10; index++) {
+        var frame = frames[index];
+        if (ownNodes(frame)) continue;
+        var child = null;
+        try { child = frame.contentDocument; } catch (_) { child = null; }
+        if (!child || !child.body || seen.has(child)) continue;
+        var rect = frame.getBoundingClientRect();
+        if (rect.width < 16 || rect.height < 16) continue;
+        queue.push({ doc: child, frame: frame });
+      }
+    }
+    return docs;
+  }
+  /* Controls inside open shadow roots are invisible to querySelectorAll. */
+  function controlCandidates(doc) {
+    var list = Array.prototype.slice.call(doc.querySelectorAll(CONTROL_SELECTOR));
+    var hosts;
+    try { hosts = doc.querySelectorAll('*'); } catch (_) { return list; }
+    var scanned = 0;
+    for (var index = 0; index < hosts.length && scanned < 1_500; index++) {
+      var node = hosts[index];
+      if (!node.shadowRoot || ownNodes(node)) continue;
+      scanned++;
+      var inner = node.shadowRoot.querySelectorAll(CONTROL_SELECTOR);
+      for (var innerIndex = 0; innerIndex < inner.length; innerIndex++) list.push(inner[innerIndex]);
+    }
+    return list;
+  }
+  function explicitButtonType(el) {
+    return String(el.getAttribute('type') || '').toLowerCase();
   }
   function elementHidden(el, view, memo) {
     if (memo.has(el)) return memo.get(el);
@@ -328,28 +378,42 @@
     var rect = el.getBoundingClientRect();
     return rect.bottom > 0 && rect.right > 0 && rect.top < (view.innerHeight || 0) && rect.left < (view.innerWidth || 0);
   }
-  function visiblePageExcerpt() {
-    var doc = currentPageDocument(); var root = doc.querySelector('main,[role=main],article') || doc.body;
+  function excerptFromDocument(doc, budget) {
+    var root = doc.querySelector('main,[role=main],article') || doc.body;
     if (!root) return '';
     var view = doc.defaultView || window;
     var walker = doc.createTreeWalker(root, 4);
     var memo = new Map();
     var excluded = 'script,style,noscript,template,nav,footer,input,textarea,select,option,[contenteditable=true],[hidden],[aria-hidden=true]';
     var onScreen = []; var elsewhere = []; var visited = 0;
+    var screenLength = 0;
     while (walker.nextNode() && visited++ < 1_800) {
       var node = walker.currentNode; var el = node.parentElement;
       if (!el || ownNodes(el) || (el.closest && el.closest(excluded))) continue;
       if (!isVisibleOnPage(el, doc, 1, memo)) continue;
       var text = String(node.nodeValue || '').replace(/\s+/g, ' ').trim();
       if (!text) continue;
-      if (isInViewport(el, view)) onScreen.push(text);
+      if (isInViewport(el, view)) { onScreen.push(text); screenLength += text.length + 1; }
       else elsewhere.push(text);
-      if (onScreen.join(' ').length > 1_400 && elsewhere.length > 200) break;
+      if (screenLength > budget * 0.7 && elsewhere.length > 200) break;
     }
-    var lead = onScreen.join(' ').replace(/\s{2,}/g, ' ').trim().slice(0, 1_400);
+    var lead = onScreen.join(' ').replace(/\s{2,}/g, ' ').trim().slice(0, Math.round(budget * 0.7));
     var rest = elsewhere.join(' ').replace(/\s{2,}/g, ' ').trim();
     var combined = lead ? lead + (rest ? ' ' + rest : '') : rest;
-    return combined.replace(/\s{2,}/g, ' ').trim().slice(0, 2_500);
+    return combined.replace(/\s{2,}/g, ' ').trim().slice(0, budget);
+  }
+  function visiblePageExcerpt() {
+    var documents = pageDocuments();
+    var primary = excerptFromDocument(documents[0].doc, 2_000);
+    if (documents.length < 2) return primary;
+    // Same-origin frames often hold the actual tool UI (editors, runners).
+    var frameText = '';
+    for (var index = 1; index < documents.length && frameText.length < 500; index++) {
+      var piece = excerptFromDocument(documents[index].doc, 500);
+      if (piece) frameText += (frameText ? ' ' : '') + piece;
+    }
+    var combined = (primary + (frameText ? ' ' + frameText : '')).replace(/\s{2,}/g, ' ').trim();
+    return combined.slice(0, 2_500);
   }
   function bubble(role, text, isError) {
     var el = document.createElement('div');
@@ -438,10 +502,36 @@
   var TEXT_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,pre,code,blockquote,[role=heading]';
   var CONTROL_SELECTOR = 'button,[role=button],input,textarea,select,[contenteditable=true],[contenteditable=""],' + TEXT_SELECTOR;
   function shortText(value) { return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 100); }
+  function attrText(el, name) {
+    var value = el.getAttribute(name);
+    return value ? shortText(value) : '';
+  }
+  function labelledByText(el) {
+    var tokens = String(el.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
+    if (!tokens.length) return '';
+    var doc = el.ownerDocument || document;
+    var pieces = tokens.map(function (token) {
+      var node = null;
+      try { node = doc.getElementById(token); } catch (_) { node = null; }
+      return node ? (node.innerText || node.textContent || '') : '';
+    });
+    return shortText(pieces.join(' '));
+  }
+  function iconText(el) {
+    var image = el.querySelector && el.querySelector('img[alt]');
+    if (image) { var alt = attrText(image, 'alt'); if (alt) return alt; }
+    var svgTitle = el.querySelector && el.querySelector('svg title');
+    if (svgTitle) { var title = shortText(svgTitle.textContent); if (title) return title; }
+    return '';
+  }
+  function accessibleName(el) {
+    return attrText(el, 'aria-label') || labelledByText(el) || attrText(el, 'title') || attrText(el, 'data-tooltip')
+      || attrText(el, 'placeholder') || shortText(el.innerText || el.textContent || '') || iconText(el);
+  }
   function controlLabelFor(el, kind) {
-    var explicit = shortText(el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || '');
     var editable = el.matches('[contenteditable=true],[contenteditable=""]');
     if (kind === 'field') {
+      var explicit = attrText(el, 'aria-label') || attrText(el, 'placeholder') || attrText(el, 'title') || labelledByText(el);
       if (explicit) return explicit;
       if (el.labels && el.labels.length) {
         var labelled = shortText(Array.prototype.map.call(el.labels, function (label) { return label.innerText || label.textContent || ''; }).join(' '));
@@ -449,8 +539,7 @@
       }
       return editable ? 'Editable text area' : 'Text field';
     }
-    if (explicit) return explicit;
-    return shortText(el.innerText || el.textContent || '');
+    return accessibleName(el) || (kind === 'button' ? shortText(el.value || '') : '');
   }
   function isSensitiveField(el) {
     var inputType = (el.getAttribute('type') || 'text').toLowerCase();
@@ -460,41 +549,60 @@
   }
   function collectPageTargets() {
     targetIndex.clear();
-    var doc = currentPageDocument();
-    var memo = new Map();
     var buckets = { button: [], field: [], text: [] };
-    var candidates = Array.prototype.slice.call(doc.querySelectorAll(CONTROL_SELECTOR));
-    for (var index = 0; index < candidates.length; index++) {
-      if (index > 2_400) break;
-      var el = candidates[index];
-      if (!el.isConnected || ownNodes(el)) continue;
-      var kind; var inputType = '';
-      if (el.matches('button,[role=button]')) {
-        if (el.tagName === 'BUTTON' && ['submit', 'reset'].includes(String(el.type || '').toLowerCase())) continue;
-        if (el.tagName === 'A') continue;
-        kind = 'button';
-      } else if (el.matches('[contenteditable=true],[contenteditable=""]')) {
-        kind = 'field'; inputType = 'contenteditable';
-      } else if (el.matches(TEXT_SELECTOR)) {
-        kind = 'text';
-      } else {
-        inputType = (el.getAttribute('type') || 'text').toLowerCase();
-        if (!(el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || ['text', 'search', 'email', 'url', 'tel', 'number'].includes(inputType))) continue;
-        if (isSensitiveField(el)) continue;
-        kind = 'field';
+    var documents = pageDocuments();
+    for (var docIndex = 0; docIndex < documents.length; docIndex++) {
+      var doc = documents[docIndex].doc;
+      var frame = documents[docIndex].frame;
+      var view = doc.defaultView || window;
+      var memo = new Map();
+      var candidates = controlCandidates(doc);
+      for (var index = 0; index < candidates.length && index < 2_400; index++) {
+        var el = candidates[index];
+        if (!el.isConnected || ownNodes(el)) continue;
+        var kind; var inputType = '';
+        if (el.matches('button,[role=button]')) {
+          if (el.tagName === 'A') continue;
+          // Only an author-declared submit/reset control is off limits. A <button>
+          // with no type attribute reports type="submit" while behaving like a
+          // normal button, and excluding those hid most real tool buttons.
+          if (el.tagName === 'BUTTON' && ['submit', 'reset'].includes(explicitButtonType(el))) continue;
+          kind = 'button';
+        } else if (el.matches('[contenteditable=true],[contenteditable=""]')) {
+          kind = 'field'; inputType = 'contenteditable';
+        } else if (el.matches(TEXT_SELECTOR)) {
+          kind = 'text';
+        } else {
+          inputType = (el.getAttribute('type') || 'text').toLowerCase();
+          if (el.tagName === 'INPUT' && inputType === 'button') { kind = 'button'; }
+          else {
+            if (!(el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || ['text', 'search', 'email', 'url', 'tel', 'number'].includes(inputType))) continue;
+            if (isSensitiveField(el)) continue;
+            kind = 'field';
+          }
+        }
+        if (kind === 'text') {
+          var parentText = el.parentElement && el.parentElement.closest(TEXT_SELECTOR);
+          if (parentText && !ownNodes(parentText) && isVisibleOnPage(parentText, doc, 2, memo)) continue;
+        }
+        if (!isVisibleOnPage(el, doc, 2, memo)) continue;
+        if (frame && !isVisibleOnPage(frame, frame.ownerDocument, 2, new Map())) continue;
+        if (el.matches(':disabled') || el.readOnly || el.getAttribute('aria-disabled') === 'true') continue;
+        var label = controlLabelFor(el, kind);
+        if (!label) continue;
+        if (kind === 'field' && /password|secret|token|one-time|otp|credit.?card|card.?number|security.?code|\bssn\b/i.test(label)) continue;
+        var inViewport = isInViewport(el, view);
+        buckets[kind].push({ el: el, kind: kind, label: label, inputType: inputType, inViewport: inViewport, docIndex: docIndex, order: index });
       }
-      if (kind === 'text') {
-        var parentText = el.parentElement && el.parentElement.closest(TEXT_SELECTOR);
-        if (parentText && !ownNodes(parentText) && isVisibleOnPage(parentText, doc, 2, memo)) continue;
-      }
-      if (!isVisibleOnPage(el, doc, 2, memo)) continue;
-      if (el.matches(':disabled') || el.readOnly || el.getAttribute('aria-disabled') === 'true') continue;
-      var label = controlLabelFor(el, kind);
-      if (!label) continue;
-      if (kind === 'field' && /password|secret|token|one-time|otp|credit.?card|card.?number|security.?code|\bssn\b/i.test(label)) continue;
-      buckets[kind].push({ el: el, kind: kind, label: label, inputType: inputType });
     }
-    var ordered = buckets.button.slice(0, 14).concat(buckets.field.slice(0, 12), buckets.text.slice(0, 14));
+    // Prefer what the visitor can actually see right now.
+    var byScreen = function (a, b) {
+      return (b.inViewport ? 1 : 0) - (a.inViewport ? 1 : 0)
+        || a.docIndex - b.docIndex
+        || a.order - b.order;
+    };
+    buckets.button.sort(byScreen); buckets.field.sort(byScreen); buckets.text.sort(byScreen);
+    var ordered = buckets.button.slice(0, 16).concat(buckets.field.slice(0, 10), buckets.text.slice(0, 14));
     return ordered.map(function (entry, position) {
       var controlId = 'siloctl' + (position + 1);
       targetIndex.set(controlId, entry);
@@ -595,7 +703,8 @@
   }
   function applyAction(parent, action, confirmAction) {
     if (!action || typeof action.type !== 'string') return;
-    var label = shortText(action.label) || 'that element';
+    var known = action.target ? targetIndex.get(action.target) : null;
+    var label = shortText(action.label) || (known && known.label) || 'that element';
     if (action.type === 'navigate' && typeof action.path === 'string') {
       var destination;
       try { destination = new URL(action.path, location.origin); } catch (_) { return; }
@@ -618,8 +727,8 @@
     if (action.type === 'click') {
       actionButton(parent, 'Click “' + label + '”', function (event) {
         var target = resolveTarget(action);
-        if (!target || !target.matches('button,[role=button]')) { setStatus('That button is no longer on the page, so I didn’t click it.', 'warn'); return; }
-        if (target.tagName === 'BUTTON' && ['submit', 'reset'].includes(String(target.type || '').toLowerCase())) { setStatus('For safety, form submit and reset buttons cannot be clicked.', 'warn'); return; }
+        if (!target || !target.matches('button,[role=button],input[type=button]')) { setStatus('That button is no longer on the page, so I didn’t click it.', 'warn'); return; }
+        if (target.tagName === 'BUTTON' && ['submit', 'reset'].includes(String(target.getAttribute('type') || '').toLowerCase())) { setStatus('For safety, form submit and reset buttons cannot be clicked.', 'warn'); return; }
         event.currentTarget.disabled = true;
         event.currentTarget.textContent = 'Clicked ✓';
         var doc = target.ownerDocument;
