@@ -23,13 +23,21 @@ catch (e) { console.error(e.message); process.exit(1); }
 
 const app = initializeApp({ credential: cert(JSON.parse(readFileSync(credPath, 'utf8'))), databaseURL: 'https://htmltools2-default-rtdb.firebaseio.com' });
 const db = getDatabase(app);
+// The titled catalog lives in the GitHub worker index; fall back to the books node.
+let catalog = null;
+try {
+  const r = await fetch('https://black-field-f5e8.bozhetarnikmatthew.workers.dev/github/index.json');
+  if (r.ok) catalog = (await r.json()).games || null;
+} catch {}
+if (!catalog) catalog = (await db.ref('books').get()).val() || {};
+const ids = catalogIds(catalog);
 const snap = await db.ref('bookStats').get();
-const ids = catalogIds(snap.val() || {});
+const stats = snap.val() || {};
 const allocation = buildAllocation(totals, ids);
 
 const update = {};
 for (const [id, delta] of Object.entries(allocation)) {
-  const cur = (snap.val() || {})[id] || {};
+  const cur = stats[id] || {};
   for (const [k, dv] of Object.entries(delta)) {
     update[`bookStats/${id}/${k}`] = (cur[k] || 0) + dv;
     update[`books/${id}/${k}`] = ((await db.ref(`books/${id}/${k}`).get()).val() || 0) + dv;
