@@ -221,6 +221,8 @@ test('owner-enabled page interactions are bound to visible controls and never ac
     assert.match(envFor.lastInput.messages[0].content, /PAGE CONTROLS/);
     assert.match(envFor.lastInput.messages[0].content, /form values are never included/);
     assert.match(envFor.lastInput.messages[0].content, /"type":"edit"/, 'visible page text can be rewritten when the visitor asks');
+    assert.match(envFor.lastInput.messages[0].content, /Never say the page has no buttons/, 'the model may not claim a listed button is missing');
+    assert.match(envFor.lastInput.messages[0].content, /Only author-declared submit and reset buttons are withheld|same-origin frames or open shadow roots/, 'the control map covers plain buttons, frames, and shadow roots');
 
     env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I will not guess at a control.', action: { type: 'click', target: 'document.querySelector("#clear")' } }) }; };
     const invalid = await (await worker.fetch(makeRequest(), env, { waitUntil() {} })).json();

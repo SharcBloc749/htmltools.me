@@ -11,6 +11,12 @@ const pageMarkup = `
     <p id="intro">Visible page information for the visitor.</p>
     <div style="opacity:0"><p>Invisible page text must never be shared.</p></div>
     <button id="save" type="button">Save draft</button>
+    <form id="runner-form"><button id="run">Run</button></form>
+    <button id="danger" type="submit">Submit order</button>
+    <button id="icon-only" type="button" aria-labelledby="icon-label"><svg viewBox="0 0 10 10"><title>Download</title></svg></button>
+    <span id="icon-label" hidden>Download file</span>
+    <div id="shadow-host"></div>
+    <iframe id="runner-frame" title="Isolated runner"></iframe>
     <label for="name">Contact name</label><input id="name" type="text">
     <textarea id="html-editor" aria-label="HTML source editor"></textarea>
     <div id="rich-editor" contenteditable="true" aria-label="Rich text editor">Original content</div>
@@ -44,11 +50,12 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
     requests.push({ url, options, body });
     return { ok: true, status: 200, json: async () => responseFor(body) };
   };
-  window.HTMLElement.prototype.setPointerCapture = function () {};
-  window.HTMLElement.prototype.releasePointerCapture = function () {};
-  window.HTMLElement.prototype.hasPointerCapture = function () { return false; };
-  window.HTMLElement.prototype.scrollIntoView = function () {};
-  window.HTMLElement.prototype.getBoundingClientRect = function () {
+  const installLayoutStubs = (win) => {
+  win.HTMLElement.prototype.setPointerCapture = function () {};
+  win.HTMLElement.prototype.releasePointerCapture = function () {};
+  win.HTMLElement.prototype.hasPointerCapture = function () { return false; };
+  win.HTMLElement.prototype.scrollIntoView = function () {};
+  win.HTMLElement.prototype.getBoundingClientRect = function () {
     let ancestor = this;
     while (ancestor && ancestor.nodeType === 1) {
       if (ancestor.hidden || ancestor.hasAttribute('hidden')) return { x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON() {} };
@@ -62,11 +69,14 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
     } else if (this.classList?.contains('silo-panel')) {
       width = parseFloat(this.style.width) || 390; height = parseFloat(this.style.height) || 580;
       left = parseFloat(this.style.left) || 20; top = parseFloat(this.style.top) || 20;
-    } else if (this.tagName === 'BODY' || this.tagName === 'MAIN') { width = window.innerWidth; height = window.innerHeight; left = 0; top = 0; }
+    } else if (this.tagName === 'IFRAME') { width = 420; height = 260; left = 60; top = 320; }
+    else if (this.tagName === 'BODY' || this.tagName === 'MAIN') { width = window.innerWidth; height = window.innerHeight; left = 0; top = 0; }
     return { x: left, y: top, left, top, right: left + width, bottom: top + height, width, height, toJSON() {} };
   };
-  Object.defineProperty(window.HTMLElement.prototype, 'offsetWidth', { configurable: true, get() { return this.getBoundingClientRect().width; } });
-  Object.defineProperty(window.HTMLElement.prototype, 'offsetHeight', { configurable: true, get() { return this.getBoundingClientRect().height; } });
+  Object.defineProperty(win.HTMLElement.prototype, 'offsetWidth', { configurable: true, get() { return this.getBoundingClientRect().width; } });
+  Object.defineProperty(win.HTMLElement.prototype, 'offsetHeight', { configurable: true, get() { return this.getBoundingClientRect().height; } });
+  };
+  installLayoutStubs(window);
   window.HTMLCanvasElement.prototype.getContext = () => ({ drawImage() {} });
   window.HTMLCanvasElement.prototype.toDataURL = () => imageData(imageIndex++);
   window.createImageBitmap = async () => ({ width: 400, height: 200, close() {} });
@@ -77,6 +87,12 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
     };
   }
   window.addEventListener('error', (event) => errors.push(event.error || event.message));
+  // Same-origin frame content, like an HTML Runner preview pane.
+  const frameDoc = window.document.querySelector('#runner-frame').contentDocument;
+  if (frameDoc.defaultView) installLayoutStubs(frameDoc.defaultView);
+  frameDoc.body.innerHTML = '<div class="toolbar"><button id="frame-run">Run</button><button id="frame-clear" type="button">Clear</button></div>';
+  // Open shadow root content, like a custom element toolbar.
+  window.document.querySelector('#shadow-host').attachShadow({ mode: 'open' }).innerHTML = '<button id="shadow-apply" type="button">Apply changes</button>';
   const script = window.document.createElement('script');
   script.setAttribute('data-site-id', scriptSiteId);
   Object.defineProperty(window.document, 'currentScript', { configurable: true, value: script });
@@ -268,6 +284,66 @@ test('page actions highlight immediately and require confirmation before click, 
   dom.window.close();
 });
 
+
+test('plain buttons, framed buttons, and shadow-DOM buttons are found, labelled, and clickable', async () => {
+  let runClicks = 0;
+  let frameClicks = 0;
+  let shadowClicks = 0;
+  let dangerClicks = 0;
+  let formSubmits = 0;
+  const responseFor = (body) => {
+    const buttons = (body.controls || []).filter((control) => control.kind === 'button');
+    const pick = (pattern) => buttons.find((control) => pattern.test(control.label));
+    if (/click the run button/i.test(body.message)) return { reply: 'Found Run.', action: { type: 'click', target: pick(/^Run$/i)?.id }, confirmAction: true };
+    if (/click the framed run/i.test(body.message)) return { reply: 'Found the framed Run.', action: { type: 'click', target: buttons.filter((control) => /^Run$/i.test(control.label))[1]?.id }, confirmAction: true };
+    if (/click apply/i.test(body.message)) return { reply: 'Found Apply.', action: { type: 'click', target: pick(/Apply changes/i)?.id }, confirmAction: true };
+    return { reply: 'Found the download button.', action: { type: 'highlight', target: pick(/Download/i)?.id } };
+  };
+  const { dom, window, requests, errors } = makeWidget({ responseFor });
+  const doc = window.document;
+  doc.querySelector('#run').addEventListener('click', () => { runClicks++; });
+  doc.querySelector('#runner-form').addEventListener('submit', (event) => { formSubmits++; event.preventDefault(); });
+  doc.querySelector('#danger').addEventListener('click', () => { dangerClicks++; });
+  const frameDoc = doc.querySelector('#runner-frame').contentDocument;
+  frameDoc.querySelector('#frame-run').addEventListener('click', () => { frameClicks++; });
+  const shadowRoot = doc.querySelector('#shadow-host').shadowRoot;
+  shadowRoot.querySelector('#shadow-apply').addEventListener('click', () => { shadowClicks++; });
+  const shadow = doc.querySelector('#siloai-widget-host').shadowRoot;
+
+  submit(window, shadow, 'What is on this page?'); await flush();
+  const labels = requests[0].body.controls.map((control) => control.label);
+  assert.ok(labels.includes('Run'), 'a <button> with no type attribute is a real button, not an implicit submit');
+  assert.ok(labels.includes('Clear'), 'buttons inside a same-origin frame are collected');
+  assert.ok(labels.includes('Apply changes'), 'buttons inside open shadow roots are collected');
+  assert.ok(labels.includes('Download file'), 'an icon-only button is labelled from aria-labelledby');
+  assert.ok(!labels.includes('Submit order'), 'an author-declared submit button is still withheld');
+  assert.doesNotMatch(JSON.stringify(requests[0].body.controls), /Existing field value/, 'field values are still never sent');
+
+  submit(window, shadow, 'Click the run button please'); await flush();
+  replyAction(shadow).click();
+  assert.equal(runClicks, 1, 'the plain Run button is clickable after confirmation');
+  assert.equal(formSubmits, 0, 'the synthetic click never submits the surrounding form');
+
+  submit(window, shadow, 'Click the framed run button'); await flush();
+  replyAction(shadow).click();
+  assert.equal(frameClicks, 1, 'a button inside the isolated frame can be clicked');
+
+  submit(window, shadow, 'Click apply changes'); await flush();
+  replyAction(shadow).click();
+  assert.equal(shadowClicks, 1, 'a shadow-DOM button can be clicked');
+  assert.equal(dangerClicks, 0, 'submit buttons are never activated');
+
+  submit(window, shadow, 'Highlight the download button'); await flush();
+  const ring = frameDoc.createElement('div');
+  void ring;
+  const overlays = doc.querySelectorAll('[data-siloai-highlight]');
+  assert.ok(overlays.length >= 2, 'a highlight ring is drawn for the icon-only button');
+
+  const excerpt = requests[0].body.pageExcerpt;
+  assert.match(excerpt, /Visible page information for the visitor/, 'the page excerpt is unchanged');
+  assert.deepEqual(errors, []);
+  dom.window.close();
+});
 
 test('the welcome card offers starter prompts and the widget keeps page hotkeys out of its own inputs', async () => {
   const { dom, window, requests, errors } = makeWidget();
