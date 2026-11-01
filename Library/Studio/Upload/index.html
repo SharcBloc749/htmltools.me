@@ -698,6 +698,27 @@ function lightBookPaths(id,meta){
       collaborators:meta.collaborators||null}
   };
 }
+// Save through the GitHub worker; throws when the worker is unreachable.
+async function ghSave(id,code,meta){
+  const res=await fetch(`${GH_WORKER}/github/saveGame`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,html:code,meta})});
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok||!j.ok)throw new Error(j.error||j.details||'GitHub worker unavailable');
+}
+// Fallback when the GitHub worker is down: persist the whole game in RTDB
+// (books/<id> including the HTML `code`, plus the light bookStats mirror) so
+// publishing and editing keep working without the worker.
+async function fbSaveBook(id,code,meta,isNew){
+  if(isNew){
+    const paths=lightBookPaths(id,meta);
+    paths['books/'+id]={...paths['books/'+id],code};
+    await update(ref(db),paths);
+  }else{
+    const paths={'books/'+id+'/code':code};
+    ['title','desc','updatedAt','platform','logoImage','bgImage','allowViewCode','chatEnabled','chatScope','collaborators','ownerId','ownerName'].forEach(k=>{if(meta[k]!==undefined)paths['books/'+id+'/'+k]=meta[k];});
+    ['title','desc','updatedAt','chatEnabled','chatScope','allowViewCode','collaborators','logoImage','bgImage','ownerId','ownerName'].forEach(k=>{if(meta[k]!==undefined)paths['bookStats/'+id+'/'+k]=meta[k];});
+    await update(ref(db),paths);
+  }
+}
 const GH_CACHE_KEY="htmlib_github_cache_v2";
 const MAX_CODE_BYTES=1024*1024; /* 1 MB of code — matches GitHub's per-file upload cap. Logo & background images are stored separately and never count toward this. */
 const codeBytes=s=>new TextEncoder().encode(s||'').length;
@@ -1320,17 +1341,16 @@ window.remixPublish=async function(){
   if(_rx.logo)meta.logoImage=_rx.logo;if(_rx.bg)meta.bgImage=_rx.bg;
   try{
     const newId=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-    const res=await fetch(`${GH_WORKER}/github/saveGame`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({id:newId, html:_rx.code, meta})
-    });
-    const j=await res.json();
-    if(!res.ok || !j.ok) throw new Error(j.error||j.details||'Publish failed');
-    try{ await update(ref(db), lightBookPaths(newId, meta)); }catch{}
-    try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(_rx.code,{headers:{"Content-Type":"text/html"}})); }catch{}
+    let viaGh=true;
+    try{ await ghSave(newId,_rx.code,meta); }catch(e){ viaGh=false; }
+    if(viaGh){
+      try{ await update(ref(db), lightBookPaths(newId, meta)); }catch{}
+      try{ const c=await caches.open('games-html-v1'); await c.put(`${GH_WORKER}/github/game/${newId}`, new Response(_rx.code,{headers:{"Content-Type":"text/html"}})); }catch{}
+    }else{
+      await fbSaveBook(newId,_rx.code,meta,true);
+    }
     removeAutoSave('remix');
-    showToast('Remix published! 🎛','ok');
+    showToast(viaGh?'Remix published! 🎛':'Remix published! 🎛 (saved to Firebase — GitHub worker unreachable)','ok');
     setTimeout(()=>window.location.href='/Library/Studio/',1300);
   }catch(e){showToast('Error: '+e.message,'err');}
   btn.innerHTML='🚀 Publish Remix';btn.disabled=false;_rx.publishing=false;
@@ -1550,13 +1570,9 @@ window.submitManual=async function(){
           }
         }
       }catch{}
-      const res=await fetch(`${GH_WORKER}/github/saveGame`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({id:_m.editId, html:code, meta: saveMeta})
-      });
-      const j=await res.json();
-      if(!res.ok || !j.ok) throw new Error(j.error||'Save failed');
+      let viaGh=true;
+      try{ await ghSave(_m.editId,code,saveMeta); }catch(e){ viaGh=false; }
+      if(!viaGh) await fbSaveBook(_m.editId,code,saveMeta,false);
       // Also keep Firebase stats in sync (for likes/views) - update lightweight entry
       // Keep the light `books` record AND the tiny `bookStats` mirror in sync so the
       // Library/Studio never need to download the heavy `books` node.

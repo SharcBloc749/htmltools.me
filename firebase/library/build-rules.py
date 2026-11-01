@@ -24,6 +24,7 @@ metadata_fields = {
     "title": string(200), "desc": string(2000), "ownerId": string(128), "ownerName": string(200),
     "createdAt": number(), "updatedAt": number(), "chatEnabled": boolean(), "chatScope": string(20),
     "allowViewCode": boolean(), "undeletable": boolean(), "platform": string(20),
+    "logoImage": string(3000000), "bgImage": string(3000000),
     "collaborators": {"$key": {**string(200), "email": string(320)}},
 }
 for node in ["books", "bookStats"]:
@@ -40,6 +41,13 @@ for node in ["books", "bookStats"]:
     # Owners may edit their own lightweight metadata, but never counters.
     for field in metadata_fields:
         rules[node]["$id"][field][".write"] = f"{OWNER} || ({SESSION} && data.parent().child('ownerId').val() === auth.uid)"
+
+# Game HTML source lives in books/$id/code so the Library keeps working even
+# when the GitHub worker is unreachable. Only the book's owner may write it.
+rules["books"]["$id"]["code"] = {
+    ".write": f"{OWNER} || ({SESSION} && !data.exists() && newData.parent().child('ownerId').val() === auth.uid) || ({SESSION} && data.parent().child('ownerId').val() === auth.uid)",
+    ".validate": "newData.isString() && newData.val().length <= 1100000",
+}
 
 rules["bookEngagement"] = {".read": False, ".write": False}
 rules["engagementPreviews"] = {".read": False, ".write": False}

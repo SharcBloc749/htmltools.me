@@ -808,6 +808,18 @@ async function fetchGitHubLibrary(isBackground=false){
   }catch(e){
     console.error("[GitHub] fetch failed", e);
     if(!_booksLoaded){
+      // Fallback: GitHub worker unreachable — populate the grid from the light
+      // `bookStats` mirror (public read, ~100 bytes per game) so the Library
+      // still works without the worker.
+      try{
+        const stats=await fetchBookStats();
+        if(stats){
+          Object.entries(stats).forEach(([id,s])=>{ if(s&&s.title) allBooks[id]={...s,_origId:id}; });
+          if(Object.keys(allBooks).length){ _booksLoaded=true; renderPins(); renderBooks(); }
+        }
+      }catch(e2){ console.warn('[Library] Firebase bookStats fallback failed', e2); }
+    }
+    if(!_booksLoaded){
       document.getElementById('books-grid').innerHTML=`<div class="empty-state"><div class="big">⚠️</div><p>Failed to load library: ${esc(e.message)}</p><p style="font-size:.7rem;color:var(--tx-3);margin-top:.5rem">Using cache if available...</p></div>`;
     }
   }

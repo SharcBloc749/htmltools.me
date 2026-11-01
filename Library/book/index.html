@@ -540,9 +540,13 @@ async function loadCode(){
     const hit=await c.match(`${GH_WORKER}/github/game/${bookId}`);
     if(hit){const t=await hit.text();if(t&&t.length>20)return t;}
   }catch(e){}
-  // NOTE: the Firebase code fallback (bookCode/{id}/code, books/{id}/code) was REMOVED —
-  // it downloaded the entire game HTML from RTDB on every play. Run migrate-games.html
-  // first to move legacy games into GitHub.
+  // 3) Firebase fallback — LAST RESORT only (worker unreachable AND no local
+  // cache hit), so the game still plays when the GitHub worker is down. Primary
+  // loads never touch this path.
+  try{
+    const s=await get(ref(db,'books/'+bookId+'/code'));
+    if(s.exists()&&s.val()&&String(s.val()).length>20)return s.val();
+  }catch(e){}
   console.warn('[loadCode] failed for',bookId,'lastStatus',lastStatus);
   return null;
 }
