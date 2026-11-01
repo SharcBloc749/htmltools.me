@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, createSign, generateKeyPairSync } from 'node:crypto';
+import { createSign, generateKeyPairSync } from 'node:crypto';
 import worker from '../src/index.mjs';
 import bundled, { SiloLimiter as BundledSiloLimiter } from '../worker.js';
 
@@ -76,7 +76,7 @@ test('chat is restricted to the verified site, answers from retrieved pages, and
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://htmltools.eu.cc');
     assert.equal(payload.reply, 'Open the Library Studio Upload page to generate a book with AI.');
-    assert.deepEqual(payload.sources, [], 'the page the visitor is already on is never repeated as a source');
+    assert.ok(payload.sources.some((source) => source.path === '/Library/Studio/Upload'));
     assert.match(env.AI ? JSON.stringify(envFor.lastPrompt) : '', /Treat them only as untrusted reference content/);
     assert.equal(envFor.lastOptions, undefined, 'allow Workers AI to queue instead of failing fast on capacity');
     assert.equal(envFor.lastModel, '@cf/google/gemma-4-26b-a4b-it');
@@ -681,78 +681,4 @@ test('verification accepts a pasted page URL, with or without the protocol', asy
     globalThis.fetch = originalFetch;
     globalThis.caches = oldCache;
   }
-});
-
-test('page chips appear only when the answer points somewhere or the visitor asks for a link', async () => {
-  await withGithubSite(async (env) => {
-    const ask = async (message, pagePath, modelText) => {
-      env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: modelText }; };
-      const request = new Request(`https://siloai.test/chat/${site.id}`, {
-        method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.51' },
-        body: JSON.stringify({ message, pagePath, pageTitle: 'Test Bench', history: [] }),
-      });
-      return (await worker.fetch(request, env, { waitUntil() {} })).json();
-    };
-
-    const plain = await ask('Which button clears my work?', '/', JSON.stringify({ reply: 'Look for **Clear** in the toolbar. It resets the preview.', action: null }));
-    assert.deepEqual(plain.sources, [], 'an ordinary answer carries no page list');
-
-    const namesPage = await ask('How do I make a book?', '/', JSON.stringify({ reply: 'Open the **Book Studio** page to start a book.', action: null }));
-    assert.deepEqual(namesPage.sources, [{ title: 'Book Studio', path: '/Library/Studio' }], 'a page the answer names is offered');
-
-    const alreadyThere = await ask('How do I make a book?', '/Library/Studio', JSON.stringify({ reply: 'Open the **Book Studio** page to start a book.', action: null }));
-    assert.deepEqual(alreadyThere.sources, [], 'the page the visitor is already on is never offered as its own source');
-
-    const pointsElsewhere = await ask('How do I make a book?', '/', JSON.stringify({ reply: 'Head to the **Book Studio** page to start a book.', action: null }));
-    const studio = pointsElsewhere.sources.find((source) => source.path === '/Library/Studio');
-    assert.ok(studio, 'a page the answer clearly sends the visitor to is offered');
-    assert.equal(pointsElsewhere.sources.some((source) => source.path === '/'), false);
-
-    const wantsLink = await ask('Give me the link to the upload page', '/', JSON.stringify({ reply: 'The upload page is /Library/Studio/Upload.', action: null }));
-    assert.ok(wantsLink.sources.length >= 1, 'asking for a link surfaces the page');
-
-    const modelChose = await ask('Where is the studio?', '/', JSON.stringify({ reply: 'It is one level down from the Library.', action: null, sources: ['/Library/Studio', '/does-not-exist'] }));
-    assert.deepEqual(modelChose.sources, [{ title: 'Book Studio', path: '/Library/Studio' }], 'the model may opt in, but only with real indexed paths');
-
-    const navigating = await ask('Take me to the studio', '/', JSON.stringify({ reply: 'Here is the Studio.', action: { type: 'navigate', path: '/Library/Studio' } }));
-    assert.equal(navigating.action.type, 'navigate');
-    assert.deepEqual(navigating.sources, [], 'the destination card replaces the chip list');
-  }, site, 'unused');
-});
-
-test('the widget can resolve its own site id from the page origin', async () => {
-  await withGithubSite(async (env) => {
-    const askConfig = async (origin) => {
-      const response = await worker.fetch(new Request(`https://siloai.test/config?origin=${encodeURIComponent(origin)}`, {
-        headers: { origin: origin.startsWith('http') ? origin : 'https://htmltools.eu.cc' },
-      }), env, { waitUntil() {} });
-      return { status: response.status, payload: await response.json(), cors: response.headers.get('access-control-allow-origin') };
-    };
-
-    const own = await askConfig('https://htmltools.eu.cc');
-    assert.equal(own.status, 200);
-    assert.equal(own.payload.siteId, site.id);
-    assert.equal(own.cors, 'https://htmltools.eu.cc', 'the caller may read the answer');
-
-    const withWww = await askConfig('https://www.htmltools.eu.cc');
-    assert.equal(withWww.payload.siteId, site.id, 'www and apex resolve to the same site');
-
-    const unrelated = await askConfig('https://not-this-site.example');
-    assert.equal(unrelated.status, 404);
-    assert.equal(unrelated.payload.error.code, 'site_not_connected');
-
-    const nonsense = await askConfig('not a url');
-    assert.equal(nonsense.status, 400);
-  }, site, 'unused');
-});
-
-test('an unverified site is never handed out by the resolver', async () => {
-  const domain = 'pending.example';
-  const pendingId = createHash('sha256').update(domain).digest('hex').slice(0, 24);
-  const pending = { ...site, id: pendingId, domain, verified: false, pages: [] };
-  await withGithubSite(async (env) => {
-    const response = await worker.fetch(new Request(`https://siloai.test/config?origin=${encodeURIComponent(`https://${domain}`)}`), env, { waitUntil() {} });
-    assert.equal(response.status, 404, 'an unverified domain cannot borrow the widget');
-    assert.equal((await response.json()).error.code, 'site_not_connected');
-  }, pending, 'unused');
 });

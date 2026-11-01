@@ -11,14 +11,14 @@ HTMLTools is a directory of web utilities, coding sandboxes, AI tools, media app
 The directory's tool list changes over time; one recent snapshot had 18 tools in five categories:
 
 - **Popular:** HTMLTools Browser, AI Playground, MatTube, HTML Library, MatTok
-- **AI:** SiloAI (the site assistant, embedded on every page), Make Your Own AI, AI Image Editor, AI Image Generator, Research AI (chat models are consolidated in AI Playground)
+- **AI:** SiloAI (the site assistant, embedded on 22 pages), Make Your Own AI, AI Image Editor, AI Image Generator, Research AI (chat models are consolidated in AI Playground)
 - **Tech:** Past Time, Website Encryption, Make a Website, Advanced Workspace, HTMLTools Proxy, Translator
 - **Media:** Remove Background, Art
 - **Communication:** HTMeet
 
 The list changes over time; the [live directory](https://htmltools.me/Tools/) has the latest version. Some tools are separate apps or rely on external services.
 
-Every HTML page in this repository loads the SiloAI assistant (`/SiloAI/widget.js`) as the last element of its `<body>`. The widget asks the Worker which site owns the page, so one snippet covers the whole domain; it makes no network request until a visitor actually opens the chat, and it is served with `must-revalidate`, so updates reach every page without editing any snippet.
+Almost every HTML page in this repository loads the SiloAI assistant (`/SiloAI/widget.js`) as the last element of its `<body>`; the Library book reader is the exception. It makes no network request until a visitor actually opens the chat, and it is served with `must-revalidate`, so a widget update reaches every page without editing any snippet.
 
 ## Using the directory
 

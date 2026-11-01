@@ -70,39 +70,59 @@ test('SiloAI dashboard, widget, source Worker, and generated Worker are present'
   assert.doesNotMatch(wrangler, /GITHUB_TOKEN\s*=\s*"[A-Za-z0-9_]/);
 });
 
+const SITE_ID = '30268100ff25914e5289a440';
+
 const EMBEDDED_PAGES = [
-  'index.html', 'Tools/index.html', 'Main/index.html',
-  'Library/index.html', 'Library/Studio/index.html', 'Library/Studio/Upload/index.html', 'Library/book/index.html',
-  'AI-Playground/index.html', 'AI-Playground/Chat/index.html',
-  'Advanced/index.html', 'Advanced/Download/index.html',
-  'Art/index.html', 'Art/Create/index.html', 'Art/Museum/index.html', 'Art/Upload/index.html',
-  'Browser/index.html', 'ImageEditorAI/index.html', 'ImageGeneratorAI/index.html',
-  'MatTok/index.html', 'Meet/index.html', 'Research/index.html', 'SiloAI/index.html', 'website-encryption/index.html',
+  'index.html',
+  'Tools/index.html',
+  'Main/index.html',
+  'Library/index.html',
+  'Library/Studio/index.html',
+  'Library/Studio/Upload/index.html',
+  'AI-Playground/index.html',
+  'AI-Playground/Chat/index.html',
+  'Advanced/index.html',
+  'Advanced/Download/index.html',
+  'Art/index.html',
+  'Art/Create/index.html',
+  'Art/Museum/index.html',
+  'Art/Upload/index.html',
+  'Browser/index.html',
+  'ImageEditorAI/index.html',
+  'ImageGeneratorAI/index.html',
+  'MatTok/index.html',
+  'Meet/index.html',
+  'Research/index.html',
+  'SiloAI/index.html',
+  'website-encryption/index.html',
 ];
 
-test('the widget is embedded on every HTMLTools page, once, at the end of the body', async () => {
-  for (const page of EMBEDDED_PAGES) {
-    const html = await readFile(new URL('../../' + page, import.meta.url), 'utf8');
-    const tags = html.match(/<script[^>]+SiloAI\/widget\.js[^>]*>/g) || [];
-    assert.equal(tags.length, 1, page + ' should load the widget exactly once');
-    assert.match(tags[0], /src="https:\/\/htmltools\.me\/SiloAI\/widget\.js"/, page + ' uses the stable, self-updating URL');
-    assert.match(tags[0], /data-site-id="30268100ff25914e5289a440"/, page + ' carries the htmltools.me site id');
-    const tail = html.slice(html.lastIndexOf('</body>') - 400);
-    assert.match(tail, /SiloAI\/widget\.js/, page + ' places the snippet immediately before </body>');
+test('every HTMLTools page carries exactly one SiloAI embed, and Library/book stays clean', async () => {
+  const embed = new RegExp(`<script async src="https://htmltools\\.me/SiloAI/widget\\.js" data-site-id="${SITE_ID}"></script>`);
+  for (const path of EMBEDDED_PAGES) {
+    const page = await readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+    const matches = page.match(/https:\/\/htmltools\.me\/SiloAI\/widget\.js/g) || [];
+    assert.equal(matches.length, 1, `${path} loads the widget exactly once`);
+    assert.match(page, embed, `${path} uses the htmltools.me site id`);
+    assert.match(page, /data-site-id="30268100ff25914e5289a440"><\/script>\s*<\/body>/, `${path} embeds the widget as the last thing in the body`);
+    assert.doesNotMatch(page, /widget\.js\?v=/, `${path} never cache-busts the embed URL`);
   }
+  const book = await readFile(new URL('../../Library/book/index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(book, /SiloAI\/widget\.js/, 'the book reader keeps its own page clean');
 });
 
-test('SiloAI is promoted in the Tools directories, the home page, and the sitemap', async () => {
+test('SiloAI is listed under the featured tool on the home page and the Tools directory', async () => {
   for (const path of ['../../index.html', '../../Tools/index.html']) {
     const directory = await readFile(new URL(path, import.meta.url), 'utf8');
-    const entry = /id: "siloai",[\s\S]*?\n      },/.exec(directory);
-    assert.ok(entry, path + ' lists SiloAI');
-    assert.match(entry[0], /url: "https:\/\/htmltools\.me\/SiloAI"/, path + ' links to the SiloAI page');
-    assert.match(entry[0], /img: "https:\/\/htmltools\.me\/SiloAI\/brandmark-mono\.png"/, path + ' uses the SiloAI logo');
-    // The card must sit directly under the featured card, not somewhere down the list.
-    const tools = directory.slice(directory.indexOf('const tools = ['));
-    const order = [...tools.matchAll(/id: "([a-z0-9-]+)"/g)].map((match) => match[1]);
-    assert.equal(order[1], 'siloai', path + ' places SiloAI right under the featured tool');
+    const start = directory.indexOf('const tools = [');
+    const featured = directory.indexOf('id: "htmltools-browser"', start);
+    const silo = directory.indexOf('id: "siloai"', featured);
+    const next = directory.indexOf('id: "', featured + 1);
+    assert.ok(featured > -1 && silo > -1, `${path} lists SiloAI`);
+    assert.equal(silo, next, `${path} places SiloAI directly under the featured tool`);
+    const entry = directory.slice(silo, directory.indexOf('\n      },', silo));
+    assert.match(entry, /url: "https:\/\/htmltools\.me\/SiloAI"/, `${path} links to the SiloAI page`);
+    assert.match(entry, /img: "https:\/\/htmltools\.me\/SiloAI\/brandmark-mono\.png"/, `${path} uses the SiloAI logo`);
   }
   const sitemap = await readFile(new URL('../../sitemap1.xml', import.meta.url), 'utf8');
   assert.match(sitemap, /<loc>https:\/\/htmltools\.me\/SiloAI\/<\/loc>/);

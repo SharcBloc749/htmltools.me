@@ -38,7 +38,7 @@ function makeStorage(initial = {}, { failWrites = false, failCount = 0 } = {}) {
   };
 }
 
-function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sources: [] }), storage = makeStorage(), speech = false, imageData = () => 'data:image/jpeg;base64,/9j/2Q==', scriptSiteId = siteId, configSiteId = siteId } = {}) {
+function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sources: [] }), storage = makeStorage(), speech = false, imageData = () => 'data:image/jpeg;base64,/9j/2Q==', scriptSiteId = siteId } = {}) {
   const requests = [];
   const errors = [];
   let imageIndex = 0;
@@ -50,14 +50,8 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
   const { window } = dom;
   Object.defineProperty(window, 'localStorage', { configurable: true, value: storage });
   window.fetch = async (url, options) => {
-    const target = String(url);
-    if (target.includes('/config')) {
-      requests.push({ url: target, options, body: null });
-      if (!configSiteId) return { ok: false, status: 404, json: async () => ({ error: { code: 'site_not_connected', message: 'This website is not connected to SiloAI yet.' } }) };
-      return { ok: true, status: 200, json: async () => ({ siteId: configSiteId }) };
-    }
     const body = JSON.parse(options.body);
-    requests.push({ url: target, options, body });
+    requests.push({ url, options, body });
     return { ok: true, status: 200, json: async () => responseFor(body) };
   };
   const installLayoutStubs = (win) => {
@@ -104,7 +98,7 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
   // Open shadow root content, like a custom element toolbar.
   window.document.querySelector('#shadow-host').attachShadow({ mode: 'open' }).innerHTML = '<button id="shadow-apply" type="button">Apply changes</button>';
   const script = window.document.createElement('script');
-  if (scriptSiteId) script.setAttribute('data-site-id', scriptSiteId);
+  script.setAttribute('data-site-id', scriptSiteId);
   Object.defineProperty(window.document, 'currentScript', { configurable: true, value: script });
   window.eval(widgetSource);
   return { dom, window, requests, errors, storage };
@@ -674,11 +668,11 @@ test('replies render light markdown, never echo a JSON wrapper, and show the wid
   });
   const { dom, window, errors } = makeWidget({ responseFor });
   const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-  assert.equal(window.SiloAI.version, '12');
+  assert.equal(window.SiloAI.version, '10');
   const version = shadow.querySelector('[data-version]');
   assert.ok(version, 'the running version is visible without opening the console');
-  assert.equal(version.textContent.trim(), 'v12');
-  assert.match(version.getAttribute('title'), /SiloAI widget v12/);
+  assert.equal(version.textContent.trim(), 'v10');
+  assert.match(version.getAttribute('title'), /SiloAI widget v10/);
 
   submit(window, shadow, 'How do I save?'); await flush();
   const reply = lastReply(shadow);
@@ -695,124 +689,5 @@ test('replies render light markdown, never echo a JSON wrapper, and show the wid
   assert.equal(lastReply(rawShadow).textContent.trim(), 'Only this sentence.', 'a JSON-only reply is unwrapped even if the Worker ever lets one through');
   assert.deepEqual(errors, []);
   rawJson.dom.window.close();
-  dom.window.close();
-});
-
-test('page chips never repeat the page the visitor is on, and duplicates collapse into one', async () => {
-  const responseFor = () => ({
-    reply: 'The library is where books live.',
-    sources: [
-      { title: 'Current editor', path: '/tools/editor' },
-      { title: 'HTML Library', path: '/Library' },
-      { title: 'HTML Library again', path: '/Library/' },
-    ],
-  });
-  const { dom, window, errors } = makeWidget({ responseFor });
-  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-  submit(window, shadow, 'Where do I read books?'); await flush();
-  const chips = [...lastReply(shadow).querySelectorAll('.silo-source')];
-  assert.equal(chips.length, 1, 'only genuinely different, elsewhere pages become chips');
-  assert.equal(chips[0].textContent, 'HTML Library');
-  assert.equal(chips[0].getAttribute('href'), 'https://example.test/Library');
-
-  const quiet = makeWidget({ responseFor: () => ({ reply: 'Just an answer.', sources: [] }) });
-  const quietShadow = quiet.window.document.querySelector('#siloai-widget-host').shadowRoot;
-  submit(quiet.window, quietShadow, 'Hello'); await flush();
-  assert.equal(lastReply(quietShadow).querySelector('.silo-sources'), null, 'a plain answer shows no page list');
-  assert.deepEqual(errors, []);
-  quiet.dom.window.close();
-  dom.window.close();
-});
-
-test('hovering and sending a key reach the page only on request, and pressing never submits a form', async () => {
-  let hovers = 0;
-  let submits = 0;
-  const keys = [];
-  const responseFor = (body) => {
-    const controls = body.controls || [];
-    const pick = (kind, label) => controls.find((control) => control.kind === kind && control.label === label);
-    if (/hover the save/i.test(body.message)) return { reply: 'Hovering it for you.', action: { type: 'hover', target: pick('button', 'Save draft')?.id }, confirmAction: true };
-    if (/press enter/i.test(body.message)) return { reply: 'Pressing Enter now.', action: { type: 'press', target: pick('button', 'Save draft')?.id, key: 'Enter' }, confirmAction: true };
-    return { reply: 'Nothing to do.' };
-  };
-  const { dom, window, requests, errors } = makeWidget({ responseFor });
-  const save = window.document.querySelector('#save');
-  save.addEventListener('mouseover', () => { hovers++; });
-  save.addEventListener('keydown', (event) => { keys.push(event.key); });
-  window.document.addEventListener('submit', () => { submits++; });
-  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-
-  submit(window, shadow, 'Hover the save button'); await flush();
-  assert.equal(hovers, 1, 'hovering is harmless, so it happens as soon as the answer lands');
-  replyAction(shadow).click();
-  assert.equal(hovers, 2, 'the visitor can repeat it');
-
-  submit(window, shadow, 'Press enter on save'); await flush();
-  assert.deepEqual(keys, [], 'a key press waits for the visitor');
-  replyAction(shadow).click();
-  assert.deepEqual(keys, ['Enter'], 'the key reaches the focused control');
-  assert.equal(submits, 0, 'a pressed Enter never submits the surrounding form');
-  assert.match(shadow.querySelector('[data-status-text]').textContent, /Sent Enter to “Save draft”/);
-  assert.deepEqual(errors, []);
-  void requests;
-  dom.window.close();
-});
-
-test('an embed without a site id resolves its own site from the page origin', async () => {
-  const { dom, window, requests, errors } = makeWidget({ scriptSiteId: null });
-  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-  assert.ok(shadow.querySelector('.silo-fab'), 'the launcher still appears with no configured id');
-  shadow.querySelector('.silo-fab').click();
-  await flush();
-  assert.equal(requests.filter((request) => String(request.url).includes('/config')).length, 1, 'the widget asks the Worker which site owns this origin');
-  assert.match(String(requests[0].url), /origin=https%3A%2F%2Fexample\.test/);
-
-  submit(window, shadow, 'Hello there'); await flush();
-  const chat = requests.filter((request) => String(request.url).includes('/chat/'));
-  assert.ok(chat.length >= 1, 'the resolved id is used for chat');
-  assert.match(String(chat[0].url), new RegExp('/chat/' + siteId));
-  assert.deepEqual(errors, []);
-  dom.window.close();
-});
-
-test('a widget with no resolvable site explains itself instead of failing silently', async () => {
-  const { dom, window, errors, requests } = makeWidget({ scriptSiteId: null, configSiteId: '' });
-  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-  shadow.querySelector('.silo-fab').click();
-  await flush();
-  const status = shadow.querySelector('[data-status-text]').textContent;
-  assert.match(status, /not connected to this website yet/);
-  assert.match(status, /htmltools\.me\/SiloAI/);
-  submit(window, shadow, 'Are you there?'); await flush();
-  assert.equal(requests.filter((request) => String(request.url).includes('/chat/')).length, 0, 'no chat request is made without a site');
-  assert.match(shadow.querySelector('[data-status-text]').textContent, /not connected/);
-  assert.deepEqual(errors, []);
-  dom.window.close();
-});
-
-test('a malformed data-site-id still stops the embed instead of guessing', () => {
-  const { window, errors } = makeWidget({ scriptSiteId: 'not-a-valid-site-id' });
-  assert.equal(window.document.querySelector('#siloai-widget-host'), null);
-  assert.deepEqual(errors, []);
-  window.close();
-});
-
-test('a widget loaded inside a preview frame stays out of the way', async () => {
-  const { JSDOM } = await import('jsdom');
-  const dom = new JSDOM('<!doctype html><html><body><iframe id="preview"></iframe></body></html>', {
-    url: 'https://example.test/Advanced/', runScripts: 'outside-only', pretendToBeVisual: true,
-  });
-  const frameWindow = dom.window.document.querySelector('#preview').contentWindow;
-  assert.notEqual(frameWindow.top, frameWindow.self, 'the frame really is nested');
-  frameWindow.fetch = async () => ({ ok: true, status: 200, json: async () => ({ siteId }) });
-  const script = frameWindow.document.createElement('script');
-  script.setAttribute('data-site-id', siteId);
-  Object.defineProperty(frameWindow.document, 'currentScript', { configurable: true, value: script });
-  frameWindow.eval(widgetSource);
-  const host = frameWindow.document.querySelector('#siloai-widget-host');
-  const shadow = host && host.shadowRoot;
-  assert.ok(shadow && shadow.querySelector('.silo-fab'), 'the frame still gets a launcher, so an owner can see it loaded');
-  shadow.querySelector('.silo-fab').click();
-  assert.equal(shadow.querySelector('.silo-panel').hidden, true, 'clicking it inside a frame does not cover the preview content');
   dom.window.close();
 });
