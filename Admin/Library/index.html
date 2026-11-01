@@ -973,8 +973,7 @@
 			import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 			import{getDatabase,ref,push,set,get,onValue,update,remove,query,orderByKey,limitToLast}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 			import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-			import{createLibraryBridge}from"/assets/library-session.js";
-			import{initializeLibraryAppCheck}from"/assets/library-app-check.js";
+						import{initializeLibraryAppCheck}from"/assets/library-app-check.js";
 
 			const OWNER_EMAIL='matthewbozhe@gmail.com';
 
@@ -990,8 +989,7 @@
 			const newDb=getDatabase(newApp);
 
 			// Auth on OLD app so existing accounts work
-			const auth=getAuth(oldApp);
-			const libraryBridge=createLibraryBridge(oldApp,newApp);
+			const auth=getAuth(newApp);
 
 			let currentUser=null;
 			let allBooksOld={},allBooksNew={},allBooks={};
@@ -1041,17 +1039,15 @@
 			// ── IS OWNER / ADMIN ───────────────────────────────────────────────────
 			// UI access is decided by the signed-in owner email (the account password
 			// is still verified by Firebase Auth). Previously the UI also required the
-			// server-minted `libraryOwner` claim (libraryBridge.owner) just to OPEN the
-			// panel — so a Cloud Function outage, a CORS problem or an unverified-email
-			// flag locked the owner out of their own panel entirely. The secure bridge
-			// is still established afterwards and remains mandatory for the privileged
-			// server actions that check libraryBridge.owner (see the Engagement tools).
+			// The panel gate is the signed-in owner email (verified by Firebase Auth).
+			// The optional Cloud Functions backend is only used by the Engagement
+			// preview/share tools; without it they stay offline gracefully.
 			function isOwner(u){return !!(u&&u.email&&u.email.toLowerCase()===OWNER_EMAIL.toLowerCase()&&u.uid===auth.currentUser?.uid);}
 			function isAdminUser(u){
 				// Legacy email allowlists do not grant owner access.
 				return isOwner(u);
 			}
-			function hasSecureOwnerSession(){return libraryBridge.owner===true;}
+			function hasSecureOwnerSession(){return isOwner(currentUser);}
 
 			// ── AUTH ───────────────────────────────────────────────────────────────
 			window.doLogin=async function(){
@@ -1070,7 +1066,7 @@
 				}
 			};
 
-			window.doSignOut=async function(){await libraryBridge.signOutData();await fbSignOut(auth);};
+			window.doSignOut=async function(){await fbSignOut(auth);};
 
 			let adminListenersStarted=false;
 			let secureSessionWarned=false;
@@ -1079,8 +1075,7 @@
 				const err=document.getElementById('lg-err');
 				const btn=document.getElementById('lg-btn');
 				if(!user){
-					await libraryBridge.signOutData();
-					document.getElementById('login-screen').classList.remove('hide');
+										document.getElementById('login-screen').classList.remove('hide');
 					btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';
 					return;
 				}
@@ -1090,7 +1085,7 @@
 				// matthewbozhe@gmail.com is enough to use the panel. No database read
 				// or backend call may block this gate.
 				if(!isOwner(user)){
-					await libraryBridge.signOutData();await fbSignOut(auth);
+					await fbSignOut(auth);
 					err.textContent='Access denied. This panel is restricted to the verified owner account.';
 					err.style.display='block';btn.disabled=false;btn.textContent='ACCESS ADMIN PANEL';
 					return;
@@ -1103,29 +1098,11 @@
 				document.getElementById('access-nav').style.display='flex';
 				document.getElementById('admins-nav').style.display='none';
 
-				// Establish the server-minted secure session BEFORE subscribing:
-				// privileged listeners (users/comments/activity…) need the claim, and a
-				// listen denied at subscribe time is cancelled permanently. A bridge
-				// failure used to sign the owner straight back out; now the panel stays
-				// open, listeners still start, and the owner is warned once instead.
-				libraryBridge.ready().then(()=>{
-					if(!libraryBridge.owner){
-						console.warn('[Admin/Library] secure session without owner claim (unverified email? backend not redeployed?)');
-						if(!secureSessionWarned){
-							secureSessionWarned=true;
-							toast('⚠ Secure owner session not minted (verify this account\'s email / redeploy the Library functions). Engagement tools are offline.','e');
-						}
-					}
-				}).catch(e=>{
-					console.warn('[Admin/Library] secure data session unavailable',e);
-					if(!secureSessionWarned){
-						secureSessionWarned=true;
-						toast('⚠ Secure data session unavailable — live data and engagement tools may be limited.','e');
-					}
-				}).finally(()=>{
-					if(!adminListenersStarted){adminListenersStarted=true;startListeners();}
-					renderAdmins();refreshActive();
-				});
+				// No session bridge: the signed-in owner email is the gate and the
+				// listeners start immediately. The optional Cloud Functions backend is
+				// only needed for the engagement preview/share tools.
+				if(!adminListenersStarted){adminListenersStarted=true;startListeners();}
+				renderAdmins();refreshActive();
 			});
 
 			// ── LISTENERS ──────────────────────────────────────────────────────────
@@ -1232,10 +1209,11 @@
 				if(!isOwner(currentUser)){toast('Owner only','e');return;}
 				// These callables mint/verify the server-side libraryOwner claim, so the
 				// bridge session must be up — a plain UI email check is not enough here.
-				if(!libraryBridge.owner){toast('Secure owner session unavailable — sign out/in, verify the account email, or redeploy the Library functions.','e');return;}
+				if(!hasSecureOwnerSession()){toast('Owner only','e');return;}
+				toast('Engagement backend is not deployed — preview/share are offline.','e');return;
 				const btn=document.getElementById('eng-preview-btn');btn.disabled=true;
 				try{
-					const {data}=await libraryBridge.call('previewLibraryEngagement',engagementTotals());
+					const {data}=await Promise.reject(new Error("Engagement backend is not deployed")),('previewLibraryEngagement',engagementTotals());
 					engagementPreview=data;renderEngagementPreview();
 					document.getElementById('eng-share-btn').disabled=false;
 					document.getElementById('eng-status').textContent=`Preview ready: ${data.bookCount} books. Totals match exactly. Expires in 10 minutes.`;
@@ -1244,11 +1222,11 @@
 			};
 			window.shareEngagement=async function(){
 				if(!isOwner(currentUser)||!engagementPreview){toast('Generate a preview first','e');return;}
-				if(!libraryBridge.owner){toast('Secure owner session unavailable — sign out/in, verify the account email, or redeploy the Library functions.','e');return;}
+				if(!hasSecureOwnerSession()){toast('Secure owner session unavailable — sign out/in, verify the account email, or redeploy the Library functions.','e');return;}
 				if(!confirm(`Share ${engagementPreview.totals.views} views, ${engagementPreview.totals.likes} likes and ${engagementPreview.totals.hours} hours across ${engagementPreview.bookCount} books?`))return;
 				const btn=document.getElementById('eng-share-btn');btn.disabled=true;
 				try{
-					const {data}=await libraryBridge.call('shareLibraryEngagement',{previewId:engagementPreview.id});
+					const {data}=await Promise.reject(new Error("Engagement backend is not deployed")),('shareLibraryEngagement',{previewId:engagementPreview.id});
 					document.getElementById('eng-status').textContent=data.duplicate?'This preview was already shared; no counters were added again.':`Shared successfully across ${data.bookCount} books.`;
 					toast('Engagement shared','s');engagementPreview=null;
 					await mergeStatsFromFirebase();

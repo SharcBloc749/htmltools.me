@@ -7,18 +7,25 @@ test('Library chat no longer exposes or handles the /ai command',()=>{
   const s=read('Library/index.html');
   for(const token of ['/ai','getGroqKey','fetchAI','cw-ai-hint','onChatInput'])assert.ok(!s.includes(token),token);
 });
-test('likes use the verified callable and refresh visible card state',()=>{
+test('Library pages work without the Cloud Function session bridge',()=>{
+  for(const f of ['Library/index.html','Library/book/index.html','Library/Studio/index.html','Library/Studio/Upload/index.html','Admin/Library/index.html']){
+    const s=read(f);
+    assert.ok(!s.includes('libraryBridge'),f);
+    assert.ok(!s.includes('createLibraryBridge'),f);
+    assert.ok(s.includes('getAuth(newApp)'),f);
+  }
+  // likes/ratings degrade gracefully instead of calling a missing backend
   const s=read('Library/index.html');
-  assert.ok(s.includes("libraryBridge.call('toggleBookLike'"));
-  assert.ok(s.includes('data-like-id'));assert.ok(s.includes('renderPins();renderBooks();'));
+  assert.ok(s.includes('data-like-id'));assert.ok(s.includes('Likes are paused'));
   assert.ok(!s.includes("updates['books/'+book._origId+'/likes']"));
-  const player=read('Library/book/index.html');assert.ok(player.includes("libraryBridge.call('toggleBookLike'"));
+  assert.ok(read('Library/book/index.html').includes('Likes are paused'));
 });
-test('admin engagement is owner-only and preview-gated',()=>{
+test('admin panel is owner-email gated and needs no session bridge',()=>{
   const s=read('Admin/Library/index.html');
-  assert.ok(s.includes('libraryBridge.owner'));assert.ok(s.includes("libraryBridge.call('previewLibraryEngagement'"));
-  assert.ok(s.includes("libraryBridge.call('shareLibraryEngagement'"));assert.ok(s.includes('id="eng-share-btn"'));
-  assert.ok(s.includes('disabled>Share'));assert.ok(!s.includes("get(ref(newDb,'siteConfig/adminEmails'))"));
+  assert.ok(s.includes('function hasSecureOwnerSession(){return isOwner(currentUser);}'));
+  assert.ok(s.includes('id="eng-share-btn"'));
+  assert.ok(s.includes('disabled>Share'));
+  assert.ok(!s.includes("get(ref(newDb,'siteConfig/adminEmails'))"));
 });
 test('Library pages do not ship the broken hardcoded App Check key',()=>{
   for(const f of ['Library/index.html','Library/book/index.html','Library/Studio/index.html','Library/Studio/Upload/index.html','Admin/Library/index.html']){
