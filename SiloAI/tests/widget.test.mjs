@@ -20,6 +20,10 @@ const pageMarkup = `
     <label for="name">Contact name</label><input id="name" type="text">
     <textarea id="html-editor" aria-label="HTML source editor"></textarea>
     <div id="rich-editor" contenteditable="true" aria-label="Rich text editor">Original content</div>
+    <label for="minify">Minify output</label><input id="minify" type="checkbox">
+    <select id="width" aria-label="Preview width"><option>responsive</option><option>480px</option></select>
+    <a id="advanced" href="/HTML-Runner/Advanced">Advanced runner</a>
+    <a id="external-docs" href="https://docs.example.test/guide">Read the guide</a>
   </main>`;
 
 function makeStorage(initial = {}, { failWrites = false, failCount = 0 } = {}) {
@@ -529,4 +533,130 @@ test('launcher drag, chat-window drag and resize, screenshot replacement, voice 
   assert.equal(quotaWidget.requests.length, 1, 'a recovered quota condition still allows chat');
   assert.deepEqual(quotaWidget.errors, []);
   quotaWidget.dom.window.close();
+});
+
+test('navigation asks the visitor first, respects the model’s tab decision, and never leaves on its own', async () => {
+  const responseFor = (body) => {
+    const controls = body.controls || [];
+    if (/advanced runner/i.test(body.message)) {
+      return { reply: 'I can open the Advanced Runner for you.', action: { type: 'navigate', path: '/HTML-Runner/Advanced', title: 'Advanced Runner', newTab: false } };
+    }
+    if (/compare pages/i.test(body.message)) {
+      return { reply: 'Here it is in a new tab so you keep this page.', action: { type: 'navigate', path: '/Library', newTab: true } };
+    }
+    if (/guide/i.test(body.message)) {
+      const link = controls.find((control) => control.kind === 'link' && control.label === 'Read the guide');
+      return { reply: 'The guide lives on another site.', action: { type: 'openLink', target: link?.id } };
+    }
+    return { reply: 'Nothing to do.' };
+  };
+  const { dom, window, requests, errors } = makeWidget({ responseFor });
+  const opened = [];
+  window.open = (url) => { opened.push(url); return { opener: {} }; };
+  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
+
+  submit(window, shadow, 'Take me to the advanced runner'); await flush();
+  const linkControl = requests[0].body.controls.find((control) => control.kind === 'link' && control.label === 'Advanced runner');
+  assert.deepEqual({ href: linkControl.href, external: linkControl.external, clickable: linkControl.clickable },
+    { href: '/HTML-Runner/Advanced', external: false, clickable: false },
+    'links carry their destination and stay highlight-only so the widget controls the opening');
+  const primary = replyAction(shadow);
+  assert.match(primary.textContent, /Go to “Advanced Runner” here/, 'the visitor gets a destination button instead of being sent away');
+  assert.equal(opened.length, 0, 'nothing opens before the visitor presses the button');
+  primary.click();
+  assert.equal(opened.length, 0, 'a same-tab destination is not opened through window.open');
+  assert.match(shadow.querySelector('[data-status-text]').textContent, /Opening…|Advanced/, 'the widget reports the pending open');
+  assert.equal(primary.disabled, true, 'the card cannot be pressed twice');
+
+  submit(window, shadow, 'I want to compare pages'); await flush();
+  const newTabButton = replyAction(shadow);
+  assert.match(newTabButton.textContent, /Open “\/Library” in a new tab/);
+  assert.equal(opened.length, 0);
+  newTabButton.click();
+  assert.deepEqual(opened, ['https://example.test/Library'], 'the model’s new-tab decision is honoured');
+
+  submit(window, shadow, 'Show me the guide'); await flush();
+  const externalButton = replyAction(shadow);
+  assert.match(externalButton.textContent, /in a new tab/, 'off-site links always open in a new tab');
+  externalButton.click();
+  assert.deepEqual(opened[1], 'https://docs.example.test/guide');
+  assert.deepEqual(errors, []);
+  dom.window.close();
+});
+
+test('the wider action vocabulary reaches the page: scrolling, finding, focusing, ticking, choosing, copying, selecting, and clearing', async () => {
+  const responseFor = (body) => {
+    const controls = body.controls || [];
+    const pick = (kind, label) => controls.find((control) => control.kind === kind && control.label === label);
+    if (/scroll to the bottom/i.test(body.message)) return { reply: 'Scrolling.', action: { type: 'scroll', position: 'bottom' } };
+    if (/find the word/i.test(body.message)) return { reply: 'Looking for it.', action: { type: 'find', value: 'Visible page information' } };
+    if (/focus the name field/i.test(body.message)) return { reply: 'Ready when you are.', action: { type: 'focus', target: pick('field', 'Contact name')?.id } };
+    if (/minify/i.test(body.message)) return { reply: 'Ticking that.', action: { type: 'toggle', target: pick('check', 'Minify output')?.id, value: 'checked' } };
+    if (/preview width/i.test(body.message)) return { reply: 'Choosing a width.', action: { type: 'select', target: pick('select', 'Preview width')?.id, value: '480px' } };
+    if (/clear the name/i.test(body.message)) return { reply: 'Clearing it.', action: { type: 'clear', target: pick('field', 'Contact name')?.id } };
+    const intro = controls.find((control) => control.kind === 'text' && control.label.startsWith('Visible page information'));
+    if (/copy the intro/i.test(body.message)) return { reply: 'Copied for you.', action: { type: 'copy', target: intro?.id } };
+    if (/select the intro/i.test(body.message)) return { reply: 'Selecting it.', action: { type: 'selectText', target: intro?.id } };
+    if (/read the guide/i.test(body.message)) return { reply: 'Here is the address.', action: { type: 'click', target: pick('link', 'Read the guide')?.id }, confirmAction: true };
+    return { reply: 'Nothing to do.' };
+  };
+  const { dom, window, requests, errors } = makeWidget({ responseFor });
+  const doc = window.document;
+  const scrolled = [];
+  window.scrollTo = (options) => { scrolled.push(options.top); };
+  window.scrollBy = (options) => { scrolled.push(options.top); };
+  const copied = [];
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { copied.push(text); } } });
+  const shadow = doc.querySelector('#siloai-widget-host').shadowRoot;
+  const status = () => shadow.querySelector('[data-status-text]').textContent;
+
+  submit(window, shadow, 'What do you see?'); await flush();
+  const kinds = requests[0].body.controls.reduce((all, control) => all.concat(control.kind), []);
+  assert.ok(kinds.includes('check') && kinds.includes('select') && kinds.includes('link'), 'checkboxes, dropdowns, and links are described too');
+  const check = requests[0].body.controls.find((control) => control.kind === 'check');
+  assert.equal(check.state, 'unchecked', 'check state is reported without exposing values');
+  const select = requests[0].body.controls.find((control) => control.kind === 'select');
+  assert.deepEqual(select.options, ['responsive', '480px'], 'dropdown options are listed so the model can choose one');
+
+  submit(window, shadow, 'Scroll to the bottom'); await flush();
+  assert.ok(scrolled.length >= 1, 'page scrolling happens immediately');
+
+  submit(window, shadow, 'Find the word visible'); await flush();
+  assert.ok(doc.querySelectorAll('[data-siloai-find]').length >= 1, 'the phrase is marked on the page');
+  assert.match(status(), /Found \d+ match/, 'the visitor is told how many matches were found');
+
+  submit(window, shadow, 'Focus the name field'); await flush();
+  replyAction(shadow).click();
+  assert.equal(doc.activeElement.id, 'name', 'focus lands in the right field');
+  assert.match(status(), /Ready to type/);
+
+  submit(window, shadow, 'Tick minify'); await flush();
+  assert.equal(doc.querySelector('#minify').checked, false, 'ticking waits for confirmation');
+  replyAction(shadow).click();
+  assert.equal(doc.querySelector('#minify').checked, true);
+
+  submit(window, shadow, 'Set the preview width'); await flush();
+  assert.equal(doc.querySelector('#width').value, 'responsive');
+  replyAction(shadow).click();
+  assert.equal(doc.querySelector('#width').value, '480px');
+
+  submit(window, shadow, 'Clear the name'); await flush();
+  doc.querySelector('#name').value = 'Ada';
+  replyAction(shadow).click();
+  assert.equal(doc.querySelector('#name').value, '');
+
+  submit(window, shadow, 'Copy the intro'); await flush();
+  replyAction(shadow).click();
+  await flush();
+  assert.match(copied[0] || '', /Visible page information/, 'the text block is copied to the clipboard');
+
+  submit(window, shadow, 'Select the intro'); await flush();
+  replyAction(shadow).click();
+  assert.ok(String(window.getSelection()), 'text selection is performed on the page');
+
+  submit(window, shadow, 'Read the guide'); await flush();
+  replyAction(shadow).click();
+  assert.match(status(), /would submit a form or leave this page/, 'an outward link is never clicked in place');
+  assert.deepEqual(errors, []);
+  dom.window.close();
 });
