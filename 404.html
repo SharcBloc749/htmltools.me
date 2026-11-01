@@ -67,8 +67,8 @@
       'imageeditorai': '/ImageEditorAI',
       'ai-image-generator': '/ImageGeneratorAI',
       'imagegeneratorai': '/ImageGeneratorAI',
-      'deepseek': '/Deepseek/',
-      'glm': '/GLM/',
+      'deepseek': '/AI-Playground/',
+      'glm': '/AI-Playground/',
       'research-ai': '/Research/',
       'research': '/Research/',
       'past-time': '/Pasttime',
@@ -123,14 +123,14 @@
       .replace(/^\/+|\/+$/g, '')
       .toLowerCase();
 
-    // Gemini chat URLs must keep their original path because the chat page
-    // reads the conversation ID from location.pathname.
-    const isGeminiChatRoute = /^gemini\/chat\/[^/]+$/.test(stripped);
+    // Playground chat URLs must keep their original path because the chat
+    // page reads the conversation ID from location.pathname.
+    const isGeminiChatRoute = /^(?:gemini|claude|chatgpt|grok|glm|deepseek)\/chat\/[^/]+$/.test(stripped);
 
     if (isGeminiChatRoute) {
-      fetch('/Gemini/Chat/index.html')
+      fetch('/AI-Playground/Chat/index.html')
         .then(function (res) {
-          if (!res.ok) throw new Error('Missing Gemini chat page');
+          if (!res.ok) throw new Error('Missing AI Playground chat page');
           return res.text();
         })
         .then(function (html) {
@@ -152,6 +152,12 @@
         .catch(showNotFoundWhenReady);
     } else {
       const destination = subRoutes[stripped] || routes[stripped];
+
+      // Retired single-model AI tools redirect straight to the AI Playground.
+      if (destination === '/AI-Playground/') {
+        location.replace('/AI-Playground/');
+        return;
+      }
 
       if (destination) {
         const target = new URL(destination, window.location.origin);

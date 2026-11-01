@@ -698,9 +698,10 @@ async function loadBooks(){
       ghOK=true;
     }
   }catch(e){console.warn('[GitHub] index fetch failed, falling back to Firebase',e);}
-  // 2) Fallback: Firebase (worker unreachable)
+  // 2) Fallback: Firebase (worker unreachable) — read the light bookStats
+  //    mirror, never the heavy `books` node (which now also holds game code).
   if(!ghOK){
-    const snap=await get(ref(db,'books'));const raw=snap.val()||{};
+    const snap=await get(ref(db,'bookStats'));const raw=snap.val()||{};
     allBooks={};myBooks={};sharedBooks={};
     Object.entries(raw).forEach(([id,b])=>{
       if(!b||!b.title)return;
@@ -900,15 +901,15 @@ window.deleteBook=async function(id){
   if(!confirm('Delete "'+bk.title+'"? This cannot be undone.'))return;
   const{_oid}=bk;
   try{
-    // 1) GitHub first — the Library reads from there. If this fails, abort so the
-    //    game doesn't become a "ghost" that still shows in the Library.
+    // 1) GitHub first — the Library reads from there. If the worker is
+    //    unreachable, continue anyway so the Firebase copy is still removed
+    //    (the Library falls back to Firebase when the worker is down).
     try{
       const r=await fetch(`${GH_WORKER}/github/deleteGame`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
       const j=await r.json().catch(()=>({}));
       if(!r.ok||!j.ok)throw new Error(j.error||j.details||('HTTP '+r.status));
     }catch(e){
-      showToast('GitHub delete failed ('+(e.message||e)+') — game NOT deleted, try again.','err');
-      return;
+      console.warn('[GitHub] delete failed, removing Firebase copy only',e);
     }
     // 2) Remove from the Library's local GitHub cache too
     try{
