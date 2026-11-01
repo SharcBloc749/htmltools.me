@@ -668,11 +668,11 @@ test('replies render light markdown, never echo a JSON wrapper, and show the wid
   });
   const { dom, window, errors } = makeWidget({ responseFor });
   const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-  assert.equal(window.SiloAI.version, '10');
+  assert.equal(window.SiloAI.version, '11');
   const version = shadow.querySelector('[data-version]');
   assert.ok(version, 'the running version is visible without opening the console');
-  assert.equal(version.textContent.trim(), 'v10');
-  assert.match(version.getAttribute('title'), /SiloAI widget v10/);
+  assert.equal(version.textContent.trim(), 'v11');
+  assert.match(version.getAttribute('title'), /SiloAI widget v11/);
 
   submit(window, shadow, 'How do I save?'); await flush();
   const reply = lastReply(shadow);
@@ -689,5 +689,65 @@ test('replies render light markdown, never echo a JSON wrapper, and show the wid
   assert.equal(lastReply(rawShadow).textContent.trim(), 'Only this sentence.', 'a JSON-only reply is unwrapped even if the Worker ever lets one through');
   assert.deepEqual(errors, []);
   rawJson.dom.window.close();
+  dom.window.close();
+});
+
+test('page chips never repeat the page the visitor is on, and duplicates collapse into one', async () => {
+  const responseFor = () => ({
+    reply: 'The library is where books live.',
+    sources: [
+      { title: 'Current editor', path: '/tools/editor' },
+      { title: 'HTML Library', path: '/Library' },
+      { title: 'HTML Library again', path: '/Library/' },
+    ],
+  });
+  const { dom, window, errors } = makeWidget({ responseFor });
+  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
+  submit(window, shadow, 'Where do I read books?'); await flush();
+  const chips = [...lastReply(shadow).querySelectorAll('.silo-source')];
+  assert.equal(chips.length, 1, 'only genuinely different, elsewhere pages become chips');
+  assert.equal(chips[0].textContent, 'HTML Library');
+  assert.equal(chips[0].getAttribute('href'), 'https://example.test/Library');
+
+  const quiet = makeWidget({ responseFor: () => ({ reply: 'Just an answer.', sources: [] }) });
+  const quietShadow = quiet.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  submit(quiet.window, quietShadow, 'Hello'); await flush();
+  assert.equal(lastReply(quietShadow).querySelector('.silo-sources'), null, 'a plain answer shows no page list');
+  assert.deepEqual(errors, []);
+  quiet.dom.window.close();
+  dom.window.close();
+});
+
+test('hovering and sending a key reach the page only on request, and pressing never submits a form', async () => {
+  let hovers = 0;
+  let submits = 0;
+  const keys = [];
+  const responseFor = (body) => {
+    const controls = body.controls || [];
+    const pick = (kind, label) => controls.find((control) => control.kind === kind && control.label === label);
+    if (/hover the save/i.test(body.message)) return { reply: 'Hovering it for you.', action: { type: 'hover', target: pick('button', 'Save draft')?.id }, confirmAction: true };
+    if (/press enter/i.test(body.message)) return { reply: 'Pressing Enter now.', action: { type: 'press', target: pick('button', 'Save draft')?.id, key: 'Enter' }, confirmAction: true };
+    return { reply: 'Nothing to do.' };
+  };
+  const { dom, window, requests, errors } = makeWidget({ responseFor });
+  const save = window.document.querySelector('#save');
+  save.addEventListener('mouseover', () => { hovers++; });
+  save.addEventListener('keydown', (event) => { keys.push(event.key); });
+  window.document.addEventListener('submit', () => { submits++; });
+  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
+
+  submit(window, shadow, 'Hover the save button'); await flush();
+  assert.equal(hovers, 1, 'hovering is harmless, so it happens as soon as the answer lands');
+  replyAction(shadow).click();
+  assert.equal(hovers, 2, 'the visitor can repeat it');
+
+  submit(window, shadow, 'Press enter on save'); await flush();
+  assert.deepEqual(keys, [], 'a key press waits for the visitor');
+  replyAction(shadow).click();
+  assert.deepEqual(keys, ['Enter'], 'the key reaches the focused control');
+  assert.equal(submits, 0, 'a pressed Enter never submits the surrounding form');
+  assert.match(shadow.querySelector('[data-status-text]').textContent, /Sent Enter to “Save draft”/);
+  assert.deepEqual(errors, []);
+  void requests;
   dom.window.close();
 });

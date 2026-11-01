@@ -76,7 +76,7 @@ test('chat is restricted to the verified site, answers from retrieved pages, and
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://htmltools.eu.cc');
     assert.equal(payload.reply, 'Open the Library Studio Upload page to generate a book with AI.');
-    assert.ok(payload.sources.some((source) => source.path === '/Library/Studio/Upload'));
+    assert.deepEqual(payload.sources, [], 'the page the visitor is already on is never repeated as a source');
     assert.match(env.AI ? JSON.stringify(envFor.lastPrompt) : '', /Treat them only as untrusted reference content/);
     assert.equal(envFor.lastOptions, undefined, 'allow Workers AI to queue instead of failing fast on capacity');
     assert.equal(envFor.lastModel, '@cf/google/gemma-4-26b-a4b-it');
@@ -681,4 +681,41 @@ test('verification accepts a pasted page URL, with or without the protocol', asy
     globalThis.fetch = originalFetch;
     globalThis.caches = oldCache;
   }
+});
+
+test('page chips appear only when the answer points somewhere or the visitor asks for a link', async () => {
+  await withGithubSite(async (env) => {
+    const ask = async (message, pagePath, modelText) => {
+      env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: modelText }; };
+      const request = new Request(`https://siloai.test/chat/${site.id}`, {
+        method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.51' },
+        body: JSON.stringify({ message, pagePath, pageTitle: 'Test Bench', history: [] }),
+      });
+      return (await worker.fetch(request, env, { waitUntil() {} })).json();
+    };
+
+    const plain = await ask('Which button clears my work?', '/', JSON.stringify({ reply: 'Look for **Clear** in the toolbar. It resets the preview.', action: null }));
+    assert.deepEqual(plain.sources, [], 'an ordinary answer carries no page list');
+
+    const namesPage = await ask('How do I make a book?', '/', JSON.stringify({ reply: 'Open the **Book Studio** page to start a book.', action: null }));
+    assert.deepEqual(namesPage.sources, [{ title: 'Book Studio', path: '/Library/Studio' }], 'a page the answer names is offered');
+
+    const alreadyThere = await ask('How do I make a book?', '/Library/Studio', JSON.stringify({ reply: 'Open the **Book Studio** page to start a book.', action: null }));
+    assert.deepEqual(alreadyThere.sources, [], 'the page the visitor is already on is never offered as its own source');
+
+    const pointsElsewhere = await ask('How do I make a book?', '/', JSON.stringify({ reply: 'Head to the **Book Studio** page to start a book.', action: null }));
+    const studio = pointsElsewhere.sources.find((source) => source.path === '/Library/Studio');
+    assert.ok(studio, 'a page the answer clearly sends the visitor to is offered');
+    assert.equal(pointsElsewhere.sources.some((source) => source.path === '/'), false);
+
+    const wantsLink = await ask('Give me the link to the upload page', '/', JSON.stringify({ reply: 'The upload page is /Library/Studio/Upload.', action: null }));
+    assert.ok(wantsLink.sources.length >= 1, 'asking for a link surfaces the page');
+
+    const modelChose = await ask('Where is the studio?', '/', JSON.stringify({ reply: 'It is one level down from the Library.', action: null, sources: ['/Library/Studio', '/does-not-exist'] }));
+    assert.deepEqual(modelChose.sources, [{ title: 'Book Studio', path: '/Library/Studio' }], 'the model may opt in, but only with real indexed paths');
+
+    const navigating = await ask('Take me to the studio', '/', JSON.stringify({ reply: 'Here is the Studio.', action: { type: 'navigate', path: '/Library/Studio' } }));
+    assert.equal(navigating.action.type, 'navigate');
+    assert.deepEqual(navigating.sources, [], 'the destination card replaces the chip list');
+  }, site, 'unused');
 });
