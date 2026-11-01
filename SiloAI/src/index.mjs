@@ -858,6 +858,32 @@ async function startStaleRefresh(site, env, ctx) {
   })());
 }
 
+/**
+ * Zero-configuration embed support: `/config?origin=https://example.com` returns the
+ * site id of the verified SiloAI site that owns that origin.
+ *
+ * The id is deterministic (a hash of the domain) and already published inside every
+ * embed snippet, so returning it leaks nothing — but it means a page can install the
+ * widget without knowing its own id, which keeps large sites to a single snippet.
+ */
+async function widgetConfig(request, env, origin) {
+  const url = new URL(request.url);
+  const requested = url.searchParams.get('origin') || origin || '';
+  if (request.method === 'OPTIONS') return withCors(new Response(null, { status: 204 }), origin, true);
+  if (request.method !== 'GET') return jsonError(405, 'method_not_allowed', 'Use GET for the widget configuration.', origin, true);
+  const domain = safeDomain(requested);
+  if (!domain) return jsonError(400, 'invalid_origin', 'Pass the page origin, for example https://example.com.', origin, true);
+  const candidates = [...new Set([domain, domain.replace(/^www\./, ''), `www.${domain.replace(/^www\./, '')}`])];
+  for (const candidate of candidates) {
+    const id = (await sha256(candidate)).slice(0, 24);
+    const site = await readSite(env, id).catch(() => null);
+    // Only hand out an id when the asking page really is that verified site.
+    if (!site || !site.verified || !siteOrigins(site).has(domain.toLowerCase())) continue;
+    return withCors(json({ siteId: site.id, siteName: site.profile?.title || site.domain }), origin, true);
+  }
+  return jsonError(404, 'site_not_connected', 'This website is not connected to SiloAI yet. Add it in the dashboard at htmltools.me/SiloAI.', origin, true);
+}
+
 async function chat(request, id, env, origin, ctx) {
   if (!/^[a-f0-9]{24}$/.test(id)) return jsonError(404, 'site_not_found', 'This SiloAI site does not exist.', origin, false);
   const site = await readSite(env, id);
@@ -1034,6 +1060,7 @@ export default {
     if (url.pathname === '/health' && request.method === 'GET') {
       return json({ ok: true, service: 'siloai', ai: Boolean(env.AI), model: env.AI_MODEL || MODEL_DEFAULT, fallbackModel: env.AI_FALLBACK_MODEL || FALLBACK_MODEL_DEFAULT, storage: Boolean(env.GITHUB_TOKEN && env.GITHUB_REPO), auth: Boolean(env.FIREBASE_PROJECT_ID), limits: Boolean(env.LIMITER) });
     }
+    if (url.pathname === '/config') return widgetConfig(request, env, origin);
     if (url.pathname.startsWith('/api/')) return ownerApi(request, url, env, origin);
     const chatMatch = /^\/chat\/([a-f0-9]{24})$/.exec(url.pathname);
     if (chatMatch) {

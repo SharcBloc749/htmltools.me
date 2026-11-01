@@ -7,17 +7,24 @@
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '11';
+  var BUILD_VERSION = '12';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
-  var siteId = script && script.getAttribute('data-site-id');
-  if (!/^[a-f0-9]{24}$/.test(siteId || '')) return;
+  var declaredSiteId = ((script && script.getAttribute('data-site-id')) || '').trim();
+  /* A declared id wins; when the tag has none the widget asks the Worker which
+     verified site owns this origin, so a whole site can share one snippet. An id
+     that is present but malformed is a setup mistake and stops the embed loudly. */
+  var siteId = /^[a-f0-9]{24}$/.test(declaredSiteId) ? declaredSiteId : '';
+  if (declaredSiteId && !siteId) {
+    if (window.console) console.warn('[SiloAI] data-site-id is not a valid site id, so the widget did not load. Copy the snippet from htmltools.me/SiloAI.');
+    return;
+  }
   var previousWidget = document.getElementById('siloai-widget-host');
   if (previousWidget) previousWidget.remove();
   window.__siloaiLoaded = true;
   window.__siloaiLoadedVersion = BUILD_VERSION;
   var api = 'https://siloai.bozhetarnikmatthew.workers.dev';
-  var storageKey = 'siloai.conversations.' + siteId;
+  var storageKey = siteId ? 'siloai.conversations.' + siteId : '';
   var conversations = [];
   var activeId = '';
   var imageHistoryPruned = false;
@@ -40,6 +47,47 @@
   var launcherSize = defaultLauncherSize;
 
   function id() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  var siteLookup = null;
+  function adoptSite(found) {
+    if (!/^[a-f0-9]{24}$/.test(found) || siteId === found) return;
+    siteId = found;
+    storageKey = 'siloai.conversations.' + siteId;
+    loadConversations();
+    renderHistory();
+    renderConversationMenu();
+  }
+  /* Resolves this origin to its verified site once per tab, then caches it. */
+  function resolveSiteId(force) {
+    if (siteId && !force) return Promise.resolve(siteId);
+    if (siteLookup) return siteLookup;
+    if (!force) {
+      try {
+        var cached = sessionStorage.getItem('siloai.site.' + location.origin) || '';
+        if (/^[a-f0-9]{24}$/.test(cached)) { adoptSite(cached); return Promise.resolve(siteId); }
+      } catch (_) { /* private mode */ }
+    }
+    siteLookup = fetch(api + '/config?origin=' + encodeURIComponent(location.origin), { credentials: 'omit' })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (payload) {
+        var found = payload && typeof payload.siteId === 'string' ? payload.siteId : '';
+        if (!/^[a-f0-9]{24}$/.test(found)) throw new Error('unconfigured');
+        try { sessionStorage.setItem('siloai.site.' + location.origin, found); } catch (_) { /* private mode */ }
+        adoptSite(found);
+        return siteId;
+      })
+      .catch(function (failure) {
+        siteLookup = null;
+        throw failure && failure.message === 'unconfigured' ? failure : new Error('unreachable');
+      });
+    return siteLookup;
+  }
+  function unconfiguredMessage() {
+    return 'SiloAI is not connected to this website yet. The site owner can add it in the dashboard at htmltools.me/SiloAI.';
+  }
+  function ensureSite() {
+    if (siteId) return Promise.resolve(siteId);
+    return resolveSiteId(false).catch(function () { throw new Error(unconfiguredMessage()); });
+  }
   function loadConversations() {
     try {
       var saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
@@ -63,7 +111,7 @@
     if (active) history = active.messages;
     else { history = []; activeId = ''; }
   }
-  loadConversations();
+  if (siteId) loadConversations();
 
   var host = document.createElement('div');
   host.id = 'siloai-widget-host';
@@ -1306,6 +1354,12 @@
     if (busy) return;
     if (imagePreparing) { setStatus('Please wait for the screenshot to finish preparing.', 'warn'); return; }
     if (!text.trim() && !selectedImage) return;
+    if (!siteId) {
+      setBusy(true);
+      try { await ensureSite(); }
+      catch (failure) { setBusy(false); setStatus(failure.message || unconfiguredMessage(), 'warn'); return; }
+      setBusy(false);
+    }
     var userText = text.trim().slice(0, 1200) || 'Please explain this screenshot and help me understand what to do.';
     var thread = activeConversation(); if (!thread) { startConversation(true); thread = activeConversation(); }
     setTitleFromMessage(thread, userText);
@@ -1333,13 +1387,26 @@
       var pageExcerpt = visiblePageExcerpt();
       var controls = collectPageTargets();
       var modelHistory = history.slice(0, -1).slice(-4).map(function (entry) { return { role: entry.role, content: entry.content }; });
-      var response = await fetch(api + '/chat/' + siteId, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: userText, image: imageForRequest || undefined, controls: controls, history: modelHistory, pagePath: pageContext.pagePath, pageTitle: pageContext.pageTitle, pageExcerpt: pageExcerpt }),
-        credentials: 'omit',
-      });
-      var payload = await response.json().catch(function () { return {}; });
-      if (!response.ok) throw new Error(payload.error && payload.error.message || 'SiloAI could not answer. Please try again.');
+      var requestBody = JSON.stringify({ message: userText, image: imageForRequest || undefined, controls: controls, history: modelHistory, pagePath: pageContext.pagePath, pageTitle: pageContext.pageTitle, pageExcerpt: pageExcerpt });
+      var send = function () {
+        return fetch(api + '/chat/' + siteId, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: requestBody,
+          credentials: 'omit',
+        }).then(function (result) { return result.json().catch(function () { return {}; }).then(function (parsed) { return { ok: result.ok, payload: parsed }; }); });
+      };
+      var attempt = await send();
+      // The declared id can be stale (a renamed domain, www vs apex). Ask the Worker
+      // which site really owns this page, then retry once instead of failing.
+      if (!attempt.ok && attempt.payload && attempt.payload.error && attempt.payload.error.code === 'site_not_found') {
+        try {
+          var before = siteId;
+          await resolveSiteId(true);
+          if (siteId && siteId !== before) attempt = await send();
+        } catch (_) { /* keep the original error */ }
+      }
+      var payload = attempt.payload;
+      if (!attempt.ok) throw new Error(payload.error && payload.error.message || 'SiloAI could not answer. Please try again.');
       pending.remove();
       var replyText = tidyReplyText(payload.reply);
       if (!replyText) replyText = 'I could not find an answer that time — please ask again.';
@@ -1591,10 +1658,17 @@
     setStatus('Chat window: ' + Math.round(width) + '×' + Math.round(height));
   }
 
+  function insideFrame() {
+    try { return window.self !== window.top; } catch (_) { return true; }
+  }
   function openPanel() {
+    // An assistant riding inside someone else's page cannot drag itself out of a
+    // small preview frame; the launcher would cover the content instead.
+    if (insideFrame() && !window.__siloaiForceFrame) return;
     panel.hidden = false;
     fab.setAttribute('aria-expanded', 'true');
     placePanel();
+    if (!siteId) ensureSite().catch(function (failure) { setStatus(failure.message || unconfiguredMessage(), 'warn'); });
     try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
   }
   function closePanel(returnFocus) {
