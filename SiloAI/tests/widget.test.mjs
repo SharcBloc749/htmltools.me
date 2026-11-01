@@ -672,11 +672,11 @@ test('replies render light markdown, never echo a JSON wrapper, and show the wid
   });
   const { dom, window, errors } = makeWidget({ responseFor });
   const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
-  assert.equal(window.SiloAI.version, '10.1');
+  assert.equal(window.SiloAI.version, '10.2');
   const version = shadow.querySelector('[data-version]');
   assert.ok(version, 'the running version is visible without opening the console');
-  assert.equal(version.textContent.trim(), 'v10.1');
-  assert.match(version.getAttribute('title'), /SiloAI widget v10\.1/);
+  assert.equal(version.textContent.trim(), 'v10.2');
+  assert.match(version.getAttribute('title'), /SiloAI widget v10\.2/);
 
   submit(window, shadow, 'How do I save?'); await flush();
   const reply = lastReply(shadow);
@@ -847,5 +847,51 @@ test('a sandboxed preview frame is reported instead of being silently ignored', 
   submit(widget.window, shadow, 'what can I click?');
   await flush();
   assert.match(shadow.querySelector('[data-status-text]').textContent, /cannot reach inside 1 embedded preview frame/);
+  widget.dom.window.close();
+});
+
+/* ---- page chips ---------------------------------------------------------- */
+
+test('chips are dropped unless the answer itself points at that page', async () => {
+  const sources = [
+    { title: 'AI API', path: '/AI-API' },
+    { title: 'AI API reference', path: '/AI-API/reference' },
+    { title: 'HTML Library', path: '/Library' },
+  ];
+  const widget = makeWidget({ responseFor: () => ({ reply: 'I can’t play games for you, but you can press a Play button.', sources }) });
+  const shadow = widget.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  submit(widget.window, shadow, 'can you play a random game please');
+  await flush();
+  assert.equal(lastReply(shadow).querySelectorAll('.silo-source').length, 0, 'unrelated pages never appear as chips');
+  widget.dom.window.close();
+});
+
+test('a page the answer names keeps its chip, once', async () => {
+  const sources = [
+    { title: 'AI API', path: '/AI-API' },
+    { title: 'HTML Library', path: '/Library' },
+  ];
+  const widget = makeWidget({ responseFor: () => ({ reply: 'Head to the **HTML Library** and open a book there.', sources }) });
+  const shadow = widget.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  submit(widget.window, shadow, 'where do I find books?');
+  await flush();
+  const chips = [...lastReply(shadow).querySelectorAll('.silo-source')];
+  assert.equal(chips.length, 1);
+  assert.equal(chips[0].textContent, 'HTML Library');
+  assert.equal(chips[0].getAttribute('href'), 'https://example.test/Library');
+  widget.dom.window.close();
+});
+
+test('saved history follows the same chip rule when it is replayed', async () => {
+  const storage = makeStorage({ 'siloai.conversations.abcdef0123456789abcdef01': { conversations: [{
+    id: 'c1', title: 'Games', updatedAt: Date.now(),
+    messages: [
+      { role: 'user', content: 'play a game' },
+      { role: 'assistant', content: 'Nothing to play here.', sources: [{ title: 'AI API', path: '/AI-API' }] },
+    ],
+  }], activeId: 'c1' } });
+  const widget = makeWidget({ storage });
+  const shadow = widget.window.document.querySelector('#siloai-widget-host').shadowRoot;
+  assert.equal(shadow.querySelectorAll('.silo-source').length, 0, 'a replayed reply does not resurrect an unrelated chip');
   widget.dom.window.close();
 });
