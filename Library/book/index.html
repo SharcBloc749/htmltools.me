@@ -444,7 +444,6 @@ async function boot(){
     const r=await runTransaction(ref(db,'bookStats/'+bookId+'/views'),cur=>(cur||0)+1);
     const v=r.snapshot.val()||0;
     if(bookData)bookData.views=v;
-    update(ref(db,'books/'+bookId+'/views'),v).catch(()=>{});
   }catch(e){console.warn('[Library] view not recorded',e);}
 
   // Start playtime timer
@@ -600,9 +599,8 @@ window.toggleLike=async function(){
     const liked=!!(bookData.likedBy&&bookData.likedBy[currentUser.uid]);
     const r=await runTransaction(ref(db,'bookStats/'+bookId+'/likes'),cur=>Math.max(0,(cur||0)+(liked?-1:1)));
     const newLikes=r.snapshot.val()||0;
-    const paths={['bookStats/'+bookId+'/likes']:newLikes,['books/'+bookId+'/likes']:newLikes};
-    if(liked)paths['bookStats/'+bookId+'/likedBy/'+currentUser.uid]=null;else paths['bookStats/'+bookId+'/likedBy/'+currentUser.uid]=true;
-    try{await update(ref(db),paths);}catch(e){console.warn('[Library] likes mirror write skipped',e);}
+    const paths={['bookStats/'+bookId+'/likedBy/'+currentUser.uid]:liked?null:true};
+    try{await update(ref(db),paths);}catch(e){console.warn('[Library] likedBy write skipped',e);}
     bookData.likes=newLikes;
     bookData.likedBy={...(bookData.likedBy||{})};
     if(liked)delete bookData.likedBy[currentUser.uid];else bookData.likedBy[currentUser.uid]=true;
