@@ -509,49 +509,6 @@ function classifyAiFailure(failure) {
   return { category: 'provider_error', providerCode, status, message: 'Workers AI returned an error. Please try again shortly; the site owner can inspect the Worker logs for the diagnostic code.' };
 }
 
-const SOURCE_INTENT = /\b(?:give me (?:the )?link|link (?:to|me)|url|web address|address of|which page|what page|where (?:is|are|can i find|do i find|do i go)|take me|send me to|navigate|direct me|page for|find the page)\b/i;
-
-function normalizeForMatch(value) {
-  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-/** True when the answer itself names the page, so a chip is genuinely clarifying. */
-function pageIsMentioned(reply, page) {
-  const text = normalizeForMatch(reply);
-  if (!text) return false;
-  const path = normalizeForMatch(page.path);
-  if (path && path !== '/' && text.includes(path)) return true;
-  const title = normalizeForMatch(page.title);
-  if (!title) return false;
-  if (title.length >= 4 && text.includes(title)) return true;
-  // Crawled titles usually carry a site suffix: "HTML Runner — SiloAI Test Bench".
-  const lead = title.split(/\s+[—–|·]\s+|\s+-\s+/)[0].trim();
-  return lead.length >= 6 && lead !== title && text.includes(lead);
-}
-
-/**
- * Page chips are opt-in. They appear when the visitor asked for a link or a
- * location, when the answer points somewhere ("open the Studio page"), when the
- * answer names the page, or when the model explicitly asked for them.
- */
-function selectSources({ pages, pagePath, message, reply, action, requested }) {
-  if (action && (action.type === 'navigate' || action.type === 'openLink')) return [];
-  const available = (Array.isArray(pages) ? pages : []).filter((page) => page && page.path && page.path !== pagePath);
-  if (!available.length) return [];
-  const byPath = new Map(available.map((page) => [page.path, page]));
-  const fromModel = (Array.isArray(requested) ? requested : [])
-    .map((item) => (typeof item === 'string' ? item : item?.path))
-    .map((path) => byPath.get(path))
-    .filter(Boolean);
-  if (fromModel.length) return fromModel.slice(0, 3).map(({ title, path }) => ({ title, path }));
-  const mentioned = available.filter((page) => pageIsMentioned(reply, page));
-  if (mentioned.length) return mentioned.slice(0, 3).map(({ title, path }) => ({ title, path }));
-  // Only a visitor who asked for a link or a location gets a page list by default;
-  // an ordinary answer keeps the conversation clean.
-  if (SOURCE_INTENT.test(message)) return available.slice(0, 2).map(({ title, path }) => ({ title, path }));
-  return [];
-}
-
 function parseActionJson(text) {
   const raw = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   if (!raw) return null;
@@ -659,13 +616,8 @@ function controlById(controls, id) {
 }
 
 function navigationEnabled(site) {
-  // On by default: only an explicit saved opt-out disables navigation.
+  // Page navigation is available unless the owner saved the explicit opt-out.
   return site?.actions?.navigationMode !== 'off';
-}
-
-function pageActionsEnabled(site) {
-  // On by default: only an explicit saved opt-out disables page interactions.
-  return site?.actions?.pageActionsMode !== 'off';
 }
 
 function sameSiteUrl(href, site) {
@@ -707,8 +659,8 @@ function validateAction(candidate, site, controls = [], message = '') {
   if (type === 'navigate') {
     if (!navigationEnabled(site) || typeof candidate.path !== 'string' || candidate.path.length > 500) return null;
     const raw = candidate.path.trim();
-    let path = normalizePath(raw);
     const newTab = candidate.newTab === true;
+    let path = normalizePath(raw);
     if (!path && /^https?:\/\//i.test(raw)) {
       if (sameSiteUrl(raw, site)) {
         try { path = normalizePath(new URL(raw).pathname); } catch { path = null; }
@@ -795,16 +747,16 @@ function validateAction(candidate, site, controls = [], message = '') {
       if (!value || !Array.isArray(target.options) || !target.options.includes(value)) return null;
       return { type, target: target.id, label: target.label, value };
     }
-    case 'hover':
-      return { type, target: target.id, label: target.label };
-    case 'press': {
-      const key = cleanString(candidate.key, 24);
-      if (!key) return null;
-      return { type: 'press', target: target.id, label: target.label, key };
-    }
     default:
       return null;
   }
+}
+
+function pageActionsEnabled(site) {
+  // Page interactions are available by default. Only the explicit owner opt-out
+  // stored by the current dashboard (pageActionsMode: 'off') turns them off, so
+  // sites connected before that switch existed are not stuck on answer-only.
+  return site?.actions?.pageActionsMode !== 'off';
 }
 
 function actionFallbackNote(proposed, site) {
@@ -814,9 +766,9 @@ function actionFallbackNote(proposed, site) {
     const requested = typeof proposed?.path === 'string' ? proposed.path.trim() : '';
     const indexed = requested ? indexedPageFor(normalizePath(requested) || '', site) : null;
     if (requested && !indexed && Array.isArray(site?.pages) && site.pages.length) {
-      return 'That page is not part of the site’s current index — the owner may have moved or renamed it — so I did not open it. You can still copy the address from my answer.';
+      return 'That page is not part of the site’s current index — the owner may have moved or renamed it — so I did not open it.';
     }
-    return 'I could not verify that address, so I did not open it. You can still copy it from my answer.';
+    return 'I could not verify that address, so I left the page untouched.';
   }
   return 'I could not safely match that to an element on this page, so nothing was changed.';
 }
@@ -858,32 +810,6 @@ async function startStaleRefresh(site, env, ctx) {
   })());
 }
 
-/**
- * Zero-configuration embed support: `/config?origin=https://example.com` returns the
- * site id of the verified SiloAI site that owns that origin.
- *
- * The id is deterministic (a hash of the domain) and already published inside every
- * embed snippet, so returning it leaks nothing — but it means a page can install the
- * widget without knowing its own id, which keeps large sites to a single snippet.
- */
-async function widgetConfig(request, env, origin) {
-  const url = new URL(request.url);
-  const requested = url.searchParams.get('origin') || origin || '';
-  if (request.method === 'OPTIONS') return withCors(new Response(null, { status: 204 }), origin, true);
-  if (request.method !== 'GET') return jsonError(405, 'method_not_allowed', 'Use GET for the widget configuration.', origin, true);
-  const domain = safeDomain(requested);
-  if (!domain) return jsonError(400, 'invalid_origin', 'Pass the page origin, for example https://example.com.', origin, true);
-  const candidates = [...new Set([domain, domain.replace(/^www\./, ''), `www.${domain.replace(/^www\./, '')}`])];
-  for (const candidate of candidates) {
-    const id = (await sha256(candidate)).slice(0, 24);
-    const site = await readSite(env, id).catch(() => null);
-    // Only hand out an id when the asking page really is that verified site.
-    if (!site || !site.verified || !siteOrigins(site).has(domain.toLowerCase())) continue;
-    return withCors(json({ siteId: site.id, siteName: site.profile?.title || site.domain }), origin, true);
-  }
-  return jsonError(404, 'site_not_connected', 'This website is not connected to SiloAI yet. Add it in the dashboard at htmltools.me/SiloAI.', origin, true);
-}
-
 async function chat(request, id, env, origin, ctx) {
   if (!/^[a-f0-9]{24}$/.test(id)) return jsonError(404, 'site_not_found', 'This SiloAI site does not exist.', origin, false);
   const site = await readSite(env, id);
@@ -921,30 +847,28 @@ async function chat(request, id, env, origin, ctx) {
     .filter((entry) => entry.content);
   const controls = sanitizePageControls(body.value.controls);
   const pages = relevantPages(site, `${history.map((entry) => entry.content).join(' ')} ${message}`, pagePath, pageTitle);
+  const sources = pages.slice(0, 3).map((page) => ({ title: page.title, path: page.path }));
   const context = scoreContext(site, pages, pagePath, pageTitle, browserExcerpt);
   const allowNavigation = navigationEnabled(site);
   const allowPageActions = pageActionsEnabled(site);
   const actionsEnabled = allowNavigation || allowPageActions;
   const actionRules = allowPageActions
     ? [
-        'Page actions are enabled. Return exactly one JSON object: {"reply":"your helpful answer","action":{...}|null,"sources":["/path"]}.',
+        'Page actions are enabled. When you act, return exactly one JSON object: {"reply":"your helpful answer","action":{...}}; otherwise return {"reply":"...","action":null}.',
         'Supported actions, each acting on ONE id from PAGE CONTROLS:',
-        '{"type":"highlight","target":"id"} rings the element and shows its label. Use it for "where is", "point at", "show me", "which one".',
+        '{"type":"highlight","target":"id"} rings the element (any kind). Use it for "where is", "point at", "show me".',
         '{"type":"click","target":"id"} activates a kind "button" entry (needs clickable:true).',
         '{"type":"fill","target":"id","value":"text"} replaces the value of a kind "field" entry.',
         '{"type":"clear","target":"id"} empties a kind "field" entry.',
         '{"type":"edit","target":"id","value":"text"} rewrites the visible text of a kind "text" entry (the visitor can undo it).',
-        '{"type":"toggle","target":"id","value":"checked"|"unchecked"} ticks or unticks a kind "check" entry (checkbox, radio, switch).',
+        '{"type":"toggle","target":"id","value":"checked"|"unchecked"} flips a kind "check" entry (checkbox, radio, switch).',
         '{"type":"select","target":"id","value":"option label"} picks one of the listed options of a kind "select" entry.',
         '{"type":"focus","target":"id"} moves keyboard focus to a control so the visitor can start typing.',
-        '{"type":"press","target":"id","key":"Enter"} sends one key to a control (Enter, Escape, Tab, ArrowDown, Space). Use it to submit a search box or close a menu; never use it to submit a payment or delete form.',
-        '{"type":"hover","target":"id"} hovers an element to reveal a tooltip or menu without clicking.',
         '{"type":"selectText","target":"id"} selects the text inside an entry so the visitor can copy it.',
         '{"type":"copy","target":"id"} copies that element\'s visible text to the clipboard.',
-        '{"type":"scroll","target":"id"} brings an element into view; {"type":"scroll","position":"top"|"bottom"|"up"|"down"} moves the page.',
-        '{"type":"find","value":"phrase"} highlights every occurrence of a phrase on the page and scrolls to the first one.',
+        '{"type":"scroll","target":"id"} brings an element into view; {"type":"scroll","position":"top"|"bottom"} scrolls the page.',
+        '{"type":"find","value":"phrase"} highlights every occurrence of a phrase on the page.',
         'Pick the closest matching entry and say in "reply" exactly what you picked and what will happen. If the request is vague ("highlight anything", "change some text", "click a button"), choose the most prominent sensible match instead of asking for a control ID.',
-        'Only add "sources" when the visitor asks where something lives, asks for a link, or you are pointing them to a different page. Use 1-3 exact paths from WEBSITE KNOWLEDGE; otherwise omit it or send []. Never attach page lists to ordinary answers or to a navigation you are already performing.',
         'Never say the page has no buttons or controls when PAGE CONTROLS lists any entry of that kind. Entries include plain <button> elements with no type attribute, role="button" elements, links, input buttons, checkboxes, selects, and controls inside same-origin frames or open shadow roots.',
         'Labels are the visible text with decorative glyphs removed, so "Run" may be shown on the page as "▶ Run" or "Run →". Match the visitor wording to the closest label by words, case-insensitively, and never require an exact string match.',
         'Entries with clickable:false are submit/reset controls or links that would leave the page: you may highlight them but must not choose them for click.',
@@ -957,9 +881,8 @@ async function chat(request, id, env, origin, ctx) {
         'Only navigate to a path listed in WEBSITE KNOWLEDGE, or one the visitor typed themselves. Never reuse a path from an earlier conversation turn: the owner may have moved that page, and an out-of-date path is refused. Paths must start with "/" (a same-site absolute URL is also accepted). Never invent external domains.',
         'For a destination that only exists as a kind "link" entry in PAGE CONTROLS, use {"type":"openLink","target":"id","newTab":true|false} instead.',
         'Decide "newTab" yourself: use false when the visitor says "here", "in this tab", "take me", or when they are mid-task on the current page; use true when they want to keep the current page open, compare pages, or open a reference/dashboard/download.',
-        'The browser shows the visitor a confirmation button naming the destination before opening anything — never say you already navigated.',
+        'The browser shows the visitor a confirmation button before opening anything — never say you already navigated.',
         'To open an off-site link, only use {"type":"openLink","target":"id"} for a collected link entry.',
-        'When the visitor asks for a link or a route without wanting to leave right now, put the path in "reply" as plain text and add it to "sources"; do not start a navigation.',
       ].join(' ')
     : 'Page navigation is switched off for this site. Answer with the address or path as plain text and tell the visitor the site owner can enable SiloAI navigation in the SiloAI dashboard.';
   const system = [
@@ -984,7 +907,6 @@ async function chat(request, id, env, origin, ctx) {
   const messages = [{ role: 'system', content: system }, ...history, { role: 'user', content: userContent }];
   let reply;
   let action = null;
-  let requestedSources = [];
   let usedFallbackModel = false;
   try {
     const model = env.AI_MODEL || MODEL_DEFAULT;
@@ -1013,7 +935,6 @@ async function chat(request, id, env, origin, ctx) {
       const parsed = parseActionJson(modelText);
       reply = tidyReply(cleanString(parsed?.reply, 2_400) || extractReplyText(modelText));
       action = validateAction(parsed?.action, site, controls, message);
-      requestedSources = Array.isArray(parsed?.sources) ? parsed.sources.slice(0, 3) : [];
       // Only explain a rejection when nothing can be offered, and never contradict
       // the reply with a generic "page control" sentence for navigation requests.
       if (parsed?.action && !action) reply = tidyReply(`${reply} ${actionFallbackNote(parsed.action, site)}`);
@@ -1040,7 +961,6 @@ async function chat(request, id, env, origin, ctx) {
     return jsonError(status, `workers_ai_${diagnostic.category}`, `${diagnostic.message} (diagnostic: ${reference}).`, origin, true);
   }
   await startStaleRefresh(site, env, ctx);
-  const sources = selectSources({ pages, pagePath, message, reply, action, requested: requestedSources });
   return withCors(json({
     reply,
     sources,
@@ -1060,7 +980,6 @@ export default {
     if (url.pathname === '/health' && request.method === 'GET') {
       return json({ ok: true, service: 'siloai', ai: Boolean(env.AI), model: env.AI_MODEL || MODEL_DEFAULT, fallbackModel: env.AI_FALLBACK_MODEL || FALLBACK_MODEL_DEFAULT, storage: Boolean(env.GITHUB_TOKEN && env.GITHUB_REPO), auth: Boolean(env.FIREBASE_PROJECT_ID), limits: Boolean(env.LIMITER) });
     }
-    if (url.pathname === '/config') return widgetConfig(request, env, origin);
     if (url.pathname.startsWith('/api/')) return ownerApi(request, url, env, origin);
     const chatMatch = /^\/chat\/([a-f0-9]{24})$/.exec(url.pathname);
     if (chatMatch) {

@@ -53,8 +53,11 @@ test('machine-readable contract matches the implemented surface', () => {
   }
 });
 
-test('AI-API is listed in the directory, the home page, Main and the sitemap', () => {
-  for (const path of ['Tools/index.html', 'index.html', 'Main/index.html', 'sitemap1.xml']) {
+test('AI-API stays out of the tool directories but remains linked from Main', () => {
+  for (const path of ['Tools/index.html', 'index.html']) {
+    assert.ok(!read(path).includes('https://htmltools.me/AI-API'), `${path} no longer promotes AI API`);
+  }
+  for (const path of ['Main/index.html', 'sitemap1.xml']) {
     assert.ok(read(path).includes('https://htmltools.me/AI-API'), path);
   }
 });
