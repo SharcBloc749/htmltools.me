@@ -7,7 +7,7 @@
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '10.1';
+  var BUILD_VERSION = '10.2';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
@@ -576,12 +576,26 @@
     log.scrollTop = log.scrollHeight;
     return el;
   }
-  function addSources(parent, sources) {
+  /* A chip is only useful when the answer points at that page. Without this the
+     widget repeated whatever the Worker scored highest, so unrelated tools (an
+     AI API page, for example) were glued under every reply. */
+  function replyNamesSource(text, source) {
+    var hay = String(text || '').toLowerCase();
+    if (!hay) return false;
+    var title = String(source.title || '').toLowerCase().trim();
+    if (title.length >= 3 && hay.indexOf(title) !== -1) return true;
+    var slug = String(source.path || '').toLowerCase().replace(/^\/+|\/+$/g, '');
+    var words = slug.split(/[^a-z0-9]+/).filter(function (word) { return word.length >= 3; });
+    if (!words.length) return false;
+    return words.every(function (word) { return hay.indexOf(word) !== -1; });
+  }
+  function addSources(parent, sources, replyText) {
     if (!Array.isArray(sources) || !sources.length) return;
     var wrap = document.createElement('div');
     wrap.className = 'silo-sources';
     sources.forEach(function (source) {
       if (!source || typeof source.path !== 'string' || !source.path.startsWith('/') || source.path.startsWith('//')) return;
+      if (!replyNamesSource(replyText, source)) return;
       var destination;
       try { destination = new URL(source.path, location.origin); } catch (_) { return; }
       if (destination.origin !== location.origin) return;
@@ -633,7 +647,7 @@
     history.forEach(function (entry) {
       var el = bubble(entry.role, entry.role === 'assistant' ? tidyReplyText(entry.content) : (entry.content || ''));
       if (entry.imageData) { var img = document.createElement('img'); img.className = 'silo-user-image'; img.src = entry.imageData; img.alt = 'Screenshot you attached'; el.appendChild(img); }
-      if (entry.role === 'assistant') addSources(el, entry.sources);
+      if (entry.role === 'assistant') addSources(el, entry.sources, entry.content);
     });
   }
   function describeVisibleControls() {
@@ -1493,7 +1507,7 @@
       history.push(assistantEntry);
       saveConversations();
       var reply = bubble('assistant', replyText);
-      addSources(reply, payload.sources);
+      addSources(reply, payload.sources, replyText);
       applyAction(reply, chosenAction, payload.confirmAction);
       if (!chosenAction && /\b(highlight|click|press|tap|point|fill|type|change|edit|rewrite|button)\b/i.test(userText)) {
         setStatus(describeVisibleControls());
