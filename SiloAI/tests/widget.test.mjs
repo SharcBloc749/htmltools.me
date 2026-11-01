@@ -11,8 +11,8 @@ const pageMarkup = `
     <p id="intro">Visible page information for the visitor.</p>
     <div style="opacity:0"><p>Invisible page text must never be shared.</p></div>
     <button id="save" type="button">Save draft</button>
-    <form id="runner-form"><button id="run">Run</button></form>
-    <button id="danger" type="submit">Submit order</button>
+    <form id="runner-form"><button id="run">▶ Run</button><button id="copycode">✨ Copy code</button></form>
+    <form id="order-form" action="/nowhere"><button id="danger" type="submit">Submit order</button></form>
     <button id="icon-only" type="button" aria-labelledby="icon-label"><svg viewBox="0 0 10 10"><title>Download</title></svg></button>
     <span id="icon-label" hidden>Download file</span>
     <div id="shadow-host"></div>
@@ -101,11 +101,14 @@ function makeWidget({ responseFor = () => ({ reply: 'SiloAI test answer.', sourc
 }
 
 async function flush() { await new Promise((resolve) => setTimeout(resolve, 0)); }
-function pointer(window, target, type, x, y, pointerId = 1) {
+/* Drag/resize updates are applied once per animation frame. */
+async function frame() { await new Promise((resolve) => setTimeout(resolve, 40)); }
+function pointer(window, target, type, x, y, pointerId = 1, buttons = 1) {
   // Real pointer events cross shadow boundaries (composed: true); the widget tracks
   // pointer moves on the window so a fast drag keeps following the pointer.
   const event = new window.MouseEvent(type, { bubbles: true, cancelable: true, composed: true, button: 0, clientX: x, clientY: y });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
+  Object.defineProperty(event, 'buttons', { value: buttons });
   target.dispatchEvent(event);
 }
 function submit(window, shadow, text) {
@@ -312,11 +315,14 @@ test('plain buttons, framed buttons, and shadow-DOM buttons are found, labelled,
 
   submit(window, shadow, 'What is on this page?'); await flush();
   const labels = requests[0].body.controls.map((control) => control.label);
+  assert.ok(labels.includes('Run') && labels.includes('Copy code'), 'decorative glyphs are stripped from labels');
   assert.ok(labels.includes('Run'), 'a <button> with no type attribute is a real button, not an implicit submit');
   assert.ok(labels.includes('Clear'), 'buttons inside a same-origin frame are collected');
   assert.ok(labels.includes('Apply changes'), 'buttons inside open shadow roots are collected');
   assert.ok(labels.includes('Download file'), 'an icon-only button is labelled from aria-labelledby');
-  assert.ok(!labels.includes('Submit order'), 'an author-declared submit button is still withheld');
+  const submitControl = (requests[0].body.controls || []).find((control) => control.label === 'Submit order');
+  assert.ok(submitControl, 'an author-declared submit button is still listed so it can be highlighted');
+  assert.equal(submitControl.clickable, false, 'but it is marked highlight-only');
   assert.doesNotMatch(JSON.stringify(requests[0].body.controls), /Existing field value/, 'field values are still never sent');
 
   submit(window, shadow, 'Click the run button please'); await flush();
@@ -341,6 +347,33 @@ test('plain buttons, framed buttons, and shadow-DOM buttons are found, labelled,
 
   const excerpt = requests[0].body.pageExcerpt;
   assert.match(excerpt, /Visible page information for the visitor/, 'the page excerpt is unchanged');
+  assert.deepEqual(errors, []);
+  dom.window.close();
+});
+
+test('a reply without an action reports the controls the widget could actually see, and submit-only buttons are highlight-only', async () => {
+  const responseFor = (body) => {
+    const buttons = (body.controls || []).filter((control) => control.kind === 'button');
+    if (/click the submit order/i.test(body.message)) {
+      return { reply: 'That one only submits the form.', action: { type: 'click', target: buttons.find((control) => control.label === 'Submit order')?.id }, confirmAction: true };
+    }
+    return { reply: 'I could not find that button.', sources: [] };
+  };
+  const { dom, window, requests, errors } = makeWidget({ responseFor });
+  let dangerClicks = 0;
+  window.document.querySelector('#danger').addEventListener('click', () => { dangerClicks++; });
+  const shadow = window.document.querySelector('#siloai-widget-host').shadowRoot;
+
+  submit(window, shadow, 'highlight any button on my screen'); await flush();
+  const status = shadow.querySelector('[data-status-text]').textContent;
+  assert.match(status, /On this page I can see /, 'the visitor is told what SiloAI can reach');
+  assert.match(status, /“Run”/, 'the visible button labels are named');
+  assert.match(status, /button/, 'the summary counts buttons');
+
+  submit(window, shadow, 'Click the submit order button'); await flush();
+  replyAction(shadow).click();
+  assert.equal(dangerClicks, 0, 'a highlight-only button is never clicked');
+  assert.match(shadow.querySelector('[data-status-text]').textContent, /would submit a form or leave this page/);
   assert.deepEqual(errors, []);
   dom.window.close();
 });
@@ -379,10 +412,31 @@ test('launcher drag, chat-window drag and resize, screenshot replacement, voice 
   const initial = host.getBoundingClientRect();
   pointer(window, fab, 'pointerdown', initial.left + 15, initial.top + 15);
   pointer(window, fab, 'pointermove', initial.left + 65, initial.top + 55);
-  pointer(window, fab, 'pointerup', initial.left + 65, initial.top + 55);
+  await frame();
   assert.ok(parseFloat(host.style.left) > initial.left, 'the launcher can be dragged');
+  // A release the widget never receives (dropped outside the window) must not leave
+  // the launcher glued to the cursor: the next move with no button held ends it.
+  // A fast flick: the final move arrives and the release follows immediately,
+  // before the animation frame applies it. The launcher must still land there.
+  pointer(window, fab, 'pointerdown', initial.left + 15, initial.top + 15, 2);
+  pointer(window, fab, 'pointermove', initial.left + 215, initial.top + 115, 2);
+  pointer(window, fab, 'pointerup', initial.left + 215, initial.top + 115, 2);
+  await frame();
+  const flickTarget = Math.min(initial.left + 200, window.innerWidth - 64);
+  assert.equal(parseFloat(host.style.left), flickTarget, 'a fast flick lands exactly under the pointer');
+  pointer(window, fab, 'pointerdown', initial.left + 15, initial.top + 15, 3);
+  pointer(window, fab, 'pointermove', initial.left + 65, initial.top + 55, 3);
+  await frame();
+  const parked = parseFloat(host.style.left);
+  pointer(window, fab, 'pointermove', initial.left + 300, initial.top + 120, 1, 0);
+  await frame();
+  pointer(window, fab, 'pointermove', initial.left + 400, initial.top + 200, 1, 0);
+  await frame();
+  assert.equal(parseFloat(host.style.left), parked, 'the launcher stops following once the button is released');
+  pointer(window, fab, 'pointerup', initial.left + 65, initial.top + 55);
   assert.equal(shadow.querySelector('.silo-panel').hidden, true, 'dragging the launcher does not open the chat window');
 
+  // Pressing without enough movement is a normal click.
   pointer(window, fab, 'pointerdown', 0, 0, 9);
   pointer(window, fab, 'pointerup', 0, 0, 9);
   fab.click();
@@ -393,17 +447,33 @@ test('launcher drag, chat-window drag and resize, screenshot replacement, voice 
   const beforeDrag = parseFloat(panel.style.left);
   pointer(window, head, 'pointerdown', 60, 40, 4);
   pointer(window, head, 'pointermove', 0, 70, 4);
+  await frame();
   pointer(window, head, 'pointerup', 0, 70, 4);
   assert.equal(parseFloat(panel.style.left), beforeDrag - 60, 'the chat window itself can be dragged by its header');
+  // Releasing outside the window (blur) also ends the drag cleanly.
+  const parkedPanel = parseFloat(panel.style.left);
+  pointer(window, head, 'pointerdown', 60, 40, 5);
+  window.dispatchEvent(new window.Event('blur'));
+  pointer(window, head, 'pointermove', 0, 70, 5);
+  await frame();
+  assert.equal(parseFloat(panel.style.left), parkedPanel, 'a lost pointer release ends the window drag');
 
   const panelResize = shadow.querySelector('[data-resize-panel]');
   pointer(window, panelResize, 'pointerdown', 0, 0, 3);
   pointer(window, panelResize, 'pointermove', 80, 45, 3);
+  await frame();
   pointer(window, panelResize, 'pointerup', 80, 45, 3);
-  assert.equal(panel.style.width, '470px');
-  assert.equal(panel.style.height, '625px');
+  // Growth is clamped to the space left of/below the panel so the grip cannot drag
+  // the window off-screen while resizing.
+  const roomWidth = Math.max(240, window.innerWidth - parseFloat(panel.style.left) - 8);
+  const roomHeight = Math.max(240, window.innerHeight - parseFloat(panel.style.top) - 8);
+  assert.equal(panel.style.width, Math.min(470, roomWidth) + 'px');
+  assert.equal(panel.style.height, Math.min(625, roomHeight) + 'px');
+  const beforeKeyboard = parseFloat(panel.style.height);
   panelResize.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-  assert.equal(panel.style.height, '641px', 'the chat window can also be resized from the keyboard');
+  assert.equal(parseFloat(panel.style.height), beforeKeyboard + 16, 'the chat window can also be resized from the keyboard');
+  panelResize.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+  assert.equal(parseFloat(panel.style.height), beforeKeyboard, 'and shrinks again');
 
   const mic = shadow.querySelector('[data-voice]');
   assert.equal(mic.hidden, false);

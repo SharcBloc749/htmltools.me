@@ -1,9 +1,9 @@
 /* SiloAI website assistant embed. Install with:
-   <script async src="https://htmltools.me/SiloAI/widget.js?v=7" data-site-id="YOUR_SITE_ID"></script>
+   <script async src="https://htmltools.me/SiloAI/widget.js?v=8" data-site-id="YOUR_SITE_ID"></script>
 */
 (function () {
   'use strict';
-  var BUILD_VERSION = '7';
+  var BUILD_VERSION = '8';
   if (window.__siloaiLoadedVersion === BUILD_VERSION) return;
   var script = document.currentScript;
   var siteId = script && script.getAttribute('data-site-id');
@@ -82,6 +82,8 @@
     'svg{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}',
     '.silo-fab{position:absolute;inset:0;width:100%;height:100%;padding:0;overflow:hidden;border-radius:15px;border:1px solid #8f8f8f;background:#090909;box-shadow:0 14px 38px #0008;cursor:grab;display:grid;place-items:center;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;transition:box-shadow .18s ease,transform .18s ease}',
     '.silo-fab:hover{box-shadow:0 16px 44px #000b}',
+    '.silo-fab.is-dragging{will-change:left,top}',
+    '.silo-panel.is-dragging,.silo-panel.is-resizing{will-change:left,top,width,height}',
     '.silo-fab:active{cursor:grabbing;transform:scale(.97)}',
     '.silo-fab:focus-visible{outline:2px solid #f2f2f2;outline-offset:3px}',
     '.silo-fab img{display:block;width:100%;height:100%;border-radius:14px;object-fit:cover;transform:none;pointer-events:none;-webkit-user-drag:none;user-select:none}',
@@ -179,7 +181,7 @@
     '  <header class="silo-head" data-drag-handle><img class="silo-logo" src="https://htmltools.me/SiloAI/brandmark-mono.png?v=3" alt="" draggable="false"><div class="silo-id"><div class="silo-brand">SiloAI</div><div class="silo-status">Website Assistant - Powered by HTMLTools.me</div></div><span class="silo-grow"></span><button class="silo-icon" type="button" data-history aria-label="Previous conversations" title="Previous conversations" aria-expanded="false">' + icons.list + '</button><button class="silo-icon" type="button" data-new aria-label="New conversation" title="New conversation">' + icons.plus + '</button><button class="silo-icon" type="button" data-close aria-label="Close SiloAI" title="Close">' + icons.close + '</button></header>',
     '  <div class="silo-menu" data-conversation-menu hidden></div>',
     '  <div class="silo-messages" aria-live="polite"></div>',
-    '  <form class="silo-compose"><div class="silo-attachment" data-attachment hidden><img data-attachment-image alt="Screenshot preview"><span class="silo-attachment-copy"><b>Screenshot attached</b><span data-attachment-name>Screenshot attached</span></span><button class="silo-attachment-x" type="button" data-remove-image aria-label="Remove screenshot" title="Remove screenshot">×</button></div><div class="silo-row"><textarea class="silo-input" rows="1" maxlength="1200" aria-label="Message SiloAI" placeholder="Ask about this website…"></textarea><button class="silo-tool" type="button" data-attach aria-label="Attach a screenshot" title="Attach a screenshot">' + icons.image + '</button><button class="silo-tool" type="button" data-voice aria-label="Dictate with your voice" title="Dictate with your voice" aria-pressed="false" hidden>' + icons.mic + '</button><button class="silo-send" type="submit" aria-label="Send message" title="Send">' + icons.send + '</button></div><input class="silo-hidden-file" data-image-file type="file" accept="image/png,image/jpeg,image/webp"><div class="silo-note" data-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-status-text></span></div><div class="silo-note" data-storage-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-storage-text></span></div><div class="silo-foot"><a href="https://htmltools.me/SiloAI/" target="_blank" rel="noopener noreferrer">Set up SiloAI on your site for free at htmltools.me/SiloAI!</a><span>Each question sends up to 2.5 KB of visible page text. Attached screenshots go to Cloudflare AI.</span></div></form>',
+    '  <form class="silo-compose"><div class="silo-attachment" data-attachment hidden><img data-attachment-image alt="Screenshot preview"><span class="silo-attachment-copy"><b>Screenshot attached</b><span data-attachment-name>Screenshot attached</span></span><button class="silo-attachment-x" type="button" data-remove-image aria-label="Remove screenshot" title="Remove screenshot">×</button></div><div class="silo-row"><textarea class="silo-input" rows="1" maxlength="1200" aria-label="Message SiloAI" placeholder="Ask about this website…"></textarea><button class="silo-tool" type="button" data-attach aria-label="Attach a screenshot" title="Attach a screenshot">' + icons.image + '</button><button class="silo-tool" type="button" data-voice aria-label="Dictate with your voice" title="Dictate with your voice" aria-pressed="false" hidden>' + icons.mic + '</button><button class="silo-send" type="submit" aria-label="Send message" title="Send">' + icons.send + '</button></div><input class="silo-hidden-file" data-image-file type="file" accept="image/png,image/jpeg,image/webp"><div class="silo-note" data-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-status-text></span></div><div class="silo-note" data-storage-status role="status" aria-live="polite" hidden><span class="silo-dot"></span><span data-storage-text></span></div><div class="silo-foot"><a href="https://htmltools.me/SiloAI/" target="_blank" rel="noopener noreferrer">Set up SiloAI on your site for free at htmltools.me/SiloAI!</a></div></form>',
     '  <button class="silo-panel-resize" type="button" data-resize-panel aria-label="Resize chat window" title="Drag to resize chat window"></button>',
     '</section>',
   ].join('');
@@ -483,6 +485,18 @@
       if (entry.role === 'assistant') addSources(el, entry.sources);
     });
   }
+  function describeVisibleControls() {
+    var controls = collectPageTargets();
+    var buttons = controls.filter(function (item) { return item.kind === 'button'; });
+    var fields = controls.filter(function (item) { return item.kind === 'field'; });
+    var texts = controls.filter(function (item) { return item.kind === 'text'; });
+    var parts = [];
+    if (buttons.length) parts.push(buttons.length + ' button' + (buttons.length === 1 ? '' : 's') + ' (' + buttons.slice(0, 4).map(function (item) { return '“' + item.label + '”'; }).join(', ') + (buttons.length > 4 ? ', …' : '') + ')');
+    if (fields.length) parts.push(fields.length + ' field' + (fields.length === 1 ? '' : 's'));
+    if (texts.length) parts.push(texts.length + ' text block' + (texts.length === 1 ? '' : 's'));
+    if (!parts.length) return 'I could not read any controls on this page. If it is inside a cross-origin frame, the site owner needs to embed me in that frame instead.';
+    return 'On this page I can see ' + parts.join(', ') + '.';
+  }
   function submitComposer() {
     if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return; }
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -500,8 +514,18 @@
   }
 
   var TEXT_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,pre,code,blockquote,[role=heading]';
-  var CONTROL_SELECTOR = 'button,[role=button],input,textarea,select,[contenteditable=true],[contenteditable=""],' + TEXT_SELECTOR;
+  var BUTTON_SELECTOR = 'button,[role=button],summary,a.btn,a.button,a[role=button]';
+  var CONTROL_SELECTOR = BUTTON_SELECTOR + ',input,textarea,select,[contenteditable=true],[contenteditable=""],' + TEXT_SELECTOR;
   function shortText(value) { return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 100); }
+  var LABEL_EDGE;
+  try { LABEL_EDGE = new RegExp('^[^\\p{L}\\p{N}([{\"\'\u201c]+|[^\\p{L}\\p{N})\\]}\"\'\u201d]+$', 'gu'); }
+  catch (_) { LABEL_EDGE = /^[^A-Za-z0-9([{"']+|[^A-Za-z0-9)\]}"']+$/g; }
+  /* "▶ Run", "🔄 Refresh preview" and "Run →" all match a visitor saying "Run". */
+  function cleanLabel(text) {
+    var base = shortText(text);
+    var trimmed = base.replace(LABEL_EDGE, '').replace(/\s+/g, ' ').trim();
+    return trimmed || base;
+  }
   function attrText(el, name) {
     var value = el.getAttribute(name);
     return value ? shortText(value) : '';
@@ -539,7 +563,7 @@
       }
       return editable ? 'Editable text area' : 'Text field';
     }
-    return accessibleName(el) || (kind === 'button' ? shortText(el.value || '') : '');
+    return cleanLabel(accessibleName(el) || (kind === 'button' ? el.value || '' : ''));
   }
   function isSensitiveField(el) {
     var inputType = (el.getAttribute('type') || 'text').toLowerCase();
@@ -560,22 +584,30 @@
       for (var index = 0; index < candidates.length && index < 2_400; index++) {
         var el = candidates[index];
         if (!el.isConnected || ownNodes(el)) continue;
-        var kind; var inputType = '';
-        if (el.matches('button,[role=button]')) {
-          if (el.tagName === 'A') continue;
-          // Only an author-declared submit/reset control is off limits. A <button>
-          // with no type attribute reports type="submit" while behaving like a
-          // normal button, and excluding those hid most real tool buttons.
-          if (el.tagName === 'BUTTON' && ['submit', 'reset'].includes(explicitButtonType(el))) continue;
+        var kind; var inputType = ''; var clickable = true;
+        if (el.matches(BUTTON_SELECTOR)) {
           kind = 'button';
+          // Everything visible is reported so it can be highlighted. Only controls
+          // that would submit/reset a form or leave the page are highlight-only.
+          // A <button> with no type attribute reports type="submit" to script while
+          // behaving like a normal button, so the attribute is what counts.
+          var declared = explicitButtonType(el);
+          if (el.tagName === 'BUTTON' && (declared === 'submit' || declared === 'reset')) clickable = false;
+          if (el.tagName === 'A') {
+            var href = el.getAttribute('href') || '';
+            clickable = !href || href.charAt(0) === '#';
+          }
         } else if (el.matches('[contenteditable=true],[contenteditable=""]')) {
           kind = 'field'; inputType = 'contenteditable';
         } else if (el.matches(TEXT_SELECTOR)) {
           kind = 'text';
         } else {
           inputType = (el.getAttribute('type') || 'text').toLowerCase();
-          if (el.tagName === 'INPUT' && inputType === 'button') { kind = 'button'; }
-          else {
+          if (el.tagName === 'INPUT' && ['button', 'submit', 'reset'].includes(inputType)) {
+            kind = 'button';
+            clickable = inputType === 'button';
+            inputType = 'button';
+          } else {
             if (!(el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || ['text', 'search', 'email', 'url', 'tel', 'number'].includes(inputType))) continue;
             if (isSensitiveField(el)) continue;
             kind = 'field';
@@ -592,21 +624,24 @@
         if (!label) continue;
         if (kind === 'field' && /password|secret|token|one-time|otp|credit.?card|card.?number|security.?code|\bssn\b/i.test(label)) continue;
         var inViewport = isInViewport(el, view);
-        buckets[kind].push({ el: el, kind: kind, label: label, inputType: inputType, inViewport: inViewport, docIndex: docIndex, order: index });
+        buckets[kind].push({ el: el, kind: kind, label: label, inputType: inputType, clickable: clickable, inViewport: inViewport, docIndex: docIndex, order: index });
       }
     }
     // Prefer what the visitor can actually see right now.
     var byScreen = function (a, b) {
-      return (b.inViewport ? 1 : 0) - (a.inViewport ? 1 : 0)
+      return (b.clickable === false ? 0 : 1) - (a.clickable === false ? 0 : 1)
+        || (b.inViewport ? 1 : 0) - (a.inViewport ? 1 : 0)
         || a.docIndex - b.docIndex
         || a.order - b.order;
     };
     buckets.button.sort(byScreen); buckets.field.sort(byScreen); buckets.text.sort(byScreen);
-    var ordered = buckets.button.slice(0, 16).concat(buckets.field.slice(0, 10), buckets.text.slice(0, 14));
+    var ordered = buckets.button.slice(0, 18).concat(buckets.field.slice(0, 10), buckets.text.slice(0, 14));
     return ordered.map(function (entry, position) {
       var controlId = 'siloctl' + (position + 1);
       targetIndex.set(controlId, entry);
-      return { id: controlId, kind: entry.kind, label: entry.label, inputType: entry.inputType };
+      var item = { id: controlId, kind: entry.kind, label: entry.label, inputType: entry.inputType };
+      if (entry.kind === 'button') item.clickable = entry.clickable !== false;
+      return item;
     });
   }
   function resolveTarget(action) {
@@ -727,8 +762,11 @@
     if (action.type === 'click') {
       actionButton(parent, 'Click “' + label + '”', function (event) {
         var target = resolveTarget(action);
-        if (!target || !target.matches('button,[role=button],input[type=button]')) { setStatus('That button is no longer on the page, so I didn’t click it.', 'warn'); return; }
-        if (target.tagName === 'BUTTON' && ['submit', 'reset'].includes(String(target.getAttribute('type') || '').toLowerCase())) { setStatus('For safety, form submit and reset buttons cannot be clicked.', 'warn'); return; }
+        if (!target || !target.matches('button,[role=button],summary,input[type=button],a.btn,a.button')) { setStatus('That button is no longer on the page, so I didn’t click it.', 'warn'); return; }
+        var current = targetIndex.get(action.target);
+        if (current && current.clickable === false) { setStatus('“' + label + '” would submit a form or leave this page, so I can only highlight it.', 'warn'); return; }
+        if (target.tagName === 'BUTTON' && ['submit', 'reset'].includes(explicitButtonType(target))) { setStatus('For safety, form submit and reset buttons cannot be clicked.', 'warn'); return; }
+        if (target.tagName === 'A') { var anchorHref = target.getAttribute('href') || ''; if (anchorHref && anchorHref.charAt(0) !== '#') { setStatus('That link would leave this page, so I can only highlight it.', 'warn'); return; } }
         event.currentTarget.disabled = true;
         event.currentTarget.textContent = 'Clicked ✓';
         var doc = target.ownerDocument;
@@ -820,6 +858,9 @@
       var reply = bubble('assistant', replyText);
       addSources(reply, payload.sources);
       applyAction(reply, payload.action, payload.confirmAction);
+      if (!payload.action && /\b(highlight|click|press|tap|point|fill|type|change|edit|rewrite|button)\b/i.test(userText)) {
+        setStatus(describeVisibleControls());
+      }
       log.scrollTop = log.scrollHeight;
     } catch (error) {
       pending.remove();
@@ -873,35 +914,92 @@
   function togglePanel() {
     if (panel.hidden) openPanel(); else closePanel(false);
   }
+  /* ---- dragging ----------------------------------------------------------
+     Pointer capture keeps events coming even when the cursor outruns the
+     element, the `buttons` check ends a drag whose release we never saw
+     (cursor released outside the window or over a frame), and every visual
+     update is applied once per animation frame without layout reads. */
+  var frameRequest = 0;
+  function nextFrame(job) {
+    if (frameRequest) return;
+    frameRequest = window.requestAnimationFrame ? window.requestAnimationFrame(function () {
+      frameRequest = 0;
+      job();
+    }) : window.setTimeout(function () { frameRequest = 0; job(); }, 16);
+  }
+  function capturePointer(el, pointerId) {
+    try { el.setPointerCapture(pointerId); } catch (_) { /* older browsers */ }
+  }
+  function releasePointer(el, pointerId) {
+    try { if (el.hasPointerCapture && el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+  }
   function beginDrag(event) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     suppressClickUntil = 0;
     var rect = host.getBoundingClientRect();
-    dragState = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false, pointerId: event.pointerId };
+    dragState = {
+      x: event.clientX, y: event.clientY, left: rect.left, top: rect.top,
+      moved: false, pointerId: event.pointerId,
+      panelSize: panel.hidden ? null : panelSize(),
+      panelLeft: panel.style.left ? parseFloat(panel.style.left) : null,
+      panelTop: panel.style.top ? parseFloat(panel.style.top) : null,
+    };
+    capturePointer(fab, event.pointerId);
   }
   function moveDrag(event) {
-    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    if (!dragState) return;
+    if (event.pointerId !== undefined && event.pointerId !== dragState.pointerId) return;
+    if (event.buttons === 0) { endDrag(event); return; }
     var dx = event.clientX - dragState.x;
     var dy = event.clientY - dragState.y;
-    if (!dragState.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
-    dragState.moved = true;
-    event.preventDefault();
-    var point = clampLauncher(dragState.left + dx, dragState.top + dy);
-    host.style.left = point.left + 'px';
-    host.style.top = point.top + 'px';
+    if (!dragState.moved) {
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      dragState.moved = true;
+      fab.classList.add('is-dragging');
+    }
+    var state = dragState;
+    state.pending = {
+      left: Math.max(0, Math.min(window.innerWidth - launcherSize, state.left + dx)),
+      top: Math.max(0, Math.min(window.innerHeight - launcherSize, state.top + dy)),
+    };
+    nextFrame(function () {
+      if (dragState !== state || !state.pending) return;
+      applyLauncherPosition(state);
+    });
+  }
+  function applyLauncherPosition(state) {
+    var target = state.pending;
+    state.pending = null;
+    host.style.left = Math.round(target.left) + 'px';
+    host.style.top = Math.round(target.top) + 'px';
     host.style.right = 'auto';
     host.style.bottom = 'auto';
-    if (!panel.hidden && !panelPinned) placePanel();
+    if (state.panelSize && !panelPinned && state.panelLeft !== null) {
+      // Pure arithmetic: never measure layout in the middle of a drag.
+      var side = state.left + launcherSize / 2 > window.innerWidth / 2 ? 'right' : 'left';
+      var left = side === 'right' ? target.left + launcherSize - state.panelSize.width : target.left;
+      var top = target.top - state.panelSize.height - 12;
+      if (top < 8) top = target.top + launcherSize + 12;
+      var point = clampPanel(left, top, state.panelSize);
+      setPanelPosition(point.left, point.top);
+    }
   }
   function endDrag(event) {
-    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    if (!dragState) return;
+    if (event && event.pointerId !== undefined && event.pointerId !== dragState.pointerId) return;
     var moved = dragState.moved;
+    // A fast flick can outrun the last animation frame: settle the final
+    // position synchronously so the launcher lands under the pointer.
+    if (dragState.pending) applyLauncherPosition(dragState);
+    releasePointer(fab, dragState.pointerId);
     dragState = null;
-    if (moved) { suppressClickUntil = Date.now() + 400; return; }
-    if (event.type === 'pointerup') {
+    fab.classList.remove('is-dragging');
+    if (moved) { suppressClickUntil = Date.now() + 500; placePanel(); return; }
+    var isRelease = !event || event.type === 'pointerup';
+    if (isRelease) {
       togglePanel();
-      suppressClickUntil = Date.now() + 400;
+      suppressClickUntil = Date.now() + 500;
     }
   }
   function beginPanelDrag(event) {
@@ -910,18 +1008,29 @@
     event.preventDefault();
     var rect = panel.getBoundingClientRect();
     panelPinned = true;
-    panelDrag = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, pointerId: event.pointerId };
+    panelDrag = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height, pointerId: event.pointerId };
     panel.classList.add('is-dragging');
     setPanelPosition(rect.left, rect.top);
+    capturePointer(head, event.pointerId);
   }
   function movePanelDrag(event) {
-    if (!panelDrag || panelDrag.pointerId !== event.pointerId) return;
-    var size = panelSize();
-    var point = clampPanel(panelDrag.left + event.clientX - panelDrag.x, panelDrag.top + event.clientY - panelDrag.y, size);
-    setPanelPosition(point.left, point.top);
+    if (!panelDrag) return;
+    if (event.pointerId !== undefined && event.pointerId !== panelDrag.pointerId) return;
+    if (event.buttons === 0) { endPanelDrag(event); return; }
+    var state = panelDrag;
+    var size = { width: state.width, height: state.height };
+    state.pending = clampPanel(state.left + event.clientX - state.x, state.top + event.clientY - state.y, size);
+    nextFrame(function () {
+      if (panelDrag !== state || !state.pending) return;
+      setPanelPosition(state.pending.left, state.pending.top);
+      state.pending = null;
+    });
   }
   function endPanelDrag(event) {
-    if (!panelDrag || panelDrag.pointerId !== event.pointerId) return;
+    if (!panelDrag) return;
+    if (event && event.pointerId !== undefined && event.pointerId !== panelDrag.pointerId) return;
+    if (panelDrag.pending) setPanelPosition(panelDrag.pending.left, panelDrag.pending.top);
+    releasePointer(head, panelDrag.pointerId);
     panelDrag = null;
     panel.classList.remove('is-dragging');
   }
@@ -931,26 +1040,47 @@
     event.stopPropagation();
     var rect = panel.getBoundingClientRect();
     panelPinned = true;
-    panelResizeState = { x: event.clientX, y: event.clientY, width: rect.width, height: rect.height, pointerId: event.pointerId };
+    panelResizeState = { x: event.clientX, y: event.clientY, width: rect.width, height: rect.height, left: rect.left, top: rect.top, pointerId: event.pointerId };
     panel.classList.add('is-resizing');
     setPanelPosition(rect.left, rect.top);
+    capturePointer(panelResizeHandle, event.pointerId);
   }
   function movePanelResize(event) {
-    if (!panelResizeState || panelResizeState.pointerId !== event.pointerId) return;
-    var maxWidth = Math.max(160, window.innerWidth - 16);
-    var maxHeight = Math.max(200, window.innerHeight - 16);
+    if (!panelResizeState) return;
+    if (event.pointerId !== undefined && event.pointerId !== panelResizeState.pointerId) return;
+    if (event.buttons === 0) { endPanelResize(event); return; }
+    var state = panelResizeState;
+    // The panel does not move while resizing, so the limits are simple arithmetic.
+    var maxWidth = Math.max(240, window.innerWidth - state.left - 8);
+    var maxHeight = Math.max(240, window.innerHeight - state.top - 8);
     var minWidth = Math.min(300, maxWidth);
     var minHeight = Math.min(360, maxHeight);
-    var width = Math.max(minWidth, Math.min(maxWidth, panelResizeState.width + event.clientX - panelResizeState.x));
-    var height = Math.max(minHeight, Math.min(maxHeight, panelResizeState.height + event.clientY - panelResizeState.y));
-    panel.style.width = Math.round(width) + 'px';
-    panel.style.height = Math.round(height) + 'px';
-    placePanel();
+    state.pending = {
+      width: Math.round(Math.max(minWidth, Math.min(maxWidth, state.width + event.clientX - state.x))),
+      height: Math.round(Math.max(minHeight, Math.min(maxHeight, state.height + event.clientY - state.y))),
+    };
+    nextFrame(function () {
+      if (panelResizeState !== state || !state.pending) return;
+      panel.style.width = state.pending.width + 'px';
+      panel.style.height = state.pending.height + 'px';
+      state.pending = null;
+    });
   }
   function endPanelResize(event) {
-    if (!panelResizeState || panelResizeState.pointerId !== event.pointerId) return;
+    if (!panelResizeState) return;
+    if (event && event.pointerId !== undefined && event.pointerId !== panelResizeState.pointerId) return;
+    if (panelResizeState.pending) {
+      panel.style.width = panelResizeState.pending.width + 'px';
+      panel.style.height = panelResizeState.pending.height + 'px';
+    }
+    releasePointer(panelResizeHandle, panelResizeState.pointerId);
     panelResizeState = null;
     panel.classList.remove('is-resizing');
+  }
+  function endAllDrags() {
+    if (dragState) endDrag({ type: 'pointercancel', pointerId: dragState.pointerId });
+    if (panelDrag) endPanelDrag({ pointerId: panelDrag.pointerId });
+    if (panelResizeState) endPanelResize({ pointerId: panelResizeState.pointerId });
   }
   function keyboardResize(event) {
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
@@ -985,6 +1115,9 @@
   }
 
   fab.addEventListener('pointerdown', beginDrag);
+  fab.addEventListener('lostpointercapture', function (event) { if (dragState) endDrag({ type: 'pointercancel', pointerId: event.pointerId }); });
+  head.addEventListener('lostpointercapture', function (event) { if (panelDrag) endPanelDrag({ pointerId: event.pointerId }); });
+  panelResizeHandle.addEventListener('lostpointercapture', function (event) { if (panelResizeState) endPanelResize({ pointerId: event.pointerId }); });
   fab.addEventListener('dragstart', function (event) { event.preventDefault(); });
   fab.addEventListener('click', function (event) {
     event.preventDefault();
@@ -999,6 +1132,11 @@
   window.addEventListener('pointermove', function (event) { moveDrag(event); movePanelDrag(event); movePanelResize(event); }, true);
   window.addEventListener('pointerup', function (event) { endDrag(event); endPanelDrag(event); endPanelResize(event); }, true);
   window.addEventListener('pointercancel', function (event) { endDrag(event); endPanelDrag(event); endPanelResize(event); }, true);
+  /* A release we never saw (outside the window, over a frame, alt-tab) must end
+     the drag instead of leaving the widget glued to the cursor. */
+  window.addEventListener('blur', endAllDrags);
+  document.addEventListener('pointerleave', function (event) { if (event.buttons === 0) endAllDrags(); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) endAllDrags(); });
   shadow.querySelector('[data-close]').addEventListener('click', function () { closePanel(true); });
   shadow.querySelector('[data-new]').addEventListener('click', function () { startConversation(false); });
   historyButton.addEventListener('click', function (event) {
@@ -1123,6 +1261,24 @@
     placePanel();
   });
   window.addEventListener('blur', function () { clearHighlight(); });
+  /* Small public hook: open devtools and run SiloAI.inspect() to see exactly
+     which controls the widget can reach on the current page. */
+  window.SiloAI = window.SiloAI || {};
+  window.SiloAI.version = BUILD_VERSION;
+  window.SiloAI.inspect = function () {
+    var controls = collectPageTargets();
+    var summary = { pagePath: currentPageContext().pagePath, documents: pageDocuments().length, controls: controls };
+    try { console.info('[SiloAI]', summary); } catch (_) { /* ignore */ }
+    return summary;
+  };
+  window.SiloAI.highlight = function (selector) {
+    var el = null;
+    try { el = document.querySelector(selector); } catch (_) { el = null; }
+    if (!el) return false;
+    highlightElement(el, el.textContent || el.tagName);
+    return true;
+  };
+
   renderHistory();
   renderConversationMenu();
   setAttachmentPreview();
