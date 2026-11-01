@@ -580,7 +580,7 @@
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getDatabase,ref,push,set,get,onValue,update,remove,query,limitToLast,orderByKey}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import{getDatabase,ref,push,set,get,onValue,update,remove,query,limitToLast,orderByKey,runTransaction}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut as fbSignOut,updateProfile}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{initializeLibraryAppCheck}from"/assets/library-app-check.js";
 
@@ -1084,9 +1084,23 @@ window.toggleLike=async function(id){
   _likePending.add(id);
   document.querySelectorAll(`[data-like-id="${CSS.escape(id)}"]`).forEach(btn=>{btn.disabled=true;btn.setAttribute('aria-busy','true');});
   try{
-    // Server-side like toggling requires the optional Cloud Functions backend;
-    // without it, likes stay paused instead of erroring.
-    showToast('Likes are paused — engagement backend not deployed.','error');
+    // Direct RTDB toggle: +/-1 transaction on the tiny bookStats/books counters
+    // (rules only allow +/-1), plus the per-user likedBy flag. No backend needed.
+    const bid=book._origId;
+    const liked=!!(book.likedBy&&book.likedBy[CU.uid]);
+    const r=await runTransaction(ref(db,'bookStats/'+bid+'/likes'),cur=>Math.max(0,(cur||0)+(liked?-1:1)));
+    const newLikes=r.snapshot.val()||0;
+    const paths={'bookStats/'+bid+'/likes':newLikes,'books/'+bid+'/likes':newLikes};
+    if(liked)paths['bookStats/'+bid+'/likedBy/'+CU.uid]=null;else paths['bookStats/'+bid+'/likedBy/'+CU.uid]=true;
+    try{await update(ref(db),paths);}catch(e){console.warn('[Library] likes mirror write skipped',e);}
+    book.likes=newLikes;
+    book.likedBy={...(book.likedBy||{})};
+    if(liked)delete book.likedBy[CU.uid];else book.likedBy[CU.uid]=true;
+    renderPins();renderBooks();
+    showToast(liked?'Like removed':'Liked ♥','success');
+  }catch(e){
+    console.error('[Library] like failed',e);
+    showToast(e?.message||'Could not update like. Please try again.','error');
   }finally{
     _likePending.delete(id);
     document.querySelectorAll(`[data-like-id="${CSS.escape(id)}"]`).forEach(btn=>{btn.disabled=false;btn.removeAttribute('aria-busy');});

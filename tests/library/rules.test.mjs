@@ -11,7 +11,7 @@ test('library rules are generated reproducibly and deny admin/engagement writes 
   for(const node of ['bookEngagement','engagementPreviews','engagementShares'])assert.equal(rules[node]['.write'],false);
   assert.equal(rules.userLikes.$uid['.write'],false);
   assert.match(rules.books.$id['.write'],/libraryOwner/);
-  assert.equal(rules.books.$id.likes['.write'],false);
-  assert.equal(rules.bookStats.$id.views['.write'],false);
+  assert.match(rules.books.$id.likes['.write'],/data\.val\(\) \+ 1/);assert.match(rules.books.$id.views['.write'],/- 1/);
+  assert.match(rules.bookStats.$id.views['.write'],/data\.val\(\) \+ 1/);assert.equal(rules.bookStats.$id.playtimeSeconds['.write'],false);
   assert.equal(rules.siteConfig.adminEmails['.write'],false);
 });

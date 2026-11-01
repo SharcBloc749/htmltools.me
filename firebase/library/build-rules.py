@@ -21,7 +21,22 @@ rules = {".read": False, ".write": False}
 
 # Public aggregate mirrors. Counter writes are reserved for the Admin SDK;
 # clients use callable functions so likes/views/playtime cannot be forged.
-counter_fields = {k: {".write": False, ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() === (data.exists() ? data.val() : 0)"} for k in ["likes", "views", "playtimeSeconds", "ratingAvg", "ratingCount"]}
+def counter_field(incrementable=False):
+    # Likes/views may be changed by +/-1 by any signed-in user (client-side toggle
+    # via transaction); everything else stays server-only. The +/-1 bound means a
+    # client can never set an arbitrary counter value.
+    if incrementable:
+        write = (f"{OWNER} || ({SESSION} && (newData.val() === data.val() + 1 || "
+                 f"newData.val() === data.val() - 1 || (!data.exists() && newData.val() === 0)))")
+        validate = ("newData.isNumber() && newData.val() >= 0 && "
+                    "(newData.val() === data.val() + 1 || newData.val() === data.val() - 1 || "
+                    "(!data.exists() && newData.val() === 0))")
+    else:
+        write = False
+        validate = "newData.isNumber() && newData.val() >= 0 && newData.val() === (data.exists() ? data.val() : 0)"
+    return {".write": write, ".validate": validate}
+
+counter_fields = {k: counter_field(incrementable=k in ("likes", "views")) for k in ["likes", "views", "playtimeSeconds", "ratingAvg", "ratingCount"]}
 metadata_fields = {
     "title": string(200), "desc": string(2000), "ownerId": string(128), "ownerName": string(200),
     "createdAt": number(), "updatedAt": number(), "chatEnabled": boolean(), "chatScope": string(20),
@@ -36,7 +51,7 @@ for node in ["books", "bookStats"]:
             ".write": f"{OWNER} || ({SESSION} && !data.exists() && newData.child('ownerId').val() === auth.uid) || ({SESSION} && data.child('ownerId').val() === auth.uid && !newData.exists())",
             ".validate": "$id.matches(/^[A-Za-z0-9_-]{1,128}$/)",
             **metadata_fields, **counter_fields,
-            "likedBy": {"$uid": {".read": f"{AUTH} && (auth.uid === $uid || {OWNER})", ".write": False, ".validate": "newData.val() === true"}},
+            "likedBy": {"$uid": {".read": f"{AUTH} && (auth.uid === $uid || {OWNER})", ".write": f"{AUTH} && auth.uid === $uid", ".validate": "!newData.exists() || newData.val() === true"}},
             "$other": {".write": OWNER, ".validate": True},
         },
     }

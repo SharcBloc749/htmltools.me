@@ -14,11 +14,15 @@ test('Library pages work without the Cloud Function session bridge',()=>{
     assert.ok(!s.includes('createLibraryBridge'),f);
     assert.ok(s.includes('getAuth(newApp)'),f);
   }
-  // likes/ratings degrade gracefully instead of calling a missing backend
+  // likes/views write directly to the tiny RTDB counters via +/-1 transactions
   const s=read('Library/index.html');
-  assert.ok(s.includes('data-like-id'));assert.ok(s.includes('Likes are paused'));
-  assert.ok(!s.includes("updates['books/'+book._origId+'/likes']"));
-  assert.ok(read('Library/book/index.html').includes('Likes are paused'));
+  assert.ok(s.includes('data-like-id'));assert.ok(s.includes('runTransaction'));
+  assert.ok(s.includes("ref(db,'bookStats/'+bid+'/likes')"));
+  assert.ok(!s.includes('Likes are paused'));
+  const player=read('Library/book/index.html');
+  assert.ok(player.includes('runTransaction'));
+  assert.ok(player.includes("ref(db,'bookStats/'+bookId+'/views')"));
+  assert.ok(!player.includes('Likes are paused'));
 });
 test('admin panel is owner-email gated and needs no session bridge',()=>{
   const s=read('Admin/Library/index.html');
