@@ -251,7 +251,12 @@
         toast(message);
         await loadSites();
         openSite(site.id);
-      } catch (failure) { error.textContent = errorText(failure); }
+      } catch (failure) {
+        // A Worker that predates this dashboard answers 404 not_found here.
+        error.textContent = failure.code === 'not_found'
+          ? 'The SiloAI Worker needs its latest deploy before index edits can be saved. Run "cd SiloAI && npx wrangler deploy", then try again.'
+          : errorText(failure);
+      }
     }
     var addPage = dialogContent.querySelector('[data-add-page]');
     if (addPage) addPage.addEventListener('click', async function () {
