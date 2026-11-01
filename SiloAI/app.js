@@ -111,7 +111,7 @@
     return groups;
   }
   function widgetSnippet(site) {
-    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=7" data-site-id="' + site.id + '"><\/script>';
+    return '<script async src="https://htmltools.me/SiloAI/widget.js?v=8" data-site-id="' + site.id + '"><\/script>';
   }
   function openSite(id) {
     var site = siteCache[id] && (siteCache[id].site || siteCache[id]);

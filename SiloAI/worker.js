@@ -1056,12 +1056,17 @@ function parseActionJson(text) {
 }
 function sanitizePageControls(value) {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 40).map((item) => ({
-    id: typeof item?.id === "string" && /^[a-z0-9_-]{1,48}$/i.test(item.id) ? item.id : "",
-    kind: ["button", "field", "text"].includes(item?.kind) ? item.kind : "",
-    label: cleanString(item?.label, 100),
-    inputType: cleanString(item?.inputType, 16).toLowerCase()
-  })).filter((item) => item.id && item.kind && item.label);
+  return value.slice(0, 40).map((item) => {
+    const kind = ["button", "field", "text"].includes(item?.kind) ? item.kind : "";
+    const control = {
+      id: typeof item?.id === "string" && /^[a-z0-9_-]{1,48}$/i.test(item.id) ? item.id : "",
+      kind,
+      label: cleanString(item?.label, 100),
+      inputType: cleanString(item?.inputType, 16).toLowerCase()
+    };
+    if (kind === "button") control.clickable = item?.clickable !== false;
+    return control;
+  }).filter((item) => item.id && item.kind && item.label);
 }
 function validateAction(candidate, site, controls = []) {
   if (candidate?.type === "navigate" && site.actions?.allowNavigation && typeof candidate.path === "string") {
@@ -1074,7 +1079,7 @@ function validateAction(candidate, site, controls = []) {
   const target = typeof candidate.target === "string" ? controls.find((item) => item.id === candidate.target) : null;
   if (!target) return null;
   if (candidate.type === "highlight") return { type: "highlight", target: target.id, label: target.label };
-  if (candidate.type === "click" && target.kind === "button") return { type: "click", target: target.id, label: target.label };
+  if (candidate.type === "click" && target.kind === "button" && target.clickable !== false) return { type: "click", target: target.id, label: target.label };
   if (candidate.type === "fill" && target.kind === "field") {
     const value = cleanString(candidate.value, 500);
     if (!value) return null;
@@ -1175,7 +1180,9 @@ async function chat(request2, id, env, origin, ctx) {
     '{"type":"fill","target":"control-id","value":"requested text"} fills a kind "field" entry.',
     '{"type":"edit","target":"control-id","value":"replacement text"} rewrites the visible text of a kind "text" entry.',
     'Pick the closest matching entry from PAGE CONTROLS for this message and describe in "reply" what you picked and what will happen. If the request is vague (for example "highlight anything" or "change some text"), choose the most prominent sensible match instead of asking for a control ID.',
-    'Never say the page has no buttons or controls when PAGE CONTROLS lists any entry of that kind. Entries include plain <button> elements with no type attribute, input type="button" controls, and controls inside same-origin frames or open shadow roots; only author-declared submit and reset buttons are withheld. A short label such as "Run", "Format", or "Copy" is a real button you may click.',
+    'Never say the page has no buttons or controls when PAGE CONTROLS lists any entry of that kind. Entries include plain <button> elements with no type attribute, role="button" elements, button-styled links, input type="button" controls, and controls inside same-origin frames or open shadow roots.',
+    'Labels are the visible text with decorative glyphs removed, so "Run" may be shown on the page as "\u25B6 Run" or "Run \u2192". Match the visitor wording to the closest label by words, case-insensitively, and never require an exact string match.',
+    "Entries with clickable:false are submit/reset controls or links that would leave the page: you may highlight them but must not choose them for a click action.",
     "Use only ids listed in PAGE CONTROLS. Never invent an id, a CSS selector, or an XPath. Never choose submit or reset controls, never submit a form, and never say an action already happened: the visitor confirms clicks, fills, and edits in the chat, and the page changes only after they confirm."
   ].join(" ") : "Page interactions are switched off for this site. Return only the helpful answer as plain text. If the visitor asks you to click, fill, or change something, describe the exact control from PAGE CONTROLS and tell them the site owner can turn on SiloAI page interactions in the SiloAI dashboard.";
   const navigationRule = allowNavigation ? ' Navigation is enabled: when the visitor asks to go somewhere, return exactly one JSON object {"reply":"...","action":{"type":"navigate","path":"/exact-indexed-path"}} using only an exact path from the indexed pages.' : "";

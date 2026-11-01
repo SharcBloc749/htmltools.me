@@ -206,7 +206,7 @@ test('owner-enabled page interactions are bound to visible controls and never ac
   const record = { ...site, id: 'bcdef0123456789abcdef012', actions: { allowNavigation: true, pageActionsMode: 'on', confirmNavigation: true } };
   await withGithubSite(async (env) => {
     const controls = [
-      { id: 'siloctl1', kind: 'button', label: 'Clear editor', inputType: '' },
+      { id: 'siloctl1', kind: 'button', label: 'Clear editor', inputType: '', clickable: true },
       { id: 'siloctl2', kind: 'field', label: 'HTML source', inputType: 'text' },
       { id: 'siloctl3', kind: 'text', label: 'Runner instructions', inputType: '' },
     ];
@@ -217,6 +217,8 @@ test('owner-enabled page interactions are bound to visible controls and never ac
     });
     const payload = await (await worker.fetch(makeRequest(), env, { waitUntil() {} })).json();
     assert.deepEqual(payload.action, { type: 'click', target: 'siloctl1', label: 'Clear editor' });
+    assert.match(envFor.lastInput.messages[0].content, /Labels are the visible text with decorative glyphs removed/, 'the model knows labels are normalised');
+    assert.match(envFor.lastInput.messages[0].content, /clickable:false/, 'highlight-only controls are explained');
     assert.equal(payload.confirmAction, true);
     assert.match(envFor.lastInput.messages[0].content, /PAGE CONTROLS/);
     assert.match(envFor.lastInput.messages[0].content, /form values are never included/);
