@@ -235,6 +235,23 @@ test('owner-enabled page interactions are bound to visible controls and never ac
   }, record, 'unused');
 });
 
+test('page interactions remain disabled unless the site owner enables them', async () => {
+  const record = { ...site, id: 'cdef0123456789abcdef0123', actions: { allowNavigation: true, allowPageActions: false, confirmNavigation: true } };
+  await withGithubSite(async (env) => {
+    const request = new Request(`https://siloai.test/chat/${record.id}`, {
+      method: 'POST', headers: { origin: 'https://htmltools.eu.cc', 'content-type': 'application/json', 'cf-connecting-ip': '203.0.113.42' },
+      body: JSON.stringify({ message: 'Click the clear button', controls: [{ id: 'siloctl1', kind: 'button', label: 'Clear', inputType: '' }], pagePath: '/', history: [] }),
+    });
+    env.AI.run = async (model, input) => { envFor.lastInput = input; return { response: JSON.stringify({ reply: 'I will not click that unless page interactions are enabled.', action: { type: 'click', target: 'siloctl1' } }) }; };
+    const response = await worker.fetch(request, env, { waitUntil() {} });
+    const payload = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(payload.action, null, 'page action is rejected when the owner has not enabled the separate permission');
+    assert.doesNotMatch(envFor.lastInput.messages[0].content, /\nPAGE CONTROLS \(visible labels\/text only/);
+  }, record, 'unused');
+});
+
+
 test('Gemma receives a validated compressed screenshot as image input without using the text-only fallback', async () => {
   await withGithubSite(async (env) => {
     const image = 'data:image/jpeg;base64,' + Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64');
